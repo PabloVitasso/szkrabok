@@ -1,0 +1,13 @@
+{
+  "compilerOptions": {
+    "target": "ES2015",
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "allowJs": true,
+    "checkJs": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "noEmit": true
+  },
+  "include": ["test/**/*.js", "core/**/*.js", "tools/**/*.js", "upstream/**/*.js"]
+}

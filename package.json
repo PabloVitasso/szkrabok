@@ -1,0 +1,95 @@
+{
+  "name": "szkrabok-playwright-mcp",
+  "version": "2.0.0",
+  "description": "Production-grade MCP browser automation layer with persistent sessions and stealth capabilities",
+  "type": "module",
+  "main": "index.js",
+  "bin": {
+    "szkrabok": "./index.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node --watch index.js",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write \"**/*.{js,json,md}\"",
+    "format:check": "prettier --check \"**/*.{js,json,md}\"",
+    "test": "node --test",
+    "test:watch": "node --test --watch",
+    "prepare": "node scripts/setup.js"
+  },
+  "keywords": [
+    "mcp",
+    "playwright",
+    "browser-automation",
+    "stealth",
+    "session-management",
+    "llm-tools",
+    "web-scraping",
+    "model-context-protocol"
+  ],
+  "author": "",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-org/szkrabok-playwright-mcp.git"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.4",
+    "playwright": "^1.49.1",
+    "playwright-extra": "^4.3.6",
+    "puppeteer": "^24.34.0",
+    "puppeteer-extra-plugin-stealth": "^2.11.2",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.17.0",
+    "@types/puppeteer": "^5.4.7",
+    "eslint": "^9.17.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-node": "^11.1.0",
+    "globals": "^15.13.0",
+    "prettier": "^3.4.2",
+    "puppeteer-extra": "^3.3.6"
+  },
+  "prettier": {
+    "semi": false,
+    "singleQuote": true,
+    "tabWidth": 2,
+    "trailingComma": "es5",
+    "printWidth": 100,
+    "arrowParens": "avoid"
+  },
+  "eslintConfig": {
+    "env": {
+      "node": true,
+      "es2022": true
+    },
+    "extends": [
+      "eslint:recommended",
+      "prettier"
+    ],
+    "parserOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "rules": {
+      "no-unused-vars": [
+        "warn",
+        {
+          "argsIgnorePattern": "^_",
+          "varsIgnorePattern": "^_"
+        }
+      ],
+      "no-console": "off",
+      "prefer-const": "error",
+      "no-var": "error",
+      "object-shorthand": "error",
+      "prefer-template": "error",
+      "prefer-arrow-callback": "error"
+    }
+  }
+}
