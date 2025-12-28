@@ -12,23 +12,72 @@ npm run prepare
 ## Run
 
 ```bash
-# Standalone
+# Standalone (auto-detects headless based on DISPLAY)
 npm start
+
+# Force headless mode
+node index.js --headless
+
+# Force visible mode (requires X server)
+node index.js --no-headless
 
 # With MCP Inspector
 npx @modelcontextprotocol/inspector szkrabok-playwright-mcp
+```
 
-# Configure in Claude Desktop
-# Add to ~/Library/Application Support/Claude/claude_desktop_config.json:
+## Claude Desktop Configuration
+
+**Recommended: Dual configuration** for different use cases
+
+Add to `~/.config/Claude/claude_desktop_config.json`:
+
+```json
 {
   "mcpServers": {
     "szkrabok": {
       "command": "node",
-      "args": ["/path/to/szkrabok-playwright-mcp/index.js"]
+      "args": [
+        "/home/your-username/path/to/szkrabok/index.js",
+        "--headless"
+      ]
+    },
+    "szkrabok-visible": {
+      "command": "node",
+      "args": [
+        "/home/your-username/path/to/szkrabok/index.js",
+        "--no-headless"
+      ],
+      "env": {
+        "DISPLAY": ":0"
+      }
     }
   }
 }
 ```
+
+**Usage:**
+- **szkrabok**: Headless automation (default for all automated tasks)
+- **szkrabok-visible**: Manual login, debugging, element inspection
+
+**For servers without X display:**
+
+```json
+{
+  "mcpServers": {
+    "szkrabok-visible": {
+      "command": "xvfb-run",
+      "args": [
+        "-a",
+        "node",
+        "/home/your-username/path/to/szkrabok/index.js",
+        "--no-headless"
+      ]
+    }
+  }
+}
+```
+
+See [`examples/claude_desktop_config.md`](examples/claude_desktop_config.md) for more configurations.
 
 ## Tools
 
@@ -85,17 +134,35 @@ Stored in `./sessions/{id}/`:
 - `state.json` - Playwright storageState (cookies, localStorage)
 - `meta.json` - timestamps, config, last URL
 
-## Environment
+## Environment Variables
 
 ```bash
+# Logging
 LOG_LEVEL=debug  # error, warn, info, debug
+
+# Browser mode (auto-detected if not set)
+HEADLESS=true   # Force headless mode
+HEADLESS=false  # Force visible mode
+# (Omit to auto-detect: headless if no DISPLAY, visible if DISPLAY exists)
+
+# Timeouts
+TIMEOUT=30000   # Default timeout in milliseconds
+
+# Display (for visible mode)
+DISPLAY=:0      # X server display
 ```
+
+**CLI Flags Override Environment:**
+- `node index.js --headless` → HEADLESS=true
+- `node index.js --no-headless` → HEADLESS=false
 
 ## Features
 
 ✅ Persistent sessions across restarts
 ✅ Stealth plugin (best-effort)
-✅ Headful mode (lower detection)
+✅ Auto-detect headless/headed mode (like playwright-mcp)
+✅ CLI flags for explicit control (--headless, --no-headless)
+✅ Lazy browser initialization (browser opens only when needed)
 ✅ Error normalization
 ✅ Timeout control
 ✅ Workflow abstractions

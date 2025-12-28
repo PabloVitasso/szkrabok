@@ -6,7 +6,12 @@ const DEFAULT_TIMEOUT = 30000
 
 export const TIMEOUT = parseInt(process.env.TIMEOUT) || DEFAULT_TIMEOUT
 
-export const HEADLESS = process.env.HEADLESS === 'true'
+// Auto-detect headless mode:
+// 1. If HEADLESS env is explicitly set, use it
+// 2. Otherwise, use headless if no DISPLAY (like playwright-mcp does)
+export const HEADLESS = process.env.HEADLESS !== undefined
+  ? process.env.HEADLESS === 'true'
+  : !process.env.DISPLAY
 
 export const DISABLE_WEBGL = process.env.DISABLE_WEBGL === 'true'
 

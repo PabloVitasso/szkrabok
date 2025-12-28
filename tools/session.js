@@ -14,10 +14,7 @@ export const open = async args => {
 
   await storage.ensureSessionsDir()
 
-  const browser = await getBrowser({
-    stealth: config.stealth !== false,
-    headless: config.headless
-  })
+  const browser = await getBrowser({ stealth: config.stealth !== false })
   const state = await storage.loadState(id)
 
   const context = await browser.newContext({
