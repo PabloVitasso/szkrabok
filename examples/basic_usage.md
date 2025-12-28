@@ -1,152 +1,58 @@
-# Basic Usage Examples
+# Basic Usage
 
-## 1. Simple Navigation
+This directory contains usage examples for szkrabok.
 
+## Documentation
+
+- **[Script Usage](usage_script.md)** - Using szkrabok from Node.js scripts via direct imports
+- **[MCP Usage](usage_mcp.md)** - Using szkrabok as an MCP server via Claude Desktop or other MCP clients
+
+## Quick Comparison
+
+### Script (Direct API)
 ```javascript
-// Open session
+import * as session from '../tools/session.js'
+
+await session.open({ id: 'demo', url: 'https://example.com' })
+```
+
+### MCP (Tool Calls)
+```javascript
 session.open({ id: 'demo', url: 'https://example.com' })
-
-// Navigate
-nav.goto({ id: 'demo', url: 'https://example.com/about' })
-
-// Extract content
-extract.text({ id: 'demo', selector: 'h1' })
-
-// Close
-session.close({ id: 'demo' })
 ```
 
-## 2. Login Workflow
+## Key Differences
 
-```javascript
-// Open on login page
-session.open({ id: 'app', url: 'https://app.example.com/login' })
+| Aspect | Script Usage | MCP Usage |
+|--------|-------------|-----------|
+| Import | `import * from '../tools/...'` | N/A (tools exposed via MCP) |
+| Async | `await` required | Handled by MCP client |
+| Access | Direct Node.js API | Tool calls via MCP protocol |
+| Best For | Automated scripts, CI/CD | Interactive use, Claude Desktop |
 
-// Auto-login
-workflow.login({ id: 'app', username: 'user@example.com', password: 'secret123' })
+## Examples Included
 
-// Verify logged in
-extract.text({ id: 'app', selector: '.user-name' })
+Both usage docs cover:
 
-// Session persists cookies
-session.close({ id: 'app' })
+1. Simple Navigation
+2. Login Workflow
+3. Form Filling
+4. Data Extraction
+5. Custom JavaScript
+6. Session Management
+7. Screenshot
+8. Advanced Config
+9. **Session Persistence with Manual Login** (claude.ai example)
 
-// Later: resume without login
-session.open({ id: 'app', url: 'https://app.example.com/dashboard' })
-```
+## Session Persistence Feature
 
-## 3. Form Filling
+The session persistence feature (#9) demonstrates:
+- Opening browser with `headless: false` for manual login
+- Waiting for user to close window (unlimited time)
+- Saving session state to disk
+- Reopening session later with auto-restored authentication
 
-```javascript
-session.open({ id: 'form', url: 'https://example.com/contact' })
+**MCP-specific:** Uses `wait.forClose` tool (added specifically for MCP workflows)  
+**Script-specific:** Uses `page.waitForEvent('close')` from Playwright API
 
-workflow.fillForm({
-  id: 'form',
-  fields: {
-    '#name': 'John Doe',
-    '#email': 'john@example.com',
-    '#message': 'Hello world',
-    '#country': 'US'
-  }
-})
-
-interact.click({ id: 'form', selector: 'button[type="submit"]' })
-
-session.close({ id: 'form' })
-```
-
-## 4. Data Extraction
-
-```javascript
-session.open({ id: 'scrape', url: 'https://news.example.com' })
-
-workflow.scrape({
-  id: 'scrape',
-  selectors: {
-    titles: 'h2.article-title',
-    authors: '.author-name',
-    dates: 'time.published'
-  }
-})
-
-// Returns:
-// {
-//   data: {
-//     titles: ['Title 1', 'Title 2'],
-//     authors: ['Author 1', 'Author 2'],
-//     dates: ['2025-01-01', '2025-01-02']
-//   }
-// }
-
-session.close({ id: 'scrape' })
-```
-
-## 5. Custom JavaScript
-
-```javascript
-session.open({ id: 'custom', url: 'https://example.com' })
-
-extract.evaluate({
-  id: 'custom',
-  code: `
-    () => {
-      return {
-        title: document.title,
-        links: Array.from(document.querySelectorAll('a')).length,
-        images: Array.from(document.querySelectorAll('img')).length
-      }
-    }
-  `
-})
-
-session.close({ id: 'custom' })
-```
-
-## 6. Session Management
-
-```javascript
-// List all sessions
-session.list()
-
-// Returns:
-// {
-//   sessions: [
-//     { id: 'demo', active: false },
-//     { id: 'app', active: true, createdAt: 1704110400000 }
-//   ]
-// }
-
-// Delete old session
-session.delete({ id: 'old-session' })
-```
-
-## 7. Screenshot
-
-```javascript
-session.open({ id: 'screenshot', url: 'https://example.com' })
-
-// Save to file
-extract.screenshot({ id: 'screenshot', path: './screenshot.png', fullPage: true })
-
-// Get base64
-extract.screenshot({ id: 'screenshot' })
-
-session.close({ id: 'screenshot' })
-```
-
-## 8. Advanced Config
-
-```javascript
-session.open({
-  id: 'custom-config',
-  url: 'https://example.com',
-  config: {
-    stealth: true,
-    viewport: { width: 1366, height: 768 },
-    locale: 'pl-PL',
-    timezone: 'Europe/Warsaw'
-  }
-})
-
-session.close({ id: 'custom-config' })
-```
+See respective docs for full examples.
