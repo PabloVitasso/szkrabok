@@ -1,11 +1,8 @@
 #!/usr/bin/env node
 
 import { program } from 'commander'
-import { fileURLToPath } from 'url'
 import path from 'path'
 import fs from 'fs/promises'
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 program
   .name('bebok')

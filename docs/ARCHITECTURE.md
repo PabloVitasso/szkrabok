@@ -19,14 +19,15 @@ SZKRABOK provides:
 ## 2. ARCHITECTURE
 
 ```
-LLM → SZKRABOK MCP
+LLM → SZKRABOK MCP Server
          ↓
-    Playwright (direct)
+    @playwright/mcp (as library)
+    + Session Management Layer
     + Stealth Plugin
          ↓
-    Browser Sessions
+    Browser Sessions (persistent)
 ```
-✅ Direct Playwright wrapper with stealth enhancements
+✅ Playwright MCP library wrapper with sessions and stealth enhancements
 
 ---
 
@@ -40,9 +41,10 @@ szkrabok-playwright-mcp/
 ├── config.js                 # centralized config (TIMEOUT, VIEWPORT, etc)
 ├── cli.js                    # CLI tools
 ├── upstream/
-│   └── wrapper.js            # playwright wrapper (not using @microsoft/playwright-mcp)
+│   └── wrapper.js            # @playwright/mcp integration wrapper
 ├── tools/
 │   ├── session.js            # session CRUD
+│   ├── playwright_mcp.js     # playwright-mcp tool wrappers
 │   ├── workflow.js           # login, fillForm, scrape
 │   ├── navigate.js           # goto, back, forward
 │   ├── interact.js           # click, type, select
@@ -70,45 +72,72 @@ szkrabok-playwright-mcp/
 
 ## 4. INTEGRATION STRATEGY
 
-### Direct Playwright wrapper (no Microsoft MCP dependency)
+### Using @playwright/mcp as Library
 
 ```js
 // upstream/wrapper.js
-import { chromium } from 'playwright'
+import { createConnection } from '@playwright/mcp'
 import { enhanceWithStealth } from '../core/stealth.js'
-import { TIMEOUT, HEADLESS, findChromiumPath } from '../config.js'
 
-export const getBrowser = async (options = {}) => {
-  const pw = options.stealth ? enhanceWithStealth(chromium) : chromium
-  const executablePath = findChromiumPath()
+// Create playwright-mcp connection per session
+export const createMCPConnection = async (options = {}) => {
+  const connection = await createConnection({
+    browser: {
+      launchOptions: {
+        headless: options.headless,
+        executablePath: options.executablePath,
+        ...options.launchOptions
+      },
+      contextOptions: options.contextOptions
+    }
+  })
   
-  return await pw.launch({
-    headless: options.headless ?? HEADLESS,
-    executablePath,
-    ...options,
-  })
-}
-
-export const navigate = async (page, url, options = {}) => {
-  return page.goto(url, {
-    waitUntil: options.waitUntil || 'domcontentloaded',
-    timeout: options.timeout || TIMEOUT,
-  })
+  return connection
 }
 ```
 
-### Our tools call wrapper
+### Session Layer Adds Context
 
 ```js
-// tools/navigate.js
-export const goto = async args => {
-  const { id, url, wait = 'domcontentloaded' } = args
+// tools/session.js
+export const open = async args => {
+  const { id, url, config = {} } = args
+  
+  // Create or get session with playwright-mcp connection
+  const session = await pool.create(id, config)
+  
+  // Apply stealth if requested
+  if (config.stealth) {
+    await enhanceWithStealth(session.page)
+  }
+  
+  // Navigate if URL provided
+  if (url) {
+    await session.browserNavigate({ url })
+  }
+  
+  return { success: true, id, url: session.page.url() }
+}
+```
+
+### Tools Proxy to Playwright-MCP
+
+```js
+// tools/playwright_mcp.js
+export const snapshot = async args => {
+  const { id } = args
   const session = pool.get(id)
+  
+  // Call playwright-mcp's browser_snapshot
+  return await session.browserSnapshot()
+}
 
-  await upstream.navigate(session.page, url, { waitUntil: wait })
-  await storage.updateMeta(id, { lastUrl: url })
-
-  return { success: true, url }
+export const click = async args => {
+  const { id, ref, element, ...clickArgs } = args
+  const session = pool.get(id)
+  
+  // Call playwright-mcp's browser_click
+  return await session.browserClick({ ref, element, ...clickArgs })
 }
 ```
 
@@ -116,34 +145,33 @@ export const goto = async args => {
 
 ## 5. TOOL MAPPING
 
-### Direct Proxy (thin wrapper)
+### Playwright-MCP Tools (add session id)
+All @playwright/mcp tools get wrapped with session context:
 ```
-navigate → playwright_navigate
-click → playwright_click
-screenshot → playwright_screenshot
-evaluate → playwright_evaluate
-```
-
-### Enhanced (add session context)
-```
-session.open → 
-  1. create context
-  2. load state.json
-  3. inject stealth
-  4. call playwright_navigate
-  
-extract.text →
-  1. validate session
-  2. call playwright_evaluate
-  3. cache result in meta
+browser.snapshot(id) → session.browserSnapshot()
+browser.click(id, ref, element, ...) → session.browserClick({ref, element, ...})
+browser.type(id, ref, text, ...) → session.browserType({ref, text, ...})
+browser.navigate(id, url) → session.browserNavigate({url})
+browser.drag(id, startRef, endRef, ...) → session.browserDrag({...})
+browser.hover(id, ref, ...) → session.browserHover({...})
+browser.fill_form(id, fields) → session.browserFillForm({fields})
+browser.tabs(id, action, ...) → session.browserTabs({action, ...})
+... (all other playwright-mcp tools)
 ```
 
-### New (our abstractions)
+### Session Management (ours)
 ```
-session.list
-session.delete
-workflow.login(id, credentials)
-workflow.fillForm(id, data)
+session.open(id, url?, config?)
+session.close(id, save?)
+session.list()
+session.delete(id)
+```
+
+### Workflow Abstractions (ours)
+```
+workflow.login(id, username, password)
+workflow.fillForm(id, fields)
+workflow.scrape(id, selectors)
 ```
 
 ---
@@ -371,13 +399,13 @@ workflow.fillForm(id, fields)
 
 ```
 SZKRABOK (MCP Server)
-    ├── playwright (direct)
-    ├── playwright-extra
+    ├── @playwright/mcp (library mode)
+    ├── playwright-extra (stealth)
     ├── puppeteer-extra-plugin-stealth
     └── @modelcontextprotocol/sdk
 ```
 
-**Key:** Direct Playwright usage, no Microsoft MCP dependency. We build our own wrapper.
+**Key:** Use @playwright/mcp as library, add session management + stealth layer.
 
 ---
 

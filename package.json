@@ -39,6 +39,7 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.4",
+    "@playwright/mcp": "^0.0.54",
     "playwright": "^1.49.1",
     "playwright-extra": "^4.3.6",
     "puppeteer": "^24.34.0",

@@ -16,7 +16,7 @@ const setup = async () => {
   try {
     execSync('npx playwright install chromium', { stdio: 'inherit' })
     console.log('Setup complete')
-  } catch (err) {
+  } catch {
     console.error('Browser install failed, run manually: npx playwright install chromium')
   }
 }

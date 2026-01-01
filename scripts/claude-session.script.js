@@ -1,9 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert'
 import * as session from '../tools/session.js'
-import * as extract from '../tools/extract.js'
 import * as pool from '../core/pool.js'
-import { closeBrowser } from '../upstream/wrapper.js'
 
 test('claude.ai session persistence workflow', async () => {
   const sessionId = 'claude-ai'
@@ -18,16 +16,16 @@ test('claude.ai session persistence workflow', async () => {
     assert.ok(openResult.success, 'Session should open successfully')
 
     console.log('Browser opened. Please log in manually.')
-    console.log('Close the browser window when done logging in...')
+    console.log('Press Enter in this terminal when done logging in...')
     
-    // Wait for browser window to close
-    const { page } = pool.get(sessionId)
-    await page.waitForEvent('close', { timeout: 0 })  // No timeout
+    // Wait for user input
+    await new Promise(resolve => {
+      process.stdin.once('data', resolve)
+    })
     
-    console.log('Browser closed by user')
     console.log('Step 2: Saving session state to disk...')
     await session.close({ id: sessionId, save: true })
-    console.log('Session saved to ~/.szkrabok/sessions/claude-ai/')
+    console.log('Session saved to ./sessions/claude-ai/')
 
     console.log('\nStep 3: Reopening session (headless: true, auto-logged in)...')
     await session.open({
@@ -37,8 +35,9 @@ test('claude.ai session persistence workflow', async () => {
     })
 
     console.log('Extracting page title to verify logged in state...')
-    const { content } = await extract.text({ id: sessionId, selector: 'title' })
-    console.log('Page title:', content)
+    const sessionData = pool.get(sessionId)
+    const title = await sessionData.page.title()
+    console.log('Page title:', title)
 
     console.log('\n✓ Session persistence workflow complete')
     console.log('Session can now be reused with same id without login')
@@ -51,8 +50,6 @@ test('claude.ai session persistence workflow', async () => {
       await session.close({ id: sessionId, save: true })
     } catch { }
 
-    try {
-      await closeBrowser()
-    } catch { }
+    await pool.closeAllSessions()
   }
 })

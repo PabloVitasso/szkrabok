@@ -81,32 +81,68 @@ See [`examples/claude_desktop_config.md`](examples/claude_desktop_config.md) for
 
 ## Tools
 
-### Session Management
+SZKRABOK exposes **two categories** of tools:
+
+### 🔧 **Szkrabok Tools** - Session Management & Workflows
+Custom tools built for persistent sessions and automation workflows:
+
+**Session Management**
 - `session.open` - create/resume session (id, url?, config?)
 - `session.close` - close session (id, save?)
 - `session.list` - list all sessions ()
 - `session.delete` - delete permanently (id)
 
-### Navigation
+**Navigation (CSS selector-based)**
 - `nav.goto` - navigate (id, url, wait?)
 - `nav.back` - go back (id)
 - `nav.forward` - go forward (id)
 
-### Interaction
+**Interaction (CSS selector-based)**
 - `interact.click` - click element (id, selector)
 - `interact.type` - type text (id, selector, text)
 - `interact.select` - select dropdown (id, selector, value)
 
-### Extraction
+**Extraction**
 - `extract.text` - get text (id, selector?)
 - `extract.html` - get HTML (id, selector?)
 - `extract.screenshot` - screenshot (id, path?, fullPage?)
 - `extract.evaluate` - run JavaScript (id, code, args?)
 
-### Workflows
-- `workflow.login` - auto-login (id, username, password, usernameSelector?, passwordSelector?, submitSelector?)
+**Workflows**
+- `workflow.login` - auto-login (id, username, password)
 - `workflow.fillForm` - fill form (id, fields)
 - `workflow.scrape` - extract data (id, selectors)
+
+### 🎭 **Playwright-MCP Tools** - Ref-based Interaction
+Full playwright-mcp implementation with accessibility tree snapshots (**33 tools**):
+
+**Core Automation** (ref-based from snapshots)
+- `browser.snapshot` - capture accessibility tree with refs
+- `browser.navigate` - navigate and return snapshot
+- `browser.click` - click using ref from snapshot (id, ref, element)
+- `browser.type` - type using ref (id, ref, text, element)
+- `browser.drag`, `browser.hover`, `browser.evaluate`
+- `browser.select_option`, `browser.fill_form`, `browser.press_key`
+- `browser.wait_for`, `browser.resize`, `browser.tabs`
+- `browser.console_messages`, `browser.network_requests`
+- `browser.file_upload`, `browser.handle_dialog`, `browser.run_code`
+
+**Vision Tools** (coordinate-based)
+- `browser.mouse_click_xy`, `browser.mouse_move_xy`, `browser.mouse_drag_xy`
+
+**Testing Tools**
+- `browser.verify_element_visible`, `browser.verify_text_visible`
+- `browser.verify_list_visible`, `browser.verify_value`
+- `browser.generate_locator`
+
+**Other**
+- `browser.pdf_save`, `browser.take_screenshot`
+- `browser.start_tracing`, `browser.stop_tracing`
+
+**Tool Naming:** All tools support 3 formats:
+- Dot notation: `session.open`, `browser.snapshot`
+- Underscore: `session_open`, `browser_snapshot`
+- Concatenated: `sessionopen`, `browsersnapshot`
 
 ## Example
 
