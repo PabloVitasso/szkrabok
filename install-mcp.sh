@@ -23,8 +23,11 @@ if [ -f "$HOME/.config/Claude/claude_desktop_config.json" ]; then
 elif command -v claude &> /dev/null; then
     echo "✓ Found Claude Code CLI"
     echo ""
-    echo "Run this command to install:"
-    echo "  claude mcp add szkrabok node $SZKRABOK_DIR/index.js --headless"
+    echo "Installing szkrabok..."
+    claude mcp add szkrabok -- node "$SZKRABOK_DIR/index.js" --headless
+    echo ""
+    echo "✅ Installation complete!"
+    echo "Config updated: ~/.claude.json"
     exit 0
 else
     echo "⚠ No MCP client detected"

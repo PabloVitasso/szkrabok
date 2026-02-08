@@ -33,7 +33,7 @@ nano ~/.config/Claude/claude_desktop_config.json
 
 **For Claude Code CLI:**
 ```bash
-claude mcp add szkrabok node /home/jones2/mega/research/szkrabok/index.js --headless
+claude mcp add szkrabok -- node /home/jones2/mega/research/szkrabok/index.js --headless
 ```
 
 **For VS Code:**
