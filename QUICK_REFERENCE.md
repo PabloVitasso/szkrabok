@@ -139,6 +139,18 @@ sync-upstream-20260208 (merged)
 - Issues: GitHub Issues
 - Docs: MIGRATION_INDEX.md
 - Tests: TESTS_MIGRATED.md
+- **Errors**: Use context7 to check latest library documentation
+
+### When You Get Errors
+
+**Use Context7 for library documentation:**
+```
+"Check context7 for [library-name] [error-message]"
+```
+
+Common libraries:
+- playwright, puppeteer-extra-plugin-stealth
+- @modelcontextprotocol/sdk, @playwright/test
 
 ---
 

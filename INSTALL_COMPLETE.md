@@ -137,6 +137,23 @@ tail -f logs/szkrabok.log
 chmod +x index.js
 ```
 
+### Library/Dependency Errors
+
+If you encounter errors with playwright, puppeteer, or other dependencies:
+
+**Use Context7 for up-to-date documentation:**
+```
+Ask Claude: "Use context7 to check the latest documentation for [library-name]"
+```
+
+Common libraries to check:
+- `playwright` - Browser automation
+- `puppeteer-extra-plugin-stealth` - Stealth capabilities
+- `@modelcontextprotocol/sdk` - MCP SDK
+- `@playwright/test` - Testing framework
+
+Context7 provides the most current documentation and error resolution guidance.
+
 ## Support
 
 - **Issues**: GitHub Issues

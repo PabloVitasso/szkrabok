@@ -211,6 +211,34 @@ LLM → MCP Server → Session Pool → Playwright + Stealth
                   File Storage
 ```
 
+## Troubleshooting
+
+### Common Issues
+
+**Dependency errors**: Use context7 to check latest documentation
+```
+Ask Claude: "Use context7 to check [library-name] documentation for [error]"
+```
+
+**Browser not launching**: Check DISPLAY environment variable
+```bash
+echo $DISPLAY  # Should show :0 or similar
+```
+
+**Session not persisting**: Verify sessions directory is writable
+```bash
+ls -la sessions/
+```
+
+**Tools not appearing**: Restart MCP client and verify config
+
+### Getting Help
+
+- **Library errors**: Consult context7 for up-to-date docs
+- **Installation issues**: See INSTALL_COMPLETE.md
+- **Usage examples**: Check examples/ directory
+- **Bug reports**: GitHub Issues
+
 ## License
 
 MIT
