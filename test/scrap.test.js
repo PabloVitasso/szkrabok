@@ -36,9 +36,9 @@ test('scrape bot detection page', async () => {
     // Wait for network to be idle (all requests done)
     await page.waitForLoadState('networkidle', { timeout: 10000 })
 
-    // Wait much longer for ALL JavaScript fingerprint tests to complete
-    console.log('Waiting 15s for all JS tests to complete...')
-    await page.waitForTimeout(15000)
+    // Wait for JavaScript fingerprint tests to complete
+    console.log('Waiting 5s for JS tests to complete...')
+    await page.waitForTimeout(5000)
 
     // Wait for specific content that appears after JS execution
     await page.waitForSelector('body', { state: 'visible' })
@@ -69,19 +69,23 @@ test('scrape bot detection page', async () => {
     console.error('Test failed:', err.message)
     throw err
   } finally {
-    // Always cleanup
+    // Always cleanup - ensure browser closes even if test fails
     try {
-      if (session) {
-        await session.close({ id: sessionId, save: false })
-      }
-    } catch { }
+      await session.close({ id: sessionId, save: false })
+    } catch (err) {
+      console.error('Error closing session:', err.message)
+    }
 
     try {
       await session.deleteSession({ id: sessionId })
-    } catch { }
+    } catch (err) {
+      console.error('Error deleting session:', err.message)
+    }
 
     try {
       await closeBrowser()
-    } catch { }
+    } catch (err) {
+      console.error('Error closing browser:', err.message)
+    }
   }
-})
+}, { timeout: 30000 })

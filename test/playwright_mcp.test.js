@@ -93,7 +93,16 @@ test('playwright mcp features', { timeout: TEST_TIMEOUT }, async () => {
       'Navigation URL mismatch'
     )
   } finally {
-    await closeSession()
-    await closeBrowser()
+    try {
+      await closeSession()
+    } catch (err) {
+      console.error('Error closing session:', err.message)
+    }
+
+    try {
+      await closeBrowser()
+    } catch (err) {
+      console.error('Error closing browser:', err.message)
+    }
   }
 })
