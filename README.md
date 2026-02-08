@@ -1,243 +1,221 @@
-# SZKRABOK-PLAYWRIGHT-MCP
+# Szkrabok - Browser Automation MCP Server
 
-Production-grade MCP browser automation with persistent sessions and stealth.
+Session-persistent browser automation with stealth mode. 67 tools for web automation.
 
 ## Install
 
 ```bash
 npm install
-npm run prepare
+./install-mcp.sh
 ```
 
-## Run
-
+Or manually:
 ```bash
-# Standalone (auto-detects headless based on DISPLAY)
-npm start
+# Claude Code CLI
+claude mcp add szkrabok -- node /path/to/szkrabok/index.js --headless
 
-# Force headless mode
-node index.js --headless
-
-# Force visible mode (requires X server)
-node index.js --no-headless
-
-# With MCP Inspector
-npx @modelcontextprotocol/inspector szkrabok-playwright-mcp
-```
-
-## Claude Desktop Configuration
-
-**Recommended: Dual configuration** for different use cases
-
-Add to `~/.config/Claude/claude_desktop_config.json`:
-
-```json
+# Claude Desktop (~/.config/Claude/claude_desktop_config.json)
 {
   "mcpServers": {
     "szkrabok": {
       "command": "node",
-      "args": [
-        "/home/your-username/path/to/szkrabok/index.js",
-        "--headless"
-      ]
-    },
-    "szkrabok-visible": {
-      "command": "node",
-      "args": [
-        "/home/your-username/path/to/szkrabok/index.js",
-        "--no-headless"
-      ],
-      "env": {
-        "DISPLAY": ":0"
-      }
+      "args": ["/path/to/szkrabok/index.js", "--headless"]
     }
   }
 }
 ```
 
-**Usage:**
-- **szkrabok**: Headless automation (default for all automated tasks)
-- **szkrabok-visible**: Manual login, debugging, element inspection
+## Quick Start
 
-**For servers without X display:**
-
-```json
-{
-  "mcpServers": {
-    "szkrabok-visible": {
-      "command": "xvfb-run",
-      "args": [
-        "-a",
-        "node",
-        "/home/your-username/path/to/szkrabok/index.js",
-        "--no-headless"
-      ]
-    }
-  }
-}
+```
+"List all szkrabok sessions"
+"Open session 'work' and go to example.com"
+"Extract h1 text"
+"Close session 'work'"
 ```
 
-See [`examples/claude_desktop_config.md`](examples/claude_desktop_config.md) for more configurations.
+## Tools (67 total)
 
-## Tools
+### Session (4)
+- session.open(id, url?, config?) - create/resume with persistence
+- session.close(id, save?) - save and close
+- session.list() - view all
+- session.delete(id) - remove
 
-SZKRABOK exposes **two categories** of tools:
+### Navigation (3)
+- nav.goto(id, url) - navigate
+- nav.back(id), nav.forward(id)
 
-### 🔧 **Szkrabok Tools** - Session Management & Workflows
-Custom tools built for persistent sessions and automation workflows:
+### Interaction (3)
+- interact.click(id, selector)
+- interact.type(id, selector, text)
+- interact.select(id, selector, value)
 
-**Session Management**
-- `session.open` - create/resume session (id, url?, config?)
-- `session.close` - close session (id, save?)
-- `session.list` - list all sessions ()
-- `session.delete` - delete permanently (id)
+### Extract (4)
+- extract.text(id, selector?)
+- extract.html(id, selector?)
+- extract.screenshot(id, path?, fullPage?)
+- extract.evaluate(id, code, args?)
 
-**Navigation (CSS selector-based)**
-- `nav.goto` - navigate (id, url, wait?)
-- `nav.back` - go back (id)
-- `nav.forward` - go forward (id)
+### Workflows (3)
+- workflow.login(id, username, password, selectors?)
+- workflow.fillForm(id, fields{})
+- workflow.scrape(id, selectors{})
 
-**Interaction (CSS selector-based)**
-- `interact.click` - click element (id, selector)
-- `interact.type` - type text (id, selector, text)
-- `interact.select` - select dropdown (id, selector, value)
+### Wait (3)
+- wait.forClose(id)
+- wait.forSelector(id, selector)
+- wait.forTimeout(id, ms)
 
-**Extraction**
-- `extract.text` - get text (id, selector?)
-- `extract.html` - get HTML (id, selector?)
-- `extract.screenshot` - screenshot (id, path?, fullPage?)
-- `extract.evaluate` - run JavaScript (id, code, args?)
+### Playwright-MCP (33+)
+- browser.* tools (snapshot, navigate, click, type, etc)
+- Vision tools (mouse_click_xy, mouse_move_xy)
+- Testing tools (verify_*, generate_locator)
 
-**Workflows**
-- `workflow.login` - auto-login (id, username, password)
-- `workflow.fillForm` - fill form (id, fields)
-- `workflow.scrape` - extract data (id, selectors)
-
-### 🎭 **Playwright-MCP Tools** - Ref-based Interaction
-Full playwright-mcp implementation with accessibility tree snapshots (**33 tools**):
-
-**Core Automation** (ref-based from snapshots)
-- `browser.snapshot` - capture accessibility tree with refs
-- `browser.navigate` - navigate and return snapshot
-- `browser.click` - click using ref from snapshot (id, ref, element)
-- `browser.type` - type using ref (id, ref, text, element)
-- `browser.drag`, `browser.hover`, `browser.evaluate`
-- `browser.select_option`, `browser.fill_form`, `browser.press_key`
-- `browser.wait_for`, `browser.resize`, `browser.tabs`
-- `browser.console_messages`, `browser.network_requests`
-- `browser.file_upload`, `browser.handle_dialog`, `browser.run_code`
-
-**Vision Tools** (coordinate-based)
-- `browser.mouse_click_xy`, `browser.mouse_move_xy`, `browser.mouse_drag_xy`
-
-**Testing Tools**
-- `browser.verify_element_visible`, `browser.verify_text_visible`
-- `browser.verify_list_visible`, `browser.verify_value`
-- `browser.generate_locator`
-
-**Other**
-- `browser.pdf_save`, `browser.take_screenshot`
-- `browser.start_tracing`, `browser.stop_tracing`
-
-**Tool Naming:** All tools support 3 formats:
-- Dot notation: `session.open`, `browser.snapshot`
-- Underscore: `session_open`, `browser_snapshot`
-- Concatenated: `sessionopen`, `browsersnapshot`
-
-## Example
-
-```javascript
-// Open session with stealth
-session.open({ id: 'work', url: 'https://example.com', config: { stealth: true } })
-
-// Navigate and interact
-nav.goto({ id: 'work', url: 'https://example.com/login' })
-workflow.login({ id: 'work', username: 'user@example.com', password: 'password' })
-
-// Extract data
-extract.text({ id: 'work', selector: '.content' })
-
-// Close and persist
-session.close({ id: 'work' })
-
-// Resume later
-session.open({ id: 'work' }) // restores cookies, localStorage
-```
-
-## Sessions
-
-Stored in `./sessions/{id}/`:
-- `state.json` - Playwright storageState (cookies, localStorage)
-- `meta.json` - timestamps, config, last URL
-
-## Environment Variables
-
-```bash
-# Logging
-LOG_LEVEL=debug  # error, warn, info, debug
-
-# Browser mode (auto-detected if not set)
-HEADLESS=true   # Force headless mode
-HEADLESS=false  # Force visible mode
-# (Omit to auto-detect: headless if no DISPLAY, visible if DISPLAY exists)
-
-# Timeouts
-TIMEOUT=30000   # Default timeout in milliseconds
-
-# Display (for visible mode)
-DISPLAY=:0      # X server display
-```
-
-**CLI Flags Override Environment:**
-- `node index.js --headless` → HEADLESS=true
-- `node index.js --no-headless` → HEADLESS=false
+All tools support 3 formats: session.open, session_open, sessionopen
 
 ## Features
 
-✅ Persistent sessions across restarts
-✅ Stealth plugin (best-effort)
-✅ Auto-detect headless/headed mode (like playwright-mcp)
-✅ CLI flags for explicit control (--headless, --no-headless)
-✅ Lazy browser initialization (browser opens only when needed)
-✅ Error normalization
-✅ Timeout control
-✅ Workflow abstractions
+- Persistent sessions across restarts (cookies, localStorage saved)
+- Stealth mode (playwright-extra + puppeteer-extra-plugin-stealth)
+- Auto-detect headless/headed mode
+- CSS selectors + Playwright refs
+- Session CLI tools
+
+## Usage Examples
+
+### Login automation
+```
+"Use workflow.login in 'work' with username 'user@example.com' password 'pass123'"
+```
+
+### Data extraction
+```
+"Use workflow.scrape in 'work' to extract:
+- title from 'h1'
+- content from '.main'
+- links from 'a'"
+```
+
+### Form filling
+```
+"Use workflow.fillForm in 'work' with:
+- '#name': 'John'
+- '#email': 'john@example.com'"
+```
+
+## CLI
+
+```bash
+node cli.js session list
+node cli.js session inspect <id>
+node cli.js session delete <id>
+node cli.js cleanup --days 30
+```
+
+## Testing
+
+```bash
+npm test              # All tests (17 total)
+npm run test:node     # Node tests (8)
+npm run test:playwright  # Playwright tests (9)
+```
+
+## Configuration
+
+Environment variables:
+```bash
+HEADLESS=true       # Force headless
+TIMEOUT=30000       # Default timeout
+DISPLAY=:0          # X server display
+```
+
+CLI flags override env:
+```bash
+node index.js --headless
+node index.js --no-headless
+```
+
+Sessions stored in ./sessions/{id}/:
+- state.json - cookies, localStorage, sessionStorage
+- meta.json - timestamps, config, lastUrl
+
+## Troubleshooting
+
+### Use Context7 for errors
+```
+"Use context7 to check playwright for [error]"
+"Use context7 to check puppeteer-extra-plugin-stealth for detection"
+"Use context7 to check @modelcontextprotocol/sdk for connection errors"
+```
+
+### Common issues
+
+Browser not launching:
+```bash
+npx playwright install chromium
+echo $DISPLAY  # Check display variable
+```
+
+Stealth detection:
+```bash
+npm test test/scrap.test.js
+```
+
+Session not persisting:
+```bash
+ls -la sessions/
+cat sessions/[id]/meta.json
+```
+
+Tools not appearing:
+- Restart MCP client
+- Verify config syntax
+- Test manually: npm start
+
+### Debug commands
+```bash
+npm start                    # Test server
+npx @modelcontextprotocol/inspector szkrabok
+tail -f logs/szkrabok.log
+npm list playwright
+```
 
 ## Architecture
 
 ```
 LLM → MCP Server → Session Pool → Playwright + Stealth
                        ↓
-                  File Storage
+                  File Storage (./sessions/)
 ```
 
-## Troubleshooting
+Components:
+- core/ - Session management, stealth, storage
+- tools/ - MCP tools (session, nav, interact, extract, workflow)
+- upstream/ - Browser wrapper
+- utils/ - Errors, logging
+- tests/ - Playwright + Node tests
 
-### Common Issues
+## Development
 
-**Dependency errors**: Use context7 to check latest documentation
-```
-Ask Claude: "Use context7 to check [library-name] documentation for [error]"
-```
-
-**Browser not launching**: Check DISPLAY environment variable
 ```bash
-echo $DISPLAY  # Should show :0 or similar
+npm start         # Start server
+npm run dev       # Auto-reload
+npm run lint      # Check code
+npm run format    # Format code
+npm test          # Run tests
 ```
 
-**Session not persisting**: Verify sessions directory is writable
-```bash
-ls -la sessions/
-```
+See DEVELOPMENT.md for maintainer info (upstream sync, patches, architecture).
 
-**Tools not appearing**: Restart MCP client and verify config
+## Version
 
-### Getting Help
-
-- **Library errors**: Consult context7 for up-to-date docs
-- **Installation issues**: See INSTALL_COMPLETE.md
-- **Usage examples**: Check examples/ directory
-- **Bug reports**: GitHub Issues
+v1.2-upstream-sync
+- Synced with playwright-mcp v0.0.66
+- 17 tests passing
+- Playwright test suite
+- Session persistence
+- Stealth mode
 
 ## License
 
