@@ -1,41 +1,21 @@
 # Dependencies
 node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
 
-# Environment
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-
-# Sessions
+# Session data
 sessions/
-!sessions/.gitkeep
 
 # Logs
 logs/
 *.log
 
-# Screenshots
-*.png
-*.jpg
-*.jpeg
+# Environment
+.env
 
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Test outputs
-test-results/
-playwright-report/
-
+# Test artifacts
 *.html
+screenshot.png
+
+# Keep documentation and patches
+!patches/README.md
+!patches/*.patch
+!*.md
