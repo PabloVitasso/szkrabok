@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "szkrabok": {
+      "command": "node",
+      "args": [
+        "/home/jones2/mega/research/szkrabok/index.js",
+        "--headless"
+      ]
+    }
+  }
+}
