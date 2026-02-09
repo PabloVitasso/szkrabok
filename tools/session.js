@@ -1,30 +1,50 @@
-import { getBrowser } from '../upstream/wrapper.js'
+import { launchPersistentContext, navigate } from '../upstream/wrapper.js'
 import * as pool from '../core/pool.js'
 import * as storage from '../core/storage.js'
-import { SessionExistsError } from '../utils/errors.js'
-import { navigate } from '../upstream/wrapper.js'
 import { VIEWPORT, USER_AGENT, LOCALE, TIMEZONE } from '../config.js'
+import { log } from '../utils/logger.js'
 
 export const open = async args => {
   const { id, url, config = {} } = args
 
+  // If session already exists in pool, reuse it
   if (pool.has(id)) {
-    throw new SessionExistsError(id)
+    log(`Reusing existing session: ${id}`)
+    const session = pool.get(id)
+
+    // Check if context is still alive
+    try {
+      if (session.context._closed || session.page.isClosed()) {
+        log(`Session ${id} context was closed, removing from pool`)
+        pool.remove(id)
+      } else {
+        // Session is alive, optionally navigate
+        if (url) {
+          await navigate(session.page, url)
+          await storage.updateMeta(id, { lastUrl: url })
+        }
+        return { success: true, id, url, reused: true }
+      }
+    } catch (err) {
+      log(`Session ${id} check failed, removing from pool: ${err.message}`)
+      pool.remove(id)
+    }
   }
 
   await storage.ensureSessionsDir()
 
-  const browser = await getBrowser({ stealth: config.stealth !== false })
-  const state = await storage.loadState(id)
+  // Use userDataDir for complete profile persistence
+  const userDataDir = storage.getUserDataDir(id)
 
-  const context = await browser.newContext({
-    storageState: state || undefined,
+  // Launch persistent context (combines browser + context with userDataDir)
+  // Always enable stealth mode
+  const context = await launchPersistentContext(userDataDir, {
+    stealth: true,
     viewport: config.viewport || VIEWPORT,
     userAgent: config.userAgent || USER_AGENT,
     locale: config.locale || LOCALE,
     timezoneId: config.timezone || TIMEZONE,
-    // Inject scripts into all frames
-    javaScriptEnabled: true,
+    headless: config.headless,
   })
 
   // Add init script to mask iframe fingerprints
@@ -40,7 +60,19 @@ export const open = async args => {
     }
   })
 
-  const page = await context.newPage()
+  // Listen for context close event (e.g., user manually closes browser)
+  context.on('close', () => {
+    log(`Context ${id} was closed manually or by user`)
+    if (pool.has(id)) {
+      pool.remove(id)
+    }
+  })
+
+  // launchPersistentContext creates a context with existing pages
+  // Get the first page or create new one
+  const pages = context.pages()
+  const page = pages.length > 0 ? pages[0] : await context.newPage()
+
   pool.add(id, context, page)
 
   const meta = {
@@ -48,6 +80,7 @@ export const open = async args => {
     created: Date.now(),
     lastUsed: Date.now(),
     config,
+    userDataDir,
   }
   await storage.saveMeta(id, meta)
 
@@ -61,18 +94,31 @@ export const open = async args => {
 
 export const close = async args => {
   const { id, save = true } = args
-  const session = pool.get(id)
 
-  if (save) {
-    const state = await session.context.storageState()
-    await storage.saveState(id, state)
+  // Wrap with error handling in case context is already closed
+  try {
+    const session = pool.get(id)
+
+    // userDataDir automatically persists everything, no need to save storageState
+    // Just update metadata and close
+    await storage.updateMeta(id, { lastUsed: Date.now() })
+    await session.context.close()
+    pool.remove(id)
+
+    return { success: true, id }
+  } catch (err) {
+    // If context is already closed or session not found, just remove from pool
+    if (pool.has(id)) {
+      pool.remove(id)
+    }
+
+    if (err.message?.includes('closed')) {
+      log(`Session ${id} was already closed`)
+      return { success: true, id, alreadyClosed: true }
+    }
+
+    throw err
   }
-
-  await storage.updateMeta(id, { lastUsed: Date.now() })
-  await session.context.close()
-  pool.remove(id)
-
-  return { success: true, id }
 }
 
 export const list = async () => {

@@ -23,6 +23,30 @@ export const getBrowser = async (options = {}) => {
   return browser
 }
 
+export const launchPersistentContext = async (userDataDir, options = {}) => {
+  const pw = options.stealth ? enhanceWithStealth(chromium) : chromium
+  const executablePath = findChromiumPath()
+
+  if (executablePath) {
+    log('Using existing Chromium for persistent context', { path: executablePath })
+  }
+
+  const launchOptions = {
+    headless: options.headless ?? HEADLESS,
+    executablePath,
+    viewport: options.viewport,
+    userAgent: options.userAgent,
+    locale: options.locale,
+    timezoneId: options.timezoneId,
+    ...options,
+  }
+
+  // Remove options that are not valid for launchPersistentContext
+  delete launchOptions.stealth
+
+  return pw.launchPersistentContext(userDataDir, launchOptions)
+}
+
 export const closeBrowser = async () => {
   if (browser) {
     await browser.close().catch(() => { })

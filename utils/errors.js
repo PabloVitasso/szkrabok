@@ -1,6 +1,6 @@
 export class SessionNotFoundError extends Error {
-  constructor(id) {
-    super(`Session not found: ${id}`)
+  constructor(id, customMessage = null) {
+    super(customMessage || `Session not found: ${id}`)
     this.name = 'SessionNotFoundError'
     this.code = 'SESSION_NOT_FOUND'
     this.sessionId = id

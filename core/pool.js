@@ -1,4 +1,5 @@
 import { SessionNotFoundError } from '../utils/errors.js'
+import { log } from '../utils/logger.js'
 
 const sessions = new Map()
 
@@ -9,6 +10,25 @@ export const add = (id, context, page) => {
 export const get = id => {
   const session = sessions.get(id)
   if (!session) throw new SessionNotFoundError(id)
+
+  // Check if context is still alive (only if methods exist - for real sessions)
+  try {
+    const contextClosed = session.context._closed === true
+    const pageClosed = typeof session.page.isClosed === 'function' && session.page.isClosed()
+
+    if (contextClosed || pageClosed) {
+      log(`Session ${id} context was closed, removing from pool`)
+      sessions.delete(id)
+      throw new SessionNotFoundError(id, 'Session was closed. Please reopen the session.')
+    }
+  } catch (err) {
+    if (err instanceof SessionNotFoundError) throw err
+    // If check failed, assume context is closed
+    log(`Session ${id} health check failed: ${err.message}`)
+    sessions.delete(id)
+    throw new SessionNotFoundError(id, 'Session appears to be closed. Please reopen the session.')
+  }
+
   return session
 }
 

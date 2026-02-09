@@ -8,6 +8,8 @@ const getSessionDir = id => join(SESSIONS_DIR, id)
 const getStatePath = id => join(getSessionDir(id), 'state.json')
 const getMetaPath = id => join(getSessionDir(id), 'meta.json')
 
+export const getUserDataDir = id => join(getSessionDir(id), 'profile')
+
 export const ensureSessionsDir = async () => {
   if (!existsSync(SESSIONS_DIR)) {
     await mkdir(SESSIONS_DIR, { recursive: true })
