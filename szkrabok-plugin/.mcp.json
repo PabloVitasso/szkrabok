@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "szkrabok": {
+      "command": "node",
+      "args": ["../index.js"],
+      "env": {
+        "HEADLESS": "true"
+      }
+    }
+  }
+}

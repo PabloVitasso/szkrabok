@@ -1,0 +1,8 @@
+{
+  "name": "szkrabok-browser-automation",
+  "version": "1.0.0",
+  "description": "Browser automation skills using the szkrabok MCP server",
+  "author": "szkrabok",
+  "repository": "https://github.com/szkrabok/szkrabok",
+  "mcpServers": "./.mcp.json"
+}

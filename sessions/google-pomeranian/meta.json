@@ -1,0 +1,11 @@
+{
+  "id": "google-pomeranian",
+  "created": 1770592085929,
+  "lastUsed": 1770592097623,
+  "config": {
+    "headless": true,
+    "stealth": true
+  },
+  "userDataDir": "sessions/google-pomeranian/profile",
+  "lastUrl": "https://www.google.com/search?q=pomeranian+dog"
+}

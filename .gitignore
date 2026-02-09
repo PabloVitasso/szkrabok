@@ -1,19 +1,47 @@
 # Dependencies
 node_modules/
+__pycache__/
+*.pyc
+.venv/
+venv/
 
-# Session data
-sessions/
+# Session data - keep sessions in each server
+*/sessions/
+logs/
 
 # Logs
-logs/
 *.log
 
 # Environment
 .env
+.env.local
 
 # Test artifacts
 *.html
-screenshot.png
+*.png
+test-results/
+playwright-report/
+playwright/.cache/
+
+# Build
+dist/
+build/
+*.tsbuildinfo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Testing
+coverage/
+.nyc_output/
 
 # Keep documentation and patches
 !patches/README.md
