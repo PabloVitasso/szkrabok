@@ -12,46 +12,20 @@
 
 ## Quick Start
 
-### Install & Connect
 ```bash
-cd szkrabok.playwright.mcp.stealth
-npm install
-cd ..
-./install-mcp.sh
-```
+# 1. Install dependencies
+cd szkrabok.playwright.mcp.stealth && npm install && cd ..
 
-### Claude Code CLI
-```bash
-# From repository root
+# 2. Configure MCP client (auto-detects Claude Code or Desktop)
 ./install-mcp.sh
 
-# Or manually (replace /path/to/szkrabok with actual path)
-claude mcp add szkrabok -- node /path/to/szkrabok/szkrabok.playwright.mcp.stealth/src/index.js --headless
+# 3. Restart Claude and test
 ```
 
-### Claude Desktop
-```bash
-# From repository root
-./install-mcp.sh
-
-# Or manually edit ~/.config/Claude/claude_desktop_config.json:
-```
-```json
-{
-  "mcpServers": {
-    "szkrabok": {
-      "command": "node",
-      "args": ["/path/to/szkrabok/szkrabok.playwright.mcp.stealth/src/index.js", "--headless"]
-    }
-  }
-}
-```
-
-### Test Commands
+Try these commands:
 ```
 "List all szkrabok sessions"
 "Open session 'test' and navigate to https://example.com"
-"Extract h1 text from session 'test'"
 "Take screenshot of session 'test' and save as screenshot.png"
 "Close session 'test' and save state"
 ```
@@ -62,42 +36,24 @@ claude mcp add szkrabok -- node /path/to/szkrabok/szkrabok.playwright.mcp.stealt
 - Node.js >=18.0.0
 - Python >=3.10 (for Crawl4AI server, optional)
 
-### Install Steps
-```bash
-# 1. Navigate to repository root
-cd /path/to/szkrabok
+### Automated Installation
 
-# 2. Install Playwright MCP dependencies
-cd szkrabok.playwright.mcp.stealth
-npm install
-cd ..
+See [Quick Start](#quick-start) for automated installation using `./install-mcp.sh`
 
-# 3. Run installation script (auto-detects Claude Desktop/Code)
-./install-mcp.sh
-```
+### Manual Configuration (Optional)
 
-### Verify Installation
-```bash
-cd szkrabok.playwright.mcp.stealth
-node src/index.js --headless          # Test server starts
-npm ls @modelcontextprotocol/sdk      # Check dependencies
-node src/cli.js session list          # Test CLI
-```
-
-### Manual Configuration
+If you prefer manual setup or need to reinstall:
 
 **Claude Code:**
 ```bash
-# Reinstall (removes and re-adds if exists)
-claude mcp remove szkrabok
+claude mcp remove szkrabok  # If reinstalling
 claude mcp add szkrabok -- node /path/to/szkrabok/szkrabok.playwright.mcp.stealth/src/index.js --headless
-
-# Verify
-claude mcp list
-claude mcp get szkrabok
+claude mcp list  # Verify
 ```
 
-**Claude Desktop** (`~/.config/Claude/claude_desktop_config.json`):
+**Claude Desktop:**
+
+Edit `~/.config/Claude/claude_desktop_config.json`:
 ```json
 {
   "mcpServers": {
@@ -109,36 +65,38 @@ claude mcp get szkrabok
 }
 ```
 
+### Verify Installation
+
+```bash
+cd szkrabok.playwright.mcp.stealth
+node src/index.js --headless          # Test server starts
+npm ls @modelcontextprotocol/sdk      # Check dependencies
+node src/cli.js session list          # Test CLI
+```
+
 ## MCP Configuration
 
-### Headless Mode
-```bash
-node src/index.js --headless        # Force headless
-node src/index.js --no-headless     # Force visible
-HEADLESS=true node src/index.js     # Via env var
-```
+The MCP server supports these configuration options:
 
-Auto-detects based on `$DISPLAY` if not specified.
+**Headless Mode:**
+- `--headless` - Force headless mode (invisible browser)
+- `--no-headless` - Force visible mode (requires X server)
+- Auto-detects based on `$DISPLAY` if not specified
 
-### Environment Options
-```bash
-TIMEOUT=60000 node src/index.js
-VIEWPORT_WIDTH=1920 VIEWPORT_HEIGHT=1080 node src/index.js
-```
+**Environment Variables:**
+- `HEADLESS=true` - Enable headless mode
+- `TIMEOUT=60000` - Set operation timeout (ms)
+- `VIEWPORT_WIDTH=1920 VIEWPORT_HEIGHT=1080` - Set browser viewport size
 
 ## Testing
 
-### Manual Testing
 ```bash
 cd szkrabok.playwright.mcp.stealth
-node src/index.js --headless        # Should see "Server connected via stdio"
-node src/cli.js session list
-node src/cli.js session inspect <id>
-```
 
-### MCP Inspector
-```bash
-cd szkrabok.playwright.mcp.stealth
+# Run automated tests
+npm test
+
+# Test with MCP inspector
 npx @modelcontextprotocol/inspector szkrabok-playwright-mcp
 ```
 
