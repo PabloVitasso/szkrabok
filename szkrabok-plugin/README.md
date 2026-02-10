@@ -8,7 +8,7 @@ Claude Code plugin providing browser automation skills using the szkrabok MCP se
 
 ```bash
 # Add to your Claude Code settings
-claude plugin install /home/jones2/mega/research/szkrabok/szkrabok-plugin
+claude plugin install /path/to/szkrabok/szkrabok-plugin
 ```
 
 ### Option 2: Manual installation
@@ -18,7 +18,7 @@ Add to your `.claude/settings.local.json`:
 ```json
 {
   "plugins": [
-    "/home/jones2/mega/research/szkrabok/szkrabok-plugin"
+    "/path/to/szkrabok/szkrabok-plugin"
   ]
 }
 ```

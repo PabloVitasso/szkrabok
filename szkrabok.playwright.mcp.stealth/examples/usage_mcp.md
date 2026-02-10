@@ -2,26 +2,43 @@
 
 Using szkrabok as an MCP server via Claude Desktop or other MCP clients.
 
-## CLI Options
+## Headless Mode Control
 
-Szkrabok MCP server supports command-line arguments like playwright-mcp:
+Szkrabok supports two ways to control headless/visible browser mode:
+
+### 1. Per-Session Control (Recommended)
+
+Control mode individually for each session using `config.headless`:
+
+```javascript
+// Visible browser (requires X server/DISPLAY)
+session.open({ id: 'test', url: 'https://example.com', config: { headless: false }})
+
+// Headless browser
+session.open({ id: 'test', url: 'https://example.com', config: { headless: true }})
+```
+
+This approach allows mixing visible and headless sessions within the same MCP server instance.
+
+### 2. CLI Flags (Global Default)
+
+Set a default for all sessions using command-line arguments:
 
 ```bash
 # Default: Auto-detect headless based on DISPLAY environment
-node index.js
+node src/index.js
 
 # Force headless mode (invisible browser)
-node index.js --headless
+node src/index.js --headless
 
 # Force headed mode (visible browser) - requires X server or xvfb
-node index.js --no-headless
+node src/index.js --no-headless
 ```
 
 **Auto-detection logic:**
-- If `--headless` or `--no-headless` specified: Use explicit setting
+- If `--headless` or `--no-headless` specified: Use as default for all sessions
 - If no flag: Enable headless automatically if no DISPLAY environment variable
-- With DISPLAY=:0: Browser runs in visible mode (default)
-- Without DISPLAY: Browser runs in headless mode (default)
+- Sessions can override the default using `config.headless`
 
 ## 1. Simple Navigation
 
@@ -179,9 +196,9 @@ session.close({ id: 'custom-config' })
 
 **Scenario:** Log in once to claude.ai, reuse session without re-authenticating
 
-### Claude Desktop Configuration (Recommended)
+### Recommended Approach: Per-Session Headless Control
 
-When using szkrabok through Claude Desktop, configure with `--no-headless` for manual login:
+A single MCP server can handle both visible and headless sessions. Control mode per-session using `config.headless`:
 
 ```json
 {
@@ -189,8 +206,7 @@ When using szkrabok through Claude Desktop, configure with `--no-headless` for m
     "szkrabok": {
       "command": "node",
       "args": [
-        "/home/jones2/mega/research/szkrabok/index.js",
-        "--no-headless"
+        "/path/to/szkrabok/szkrabok.playwright.mcp.stealth/src/index.js"
       ],
       "env": {
         "DISPLAY": ":0"
@@ -200,7 +216,7 @@ When using szkrabok through Claude Desktop, configure with `--no-headless` for m
 }
 ```
 
-**For servers without X display (headless servers):**
+**For servers without X display, use xvfb:**
 
 ```json
 {
@@ -210,8 +226,7 @@ When using szkrabok through Claude Desktop, configure with `--no-headless` for m
       "args": [
         "-a",
         "node",
-        "/home/jones2/mega/research/szkrabok/index.js",
-        "--no-headless"
+        "/path/to/szkrabok/szkrabok.playwright.mcp.stealth/src/index.js"
       ]
     }
   }
@@ -222,60 +237,44 @@ When using szkrabok through Claude Desktop, configure with `--no-headless` for m
 
 ```javascript
 // FIRST TIME: Open visible browser for manual login
-// (CLI must be started with --no-headless flag)
 session.open({
   id: 'claude-ai',
   url: 'https://claude.ai',
-  config: { stealth: true }  // headless determined by CLI flag
+  config: { headless: false, stealth: true }  // Visible mode
 })
 
-// Wait for user to close browser window (no timeout)
-wait.forClose({ id: 'claude-ai' })
-
-// Save state when window closed
+// User logs in manually (browser stays open)
+// When done, close and save
 session.close({ id: 'claude-ai', save: true })
-// → Persisted to ~/.szkrabok/sessions/claude-ai/
+// → Persisted to szkrabok.playwright.mcp.stealth/sessions/claude-ai/
 
-// LATER: Reuse session (auto-logged in)
-// Switch CLI to --headless flag for automation
+// LATER: Reuse session in headless mode (auto-logged in)
 session.open({
-  id: 'claude-ai',  // Same ID = auto-restore
+  id: 'claude-ai',  // Same ID = auto-restore cookies/state
   url: 'https://claude.ai',
-  config: { stealth: true }
+  config: { headless: true, stealth: true }  // Headless mode
 })
-// → Already logged in, no user interaction
+// → Already logged in, no user interaction needed
 
 extract.text({ id: 'claude-ai', selector: 'title' })
-session.close({ id: 'claude-ai' })
+session.close({ id: 'claude-ai', save: true })
 ```
 
 **Workflow:**
-1. Start MCP server with `--no-headless` flag
-2. `session.open` → visible browser (controlled by CLI flag)
-3. User logs in manually (unlimited time)
-4. User closes browser window when done
-5. `wait.forClose` detects close and returns
-6. `session.close` with `save: true` persists state
-7. Restart MCP server with `--headless` flag (or default auto-detect)
-8. Reopen with same `id` → auto-logged in
+1. `session.open` with `headless: false` → visible browser
+2. User logs in manually
+3. `session.close` with `save: true` → persists cookies/state
+4. Later: `session.open` with `headless: true` and same `id` → auto-logged in
+5. Automate tasks in headless mode
 
 **MCP Tools Used:**
-- `session.open` - Opens browser session
-- `wait.forClose` - Waits for window close (no timeout)
+- `session.open` - Opens browser session (specify `config.headless` per session)
 - `session.close` - Saves session state
 - `extract.text` - Verifies logged in
 
-**Storage:** `~/.szkrabok/sessions/{id}/state.json` + `meta.json`
+**Storage:** `szkrabok.playwright.mcp.stealth/sessions/{id}/state.json` + `meta.json`
 
-**Note:** For one-time manual login, you can also override in config:
-```javascript
-session.open({
-  id: 'claude-ai',
-  url: 'https://claude.ai',
-  config: { stealth: true, headless: false }  // Override CLI flag
-})
-```
-This requires DISPLAY environment or xvfb-run wrapper.
+**Alternative:** You can also control headless mode at the MCP server level using CLI flags (`--headless` or `--no-headless`), but per-session control offers more flexibility.
 
 ## Available MCP Tools
 

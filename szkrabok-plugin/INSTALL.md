@@ -11,7 +11,7 @@ Add to your Claude Code configuration file:
 ```json
 {
   "plugins": [
-    "/home/jones2/mega/research/szkrabok/szkrabok-plugin"
+    "/path/to/szkrabok/szkrabok-plugin"
   ]
 }
 ```
@@ -20,14 +20,14 @@ Add to your Claude Code configuration file:
 
 ```bash
 # If claude has a plugin install command
-claude plugin install /home/jones2/mega/research/szkrabok/szkrabok-plugin
+claude plugin install /path/to/szkrabok/szkrabok-plugin
 ```
 
 ### Option 3: Symlink to Claude Plugins Directory
 
 ```bash
 # If Claude Code has a plugins directory
-ln -s /home/jones2/mega/research/szkrabok/szkrabok-plugin \
+ln -s /path/to/szkrabok/szkrabok-plugin \
       ~/.config/claude/plugins/szkrabok-browser-automation
 ```
 
@@ -65,7 +65,7 @@ Check Claude Code logs for errors:
 
 Test the server manually:
 ```bash
-cd /home/jones2/mega/research/szkrabok
+cd /path/to/szkrabok
 npm start
 ```
 
@@ -81,7 +81,7 @@ ls szkrabok-plugin/skills/google-search/SKILL.md
 Test the skill without Claude Code:
 
 ```bash
-cd /home/jones2/mega/research/szkrabok
+cd /path/to/szkrabok
 
 # Start the server
 npm start

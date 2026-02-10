@@ -2,9 +2,9 @@
 
 Configuration file location: `~/.config/Claude/claude_desktop_config.json`
 
-## Recommended: Dual Configuration
+## Recommended: Single MCP Server
 
-Configure two MCP servers for different use cases:
+A single "szkrabok" MCP server handles both headless and visible browser modes. The mode is controlled per-session using the `config.headless` parameter in `session.open()`.
 
 ```json
 {
@@ -12,27 +12,21 @@ Configure two MCP servers for different use cases:
     "szkrabok": {
       "command": "node",
       "args": [
-        "/home/jones2/mega/research/szkrabok/index.js",
-        "--headless"
+        "/path/to/szkrabok/szkrabok.playwright.mcp.stealth/src/index.js"
       ]
-    },
-    "szkrabok-visible": {
-      "command": "node",
-      "args": [
-        "/home/jones2/mega/research/szkrabok/index.js",
-        "--no-headless"
-      ],
-      "env": {
-        "DISPLAY": ":0"
-      }
     }
   }
 }
 ```
 
 **Usage:**
-- **szkrabok**: Headless automation (default for all automated tasks)
-- **szkrabok-visible**: Manual login, debugging, element inspection
+```javascript
+// Headless mode (automated tasks)
+session.open({ id: 'my-session', url: 'https://example.com', config: { headless: true, stealth: true }})
+
+// Visible mode (manual login, debugging, element inspection)
+session.open({ id: 'my-session', url: 'https://example.com', config: { headless: false, stealth: true }})
+```
 
 **Note:** Browser launches lazily (only when `session.open` is called), so MCP server initialization doesn't show empty browser window. This matches playwright-mcp behavior.
 
@@ -48,16 +42,16 @@ Auto-detects headless mode based on DISPLAY environment:
     "szkrabok": {
       "command": "node",
       "args": [
-        "/home/jones2/mega/research/szkrabok/index.js"
+        "/path/to/szkrabok/szkrabok.playwright.mcp.stealth/src/index.js"
       ]
     }
   }
 }
 ```
 
-## Force Headless Mode (Invisible Browser)
+## Alternative: Force Headless at MCP Server Level
 
-Always run in headless mode, regardless of DISPLAY:
+You can force all sessions to run in headless mode by default at the MCP server level (sessions can still override with `config.headless`):
 
 ```json
 {
@@ -65,7 +59,7 @@ Always run in headless mode, regardless of DISPLAY:
     "szkrabok": {
       "command": "node",
       "args": [
-        "/home/jones2/mega/research/szkrabok/index.js",
+        "/path/to/szkrabok/szkrabok.playwright.mcp.stealth/src/index.js",
         "--headless"
       ]
     }
@@ -73,9 +67,9 @@ Always run in headless mode, regardless of DISPLAY:
 }
 ```
 
-## Visible Browser with DISPLAY
+## Alternative: Force Visible at MCP Server Level
 
-For interactive browsing (manual login, debugging):
+Force all sessions to run in visible mode by default (requires X server):
 
 ```json
 {
@@ -83,7 +77,7 @@ For interactive browsing (manual login, debugging):
     "szkrabok": {
       "command": "node",
       "args": [
-        "/home/jones2/mega/research/szkrabok/index.js",
+        "/path/to/szkrabok/szkrabok.playwright.mcp.stealth/src/index.js",
         "--no-headless"
       ],
       "env": {
@@ -96,9 +90,9 @@ For interactive browsing (manual login, debugging):
 
 **Note:** Requires X server running on DISPLAY :0
 
-## Visible Browser without X Server (xvfb)
+## Using xvfb (Virtual Display)
 
-For servers or containers without X display:
+For servers or containers without X display, use xvfb to create a virtual framebuffer:
 
 ```json
 {
@@ -108,8 +102,7 @@ For servers or containers without X display:
       "args": [
         "-a",
         "node",
-        "/home/jones2/mega/research/szkrabok/index.js",
-        "--no-headless"
+        "/path/to/szkrabok/szkrabok.playwright.mcp.stealth/src/index.js"
       ]
     }
   }
@@ -128,7 +121,7 @@ For servers or containers without X display:
     "szkrabok": {
       "command": "node",
       "args": [
-        "/home/jones2/mega/research/szkrabok/index.js"
+        "/path/to/szkrabok/szkrabok.playwright.mcp.stealth/src/index.js"
       ],
       "env": {
         "TIMEOUT": "60000"
@@ -140,58 +133,29 @@ For servers or containers without X display:
 
 ## Session Persistence Workflow
 
+With a single MCP server, you can switch between visible and headless modes per session without reconfiguring the server.
+
 ### Phase 1: Manual Login (Visible Browser)
 
-Use this config for one-time manual login:
-
-```json
-{
-  "mcpServers": {
-    "szkrabok": {
-      "command": "node",
-      "args": [
-        "/home/jones2/mega/research/szkrabok/index.js",
-        "--no-headless"
-      ],
-      "env": {
-        "DISPLAY": ":0"
-      }
-    }
-  }
-}
-```
+Use visible mode for one-time manual login:
 
 **MCP Workflow:**
-1. Call `session.open({ id: 'myapp', url: 'https://app.example.com/login', config: { stealth: true }})`
-2. Browser opens visibly
+1. Call `session.open({ id: 'myapp', url: 'https://app.example.com/login', config: { headless: false, stealth: true }})`
+2. Browser opens visibly (requires X server/DISPLAY)
 3. Log in manually
-4. Call `wait.forClose({ id: 'myapp' })` - waits for you to close browser
-5. Call `session.close({ id: 'myapp', save: true })` - saves cookies/state
-6. Session persisted to `~/.szkrabok/sessions/myapp/`
+4. Call `session.close({ id: 'myapp', save: true })` - saves cookies/state
+5. Session persisted to `szkrabok.playwright.mcp.stealth/sessions/myapp/`
 
 ### Phase 2: Automated Access (Headless)
 
-After manual login, switch config to headless:
-
-```json
-{
-  "mcpServers": {
-    "szkrabok": {
-      "command": "node",
-      "args": [
-        "/home/jones2/mega/research/szkrabok/index.js",
-        "--headless"
-      ]
-    }
-  }
-}
-```
+After manual login, reuse the same session in headless mode:
 
 **MCP Workflow:**
-1. Call `session.open({ id: 'myapp', url: 'https://app.example.com/dashboard', config: { stealth: true }})`
-2. Session automatically restores cookies/state
+1. Call `session.open({ id: 'myapp', url: 'https://app.example.com/dashboard', config: { headless: true, stealth: true }})`
+2. Session automatically restores cookies/state from Phase 1
 3. Already logged in, no user interaction needed
 4. Automate tasks in headless mode
+5. Call `session.close({ id: 'myapp', save: true })` to update session state
 
 ## Path Placeholders
 
@@ -203,7 +167,7 @@ Replace absolute paths with your actual installation:
     "szkrabok": {
       "command": "node",
       "args": [
-        "/path/to/your/szkrabok/index.js"
+        "/path/to/your/szkrabok/szkrabok.playwright.mcp.stealth/src/index.js"
       ]
     }
   }
@@ -211,8 +175,8 @@ Replace absolute paths with your actual installation:
 ```
 
 **Common locations:**
-- Development: `/home/username/projects/szkrabok/index.js`
-- Global npm: `$(npm root -g)/szkrabok/index.js`
+- Development: `/home/username/projects/szkrabok/szkrabok.playwright.mcp.stealth/src/index.js`
+- Global npm: `$(npm root -g)/szkrabok/szkrabok.playwright.mcp.stealth/src/index.js`
 - npx: Use `"command": "npx"` with `"args": ["szkrabok", "--headless"]` (if published to npm)
 
 ## Troubleshooting
@@ -246,9 +210,9 @@ ls -la ~/.szkrabok/sessions/
 chmod -R u+w ~/.szkrabok/sessions/
 ```
 
-## Advanced: Multiple Profiles
+## Advanced: Multiple MCP Instances (Optional)
 
-Run separate szkrabok instances with different profiles:
+**Note:** You typically don't need multiple MCP servers since a single server can handle both headless and visible modes per session. However, you might want separate instances for completely isolated browser profiles or different session storage locations.
 
 ```json
 {
@@ -256,22 +220,17 @@ Run separate szkrabok instances with different profiles:
     "szkrabok-personal": {
       "command": "node",
       "args": [
-        "/home/jones2/mega/research/szkrabok/index.js",
-        "--headless"
+        "/path/to/szkrabok/szkrabok.playwright.mcp.stealth/src/index.js"
       ]
     },
     "szkrabok-work": {
       "command": "node",
       "args": [
-        "/home/jones2/mega/research/szkrabok/index.js",
-        "--no-headless"
-      ],
-      "env": {
-        "DISPLAY": ":0"
-      }
+        "/path/to/szkrabok/szkrabok.playwright.mcp.stealth/src/index.js"
+      ]
     }
   }
 }
 ```
 
-Each server maintains separate session storage and browser instances.
+Each server maintains separate session storage and browser instances. Within each server, you can still control headless/visible mode per session using `config.headless`.

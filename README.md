@@ -22,17 +22,26 @@ cd ..
 
 ### Claude Code CLI
 ```bash
-claude mcp add szkrabok -- node /absolute/path/to/szkrabok/szkrabok.playwright.mcp.stealth/src/index.js --headless
+# From repository root
+./install-mcp.sh
+
+# Or manually (replace /path/to/szkrabok with actual path)
+claude mcp add szkrabok -- node /path/to/szkrabok/szkrabok.playwright.mcp.stealth/src/index.js --headless
 ```
 
 ### Claude Desktop
-Edit `~/.config/Claude/claude_desktop_config.json`:
+```bash
+# From repository root
+./install-mcp.sh
+
+# Or manually edit ~/.config/Claude/claude_desktop_config.json:
+```
 ```json
 {
   "mcpServers": {
     "szkrabok": {
       "command": "node",
-      "args": ["/absolute/path/to/szkrabok/szkrabok.playwright.mcp.stealth/src/index.js", "--headless"]
+      "args": ["/path/to/szkrabok/szkrabok.playwright.mcp.stealth/src/index.js", "--headless"]
     }
   }
 }
@@ -79,7 +88,13 @@ node src/cli.js session list          # Test CLI
 
 **Claude Code:**
 ```bash
-claude mcp add szkrabok -- node /home/user/szkrabok/szkrabok.playwright.mcp.stealth/src/index.js --headless
+# Reinstall (removes and re-adds if exists)
+claude mcp remove szkrabok
+claude mcp add szkrabok -- node /path/to/szkrabok/szkrabok.playwright.mcp.stealth/src/index.js --headless
+
+# Verify
+claude mcp list
+claude mcp get szkrabok
 ```
 
 **Claude Desktop** (`~/.config/Claude/claude_desktop_config.json`):
@@ -88,8 +103,7 @@ claude mcp add szkrabok -- node /home/user/szkrabok/szkrabok.playwright.mcp.stea
   "mcpServers": {
     "szkrabok": {
       "command": "node",
-      "args": ["/absolute/path/to/szkrabok/szkrabok.playwright.mcp.stealth/src/index.js", "--headless"],
-      "env": {"HEADLESS": "true"}
+      "args": ["/path/to/szkrabok/szkrabok.playwright.mcp.stealth/src/index.js", "--headless"]
     }
   }
 }
@@ -282,14 +296,19 @@ npm install  # If package.json changed
 **Claude Code:**
 ```bash
 claude mcp remove szkrabok
+claude mcp list  # Verify removal
 ```
 
-**Claude Desktop:** Remove `szkrabok` entry from config file.
-
-**Files:**
+**Claude Desktop:**
 ```bash
-rm -rf szkrabok.playwright.mcp.stealth/node_modules
-rm -rf szkrabok.playwright.mcp.stealth/sessions
+# Remove "szkrabok" entry from ~/.config/Claude/claude_desktop_config.json
+# Then restart Claude Desktop
+```
+
+**Clean Up Files (Optional):**
+```bash
+cd szkrabok.playwright.mcp.stealth
+rm -rf node_modules sessions
 ```
 
 ## Contributing
