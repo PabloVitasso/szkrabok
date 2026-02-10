@@ -4,22 +4,25 @@ Session-persistent browser automation with stealth mode. 67 tools for web automa
 
 ## Install
 
+From the monorepo root:
 ```bash
+cd szkrabok.playwright.mcp.stealth
 npm install
+cd ..
 ./install-mcp.sh
 ```
 
 Or manually:
 ```bash
 # Claude Code CLI
-claude mcp add szkrabok -- node /path/to/szkrabok/index.js --headless
+claude mcp add szkrabok -- node /path/to/szkrabok/szkrabok.playwright.mcp.stealth/src/index.js --headless
 
 # Claude Desktop (~/.config/Claude/claude_desktop_config.json)
 {
   "mcpServers": {
     "szkrabok": {
       "command": "node",
-      "args": ["/path/to/szkrabok/index.js", "--headless"]
+      "args": ["/path/to/szkrabok/szkrabok.playwright.mcp.stealth/src/index.js", "--headless"]
     }
   }
 }
@@ -184,8 +187,8 @@ npm list playwright
 ## Architecture
 
 ```
-LLM → MCP Server → Session Pool → Playwright + Stealth
-                       ↓
+LLM -> MCP Server -> Session Pool -> Playwright + Stealth
+                       |
                   File Storage (./sessions/)
 ```
 
