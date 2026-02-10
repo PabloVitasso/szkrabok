@@ -24,7 +24,7 @@ elif command -v claude &> /dev/null; then
     echo "✓ Found Claude Code CLI"
     echo ""
     echo "Installing szkrabok..."
-    claude mcp add szkrabok -- node "$SZKRABOK_DIR/index.js" --headless
+    claude mcp add szkrabok -- node "$SZKRABOK_DIR/szkrabok.playwright.mcp.stealth/src/index.js" --headless
     echo ""
     echo "✅ Installation complete!"
     echo "Config updated: ~/.claude.json"
@@ -44,7 +44,7 @@ else
     "szkrabok": {
       "command": "node",
       "args": [
-        "$SZKRABOK_DIR/index.js",
+        "$SZKRABOK_DIR/szkrabok.playwright.mcp.stealth/src/index.js",
         "--headless"
       ]
     }
@@ -94,7 +94,7 @@ if 'mcpServers' not in config:
 config['mcpServers']['szkrabok'] = {
     "command": "node",
     "args": [
-        "$SZKRABOK_DIR/index.js",
+        "$SZKRABOK_DIR/szkrabok.playwright.mcp.stealth/src/index.js",
         "--headless"
     ]
 }
