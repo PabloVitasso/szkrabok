@@ -31,25 +31,36 @@ export const TIMEZONE = process.env.TIMEZONE || 'America/New_York'
 export const findChromiumPath = () => {
   const playwrightCache = join(homedir(), '.cache', 'ms-playwright')
 
-  if (!existsSync(playwrightCache)) {
-    return null
+  if (existsSync(playwrightCache)) {
+    const dirs = readdirSync(playwrightCache)
+      .filter(d => d.startsWith('chromium-'))
+      .sort()
+      .reverse() // latest first
+
+    for (const dir of dirs) {
+      const paths = [
+        join(playwrightCache, dir, 'chrome-linux', 'chrome'),
+        join(playwrightCache, dir, 'chrome-linux64', 'chrome'),
+      ]
+
+      for (const path of paths) {
+        if (existsSync(path)) {
+          return path
+        }
+      }
+    }
   }
 
-  const dirs = readdirSync(playwrightCache)
-    .filter(d => d.startsWith('chromium-'))
-    .sort()
-    .reverse() // latest first
+  // Fallback to system chromium
+  const systemChromiums = [
+    '/usr/bin/chromium',
+    '/usr/bin/chromium-browser',
+    '/usr/bin/google-chrome', // keep as last resort
+  ]
 
-  for (const dir of dirs) {
-    const paths = [
-      join(playwrightCache, dir, 'chrome-linux', 'chrome'),
-      join(playwrightCache, dir, 'chrome-linux64', 'chrome'),
-    ]
-
-    for (const path of paths) {
-      if (existsSync(path)) {
-        return path
-      }
+  for (const path of systemChromiums) {
+    if (existsSync(path)) {
+      return path
     }
   }
 

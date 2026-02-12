@@ -16,8 +16,11 @@
 # 1. Install dependencies
 cd szkrabok.playwright.mcp.stealth && npm install && cd ..
 
-# 2. Configure MCP client (auto-detects Claude Code or Desktop)
-./install-mcp.sh
+# 2. Configure MCP client (Claude Code CLI)
+./install.sh --scope user
+
+# Or interactive mode
+./install.sh
 
 # 3. Restart Claude and test
 ```
@@ -38,7 +41,14 @@ Try these commands:
 
 ### Automated Installation
 
-See [Quick Start](#quick-start) for automated installation using `./install-mcp.sh`
+See [Quick Start](#quick-start) for automated installation using `./install.sh`
+
+**Usage:**
+```bash
+./install.sh --scope user    # Install globally
+./install.sh --scope local   # Install for current project
+./install.sh                 # Interactive mode (prompts for scope)
+```
 
 ### Manual Configuration (Optional)
 
@@ -134,7 +144,7 @@ All tools support 3 formats: `session.open`, `session_open`, `sessionopen`
 cd szkrabok.playwright.mcp.stealth
 npm install
 cat ~/.claude.json  # Verify path
-./install-mcp.sh    # Reconfigure
+./install.sh    # Reconfigure
 ```
 
 ### "Cannot find module '@modelcontextprotocol/sdk'"
@@ -178,7 +188,7 @@ szkrabok/
 ├── szkrabok-plugin/                    # Claude plugin definitions
 ├── contracts/                          # Shared MCP contracts
 ├── scripts/                            # Repository-level scripts
-├── install-mcp.sh                      # Installation helper
+├── install.sh                       # Installation helper (Claude Code)
 └── szkrabok-mcp-config.json           # Example config
 ```
 

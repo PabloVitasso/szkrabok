@@ -9,7 +9,7 @@ From the monorepo root:
 cd szkrabok.playwright.mcp.stealth
 npm install
 cd ..
-./install-mcp.sh
+./install.sh --scope user
 ```
 
 Or manually:
