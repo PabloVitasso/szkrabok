@@ -192,15 +192,7 @@ szkrabok/
 └── CONTRIBUTING.md, SECURITY.md, LICENSE
 ```
 
-## Version
-
-2.0.0
-- Session persistence
-- Stealth mode
-- 67 MCP tools
-
 ## See Also
 
 - [CONTRIBUTING.md](./CONTRIBUTING.md) - Contribution guidelines
 - [SECURITY.md](./SECURITY.md) - Security policy
-- [szkrabok.playwright.mcp.stealth/README.md](./szkrabok.playwright.mcp.stealth/README.md) - Server docs
