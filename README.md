@@ -1,30 +1,18 @@
-# Szkrabok - Browser Automation MCP Server
+# Szkrabok - Extended Playwright-MCP with stealth and sessions
 
-Session-persistent browser automation with stealth mode. 67 tools for web automation.
+## Features
 
-## Install
+- Persistent sessions across restarts (cookies, localStorage saved)
+- Stealth mode (playwright-extra + puppeteer-extra-plugin-stealth)
+- Auto-detect headless/headed mode
+- CSS selectors + Playwright refs
+- Session CLI tools
+  
+## Install in Claude Code
 
 ```bash
-cd szkrabok.playwright.mcp.stealth && npm install
-cd ..
-./install.sh --scope user        # User-wide install
-./install.sh --scope local       # Project install
-```
-
-Or manually:
-```bash
-# Claude Code CLI
-claude mcp add szkrabok -- node /path/to/szkrabok/szkrabok.playwright.mcp.stealth/src/index.js --headless
-
-# Claude Desktop - edit ~/.config/Claude/claude_desktop_config.json
-{
-  "mcpServers": {
-    "szkrabok": {
-      "command": "node",
-      "args": ["/path/to/szkrabok/szkrabok.playwright.mcp.stealth/src/index.js", "--headless"]
-    }
-  }
-}
+./install.sh --scope user        # User-wide install for Claude Code
+./install.sh --scope local       # Project install for Claude Code
 ```
 
 ## Quick Start
@@ -75,14 +63,6 @@ claude mcp add szkrabok -- node /path/to/szkrabok/szkrabok.playwright.mcp.stealt
 - Testing tools (verify_*, generate_locator)
 
 All tools support 3 formats: session.open, session_open, sessionopen
-
-## Features
-
-- Persistent sessions across restarts (cookies, localStorage saved)
-- Stealth mode (playwright-extra + puppeteer-extra-plugin-stealth)
-- Auto-detect headless/headed mode
-- CSS selectors + Playwright refs
-- Session CLI tools
 
 ## Usage Examples
 
