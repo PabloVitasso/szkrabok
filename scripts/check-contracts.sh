@@ -3,17 +3,16 @@
 
 set -e
 
-echo "📋 Checking MCP contracts..."
+echo "Checking MCP contracts..."
 
-# Check version file exists
 if [ ! -f "contracts/mcp/version.txt" ]; then
-  echo "❌ Missing contracts/mcp/version.txt"
+  echo "Missing contracts/mcp/version.txt"
   exit 1
 fi
 
 VERSION=$(cat contracts/mcp/version.txt)
-echo "✓ Contract version: $VERSION"
+echo "Contract version: $VERSION"
 
 # Future: Add JSON schema validation here
 
-echo "✅ Contract validation passed!"
+echo "Contract validation passed!"

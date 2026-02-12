@@ -3,9 +3,9 @@
 
 set -e
 
-echo "🔍 Linting Playwright server..."
+echo "Linting Playwright server..."
 cd szkrabok.playwright.mcp.stealth
 npm run lint
 cd ..
 
-echo "✅ All linting checks passed!"
+echo "All linting checks passed!"

@@ -1,4 +1,4 @@
-## Playwright MCP
+# Playwright MCP
 
 A Model Context Protocol (MCP) server that provides browser automation capabilities using [Playwright](https://playwright.dev). This server enables LLMs to interact with web pages through structured accessibility snapshots, bypassing the need for screenshots or visually-tuned models.
 
@@ -238,7 +238,7 @@ Follow the MCP Servers [documentation](https://opencode.ai/docs/mcp-servers/). F
 <details>
 <summary>Qodo Gen</summary>
 
-Open [Qodo Gen](https://docs.qodo.ai/qodo-documentation/qodo-gen) chat panel in VSCode or IntelliJ → Connect more tools → + Add new MCP → Paste the standard config above.
+Open [Qodo Gen](https://docs.qodo.ai/qodo-documentation/qodo-gen) chat panel in VSCode or IntelliJ -> Connect more tools -> + Add new MCP -> Paste the standard config above.
 
 Click <code>Save</code>.
 </details>
@@ -649,7 +649,7 @@ npx @playwright/mcp@latest --config path/to/config.json
     action?: number;
 
     /*
-     * Configures default navigation timeout: https://playwright.dev/docs/api/class-page#page-set-default-navigation-timeout. Defaults to 60000ms.
+     * Configures default navigation timeout: https://playwright.dev/docs/api/class-page#page-set-default-timeout. Defaults to 60000ms.
      */
     navigation?: number;
   };
@@ -720,7 +720,7 @@ docker run -d -i --rm --init --pull=always \
   cli.js --headless --browser chromium --no-sandbox --port 8931
 ```
 
-The server will listen on host port **8931** and can be reached by any MCP client.  
+The server will listen on host port **8931** and can be reached by any MCP client.
 
 You can build the Docker image yourself.
 

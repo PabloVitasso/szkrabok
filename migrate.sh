@@ -10,23 +10,20 @@ UPSTREAM_BRANCH="${UPSTREAM_BRANCH:-upstream/main}"
 MIGRATION_BRANCH="${MIGRATION_BRANCH:-sync-upstream-$(date +%Y%m%d)}"
 DRY_RUN=false
 
-# Parse arguments
 if [[ "$1" == "--dry-run" ]]; then
     DRY_RUN=true
     echo "DRY RUN MODE - No changes will be made"
 fi
 
-# Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
+NC='\033[0m'
 
 log_info() { echo -e "${GREEN}[INFO]${NC} $1"; }
 log_warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }
 log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
 
-# Check prerequisites
 check_prerequisites() {
     log_info "Checking prerequisites..."
 
@@ -48,7 +45,6 @@ check_prerequisites() {
     log_info "Prerequisites OK"
 }
 
-# Fetch latest upstream
 fetch_upstream() {
     log_info "Fetching latest upstream..."
     if [[ "$DRY_RUN" == true ]]; then
@@ -58,7 +54,6 @@ fetch_upstream() {
     fi
 }
 
-# Check for uncommitted changes
 check_clean_working_tree() {
     log_info "Checking for uncommitted changes..."
     if ! git diff-index --quiet HEAD --; then
@@ -69,7 +64,6 @@ check_clean_working_tree() {
     log_info "Working tree is clean"
 }
 
-# Create migration branch
 create_migration_branch() {
     log_info "Creating migration branch: $MIGRATION_BRANCH"
 
@@ -96,7 +90,6 @@ create_migration_branch() {
     fi
 }
 
-# Apply patches
 apply_patches() {
     log_info "Applying szkrabok patches..."
 
@@ -121,7 +114,7 @@ apply_patches() {
                 git apply "$patch"
                 git add -A
                 git commit -m "Apply $(basename "$patch")"
-                log_info "✓ Applied $patch"
+                log_info "* Applied $patch"
             else
                 log_error "Failed to apply $patch"
                 log_warn "You'll need to apply this patch manually"
@@ -131,7 +124,6 @@ apply_patches() {
     done
 }
 
-# Copy additional files
 copy_additional_files() {
     log_info "Copying additional szkrabok files..."
 
@@ -168,7 +160,6 @@ copy_additional_files() {
     fi
 }
 
-# Update package.json
 update_package_json() {
     log_info "Updating package.json with szkrabok dependencies..."
 
@@ -198,7 +189,6 @@ EOF
     fi
 }
 
-# Run tests
 run_tests() {
     log_info "Running tests..."
 
@@ -210,7 +200,7 @@ run_tests() {
 
         log_info "Running tests..."
         if npm test; then
-            log_info "✓ All tests passed!"
+            log_info "* All tests passed!"
         else
             log_error "Tests failed. Review and fix before continuing."
             exit 1
@@ -218,7 +208,6 @@ run_tests() {
     fi
 }
 
-# Summary
 print_summary() {
     log_info "Migration summary:"
     echo ""
@@ -235,7 +224,6 @@ print_summary() {
     echo "5. Tag the release: git tag v1.2-upstream-sync"
 }
 
-# Main execution
 main() {
     log_info "Starting Szkrabok upstream migration..."
     log_info "Target upstream: $UPSTREAM_BRANCH"

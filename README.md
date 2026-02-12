@@ -1,70 +1,22 @@
-# Szkrabok - Stealth Browser Automation
+# Szkrabok - Browser Automation MCP Server
 
-## Index
-- [Quick Start](#quick-start)
-- [Installation](#installation)
-- [MCP Configuration](#mcp-configuration)
-- [Testing](#testing)
-- [Available Tools](#available-tools)
-- [Troubleshooting](#troubleshooting)
-- [Repository Structure](#repository-structure)
-- [Development](#development)
+Session-persistent browser automation with stealth mode. 67 tools for web automation.
 
-## Quick Start
+## Install
 
 ```bash
-# 1. Install dependencies
-cd szkrabok.playwright.mcp.stealth && npm install && cd ..
-
-# 2. Configure MCP client (Claude Code CLI)
-./install.sh --scope user
-
-# Or interactive mode
-./install.sh
-
-# 3. Restart Claude and test
+cd szkrabok.playwright.mcp.stealth && npm install
+cd ..
+./install.sh --scope user        # User-wide install
+./install.sh --scope local       # Project install
 ```
 
-Try these commands:
-```
-"List all szkrabok sessions"
-"Open session 'test' and navigate to https://example.com"
-"Take screenshot of session 'test' and save as screenshot.png"
-"Close session 'test' and save state"
-```
-
-## Installation
-
-### Prerequisites
-- Node.js >=18.0.0
-- Python >=3.10 (for Crawl4AI server, optional)
-
-### Automated Installation
-
-See [Quick Start](#quick-start) for automated installation using `./install.sh`
-
-**Usage:**
+Or manually:
 ```bash
-./install.sh --scope user    # Install globally
-./install.sh --scope local   # Install for current project
-./install.sh                 # Interactive mode (prompts for scope)
-```
-
-### Manual Configuration (Optional)
-
-If you prefer manual setup or need to reinstall:
-
-**Claude Code:**
-```bash
-claude mcp remove szkrabok  # If reinstalling
+# Claude Code CLI
 claude mcp add szkrabok -- node /path/to/szkrabok/szkrabok.playwright.mcp.stealth/src/index.js --headless
-claude mcp list  # Verify
-```
 
-**Claude Desktop:**
-
-Edit `~/.config/Claude/claude_desktop_config.json`:
-```json
+# Claude Desktop - edit ~/.config/Claude/claude_desktop_config.json
 {
   "mcpServers": {
     "szkrabok": {
@@ -75,103 +27,171 @@ Edit `~/.config/Claude/claude_desktop_config.json`:
 }
 ```
 
-### Verify Installation
+## Quick Start
+
+```
+"List all szkrabok sessions"
+"Open session 'work' and go to example.com"
+"Extract h1 text"
+"Close session 'work'"
+```
+
+## Tools (67 total)
+
+### Session (4)
+- session.open(id, url?, config?) - create/resume with persistence
+- session.close(id, save?) - save and close
+- session.list() - view all
+- session.delete(id) - remove
+
+### Navigation (3)
+- nav.goto(id, url) - navigate
+- nav.back(id), nav.forward(id)
+
+### Interaction (3)
+- interact.click(id, selector)
+- interact.type(id, selector, text)
+- interact.select(id, selector, value)
+
+### Extract (4)
+- extract.text(id, selector?)
+- extract.html(id, selector?)
+- extract.screenshot(id, path?, fullPage?)
+- extract.evaluate(id, code, args?)
+
+### Workflows (3)
+- workflow.login(id, username, password, selectors?)
+- workflow.fillForm(id, fields{})
+- workflow.scrape(id, selectors{})
+
+### Wait (3)
+- wait.forClose(id)
+- wait.forSelector(id, selector)
+- wait.forTimeout(id, ms)
+
+### Playwright-MCP (33+)
+- browser.* tools (snapshot, navigate, click, type, etc)
+- Vision tools (mouse_click_xy, mouse_move_xy)
+- Testing tools (verify_*, generate_locator)
+
+All tools support 3 formats: session.open, session_open, sessionopen
+
+## Features
+
+- Persistent sessions across restarts (cookies, localStorage saved)
+- Stealth mode (playwright-extra + puppeteer-extra-plugin-stealth)
+- Auto-detect headless/headed mode
+- CSS selectors + Playwright refs
+- Session CLI tools
+
+## Usage Examples
+
+### Login automation
+```
+"Use workflow.login in 'work' with username 'user@example.com' password 'pass123'"
+```
+
+### Data extraction
+```
+"Use workflow.scrape in 'work' to extract:
+- title from 'h1'
+- content from '.main'
+- links from 'a'"
+```
+
+### Form filling
+```
+"Use workflow.fillForm in 'work' with:
+- '#name': 'John'
+- '#email': 'john@example.com'"
+```
+
+## CLI
 
 ```bash
 cd szkrabok.playwright.mcp.stealth
-node src/index.js --headless          # Test server starts
-npm ls @modelcontextprotocol/sdk      # Check dependencies
-node src/cli.js session list          # Test CLI
+bebok session list
+bebok session inspect <id>
+bebok session delete <id>
+bebok cleanup --days 30
 ```
 
-## MCP Configuration
+## Configuration
 
-The MCP server supports these configuration options:
+**Environment variables:**
+```bash
+HEADLESS=true       # Force headless
+TIMEOUT=30000       # Default timeout
+DISPLAY=:0          # X server display
+VIEWPORT_WIDTH=1920 VIEWPORT_HEIGHT=1080
+```
 
-**Headless Mode:**
-- `--headless` - Force headless mode (invisible browser)
-- `--no-headless` - Force visible mode (requires X server)
-- Auto-detects based on `$DISPLAY` if not specified
+**CLI flags override env:**
+```bash
+node index.js --headless
+node index.js --no-headless
+```
 
-**Environment Variables:**
-- `HEADLESS=true` - Enable headless mode
-- `TIMEOUT=60000` - Set operation timeout (ms)
-- `VIEWPORT_WIDTH=1920 VIEWPORT_HEIGHT=1080` - Set browser viewport size
+**Sessions stored in ./sessions/{id}/:**
+- state.json - cookies, localStorage, sessionStorage
+- meta.json - timestamps, config, lastUrl
+
+## Architecture
+
+```
+LLM -> MCP Server -> Session Pool -> Playwright + Stealth
+                      |
+                 File Storage (./sessions/)
+```
+
+**Components:**
+- core/ - Session management, stealth, storage
+- tools/ - MCP tools (session, nav, interact, extract, workflow)
+- upstream/ - Browser wrapper
+- utils/ - Errors, logging
+- tests/ - Playwright + Node tests
 
 ## Testing
 
 ```bash
 cd szkrabok.playwright.mcp.stealth
-
-# Run automated tests
-npm test
-
-# Test with MCP inspector
-npx @modelcontextprotocol/inspector szkrabok-playwright-mcp
+npm test              # All tests (17 total)
+npm run test:node    # Node tests (8)
+npm run test:playwright  # Playwright tests (9)
 ```
-
-## Available Tools
-
-**67 tools total**
-
-### Session (4)
-session.open, session.close, session.list, session.delete
-
-### Navigation (3)
-nav.goto, nav.back, nav.forward
-
-### Interaction (3)
-interact.click, interact.type, interact.select
-
-### Extraction (4)
-extract.text, extract.html, extract.screenshot, extract.evaluate
-
-### Workflows (3)
-workflow.login, workflow.fillForm, workflow.scrape
-
-### Wait (3)
-wait.forClose, wait.forSelector, wait.forTimeout
-
-### Playwright MCP (33+)
-browser.snapshot, browser.navigate, browser.click, mouse_click_xy, mouse_move_xy, verify_*, generate_locator
-
-All tools support 3 formats: `session.open`, `session_open`, `sessionopen`
 
 ## Troubleshooting
 
-### "Failed to reconnect to szkrabok"
+### Common issues
+
+**Browser not launching:**
 ```bash
-cd szkrabok.playwright.mcp.stealth
-npm install
-cat ~/.claude.json  # Verify path
-./install.sh    # Reconfigure
+npx playwright install chromium
+echo $DISPLAY  # Check display variable
 ```
 
-### "Cannot find module '@modelcontextprotocol/sdk'"
+**Stealth detection:**
 ```bash
-cd szkrabok.playwright.mcp.stealth
-npm install
+npm test test/scrap.test.js
 ```
 
-### Puppeteer browser download fails
+**Session not persisting:**
 ```bash
-rm -rf ~/.cache/puppeteer
-cd szkrabok.playwright.mcp.stealth
-npm install
+ls -la sessions/
+cat sessions/[id]/meta.json
 ```
 
-### Browser won't launch
-```bash
-node src/index.js --headless              # Option 1: headless
-xvfb-run node src/index.js                # Option 2: Xvfb
-export DISPLAY=:0 && node src/index.js    # Option 3: Set display
-```
+**Tools not appearing:**
+- Restart MCP client
+- Verify config syntax
+- Test manually: npm start
 
-### Session errors
+### Debug commands
 ```bash
-cd szkrabok.playwright.mcp.stealth
-node src/cli.js session list
-node src/cli.js session delete <id>
+npm start                    # Test server
+npx @modelcontextprotocol/inspector szkrabok
+tail -f logs/szkrabok.log
+npm list playwright
 ```
 
 ## Repository Structure
@@ -186,104 +206,21 @@ szkrabok/
 ├── szkrabok.crawl4ai.mcp.stealth/     # Python Crawl4AI MCP (coming soon)
 ├── skills/                             # Claude skills (google-search, etc)
 ├── szkrabok-plugin/                    # Claude plugin definitions
-├── contracts/                          # Shared MCP contracts
-├── scripts/                            # Repository-level scripts
-├── install.sh                       # Installation helper (Claude Code)
-└── szkrabok-mcp-config.json           # Example config
+├── contracts/                           # Shared MCP contracts
+├── scripts/                             # Repository-level scripts
+├── install.sh                           # Installation helper
+└── CONTRIBUTING.md, SECURITY.md, LICENSE
 ```
 
-### File Locations
-| What | Path |
-|------|------|
-| MCP Server | `szkrabok.playwright.mcp.stealth/src/index.js` |
-| CLI Tool | `szkrabok.playwright.mcp.stealth/src/cli.js` |
-| Sessions | `szkrabok.playwright.mcp.stealth/sessions/` |
-| Config | `szkrabok-mcp-config.json` |
+## Version
 
-## Development
+2.0.0
+- Session persistence
+- Stealth mode
+- 67 MCP tools
 
-### Lint All Servers
-```bash
-./scripts/lint-all.sh
-```
+## See Also
 
-### Test All Servers
-```bash
-./scripts/test-all.sh
-```
-
-### Validate Contracts
-```bash
-./scripts/check-contracts.sh
-```
-
-### Run Playwright MCP Tests
-```bash
-cd szkrabok.playwright.mcp.stealth
-npm test                    # All tests (17 total)
-npm run test:node           # Node tests (8)
-npm run test:playwright     # Playwright tests (9)
-```
-
-## Servers
-
-### szkrabok.playwright.mcp.stealth (Node.js)
-Production-grade Playwright-based browser automation with 67 tools.
-
-**Features:**
-- Persistent sessions (cookies, localStorage)
-- Stealth mode (playwright-extra + puppeteer-extra-plugin-stealth)
-- CSS selectors + accessibility tree interactions
-- Session pooling and lifecycle management
-
-**[View Documentation](./szkrabok.playwright.mcp.stealth/README.md)**
-
-### szkrabok.crawl4ai.mcp.stealth (Python)
-*Coming Soon* - Crawl4AI-powered intelligent scraping with LLM extraction.
-
-**[View Documentation](./szkrabok.crawl4ai.mcp.stealth/README.md)**
-
-## Sessions
-
-Each server has its own sessions directory:
-- Playwright: `szkrabok.playwright.mcp.stealth/sessions/`
-- Crawl4AI: `szkrabok.crawl4ai.mcp.stealth/sessions/`
-
-Sessions are server-specific and cannot be shared.
-
-## Updating
-
-```bash
-cd szkrabok.playwright.mcp.stealth
-npm install  # If package.json changed
-# Restart MCP client
-```
-
-## Uninstalling
-
-**Claude Code:**
-```bash
-claude mcp remove szkrabok
-claude mcp list  # Verify removal
-```
-
-**Claude Desktop:**
-```bash
-# Remove "szkrabok" entry from ~/.config/Claude/claude_desktop_config.json
-# Then restart Claude Desktop
-```
-
-**Clean Up Files (Optional):**
-```bash
-cd szkrabok.playwright.mcp.stealth
-rm -rf node_modules sessions
-```
-
-## Contributing
-See [CONTRIBUTING.md](./CONTRIBUTING.md)
-
-## License
-MIT - See [LICENSE](./LICENSE)
-
-## Security
-See [SECURITY.md](./SECURITY.md)
+- [CONTRIBUTING.md](./CONTRIBUTING.md) - Contribution guidelines
+- [SECURITY.md](./SECURITY.md) - Security policy
+- [szkrabok.playwright.mcp.stealth/README.md](./szkrabok.playwright.mcp.stealth/README.md) - Server docs

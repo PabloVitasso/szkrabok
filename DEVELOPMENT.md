@@ -286,6 +286,26 @@ bebok cleanup [--days N]    # Delete sessions older than N days
 
 ---
 
+## Testing
+
+### test-install.sh (37 lines)
+
+Installation script test suite that validates all installation workflows.
+
+```bash
+./test-install.sh
+
+# Tests performed:
+# 1. Clean install to local scope
+# 2. Clean install to user scope
+# 3. Install local with --clean-all when user scope exists
+# 4. Verify final state
+#
+# Cleanup runs automatically on exit via trap
+```
+
+---
+
 ## Entry Points
 
 ### index.js (27 lines)
