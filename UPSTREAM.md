@@ -4,7 +4,9 @@
 
 ```bash
 ./merge-upstream.sh
+git checkout main
 git merge sync-$(date +%Y%m%d)
+git push origin main --tags
 ```
 
 ## What It Does

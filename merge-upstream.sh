@@ -30,4 +30,9 @@ cp -r "$TMP/src/utils" packages/playwright-mcp/src/
 git add -A && git commit -m "szkrabok: add entry points"
 
 rm -rf "$TMP"
-echo "✓ Done! Merge: git checkout main && git merge $BRANCH"
+
+echo "→ Test"
+cd "$ROOT/szkrabok.playwright.mcp.stealth" && npm test
+
+echo ""
+echo "✓ Done! Merge: git checkout main && git merge $BRANCH && git push origin main"
