@@ -24,8 +24,9 @@ git apply "$TMP/patches/szkrabok-tools.patch" && git add -A && git commit -m "sz
 git apply "$TMP/patches/szkrabok-registry.patch" && git add -A && git commit -m "szkrabok: registry"
 
 echo "→ Copy files"
-cp "$TMP/src"/{index,server,cli,config}.js src/
-cp -r "$TMP/src/utils" src/
+mkdir -p packages/playwright-mcp/src
+cp "$TMP/src"/{index,server,cli,config}.js packages/playwright-mcp/
+cp -r "$TMP/src/utils" packages/playwright-mcp/src/
 git add -A && git commit -m "szkrabok: add entry points"
 
 rm -rf "$TMP"
