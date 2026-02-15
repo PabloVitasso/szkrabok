@@ -42,9 +42,22 @@ type TestFixtures = {
   cli: (...args: string[]) => Promise<CliResult>;
 };
 
+const extensionPublicKey = 'MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAwRsUUO4mmbCi4JpmrIoIw31iVW9+xUJRZ6nSzya17PQkaUPDxe1IpgM+vpd/xB6mJWlJSyE1Lj95c0sbomGfVY1M0zUeKbaRVcAb+/a6m59gNR+ubFlmTX0nK9/8fE2FpRB9D+4N5jyeIPQuASW/0oswI2/ijK7hH5NTRX8gWc/ROMSgUj7rKhTAgBrICt/NsStgDPsxRTPPJnhJ/ViJtM1P5KsSYswE987DPoFnpmkFpq8g1ae0eYbQfXy55ieaacC4QWyJPj3daU2kMfBQw7MXnnk0H/WDxouMOIHnd8MlQxpEMqAihj7KpuONH+MUhuj9HEQo4df6bSaIuQ0b4QIDAQAB';
+const extensionId = 'mmlmfjhmonkocbjadbfplnigmagldckm';
+
 const test = base.extend<TestFixtures>({
-  pathToExtension: async ({}, use) => {
-    await use(path.resolve(__dirname, '../dist'));
+  pathToExtension: async ({}, use, testInfo) => {
+    const extensionDir = testInfo.outputPath('extension');
+    const srcDir = path.resolve(__dirname, '../dist');
+    await fs.cp(srcDir, extensionDir, { recursive: true });
+    const manifestPath = path.join(extensionDir, 'manifest.json');
+    const manifest = JSON.parse(await fs.readFile(manifestPath, 'utf8'));
+    // We don't hardcode the key in manifest, but for the tests we set the key field
+    // to ensure that locally installed extension has the same id as the one published
+    // in the store.
+    manifest.key = extensionPublicKey;
+    await fs.writeFile(manifestPath, JSON.stringify(manifest, null, 2));
+    await use(extensionDir);
   },
 
   browserWithExtension: async ({ mcpBrowser, pathToExtension }, use, testInfo) => {
@@ -103,7 +116,7 @@ const test = base.extend<TestFixtures>({
     });
 
     // Cleanup sessions
-    await runCli(['session-stop-all'], { mcpBrowser, testInfo }).catch(() => {});
+    await runCli(['close-all'], { mcpBrowser, testInfo }).catch(() => {});
 
     const daemonDir = path.join(testInfo.outputDir, 'daemon');
     await fs.rm(daemonDir, { recursive: true, force: true }).catch(() => {});
@@ -120,7 +133,7 @@ async function runCli(
     const testInfo = options.testInfo;
 
     // Path to the terminal CLI
-    const cliPath = path.join(__dirname, '../../../node_modules/playwright/lib/mcp/terminal/cli.js');
+    const cliPath = path.join(__dirname, '../../../node_modules/playwright/lib/cli/client/program.js');
 
     return new Promise<CliResult>((resolve, reject) => {
       let stdout = '';
@@ -175,17 +188,13 @@ async function startWithExtensionFlag(browserWithExtension: BrowserWithExtension
 }
 
 const testWithOldExtensionVersion = test.extend({
-  pathToExtension: async ({}, use, testInfo) => {
-    const extensionDir = testInfo.outputPath('extension');
-    const oldPath = path.resolve(__dirname, '../dist');
-
-    await fs.cp(oldPath, extensionDir, { recursive: true });
-    const manifestPath = path.join(extensionDir, 'manifest.json');
+  pathToExtension: async ({ pathToExtension }, use, testInfo) => {
+    const manifestPath = path.join(pathToExtension, 'manifest.json');
     const manifest = JSON.parse(await fs.readFile(manifestPath, 'utf8'));
+    manifest.key = extensionPublicKey;
     manifest.version = '0.0.1';
-    await fs.writeFile(manifestPath, JSON.stringify(manifest, null, 2) + '\n');
-
-    await use(extensionDir);
+    await fs.writeFile(manifestPath, JSON.stringify(manifest, null, 2));
+    await use(pathToExtension);
   },
 });
 
@@ -195,7 +204,7 @@ test(`navigate with extension`, async ({ browserWithExtension, startClient, serv
   const client = await startWithExtensionFlag(browserWithExtension, startClient);
 
   const confirmationPagePromise = browserContext.waitForEvent('page', page => {
-    return page.url().startsWith('chrome-extension://jakfalbnbhgkpmoaakfflhflbfpkailf/connect.html');
+    return page.url().startsWith(`chrome-extension://${extensionId}/connect.html`);
   });
 
   const navigateResponse = client.callTool({
@@ -226,7 +235,7 @@ test(`snapshot of an existing page`, async ({ browserWithExtension, startClient,
   expect(browserContext.pages()).toHaveLength(3);
 
   const confirmationPagePromise = browserContext.waitForEvent('page', page => {
-    return page.url().startsWith('chrome-extension://jakfalbnbhgkpmoaakfflhflbfpkailf/connect.html');
+    return page.url().startsWith(`chrome-extension://${extensionId}/connect.html`);
   });
 
   const navigateResponse = client.callTool({
@@ -254,7 +263,7 @@ test(`extension not installed timeout`, async ({ browserWithExtension, startClie
   const client = await startWithExtensionFlag(browserWithExtension, startClient);
 
   const confirmationPagePromise = browserContext.waitForEvent('page', page => {
-    return page.url().startsWith('chrome-extension://jakfalbnbhgkpmoaakfflhflbfpkailf/connect.html');
+    return page.url().startsWith(`chrome-extension://${extensionId}/connect.html`);
   });
 
   expect(await client.callTool({
@@ -277,7 +286,7 @@ testWithOldExtensionVersion(`works with old extension version`, async ({ browser
   const client = await startWithExtensionFlag(browserWithExtension, startClient);
 
   const confirmationPagePromise = browserContext.waitForEvent('page', page => {
-    return page.url().startsWith('chrome-extension://jakfalbnbhgkpmoaakfflhflbfpkailf/connect.html');
+    return page.url().startsWith(`chrome-extension://${extensionId}/connect.html`);
   });
 
   const navigateResponse = client.callTool({
@@ -304,7 +313,7 @@ test(`extension needs update`, async ({ browserWithExtension, startClient, serve
   const client = await startWithExtensionFlag(browserWithExtension, startClient);
 
   const confirmationPagePromise = browserContext.waitForEvent('page', page => {
-    return page.url().startsWith('chrome-extension://jakfalbnbhgkpmoaakfflhflbfpkailf/connect.html');
+    return page.url().startsWith(`chrome-extension://${extensionId}/connect.html`);
   });
 
   const navigateResponse = client.callTool({
@@ -346,14 +355,14 @@ test(`custom executablePath`, async ({ startClient, server, useShortConnectionTi
     error: expect.stringContaining('Extension connection timeout.'),
     isError: true,
   });
-  expect(await fs.readFile(test.info().outputPath('output.txt'), 'utf8')).toMatch(/Custom exec args.*chrome-extension:\/\/jakfalbnbhgkpmoaakfflhflbfpkailf\/connect\.html\?/);
+  expect(await fs.readFile(test.info().outputPath('output.txt'), 'utf8')).toMatch(new RegExp(`Custom exec args.*chrome-extension://${extensionId}/connect\\.html\\?`));
 });
 
 test(`bypass connection dialog with token`, async ({ browserWithExtension, startClient, server }) => {
   const browserContext = await browserWithExtension.launch();
 
   const page = await browserContext.newPage();
-  await page.goto('chrome-extension://jakfalbnbhgkpmoaakfflhflbfpkailf/status.html');
+  await page.goto(`chrome-extension://${extensionId}/status.html`);
   const token = await page.locator('.auth-token-code').textContent();
   const [name, value] = token?.split('=') || [];
 
@@ -390,7 +399,7 @@ test.describe('CLI with extension', () => {
     }, null, 2));
 
     const confirmationPagePromise = browserContext.waitForEvent('page', page => {
-      return page.url().startsWith('chrome-extension://jakfalbnbhgkpmoaakfflhflbfpkailf/connect.html');
+      return page.url().startsWith(`chrome-extension://${extensionId}/connect.html`);
     });
 
     // Start the CLI command in the background
@@ -399,8 +408,8 @@ test.describe('CLI with extension', () => {
     // Wait for the confirmation page to appear
     const confirmationPage = await confirmationPagePromise;
 
-    // Click the Allow button
-    await confirmationPage.getByRole('button', { name: 'Allow' }).click();
+    // Click the Connect button
+    await confirmationPage.locator('.tab-item', { hasText: 'Playwright MCP extension' }).getByRole('button', { name: 'Connect' }).click();
 
     // Wait for the CLI command to complete
     const { output } = await cliPromise;
