@@ -1,6 +1,41 @@
-// Run via MCP:
-//   session.open  { "id": "p4n-test" }
-//   browser.run_test { "id": "p4n-test", "grep": "park4night" }
+/*
+ * park4night — cookie banner acceptance test
+ *
+ * ── Run via MCP ──────────────────────────────────────────────────────────────
+ *
+ *   1. Open a session (launches Chrome with a persistent profile + CDP port):
+ *        session.open { "id": "p4n-test" }
+ *
+ *   2. Run the test (connects to that Chrome via CDP):
+ *        browser.run_test { "id": "p4n-test", "grep": "park4night" }
+ *
+ *   Session behaviour:
+ *     NEW session  — profile directory is empty; park4night will show the
+ *                    cookie banner. Expected result:
+ *                      { "action": "clicked", "dismissed": true }
+ *
+ *     REUSED session — cookies are already persisted in the profile; the
+ *                    banner will not appear. Expected result:
+ *                      { "action": "skipped", "reason": "banner_not_present" }
+ *
+ *   To force a fresh run, delete the session first:
+ *        session.delete { "id": "p4n-test" }
+ *        session.open   { "id": "p4n-test" }
+ *        browser.run_test { "id": "p4n-test", "grep": "park4night" }
+ *
+ * ── Run via Playwright CLI ───────────────────────────────────────────────────
+ *
+ *   # Requires an active MCP session for CDP. Open one first, then:
+ *   SZKRABOK_SESSION=p4n-test \
+ *     npx playwright test --config playwright-tests/playwright.config.ts \
+ *     --grep "park4night"
+ *
+ *   # Or run all tests in the suite:
+ *   SZKRABOK_SESSION=p4n-test \
+ *     npx playwright test --config playwright-tests/playwright.config.ts
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ */
 
 import { test, expect } from '../fixtures';
 
