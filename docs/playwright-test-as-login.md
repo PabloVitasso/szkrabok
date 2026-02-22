@@ -419,7 +419,7 @@ import { DashboardPage } from './pages/DashboardPage';
 import { expect } from '@playwright/test';
 import path from 'path';
 
-const SZKRABOK_SESSIONS = path.resolve('./szkrabok.playwright.mcp.stealth/sessions');
+const SZKRABOK_SESSIONS = path.resolve('./sessions');
 const SESSION_ID = 'abc-prod';
 const USER_DATA_DIR = path.join(SZKRABOK_SESSIONS, SESSION_ID, 'profile');
 
@@ -466,7 +466,7 @@ import { test as setup } from '@playwright/test';
 import { LoginPage } from '../pages/LoginPage';
 import path from 'path';
 
-const USER_DATA_DIR = path.resolve('./szkrabok.playwright.mcp.stealth/sessions/abc-prod/profile');
+const USER_DATA_DIR = path.resolve('./sessions/abc-prod/profile');
 
 // This runs as a "setup" project in playwright.config.ts
 setup('bootstrap abc-prod szkrabok session', async () => {
@@ -731,7 +731,7 @@ import path from 'path';
 
 export default async function globalSetup() {
   const userDataDir = path.resolve(
-    './szkrabok.playwright.mcp.stealth/sessions/abc-prod/profile'
+    './sessions/abc-prod/profile'
   );
 
   const context = await chromium.launchPersistentContext(userDataDir, {
@@ -819,7 +819,7 @@ import { LoginPage } from '../pages/LoginPage';
 import { DashboardPage } from '../pages/DashboardPage';
 import path from 'path';
 
-const SZKRABOK_ROOT = path.resolve(__dirname, '../../szkrabok.playwright.mcp.stealth');
+const SZKRABOK_ROOT = path.resolve(__dirname, '../../.');
 
 export async function bootstrapSession(sessionId: string, creds: { user: string; pass: string }) {
   const userDataDir = path.join(SZKRABOK_ROOT, 'sessions', sessionId, 'profile');

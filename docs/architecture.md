@@ -7,7 +7,7 @@ Claude Code (LLM)
      |
      | MCP protocol (stdio/HTTP)
      v
-szkrabok.playwright.mcp.stealth/   <- Node.js MCP server
+   <- Node.js MCP server
      |
      | Playwright API
      v

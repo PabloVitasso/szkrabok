@@ -29,7 +29,7 @@ export const run_test = async args => {
   const cdpEndpoint = `http://localhost:${session.cdpPort}`
   const env = { ...process.env, SZKRABOK_SESSION: id, SZKRABOK_CDP_ENDPOINT: cdpEndpoint, ...paramEnv }
 
-  const sessionDir = join(REPO_ROOT, 'szkrabok.playwright.mcp.stealth', 'sessions', id)
+  const sessionDir = join(REPO_ROOT, 'sessions', id)
   await mkdir(sessionDir, { recursive: true })
   const logFile  = join(sessionDir, 'last-run.log')
   const jsonFile = join(sessionDir, 'last-run.json')

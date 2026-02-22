@@ -3,7 +3,7 @@ set -Eeuo pipefail
 IFS=$'\n\t'
 
 readonly SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
-readonly MCP_SERVER_DIR="$SCRIPT_DIR/szkrabok.playwright.mcp.stealth"
+readonly MCP_SERVER_DIR="$SCRIPT_DIR/."
 readonly MCP_SERVER_SCRIPT="$MCP_SERVER_DIR/src/index.js"
 readonly SERVER_NAME="szkrabok"
 readonly SERVER_MODE="--headless"

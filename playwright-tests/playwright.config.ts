@@ -11,7 +11,7 @@ const sessionId = process.env.SZKRABOK_SESSION ?? 'playwright-default'
 // If present, tests start pre-authenticated (cookies + localStorage loaded).
 // After the test run a globalTeardown saves updated state back to this file.
 const stateFile = path.resolve(
-  __dirname, '..', 'szkrabok.playwright.mcp.stealth', 'sessions', sessionId, 'storageState.json'
+  __dirname, '..', 'sessions', sessionId, 'storageState.json'
 )
 
 // Resolve executable path for any browser type.
@@ -94,7 +94,7 @@ export default defineConfig({
     ['list'],
     // JSON report goes to the session dir so run_test can read it by path
     ['json', { outputFile: path.resolve(
-      __dirname, '..', 'szkrabok.playwright.mcp.stealth', 'sessions', sessionId, 'last-run.json'
+      __dirname, '..', 'sessions', sessionId, 'last-run.json'
     )}],
   ],
 })

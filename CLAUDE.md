@@ -11,11 +11,11 @@
 
 | What | Where |
 |---|---|
-| MCP entry | `szkrabok.playwright.mcp.stealth/src/index.js` |
-| Tool registry | `szkrabok.playwright.mcp.stealth/src/tools/registry.js` |
-| Session pool | `szkrabok.playwright.mcp.stealth/src/core/pool.js` |
+| MCP entry | `src/index.js` |
+| Tool registry | `src/tools/registry.js` |
+| Session pool | `src/core/pool.js` |
 | Playwright tests | `playwright-tests/` |
-| Session storage | `szkrabok.playwright.mcp.stealth/sessions/{id}/` |
+| Session storage | `sessions/{id}/` |
 
 ## Restart MCP server
 

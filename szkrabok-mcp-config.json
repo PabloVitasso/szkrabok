@@ -3,7 +3,7 @@
     "szkrabok": {
       "command": "node",
       "args": [
-        "/path/to/szkrabok/szkrabok.playwright.mcp.stealth/src/index.js",
+        "/path/to/szkrabok/src/index.js",
         "--headless"
       ]
     }

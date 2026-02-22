@@ -7,7 +7,7 @@ import fs from 'fs'
 export default async function globalTeardown(_config: FullConfig) {
   const sessionId = process.env.SZKRABOK_SESSION ?? 'playwright-default'
   const stateFile = path.resolve(
-    __dirname, '..', 'szkrabok.playwright.mcp.stealth', 'sessions', sessionId, 'storageState.json'
+    __dirname, '..', 'sessions', sessionId, 'storageState.json'
   )
 
   // Teardown gets no page - we launch a fresh browser just to export context state.

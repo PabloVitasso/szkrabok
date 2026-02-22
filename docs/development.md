@@ -49,7 +49,7 @@ git merge upstream/main
 
 ## Adding a szkrabok tool
 
-1. Export `async function` from a file in `szkrabok.playwright.mcp.stealth/src/tools/`
+1. Export `async function` from a file in `src/tools/`
    - Name the file `szkrabok_*.js` if it is szkrabok-specific
 2. Register in `registry.js`: name, handler, description, inputSchema
 3. Tool is auto-exposed via MCP — no other wiring needed
