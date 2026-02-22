@@ -30,6 +30,19 @@ After editing MCP server source files, in Claude Code run `/mcp` and select **re
 
 If `browser.run_test` is called before `session.open`, it will fail with a clear message showing the exact `session.open` call needed.
 
+## Tool ownership
+
+**Szkrabok** (custom, `id`-based, CSS selectors): session.{open,close,list,delete,endpoint} nav.{goto,back,forward} interact.{click,type,select} extract.{text,html,screenshot,evaluate} workflow.{login,fillForm,scrape}
+
+**Playwright-MCP** (ref-based via snapshot): browser.{snapshot,click,type,navigate,navigate_back,close,drag,hover,evaluate,select_option,fill_form,press_key,take_screenshot,wait_for,resize,tabs,console_messages,network_requests,file_upload,handle_dialog,run_code,run_test,run_file,mouse_click_xy,mouse_move_xy,mouse_drag_xy,pdf_save,generate_locator,verify_element_visible,verify_text_visible,verify_list_visible,verify_value,start_tracing,stop_tracing,install}
+
+## Szkrabok-specific hacks (keep on upstream updates)
+
+- **Stealth** `core/stealth.js`: playwright-extra + stealth plugin; `user-data-dir` evasion disabled (conflicts with persistent profile)
+- **CDP port** `tools/session.js`: deterministic port from session ID (`20000 + abs(hash) % 10000`); enables `chromium.connectOverCDP()`
+- **Persistent profile** `core/storage.js`: sessions stored in `sessions/{id}/profile/`; no manual storageState saves
+- **Test integration** `tools/playwright_mcp.js`: `run_test` spawns `npx playwright test` with `SZKRABOK_SESSION={id}`; `run_file` connects via CDP
+
 ## Adding a tool
 1. Export async function from a file in `src/tools/`
 2. Register in `registry.js` with name, handler, description, inputSchema
