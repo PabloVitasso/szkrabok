@@ -5,7 +5,7 @@
 - [docs/architecture.md](./docs/architecture.md) — file layout, tool ownership, szkrabok hacks
 - [docs/development.md](./docs/development.md) — fork relationship, merging upstream, adding tools
 - [docs/testing.md](./docs/testing.md) — run tests via MCP and CLI
-- [docs/playwright.md](./docs/playwright.md) — upstream playwright-mcp reference
+- [microsoft/playwright-mcp](https://github.com/microsoft/playwright-mcp) — upstream reference
 
 ## Key locations
 

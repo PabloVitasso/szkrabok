@@ -32,6 +32,6 @@ Fork of [microsoft/playwright-mcp](https://github.com/microsoft/playwright-mcp) 
 | [docs/architecture.md](./docs/architecture.md) | Component map, tool ownership, szkrabok hacks, data flow |
 | [docs/development.md](./docs/development.md) | Fork relationship, merging upstream, adding tools, branches |
 | [docs/testing.md](./docs/testing.md) | Run tests via MCP and CLI, writing specs, troubleshooting |
-| [docs/playwright.md](./docs/playwright.md) | Upstream playwright-mcp reference (config, tools, options) |
+| [microsoft/playwright-mcp](https://github.com/microsoft/playwright-mcp) | Upstream reference (config, tools, options) |
 | [CONTRIBUTING.md](./CONTRIBUTING.md) | Contribution guidelines |
 | [SECURITY.md](./SECURITY.md) | Security policy |

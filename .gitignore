@@ -45,7 +45,5 @@ Thumbs.db
 coverage/
 .nyc_output/
 
-# Keep documentation and patches
-!patches/README.md
-!patches/*.patch
+# Keep documentation
 !*.md
