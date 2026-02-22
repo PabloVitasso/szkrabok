@@ -7,91 +7,95 @@ Claude Code (LLM)
      |
      | MCP protocol (stdio/HTTP)
      v
-szkrabok.playwright.mcp.stealth/   ← Node.js MCP server
+szkrabok.playwright.mcp.stealth/   <- Node.js MCP server
      |
      | Playwright API
      v
 Persistent Browser Context (stealth + userDataDir)
      |
      v
-sessions/{id}/                     ← file storage
-  meta.json                        ← timestamps, config
-  storageState.json                ← cookies + localStorage (optional)
-  profile/                         ← Chromium native profile
+sessions/{id}/                     <- file storage
+  meta.json                        <- timestamps, config
+  storageState.json                <- cookies + localStorage (optional)
+  profile/                         <- Chromium native profile
 ```
 
-## Components
-
-### MCP Server (`src/`)
+## File layout
 
 ```
-index.js          MCP entry point, stdio transport, tool dispatch
-cli.js            bebok CLI — session list/inspect/delete/cleanup
+src/
+  index.js                MCP entry point, stdio transport, tool dispatch
+  cli.js                  bebok CLI — session list/inspect/delete/cleanup
 
-tools/
-  registry.js     All tool definitions: name, handler, schema
-  session.js      session.open/close/list/delete/endpoint
-  navigate.js     nav.goto/back/forward
-  interact.js     interact.click/type/select
-  extract.js      extract.text/html/screenshot/evaluate
-  workflow.js     workflow.login/fillForm/scrape
-  playwright_mcp.js  browser.* (snapshot, click, run_code, run_file, run_test, ...)
+  tools/
+    registry.js           All tool definitions: name, handler, schema
+    szkrabok_session.js   session.open/close/list/delete/endpoint
+    szkrabok_browser.js   browser.run_test, browser.run_file  [szkrabok-only]
+    navigate.js           nav.goto/back/forward
+    interact.js           interact.click/type/select
+    extract.js            extract.text/html/screenshot/evaluate
+    workflow.js           workflow.login/fillForm/scrape
+    playwright_mcp.js     browser.* (snapshot, click, type, navigate, ...)
 
-core/
-  pool.js         In-memory session pool (id → {context, page})
-  storage.js      Read/write sessions/ file storage
-  stealth.js      playwright-extra + puppeteer-extra-plugin-stealth setup
-  config.js       Env-based config, findChromiumPath()
+  core/
+    pool.js               In-memory session pool (id -> {context, page, cdpPort})
+    storage.js            Read/write sessions/ file storage
+    szkrabok_stealth.js   playwright-extra + stealth plugin setup  [szkrabok-only]
+    config.js             Env-based config, findChromiumPath()
 
-utils/
-  errors.js       wrapError, structured error responses
-  logger.js       logError
+  utils/
+    errors.js             wrapError, structured error responses
+    logger.js             logError
+
+  upstream/
+    wrapper.js            launchPersistentContext, navigate helpers
 ```
 
-### Playwright Test Environment (`playwright-tests/`)
+## Tool ownership
 
-```
-playwright.config.ts   Config: storageState bridge, executablePath fallback
-teardown.ts            globalTeardown: write/update sessions/{id}/meta.json
-package.json           {"type":"commonjs"} — overrides root ESM for CJS loader
-tests/
-  example.spec.ts      Parametrized spec: TEST_* env vars, testInfo.attach('result')
-```
+**Szkrabok** (custom, `id`-based, CSS selectors):
+`session.{open,close,list,delete,endpoint}` `nav.{goto,back,forward}` `interact.{click,type,select}` `extract.{text,html,screenshot,evaluate}` `workflow.{login,fillForm,scrape}` `browser.{run_test,run_file}`
+
+**Playwright-MCP** (ref-based via snapshot):
+`browser.{snapshot,click,type,navigate,navigate_back,close,drag,hover,evaluate,select_option,fill_form,press_key,take_screenshot,wait_for,resize,tabs,console_messages,network_requests,file_upload,handle_dialog,run_code,mouse_click_xy,mouse_move_xy,mouse_drag_xy,pdf_save,generate_locator,verify_element_visible,verify_text_visible,verify_list_visible,verify_value,start_tracing,stop_tracing,install}`
+
+## Szkrabok-specific hacks (preserve on upstream updates)
+
+- **Stealth** `core/szkrabok_stealth.js` — playwright-extra + stealth plugin; `user-data-dir` evasion disabled (conflicts with persistent profile)
+- **CDP port** `tools/szkrabok_session.js` — deterministic port from session ID (`20000 + abs(hash) % 10000`); enables `chromium.connectOverCDP()`
+- **Persistent profile** `core/storage.js` — sessions stored in `sessions/{id}/profile/`; no manual storageState saves
+- **Test integration** `tools/szkrabok_browser.js` — `browser.run_test` spawns `npx playwright test` with `SZKRABOK_SESSION={id}`; `browser.run_file` runs a named export from an `.mjs` script; both connect via CDP — **`session.open` must be called first**
 
 ## Session lifecycle
 
 ```
 session.open(id)
-  → load sessions/{id}/profile/ as userDataDir
-  → if storageState.json exists: inject cookies/localStorage
-  → store {context, page} in pool
+  -> load sessions/{id}/profile/ as userDataDir
+  -> derive cdpPort from id hash
+  -> launchPersistentContext with --remote-debugging-port=cdpPort
+  -> store {context, page, cdpPort} in pool
 
-test run (browser.run_test)
-  → spawn npx playwright test with SZKRABOK_SESSION=id
-  → playwright.config.ts loads storageState.json if present
-  → tests run, attach JSON results via testInfo.attach('result')
-  → globalTeardown updates meta.json
+browser.run_test(id, grep?, params?)
+  -> verify session exists and has cdpPort
+  -> spawn: npx playwright test with SZKRABOK_SESSION=id SZKRABOK_CDP_ENDPOINT=http://localhost:cdpPort
+  -> fixtures.ts connects to live browser via connectOverCDP
+  -> tests run, attach JSON results via testInfo.attach('result')
+  -> parse JSON report, return {passed, failed, tests}
 
 session.close(id)
-  → save state → persist profile to disk → remove from pool
+  -> update meta.json -> context.close() -> remove from pool
+  -> profile persisted automatically (userDataDir)
 ```
-
-## Tool naming
-
-All tools support three equivalent call formats:
-- `session.open` / `session_open` / `sessionopen`
-
-Aliases generated automatically in registry dispatch.
 
 ## browser.run_test params flow
 
 ```
 MCP call: {id, params: {url: "https://..."}, grep: "title"}
-  → TEST_URL=https://... env var
-  → SZKRABOK_SESSION=id env var
-  → npx playwright test --grep "title" --reporter json
-  → parse JSON: stats + attachments decoded from base64
-  → return {passed, failed, tests: [{title, status, result}]}
+  -> TEST_URL=https://... env var
+  -> SZKRABOK_SESSION=id, SZKRABOK_CDP_ENDPOINT=http://localhost:{port}
+  -> npx playwright test --grep "title"
+  -> parse JSON report: stats + base64 attachments decoded
+  -> return {passed, failed, tests: [{title, status, result}]}
 ```
 
 ## Chromium resolution
