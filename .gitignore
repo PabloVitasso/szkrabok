@@ -22,6 +22,8 @@ logs/
 test-results/
 playwright-report/
 playwright/.cache/
+playwright-tests/test-results/
+playwright-tests/test-results.json
 
 # Build
 dist/

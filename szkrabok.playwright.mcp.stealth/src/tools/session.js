@@ -137,6 +137,23 @@ export const list = async () => {
   return { sessions }
 }
 
+export const endpoint = async args => {
+  const { id } = args
+  const session = pool.get(id)
+
+  const browser = session.context.browser()
+  const wsEndpoint = browser?.wsEndpoint() || null
+
+  return {
+    sessionId: id,
+    wsEndpoint,
+    // External Playwright scripts connect with:
+    //   const browser = await chromium.connect(wsEndpoint)
+    //   const context = browser.contexts()[0]
+    //   const page = context.pages()[0]
+  }
+}
+
 export const deleteSession = async args => {
   const { id } = args
 

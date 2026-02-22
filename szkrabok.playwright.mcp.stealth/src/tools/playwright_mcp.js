@@ -1,4 +1,9 @@
 import * as pool from '../core/pool.js'
+import { resolve, dirname } from 'path'
+import { spawn } from 'child_process'
+import { fileURLToPath } from 'url'
+
+const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '..')
 
 const INJECT_SCRIPT = `
   window.__mcp = window.__mcp || {};
@@ -438,6 +443,95 @@ export const run_code = async args => {
   const result = await fn(session.page)
 
   return { result, url: session.page.url() }
+}
+
+export const run_test = async args => {
+  const { id, grep, params = {}, config = 'playwright-tests/playwright.config.ts' } = args
+
+  const configPath = resolve(REPO_ROOT, config)
+
+  // params keys are passed as TEST_* env vars so spec files can read process.env.TEST_*
+  const paramEnv = Object.fromEntries(
+    Object.entries(params).map(([k, v]) => [`TEST_${k.toUpperCase()}`, String(v)])
+  )
+  const env = { ...process.env, SZKRABOK_SESSION: id, ...paramEnv }
+
+  const playwrightArgs = ['playwright', 'test', '--config', configPath, '--reporter', 'json']
+  if (grep) playwrightArgs.push('--grep', grep)
+
+  return new Promise((resolveP, rejectP) => {
+    const child = spawn('npx', playwrightArgs, {
+      cwd: REPO_ROOT,
+      env,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    })
+
+    let stdout = ''
+    let stderr = ''
+    child.stdout.on('data', d => { stdout += d })
+    child.stderr.on('data', d => { stderr += d })
+
+    child.on('close', code => {
+      let report = null
+      try { report = JSON.parse(stdout) } catch { /* non-json output */ }
+
+      if (report) {
+        const { stats, suites } = report
+
+        // Decode testInfo.attach('result', { contentType: 'application/json' }) attachments
+        const decodeAttachment = att => {
+          if (att.contentType !== 'application/json' || !att.body) return null
+          try { return JSON.parse(Buffer.from(att.body, 'base64').toString('utf8')) } catch { return null }
+        }
+
+        const tests = (suites || []).flatMap(s => s.specs || []).flatMap(spec =>
+          (spec.tests || []).map(t => {
+            const result = t.results?.[0] ?? {}
+            const attachments = (result.attachments || [])
+              .filter(a => a.name === 'result')
+              .map(decodeAttachment)
+              .filter(Boolean)
+            return {
+              title: spec.title,
+              status: result.status ?? 'unknown',
+              error: result.error?.message ?? null,
+              result: attachments.length === 1 ? attachments[0] : attachments.length > 1 ? attachments : undefined,
+            }
+          })
+        )
+        resolveP({ passed: stats?.expected ?? 0, failed: stats?.unexpected ?? 0, skipped: stats?.skipped ?? 0, tests, exitCode: code })
+      } else {
+        resolveP({ exitCode: code, stdout: stdout.slice(0, 2000), stderr: stderr.slice(0, 2000) })
+      }
+    })
+
+    child.on('error', err => rejectP(err))
+  })
+}
+
+export const run_file = async args => {
+  const { id, path: scriptPath, fn = 'default', args: scriptArgs = {} } = args
+  const session = pool.get(id)
+
+  const absolutePath = resolve(scriptPath)
+
+  // Dynamic import - full ESM, all imports in the script work.
+  // Cache-bust so re-runs always pick up file changes without restarting szkrabok.
+  const mod = await import(`${absolutePath}?t=${Date.now()}`)
+
+  const target = fn === 'default' ? mod.default : mod[fn]
+
+  if (typeof target !== 'function') {
+    const available = Object.keys(mod)
+      .filter(k => typeof mod[k] === 'function')
+      .join(', ')
+    throw new Error(
+      `Export "${fn}" not found or not a function in "${absolutePath}". Available exports: [${available}]`
+    )
+  }
+
+  const result = await target(session.page, scriptArgs)
+  return { fn, result, url: session.page.url() }
 }
 
 // Vision tools (coordinate-based)

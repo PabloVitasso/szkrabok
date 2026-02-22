@@ -72,6 +72,16 @@ const szkrabokTools = {
     },
   },
 
+  'session.endpoint': {
+    handler: session.endpoint,
+    description: `${SZKRABOK} Get Playwright WebSocket endpoint for external script connection`,
+    inputSchema: {
+      type: 'object',
+      properties: { id: { type: 'string' } },
+      required: ['id'],
+    },
+  },
+
   'nav.goto': {
     handler: navigate.goto,
     description: `${SZKRABOK} Navigate to URL`,
@@ -539,6 +549,36 @@ const playwrightMcpTools = {
         code: { type: 'string' },
       },
       required: ['id', 'code'],
+    },
+  },
+
+  'browser.run_test': {
+    handler: browser.run_test,
+    description: `${PLAYWRIGHT_MCP} Run Playwright .spec.ts tests via npx playwright test and return JSON results. Uses SZKRABOK_SESSION=id for storageState. Optional grep filters by test name.`,
+    inputSchema: {
+      type: 'object',
+      properties: {
+        id: { type: 'string' },
+        grep: { type: 'string', description: 'Filter tests by name (regex)' },
+        params: { type: 'object', description: 'Key/value params passed as TEST_* env vars to the spec (e.g. {url:"https://..."} → TEST_URL)' },
+        config: { type: 'string', description: 'Config path relative to repo root. Defaults to playwright-tests/playwright.config.ts' },
+      },
+      required: ['id'],
+    },
+  },
+
+  'browser.run_file': {
+    handler: browser.run_file,
+    description: `${PLAYWRIGHT_MCP} Run a named export from a Playwright ESM script file against a session. Script receives (page, args) and must return JSON-serialisable value. Supports full imports, POM classes, expect().`,
+    inputSchema: {
+      type: 'object',
+      properties: {
+        id: { type: 'string' },
+        path: { type: 'string', description: 'Absolute or relative path to an .mjs script file' },
+        fn: { type: 'string', description: 'Named export to call. Defaults to "default".' },
+        args: { type: 'object', description: 'Arguments passed as second parameter to the function' },
+      },
+      required: ['id', 'path'],
     },
   },
 

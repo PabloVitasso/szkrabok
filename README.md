@@ -61,6 +61,9 @@
 - browser.* tools (snapshot, navigate, click, type, etc)
 - Vision tools (mouse_click_xy, mouse_move_xy)
 - Testing tools (verify_*, generate_locator)
+- browser.run_test(id, grep?, params?) — run `.spec.ts` tests, return JSON results
+- browser.run_file(id, path, fn?) — run named export from ESM script against session
+- session.endpoint(id) — get WebSocket endpoint for external playwright connect()
 
 All tools support 3 formats: session.open, session_open, sessionopen
 
@@ -116,22 +119,35 @@ node index.js --no-headless
 - state.json - cookies, localStorage, sessionStorage
 - meta.json - timestamps, config, lastUrl
 
+## Playwright test integration
+
+Run standard `.spec.ts` tests against a szkrabok session (pre-authenticated, stealth browser):
+
+```bash
+# Standalone
+SZKRABOK_SESSION=my-session npx playwright test --config playwright-tests/playwright.config.ts
+
+# With parameters
+TEST_URL=https://example.com TEST_TITLE=Example \
+  SZKRABOK_SESSION=my-session npx playwright test --config playwright-tests/playwright.config.ts
+```
+
+Via MCP:
+```json
+{"tool": "browser.run_test", "args": {"id": "my-session", "grep": "title", "params": {"url": "https://example.com"}}}
+```
+
+Returns: `{passed, failed, skipped, tests: [{title, status, result}]}`
+
+Tests return structured data via `testInfo.attach('result', { body: JSON.stringify(data), contentType: 'application/json' })`.
+
+See [docs/testing.md](./docs/testing.md) for full procedure.
+
 ## Architecture
 
-```
-LLM -> MCP Server -> Session Pool -> Playwright + Stealth
-                      |
-                 File Storage (./sessions/)
-```
+See [docs/architecture.md](./docs/architecture.md) for component map and data flow.
 
-**Components:**
-- core/ - Session management, stealth, storage
-- tools/ - MCP tools (session, nav, interact, extract, workflow)
-- upstream/ - Browser wrapper
-- utils/ - Errors, logging
-- tests/ - Playwright + Node tests
-
-## Testing
+## Internal tests
 
 ```bash
 cd szkrabok.playwright.mcp.stealth
@@ -194,5 +210,7 @@ szkrabok/
 
 ## See Also
 
+- [docs/architecture.md](./docs/architecture.md) - Component map, data flow, file layout
+- [docs/testing.md](./docs/testing.md) - Install, run tests standalone + via MCP
 - [CONTRIBUTING.md](./CONTRIBUTING.md) - Contribution guidelines
 - [SECURITY.md](./SECURITY.md) - Security policy
