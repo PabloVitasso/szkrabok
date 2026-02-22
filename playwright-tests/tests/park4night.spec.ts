@@ -1,3 +1,7 @@
+// Run via MCP:
+//   session.open  { "id": "p4n-test" }
+//   browser.run_test { "id": "p4n-test", "grep": "park4night" }
+
 import { test, expect } from '../fixtures';
 
 const BASE_URL    = 'https://park4night.com/en';
