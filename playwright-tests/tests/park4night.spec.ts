@@ -25,14 +25,24 @@
  *
  * ── Run via Playwright CLI ───────────────────────────────────────────────────
  *
- *   # Requires an active MCP session for CDP. Open one first, then:
- *   SZKRABOK_SESSION=p4n-test \
- *     npx playwright test --config playwright-tests/playwright.config.ts \
- *     --grep "park4night"
+ *   WITH active MCP session (shares the live browser via CDP — recommended):
+ *     SZKRABOK_SESSION=p4n-test \
+ *       npx playwright test --config playwright-tests/playwright.config.ts \
+ *       --grep "park4night"
  *
- *   # Or run all tests in the suite:
- *   SZKRABOK_SESSION=p4n-test \
- *     npx playwright test --config playwright-tests/playwright.config.ts
+ *   WITHOUT active MCP session (Playwright launches its own fresh browser):
+ *     - SZKRABOK_CDP_ENDPOINT is not set so fixtures.ts falls back to a
+ *       standard Playwright-managed browser.
+ *     - If sessions/p4n-test/storageState.json exists (written by a previous
+ *       run's teardown), cookies are pre-loaded — banner may not appear and
+ *       result will be: { "action": "skipped", "reason": "banner_not_present" }
+ *     - If no storageState.json exists, browser is clean — banner appears and
+ *       result will be: { "action": "clicked", "dismissed": true }
+ *     SZKRABOK_SESSION=p4n-test \
+ *       npx playwright test --config playwright-tests/playwright.config.ts \
+ *       --grep "park4night"
+ *     (same command — absence of a running MCP session is handled automatically
+ *      by fixtures.ts; no error is thrown)
  *
  * ─────────────────────────────────────────────────────────────────────────────
  */
