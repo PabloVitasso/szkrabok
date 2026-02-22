@@ -16,6 +16,20 @@
 | Playwright test env | `playwright-tests/` |
 | Session storage | `szkrabok.playwright.mcp.stealth/sessions/{id}/` |
 
+## Restarting the MCP server
+
+After editing MCP server source files, in Claude Code run `/mcp` and select **restart** for szkrabok. No `pkill` needed.
+
+## Running tests — required order of operations
+
+`browser.run_test` requires an active session with CDP enabled. Always follow this order:
+
+1. `session.open { "id": "<id>" }` — must be called first; launches Chrome with CDP port
+2. *(do any MCP browsing/setup here)*
+3. `browser.run_test { "id": "<id>", ... }` — connects to the same Chrome via CDP
+
+If `browser.run_test` is called before `session.open`, it will fail with a clear message showing the exact `session.open` call needed.
+
 ## Adding a tool
 1. Export async function from a file in `src/tools/`
 2. Register in `registry.js` with name, handler, description, inputSchema

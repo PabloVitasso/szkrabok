@@ -4,6 +4,14 @@ import * as storage from '../core/storage.js'
 import { VIEWPORT, USER_AGENT, LOCALE, TIMEZONE } from '../config.js'
 import { log } from '../utils/logger.js'
 
+// Derive a deterministic CDP port from session id.
+// Range 20000–29999 — avoids common service ports, gives 10 000 slots.
+const cdpPortForId = id => {
+  let h = 0
+  for (let i = 0; i < id.length; i++) h = (Math.imul(31, h) + id.charCodeAt(i)) | 0
+  return 20000 + (Math.abs(h) % 10000)
+}
+
 export const open = async args => {
   const { id, url, config = {} } = args
 
@@ -36,6 +44,9 @@ export const open = async args => {
   // Use userDataDir for complete profile persistence
   const userDataDir = storage.getUserDataDir(id)
 
+  // Deterministic CDP port — same session id always maps to same port
+  const cdpPort = cdpPortForId(id)
+
   // Launch persistent context (combines browser + context with userDataDir)
   // Always enable stealth mode
   const context = await launchPersistentContext(userDataDir, {
@@ -45,6 +56,7 @@ export const open = async args => {
     locale: config.locale || LOCALE,
     timezoneId: config.timezone || TIMEZONE,
     headless: config.headless,
+    cdpPort,
   })
 
   // Add init script to mask iframe fingerprints
@@ -73,7 +85,7 @@ export const open = async args => {
   const pages = context.pages()
   const page = pages.length > 0 ? pages[0] : await context.newPage()
 
-  pool.add(id, context, page)
+  pool.add(id, context, page, cdpPort)
 
   const meta = {
     id,
@@ -141,16 +153,12 @@ export const endpoint = async args => {
   const { id } = args
   const session = pool.get(id)
 
-  const browser = session.context.browser()
-  const wsEndpoint = browser?.wsEndpoint() || null
+  const cdpEndpoint = `http://localhost:${session.cdpPort}`
 
   return {
     sessionId: id,
-    wsEndpoint,
-    // External Playwright scripts connect with:
-    //   const browser = await chromium.connect(wsEndpoint)
-    //   const context = browser.contexts()[0]
-    //   const page = context.pages()[0]
+    cdpEndpoint,
+    // Connect from Playwright: chromium.connectOverCDP(cdpEndpoint)
   }
 }
 

@@ -66,6 +66,11 @@ function resolveExecutable(expectedPath: string): string | undefined {
 
 const executablePath = resolveExecutable(chromium.executablePath())
 
+// When SZKRABOK_CDP_ENDPOINT is set, connect to the existing MCP session browser
+// via CDP instead of launching a new one. This lets tests share the same browser as the MCP session.
+// The endpoint is deterministic: derived from the session id at launch time.
+const cdpEndpoint = process.env.SZKRABOK_CDP_ENDPOINT || ''
+
 export default defineConfig({
   testDir: './tests',
 
@@ -76,8 +81,10 @@ export default defineConfig({
   workers: 1,
 
   use: {
-    // Load existing session state if available.
-    storageState: fs.existsSync(stateFile) ? stateFile : undefined,
+    // Load existing session state if available (only when launching a new browser).
+    // When SZKRABOK_CDP_ENDPOINT is set the fixtures.ts fixture handles connection;
+    // storageState is skipped because the live browser already has its state.
+    storageState: (!cdpEndpoint && fs.existsSync(stateFile)) ? stateFile : undefined,
     launchOptions: {
       ...(executablePath ? { executablePath } : {}),
     },
@@ -85,6 +92,9 @@ export default defineConfig({
 
   reporter: [
     ['list'],
-    ['json', { outputFile: 'test-results.json' }],
+    // JSON report goes to the session dir so run_test can read it by path
+    ['json', { outputFile: path.resolve(
+      __dirname, '..', 'szkrabok.playwright.mcp.stealth', 'sessions', sessionId, 'last-run.json'
+    )}],
   ],
 })

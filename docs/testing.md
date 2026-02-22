@@ -40,14 +40,19 @@ JSON results written to `playwright-tests/test-results.json`.
 
 ## Via szkrabok MCP (`browser.run_test`)
 
-Open a session first (MCP call or existing session):
+**Required order — `session.open` must come first:**
+
 ```json
-{"tool": "session.open", "args": {"id": "test-session"}}
+{"tool": "session.open", "args": {"id": "my-session", "url": "https://example.com"}}
 ```
+
+This launches Chrome with a deterministic CDP port (derived from the session id).
+`browser.run_test` connects to that same Chrome via `connectOverCDP` — tests share the live browser state.
+Calling `browser.run_test` without an open session fails with a clear message showing the exact `session.open` call needed.
 
 Run all tests:
 ```json
-{"tool": "browser.run_test", "args": {"id": "test-session"}}
+{"tool": "browser.run_test", "args": {"id": "my-session"}}
 ```
 
 Run filtered + parametrized:
@@ -55,12 +60,9 @@ Run filtered + parametrized:
 {
   "tool": "browser.run_test",
   "args": {
-    "id": "test-session",
+    "id": "my-session",
     "grep": "page title",
-    "params": {
-      "url": "https://example.com",
-      "title": "Example"
-    }
+    "params": {"url": "https://example.com", "title": "Example"}
   }
 }
 ```
@@ -68,31 +70,37 @@ Run filtered + parametrized:
 Expected response:
 ```json
 {
+  "log": [
+    "Running 1 test using 1 worker",
+    "step 1. navigate to https://example.com",
+    "  ✓  tests/example.spec.ts › page title (1.2s)",
+    "  1 passed (3.1s)"
+  ],
   "passed": 1,
   "failed": 0,
   "skipped": 0,
-  "exitCode": 0,
   "tests": [
     {
       "title": "page title check",
       "status": "passed",
-      "result": {
-        "title": "Example Domain",
-        "url": "https://example.com",
-        "matched": "Example"
-      }
+      "result": {"title": "Example Domain", "url": "https://example.com"}
     }
   ]
 }
 ```
 
+`log` — one array item per output line (console.log + list reporter).
+Raw files also written to `sessions/{id}/last-run.log` and `sessions/{id}/last-run.json`.
+
 ---
 
-## Writing parametrized tests that return JSON
+## Writing tests
+
+Import from `fixtures` (not `@playwright/test`) to get CDP session sharing:
 
 ```typescript
 // playwright-tests/tests/your-spec.ts
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../fixtures';
 
 const TARGET = process.env.TEST_URL ?? 'https://default.example.com';
 
@@ -114,15 +122,9 @@ Params mapping: `params: {url: "...", myKey: "..."}` → `TEST_URL`, `TEST_MYKEY
 
 ## Session state sharing
 
-If you log in via szkrabok MCP before running tests, the session cookies are available:
+Tests connect to the same Chrome process as the MCP session via CDP — cookies, localStorage, and any browsing done via MCP tools are immediately visible to tests without needing a session close/reopen cycle.
 
-```
-session.open("my-session") → browse + login → storageState.json written
-browser.run_test {id: "my-session"} → tests start pre-authenticated
-```
-
-The `playwright-tests/teardown.ts` runs after every test suite and updates
-`szkrabok.playwright.mcp.stealth/sessions/{id}/meta.json`.
+Without an active MCP session, tests fall back to `storageState.json` saved from a previous session if present.
 
 ---
 
@@ -134,3 +136,5 @@ The `playwright-tests/teardown.ts` runs after every test suite and updates
 | `exports is not defined` | Ensure `playwright-tests/package.json` has `{"type":"commonjs"}` |
 | Tests pick wrong config | Use `--config playwright-tests/playwright.config.ts` explicitly |
 | No JSON result in output | Add `testInfo.attach('result', {...})` to the test |
+| `run_test` fails with "Session not open" | Call `session.open {id}` before `browser.run_test` |
+| `run_test` fails with "no CDP port" | Session was opened before CDP support — close and reopen |

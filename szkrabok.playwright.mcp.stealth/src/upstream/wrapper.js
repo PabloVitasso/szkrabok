@@ -44,6 +44,15 @@ export const launchPersistentContext = async (userDataDir, options = {}) => {
   // Remove options that are not valid for launchPersistentContext
   delete launchOptions.stealth
 
+  // Enable CDP remote debugging on the given port so tests can connectOverCDP
+  if (launchOptions.cdpPort) {
+    launchOptions.args = [
+      ...(launchOptions.args || []),
+      `--remote-debugging-port=${launchOptions.cdpPort}`,
+    ]
+    delete launchOptions.cdpPort
+  }
+
   return pw.launchPersistentContext(userDataDir, launchOptions)
 }
 
