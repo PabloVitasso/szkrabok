@@ -36,12 +36,20 @@ If `browser.run_test` is called before `session.open`, it will fail with a clear
 
 **Playwright-MCP** (ref-based via snapshot): browser.{snapshot,click,type,navigate,navigate_back,close,drag,hover,evaluate,select_option,fill_form,press_key,take_screenshot,wait_for,resize,tabs,console_messages,network_requests,file_upload,handle_dialog,run_code,mouse_click_xy,mouse_move_xy,mouse_drag_xy,pdf_save,generate_locator,verify_element_visible,verify_text_visible,verify_list_visible,verify_value,start_tracing,stop_tracing,install}
 
+## Upstream relationship
+
+Szkrabok is a **fork of [microsoft/playwright-mcp](https://github.com/microsoft/playwright-mcp)**.
+- Remote `upstream` = `https://github.com/microsoft/playwright-mcp.git`
+- Merge upstream: `git fetch upstream && git checkout -b merge-upstream-playwright-mcp && git merge upstream/main`
+- Typical conflict zone: `README.md` (upstream adds docs; we add szkrabok-specific See Also links — keep both)
+- Files prefixed `szkrabok_` are ours only and will never conflict with upstream
+
 ## Szkrabok-specific hacks (keep on upstream updates)
 
-- **Stealth** `core/stealth.js`: playwright-extra + stealth plugin; `user-data-dir` evasion disabled (conflicts with persistent profile)
-- **CDP port** `tools/session.js`: deterministic port from session ID (`20000 + abs(hash) % 10000`); enables `chromium.connectOverCDP()`
+- **Stealth** `core/szkrabok_stealth.js`: playwright-extra + stealth plugin; `user-data-dir` evasion disabled (conflicts with persistent profile)
+- **CDP port** `tools/szkrabok_session.js`: deterministic port from session ID (`20000 + abs(hash) % 10000`); enables `chromium.connectOverCDP()`
 - **Persistent profile** `core/storage.js`: sessions stored in `sessions/{id}/profile/`; no manual storageState saves
-- **Test integration** `tools/playwright_mcp.js`: `browser.run_test` spawns `npx playwright test` with `SZKRABOK_SESSION={id}`; `browser.run_file` runs a named export from an `.mjs` script; both connect to the live browser via CDP — **`session.open` must be called first** or they fail with a clear error
+- **Test integration** `tools/szkrabok_browser.js`: `browser.run_test` spawns `npx playwright test` with `SZKRABOK_SESSION={id}`; `browser.run_file` runs a named export from an `.mjs` script; both connect to the live browser via CDP — **`session.open` must be called first** or they fail with a clear error
 
 ## Adding a tool
 1. Export async function from a file in `src/tools/`
