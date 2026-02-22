@@ -758,37 +758,13 @@ const baseTools = {
 }
 
 /* ----------------------------
-   Alias expansion (correct)
----------------------------- */
-
-const toolLookup = {}
-
-for (const [realName, def] of Object.entries(baseTools)) {
-  const aliases = [
-    realName,
-    realName.replace(/\./g, '_'),
-    realName.replace(/\./g, ''),
-  ]
-
-  for (const name of aliases) {
-    toolLookup[name] = {
-      ...def,
-      realName,
-    }
-  }
-}
-
-/* ----------------------------
    MCP registration
 ---------------------------- */
 
 export const registerTools = () =>
-  Object.entries(toolLookup).map(([name, tool]) => ({
+  Object.entries(baseTools).map(([name, tool]) => ({
     name,
-    description:
-      name === tool.realName
-        ? tool.description
-        : `alias of ${tool.realName} — ${tool.description}`,
+    description: tool.description,
     inputSchema: tool.inputSchema,
   }))
 
@@ -797,7 +773,7 @@ export const registerTools = () =>
 ---------------------------- */
 
 export const handleToolCall = async (name, args) => {
-  const tool = toolLookup[name]
+  const tool = baseTools[name]
 
   if (!tool) {
     return {
