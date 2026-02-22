@@ -1,3 +1,52 @@
+/*
+ * park4night — cookie banner acceptance test
+ *
+ * ── Run via MCP ──────────────────────────────────────────────────────────────
+ *
+ *   1. Open a session (launches Chrome with a persistent profile + CDP port):
+ *        session.open { "id": "p4n-test" }
+ *
+ *   2. Run the test (connects to that Chrome via CDP):
+ *        browser.run_test { "id": "p4n-test", "grep": "park4night" }
+ *
+ *   Session behaviour:
+ *     NEW session  — profile directory is empty; park4night will show the
+ *                    cookie banner. Expected result:
+ *                      { "action": "clicked", "dismissed": true }
+ *
+ *     REUSED session — cookies are already persisted in the profile; the
+ *                    banner will not appear. Expected result:
+ *                      { "action": "skipped", "reason": "banner_not_present" }
+ *
+ *   To force a fresh run, delete the session first:
+ *        session.delete { "id": "p4n-test" }
+ *        session.open   { "id": "p4n-test" }
+ *        browser.run_test { "id": "p4n-test", "grep": "park4night" }
+ *
+ * ── Run via Playwright CLI ───────────────────────────────────────────────────
+ *
+ *   WITH active MCP session (shares the live browser via CDP — recommended):
+ *     SZKRABOK_SESSION=p4n-test \
+ *       npx playwright test --config playwright-tests/playwright.config.ts \
+ *       --grep "park4night"
+ *
+ *   WITHOUT active MCP session (Playwright launches its own fresh browser):
+ *     - SZKRABOK_CDP_ENDPOINT is not set so fixtures.ts falls back to a
+ *       standard Playwright-managed browser.
+ *     - If sessions/p4n-test/storageState.json exists (written by a previous
+ *       run's teardown), cookies are pre-loaded — banner may not appear and
+ *       result will be: { "action": "skipped", "reason": "banner_not_present" }
+ *     - If no storageState.json exists, browser is clean — banner appears and
+ *       result will be: { "action": "clicked", "dismissed": true }
+ *     SZKRABOK_SESSION=p4n-test \
+ *       npx playwright test --config playwright-tests/playwright.config.ts \
+ *       --grep "park4night"
+ *     (same command — absence of a running MCP session is handled automatically
+ *      by fixtures.ts; no error is thrown)
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ */
+
 import { test, expect } from '../fixtures';
 
 const BASE_URL    = 'https://park4night.com/en';

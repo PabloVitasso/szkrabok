@@ -1,9 +1,10 @@
-import * as session from './session.js'
+import * as session from './szkrabok_session.js'
 import * as navigate from './navigate.js'
 import * as interact from './interact.js'
 import * as extract from './extract.js'
 import * as workflow from './workflow.js'
 import * as browser from './playwright_mcp.js'
+import * as szkrabokBrowser from './szkrabok_browser.js'
 import { wrapError } from '../utils/errors.js'
 import { logError } from '../utils/logger.js'
 
@@ -553,7 +554,7 @@ const playwrightMcpTools = {
   },
 
   'browser.run_test': {
-    handler: browser.run_test,
+    handler: szkrabokBrowser.run_test,
     description: `${PLAYWRIGHT_MCP} Run Playwright .spec.ts tests via npx playwright test and return JSON results. Uses SZKRABOK_SESSION=id for storageState. Optional grep filters by test name.`,
     inputSchema: {
       type: 'object',
@@ -568,7 +569,7 @@ const playwrightMcpTools = {
   },
 
   'browser.run_file': {
-    handler: browser.run_file,
+    handler: szkrabokBrowser.run_file,
     description: `${PLAYWRIGHT_MCP} Run a named export from a Playwright ESM script file against a session. Script receives (page, args) and must return JSON-serialisable value. Supports full imports, POM classes, expect().`,
     inputSchema: {
       type: 'object',
@@ -758,37 +759,13 @@ const baseTools = {
 }
 
 /* ----------------------------
-   Alias expansion (correct)
----------------------------- */
-
-const toolLookup = {}
-
-for (const [realName, def] of Object.entries(baseTools)) {
-  const aliases = [
-    realName,
-    realName.replace(/\./g, '_'),
-    realName.replace(/\./g, ''),
-  ]
-
-  for (const name of aliases) {
-    toolLookup[name] = {
-      ...def,
-      realName,
-    }
-  }
-}
-
-/* ----------------------------
    MCP registration
 ---------------------------- */
 
 export const registerTools = () =>
-  Object.entries(toolLookup).map(([name, tool]) => ({
+  Object.entries(baseTools).map(([name, tool]) => ({
     name,
-    description:
-      name === tool.realName
-        ? tool.description
-        : `alias of ${tool.realName} — ${tool.description}`,
+    description: tool.description,
     inputSchema: tool.inputSchema,
   }))
 
@@ -797,7 +774,7 @@ export const registerTools = () =>
 ---------------------------- */
 
 export const handleToolCall = async (name, args) => {
-  const tool = toolLookup[name]
+  const tool = baseTools[name]
 
   if (!tool) {
     return {

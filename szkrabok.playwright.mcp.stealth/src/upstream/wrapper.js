@@ -1,5 +1,5 @@
 import { chromium } from 'playwright'
-import { enhanceWithStealth } from '../core/stealth.js'
+import { enhanceWithStealth } from '../core/szkrabok_stealth.js'
 import { TIMEOUT, HEADLESS, findChromiumPath } from '../config.js'
 import { log } from '../utils/logger.js'
 
