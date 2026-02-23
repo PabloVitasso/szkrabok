@@ -55,7 +55,7 @@ viewport          = { width = 393, height = 852 }
 Set `overrideUserAgent = true` and provide `userAgent` to spoof a specific browser identity.
 
 Presets are named browser identities (overrideUserAgent + userAgent + viewport + locale + timezone + label).
-`[default]` applies when no preset is specified. Named presets override individual fields.
+`[default]` is the TOML fallback. When no preset is requested, `session.open` reports `"preset": "chromium-honest"` — the named alias for the default identity. Named presets override individual fields.
 
 Pass a preset in `session.open`:
 

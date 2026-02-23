@@ -29,12 +29,12 @@ export const resolvePreset = name => {
   };
 
   if (!name || name === 'default') {
-    return { preset: 'default', ...base };
+    return { preset: 'chromium-honest', ...base };
   }
 
   const override = tomlPresets[name];
   if (!override) {
-    return { preset: 'default', ...base };
+    return { preset: 'chromium-honest', ...base };
   }
 
   return {
