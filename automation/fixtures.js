@@ -5,10 +5,13 @@
  * the browser/context/page fixtures connect to the live MCP session browser
  * via CDP instead of launching a new one.
  *
- * Without SZKRABOK_CDP_ENDPOINT the fixtures fall through to Playwright defaults,
+ * Without SZKRABOK_CDP_ENDPOINT the fixtures launch a stealth browser standalone,
  * so tests work standalone too (using storageState from playwright.config.ts).
  */
 import { test as base, chromium } from 'playwright/test'
+import { enhanceWithStealth } from '../src/core/szkrabok_stealth.js'
+
+const stealthChromium = enhanceWithStealth(chromium)
 
 export { expect } from 'playwright/test'
 
@@ -29,21 +32,32 @@ export const test = base.extend({
     { scope: 'worker' },
   ],
 
-  // Override browser fixture to return the CDP-connected browser when available.
-  browser: async ({ _cdpBrowser, browser }, use) => {
-    await use(_cdpBrowser ?? browser)
-  },
+  // Override browser fixture: CDP browser when available, stealth browser standalone.
+  browser: [
+    async ({ _cdpBrowser }, use) => {
+      if (_cdpBrowser) {
+        await use(_cdpBrowser)
+        return
+      }
+      const browser = await stealthChromium.launch()
+      await use(browser)
+      await browser.close()
+    },
+    { scope: 'worker' },
+  ],
 
-  // Reuse the existing context from the live session; create new one otherwise.
-  context: async ({ _cdpBrowser, context }, use) => {
-    if (!_cdpBrowser) {
-      await use(context)
+  // Reuse the existing context from the live session; create new one from stealth browser otherwise.
+  context: async ({ _cdpBrowser, browser }, use) => {
+    if (_cdpBrowser) {
+      const contexts = _cdpBrowser.contexts()
+      const ctx = contexts[0] ?? await _cdpBrowser.newContext()
+      await use(ctx)
+      // Do NOT close — MCP session owns this context.
       return
     }
-    const contexts = _cdpBrowser.contexts()
-    const ctx = contexts[0] ?? await _cdpBrowser.newContext()
+    const ctx = await browser.newContext()
     await use(ctx)
-    // Do NOT close — MCP session owns this context.
+    await ctx.close()
   },
 
   // Reuse the existing page from the live session; create new one otherwise.
