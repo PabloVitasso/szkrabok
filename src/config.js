@@ -52,15 +52,15 @@ export const resolvePreset = name => {
 export const PRESETS = Object.keys(tomlPresets);
 export const STEALTH_ENABLED = toml.stealth?.enabled ?? true;
 
-// ── Resolved defaults (env vars still override TOML) ─────────────────────────
+// ── Resolved defaults (from TOML) ─────────────────────────────────────────────
 
 const defaults = resolvePreset('default');
 
 export const DEFAULT_TIMEOUT = 30000;
-export const TIMEOUT = parseInt(process.env.TIMEOUT) || DEFAULT_TIMEOUT;
+export const TIMEOUT = tomlDefault.timeout ?? DEFAULT_TIMEOUT;
 
 // Headless priority:
-// 1. HEADLESS env var (explicit override)
+// 1. HEADLESS env var (explicit CI override)
 // 2. No DISPLAY → always headless (environment fact, cannot run headed without X)
 // 3. TOML [default].headless (local machine preference, only applies when DISPLAY exists)
 export const HEADLESS =
@@ -70,20 +70,17 @@ export const HEADLESS =
       ? (defaults.headless ?? false)
       : true;
 
-export const DISABLE_WEBGL = process.env.DISABLE_WEBGL === 'true';
+export const DISABLE_WEBGL = tomlDefault.disable_webgl ?? false;
+export const LOG_LEVEL = tomlDefault.log_level ?? 'info';
 
-export const VIEWPORT = defaults.viewport ?? {
-  width: parseInt(process.env.VIEWPORT_WIDTH) || 1280,
-  height: parseInt(process.env.VIEWPORT_HEIGHT) || 800,
-};
+export const VIEWPORT = defaults.viewport ?? { width: 1280, height: 800 };
 
 export const USER_AGENT =
-  process.env.USER_AGENT ||
   defaults.userAgent ||
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 
-export const LOCALE = process.env.LOCALE || defaults.locale || 'en-US';
-export const TIMEZONE = process.env.TIMEZONE || defaults.timezone || 'America/New_York';
+export const LOCALE = defaults.locale || 'en-US';
+export const TIMEZONE = defaults.timezone || 'America/New_York';
 
 // ── Chromium path resolution ──────────────────────────────────────────────────
 

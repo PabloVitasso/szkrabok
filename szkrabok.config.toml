@@ -59,6 +59,12 @@ timezone  = "America/New_York"
 # false = headed (visible window). Set HEADLESS=true env var for CI.
 # Presets do not override headless — it is an environment decision, not an identity.
 headless  = false
+# Default timeout in milliseconds for Playwright operations
+timeout     = 30000
+# Disable WebGL to reduce fingerprinting surface
+disable_webgl = false
+# Log verbosity: error, warn, info, debug
+log_level   = "info"
 
 [default.viewport]
 # Standard 16:10 laptop resolution

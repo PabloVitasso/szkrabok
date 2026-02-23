@@ -1,4 +1,4 @@
-const LOG_LEVEL = process.env.LOG_LEVEL || 'info';
+import { LOG_LEVEL } from '../config.js';
 
 const levels = {
   error: 0,
