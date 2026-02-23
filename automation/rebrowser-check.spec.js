@@ -31,9 +31,9 @@
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
-import { test, expect } from './fixtures.js'
+import { test, expect } from './fixtures.js';
 
-const BASE_URL = 'https://bot-detector.rebrowser.net/'
+const BASE_URL = 'https://bot-detector.rebrowser.net/';
 
 // Checks that must pass (green). Keys match the test names on the page.
 // dummyFn / sourceUrlLeak / mainWorldExecution stay grey until triggered below.
@@ -48,59 +48,59 @@ const EXPECTED_PASS = [
   'pwInitScripts',
   'bypassCsp',
   'useragent',
-]
+];
 
 test('rebrowser-check', async ({ page }, testInfo) => {
   // Expose the function before navigation so it's present when the page loads
-  console.log('step 1. expose function for exposeFunctionLeak test')
+  console.log('step 1. expose function for exposeFunctionLeak test');
   await page.exposeFunction('exposedFn', () => {
-    console.log('exposedFn call')
-  })
+    console.log('exposedFn call');
+  });
 
-  console.log('step 2. navigate to', BASE_URL)
-  await page.goto(BASE_URL)
+  console.log('step 2. navigate to', BASE_URL);
+  await page.goto(BASE_URL);
 
-  console.log('step 3. trigger required checks')
+  console.log('step 3. trigger required checks');
   // dummyFn — call main-world object
-  await page.evaluate(() => window.dummyFn())
+  await page.evaluate(() => window.dummyFn());
   // sourceUrlLeak — getElementById call that leaks sourceURL
-  await page.evaluate(() => document.getElementById('detections-json'))
+  await page.evaluate(() => document.getElementById('detections-json'));
   // mainWorldExecution — getElementsByClassName in main world
-  await page.evaluate(() => document.getElementsByClassName('div'))
+  await page.evaluate(() => document.getElementsByClassName('div'));
 
-  console.log('step 4. wait for results to settle')
-  await page.waitForTimeout(3000)
+  console.log('step 4. wait for results to settle');
+  await page.waitForTimeout(3000);
 
-  console.log('step 5. read detections JSON from page')
+  console.log('step 5. read detections JSON from page');
   const detectionsJson = await page.evaluate(() => {
-    const el = document.getElementById('detections-json')
-    return el ? el.textContent : null
-  })
+    const el = document.getElementById('detections-json');
+    return el ? el.textContent : null;
+  });
 
-  let detections = null
+  let detections = null;
   if (detectionsJson) {
     try {
-      detections = JSON.parse(detectionsJson)
+      detections = JSON.parse(detectionsJson);
     } catch {}
   }
 
   if (detections) {
-    console.log('detections JSON:', JSON.stringify(detections, null, 2))
+    console.log('detections JSON:', JSON.stringify(detections, null, 2));
   } else {
-    console.log('detections JSON not available, falling back to DOM scrape')
+    console.log('detections JSON not available, falling back to DOM scrape');
   }
 
-  console.log('step 6. collect check results from DOM')
+  console.log('step 6. collect check results from DOM');
   const results = await page.evaluate(checks => {
     // Each check row has a data-test-id or similar; fall back to text matching.
     // The page renders rows with the test name and an emoji/color indicator.
     // We look for elements that contain the check name and determine pass/fail
     // from the presence of green (🟢) vs other indicators in the row.
-    const rows = []
+    const rows = [];
     document
       .querySelectorAll('tr, [class*="test"], [class*="row"], [class*="detection"]')
       .forEach(el => {
-        const text = el.textContent ?? ''
+        const text = el.textContent ?? '';
         for (const name of checks) {
           if (text.includes(name)) {
             // Green circle emoji or "passed"/"safe" text = pass
@@ -109,25 +109,25 @@ test('rebrowser-check', async ({ page }, testInfo) => {
               text.includes('passed') ||
               text.includes('No leak') ||
               text.includes('No webdriver') ||
-              text.includes('No window.__pw')
+              text.includes('No window.__pw');
             const failed =
-              text.includes('🔴') || text.includes('failed') || text.includes('Leak detected')
-            rows.push({ name, passed, failed, snippet: text.replace(/\s+/g, ' ').slice(0, 120) })
-            break
+              text.includes('🔴') || text.includes('failed') || text.includes('Leak detected');
+            rows.push({ name, passed, failed, snippet: text.replace(/\s+/g, ' ').slice(0, 120) });
+            break;
           }
         }
-      })
-    return rows
-  }, EXPECTED_PASS)
+      });
+    return rows;
+  }, EXPECTED_PASS);
 
   // Deduplicate by name (keep first match)
-  const seen = new Set()
-  const deduped = results.filter(r => (seen.has(r.name) ? false : (seen.add(r.name), true)))
+  const seen = new Set();
+  const deduped = results.filter(r => (seen.has(r.name) ? false : (seen.add(r.name), true)));
 
-  console.log(`step 7. results (${deduped.filter(r => r.passed).length}/${deduped.length} passed)`)
+  console.log(`step 7. results (${deduped.filter(r => r.passed).length}/${deduped.length} passed)`);
   for (const r of deduped) {
-    const status = r.failed ? 'FAIL' : r.passed ? 'pass' : 'unknown'
-    console.log(`  [${status}] ${r.name}: ${r.snippet}`)
+    const status = r.failed ? 'FAIL' : r.passed ? 'pass' : 'unknown';
+    console.log(`  [${status}] ${r.name}: ${r.snippet}`);
   }
 
   // ── attach result ─────────────────────────────────────────────────────────
@@ -137,15 +137,15 @@ test('rebrowser-check', async ({ page }, testInfo) => {
     passed: deduped.filter(r => r.passed).length,
     failed: deduped.filter(r => r.failed).length,
     unknown: deduped.filter(r => !r.passed && !r.failed).length,
-  }
+  };
   await testInfo.attach('result', {
     body: JSON.stringify(result, null, 2),
     contentType: 'application/json',
-  })
+  });
 
   // ── assertions ────────────────────────────────────────────────────────────
-  const failures = deduped.filter(r => r.failed)
-  expect(failures, 'expected no failed rebrowser checks').toHaveLength(0)
+  const failures = deduped.filter(r => r.failed);
+  expect(failures, 'expected no failed rebrowser checks').toHaveLength(0);
 
-  console.log('step 8. done')
-})
+  console.log('step 8. done');
+});

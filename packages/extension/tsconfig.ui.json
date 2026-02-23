@@ -11,7 +11,9 @@
     "types": ["chrome"],
     "jsx": "react-jsx",
     "jsxImportSource": "react",
-    "noEmit": true
+    "noEmit": true,
   },
-  "include": ["src/ui"]
+  "include": [
+    "src/ui",
+  ],
 }

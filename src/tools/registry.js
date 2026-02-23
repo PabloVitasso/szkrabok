@@ -1,19 +1,19 @@
-import * as session from './szkrabok_session.js'
-import * as navigate from './navigate.js'
-import * as interact from './interact.js'
-import * as extract from './extract.js'
-import * as workflow from './workflow.js'
-import * as browser from './playwright_mcp.js'
-import * as szkrabokBrowser from './szkrabok_browser.js'
-import { wrapError } from '../utils/errors.js'
-import { logError } from '../utils/logger.js'
+import * as session from './szkrabok_session.js';
+import * as navigate from './navigate.js';
+import * as interact from './interact.js';
+import * as extract from './extract.js';
+import * as workflow from './workflow.js';
+import * as browser from './playwright_mcp.js';
+import * as szkrabokBrowser from './szkrabok_browser.js';
+import { wrapError } from '../utils/errors.js';
+import { logError } from '../utils/logger.js';
 
 /* ----------------------------
    Tool Categories
 ---------------------------- */
 
-const PLAYWRIGHT_MCP = '[playwright-mcp]'
-const SZKRABOK = '[szkrabok]'
+const PLAYWRIGHT_MCP = '[playwright-mcp]';
+const SZKRABOK = '[szkrabok]';
 
 /* ----------------------------
    Szkrabok Tools (Session Management + Workflows)
@@ -265,7 +265,7 @@ const szkrabokTools = {
       required: ['id', 'selectors'],
     },
   },
-}
+};
 
 /* ----------------------------
    Playwright MCP Tools (Core automation with refs)
@@ -776,7 +776,7 @@ const playwrightMcpTools = {
       properties: {},
     },
   },
-}
+};
 
 /* ----------------------------
    Combined tool registry
@@ -785,7 +785,7 @@ const playwrightMcpTools = {
 const baseTools = {
   ...szkrabokTools,
   ...playwrightMcpTools,
-}
+};
 
 /* ----------------------------
    MCP registration
@@ -796,32 +796,32 @@ export const registerTools = () =>
     name,
     description: tool.description,
     inputSchema: tool.inputSchema,
-  }))
+  }));
 
 /* ----------------------------
    Dispatcher
 ---------------------------- */
 
 export const handleToolCall = async (name, args) => {
-  const tool = baseTools[name]
+  const tool = baseTools[name];
 
   if (!tool) {
     return {
       content: [{ type: 'text', text: JSON.stringify({ error: `Unknown tool: ${name}` }) }],
       isError: true,
-    }
+    };
   }
 
   try {
-    const result = await tool.handler(args)
+    const result = await tool.handler(args);
     return {
       content: [{ type: 'text', text: JSON.stringify(result) }],
-    }
+    };
   } catch (err) {
-    logError(`Tool ${name} failed`, err, { args })
+    logError(`Tool ${name} failed`, err, { args });
     return {
       content: [{ type: 'text', text: JSON.stringify(wrapError(err)) }],
       isError: true,
-    }
+    };
   }
-}
+};

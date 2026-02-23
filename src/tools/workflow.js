@@ -1,6 +1,6 @@
-import * as pool from '../core/pool.js'
-import * as upstream from '../upstream/wrapper.js'
-import { TIMEOUT } from '../config.js'
+import * as pool from '../core/pool.js';
+import * as upstream from '../upstream/wrapper.js';
+import { TIMEOUT } from '../config.js';
 
 export const login = async args => {
   const {
@@ -10,57 +10,57 @@ export const login = async args => {
     usernameSelector = 'input[type="email"], input[name="username"], input[name="email"]',
     passwordSelector = 'input[type="password"], input[name="password"]',
     submitSelector = 'button[type="submit"], input[type="submit"]',
-  } = args
+  } = args;
 
-  const session = pool.get(id)
-  const page = session.page
+  const session = pool.get(id);
+  const page = session.page;
 
-  await upstream.type(page, usernameSelector, username)
-  await upstream.type(page, passwordSelector, password)
-  await upstream.click(page, submitSelector)
+  await upstream.type(page, usernameSelector, username);
+  await upstream.type(page, passwordSelector, password);
+  await upstream.click(page, submitSelector);
 
-  await page.waitForLoadState('networkidle', { timeout: TIMEOUT }).catch(() => {})
+  await page.waitForLoadState('networkidle', { timeout: TIMEOUT }).catch(() => {});
 
-  return { success: true }
-}
+  return { success: true };
+};
 
 export const fillForm = async args => {
-  const { id, fields } = args
-  const session = pool.get(id)
-  const page = session.page
+  const { id, fields } = args;
+  const session = pool.get(id);
+  const page = session.page;
 
   for (const [selector, value] of Object.entries(fields)) {
-    const element = await page.$(selector)
-    if (!element) continue
+    const element = await page.$(selector);
+    if (!element) continue;
 
-    const tagName = await element.evaluate(el => el.tagName.toLowerCase())
+    const tagName = await element.evaluate(el => el.tagName.toLowerCase());
 
     if (tagName === 'select') {
-      await upstream.select(page, selector, value)
+      await upstream.select(page, selector, value);
     } else {
-      await upstream.type(page, selector, value)
+      await upstream.type(page, selector, value);
     }
   }
 
-  return { success: true, filled: Object.keys(fields).length }
-}
+  return { success: true, filled: Object.keys(fields).length };
+};
 
 export const scrape = async args => {
-  const { id, selectors } = args
-  const session = pool.get(id)
-  const page = session.page
+  const { id, selectors } = args;
+  const session = pool.get(id);
+  const page = session.page;
 
-  const results = {}
+  const results = {};
 
   for (const [key, selector] of Object.entries(selectors)) {
     try {
-      const elements = await page.$$(selector)
-      const texts = await Promise.all(elements.map(el => el.textContent()))
-      results[key] = texts.filter(Boolean)
+      const elements = await page.$$(selector);
+      const texts = await Promise.all(elements.map(el => el.textContent()));
+      results[key] = texts.filter(Boolean);
     } catch {
-      results[key] = []
+      results[key] = [];
     }
   }
 
-  return { data: results }
-}
+  return { data: results };
+};

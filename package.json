@@ -18,8 +18,8 @@
     "dev": "node --watch src/index.js",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "format": "prettier --write \"**/*.{js,json,md}\"",
-    "format:check": "prettier --check \"**/*.{js,json,md}\"",
+    "format": "prettier --write \"{src,automation,selftest}/**/*.{js,json,md}\" \"*.{js,json,md}\"",
+    "format:check": "prettier --check \"{src,automation,selftest}/**/*.{js,json,md}\" \"*.{js,json,md}\"",
     "test": "npm run test:self && npm run test:auto",
     "test:node": "node --test selftest/node/*.test.js",
     "test:playwright": "playwright test --project=selftest",
@@ -66,14 +66,6 @@
     "globals": "^15.13.0",
     "prettier": "^3.4.2",
     "puppeteer-extra": "^3.3.6"
-  },
-  "prettier": {
-    "semi": false,
-    "singleQuote": true,
-    "tabWidth": 2,
-    "trailingComma": "es5",
-    "printWidth": 100,
-    "arrowParens": "avoid"
   },
   "eslintConfig": {
     "env": {
