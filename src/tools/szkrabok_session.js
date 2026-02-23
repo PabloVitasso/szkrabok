@@ -1,7 +1,7 @@
 import { launchPersistentContext, navigate } from '../upstream/wrapper.js'
 import * as pool from '../core/pool.js'
 import * as storage from '../core/storage.js'
-import { VIEWPORT, USER_AGENT, LOCALE, TIMEZONE } from '../config.js'
+import { resolvePreset, HEADLESS, VIEWPORT, USER_AGENT, LOCALE, TIMEZONE, STEALTH_ENABLED } from '../config.js'
 import { log } from '../utils/logger.js'
 
 // Derive a deterministic CDP port from session id.
@@ -31,7 +31,7 @@ export const open = async args => {
           await navigate(session.page, url)
           await storage.updateMeta(id, { lastUrl: url })
         }
-        return { success: true, id, url, reused: true }
+        return { success: true, id, url, reused: true, preset: session.preset, label: session.label }
       }
     } catch (err) {
       log(`Session ${id} check failed, removing from pool: ${err.message}`)
@@ -41,27 +41,36 @@ export const open = async args => {
 
   await storage.ensureSessionsDir()
 
+  // Resolve preset: per-call config.preset → TOML preset → TOML default
+  const resolved = resolvePreset(config.preset)
+
+  // Per-call overrides win over preset (except stealth which has its own flag)
+  const effectiveViewport  = config.viewport   || resolved.viewport  || VIEWPORT
+  const effectiveUserAgent = config.userAgent  || resolved.userAgent || USER_AGENT
+  const effectiveLocale    = config.locale     || resolved.locale    || LOCALE
+  const effectiveTimezone  = config.timezone   || resolved.timezone  || TIMEZONE
+  const effectiveStealth   = config.stealth    ?? STEALTH_ENABLED
+  const effectiveHeadless  = config.headless   ?? HEADLESS
+
   // Use userDataDir for complete profile persistence
   const userDataDir = storage.getUserDataDir(id)
 
   // Deterministic CDP port — same session id always maps to same port
   const cdpPort = cdpPortForId(id)
 
-  // Launch persistent context (combines browser + context with userDataDir)
-  // Always enable stealth mode
+  // Launch persistent context
   const context = await launchPersistentContext(userDataDir, {
-    stealth: true,
-    viewport: config.viewport || VIEWPORT,
-    userAgent: config.userAgent || USER_AGENT,
-    locale: config.locale || LOCALE,
-    timezoneId: config.timezone || TIMEZONE,
-    headless: config.headless,
+    stealth:    effectiveStealth,
+    viewport:   effectiveViewport,
+    userAgent:  effectiveUserAgent,
+    locale:     effectiveLocale,
+    timezoneId: effectiveTimezone,
+    headless:   effectiveHeadless,
     cdpPort,
   })
 
   // Add init script to mask iframe fingerprints
   await context.addInitScript(() => {
-    // Override iframe creation to inherit stealth
     const originalCreateElement = document.createElement
     document.createElement = function (tag) {
       const el = originalCreateElement.call(document, tag)
@@ -81,17 +90,25 @@ export const open = async args => {
   })
 
   // launchPersistentContext creates a context with existing pages
-  // Get the first page or create new one
   const pages = context.pages()
   const page = pages.length > 0 ? pages[0] : await context.newPage()
 
-  pool.add(id, context, page, cdpPort)
+  pool.add(id, context, page, cdpPort, resolved.preset, resolved.label)
 
   const meta = {
     id,
-    created: Date.now(),
+    created:  Date.now(),
     lastUsed: Date.now(),
-    config,
+    preset:   resolved.preset,
+    label:    resolved.label,
+    config: {
+      userAgent: effectiveUserAgent,
+      viewport:  effectiveViewport,
+      locale:    effectiveLocale,
+      timezone:  effectiveTimezone,
+      stealth:   effectiveStealth,
+      headless:  effectiveHeadless,
+    },
     userDataDir,
   }
   await storage.saveMeta(id, meta)
@@ -101,7 +118,21 @@ export const open = async args => {
     await storage.updateMeta(id, { lastUrl: url })
   }
 
-  return { success: true, id, url }
+  // Return full resolved config so caller knows exactly what was applied
+  return {
+    success: true,
+    id,
+    url,
+    preset: resolved.preset,
+    label:  resolved.label,
+    config: {
+      userAgent: effectiveUserAgent,
+      viewport:  effectiveViewport,
+      locale:    effectiveLocale,
+      timezone:  effectiveTimezone,
+      stealth:   effectiveStealth,
+    },
+  }
 }
 
 export const close = async args => {
@@ -141,8 +172,10 @@ export const list = async () => {
     const isActive = active.find(a => a.id === id)
     return {
       id,
-      active: !!isActive,
-      createdAt: isActive?.createdAt,
+      active:  !!isActive,
+      preset:  isActive?.preset,
+      label:   isActive?.label,
+      viewport: isActive?.viewport,
     }
   })
 
@@ -166,7 +199,7 @@ export const deleteSession = async args => {
   const { id } = args
 
   if (pool.has(id)) {
-    await close({ id, save: false })
+    await close({ id })
   }
 
   await storage.deleteSession(id)

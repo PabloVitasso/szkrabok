@@ -1,10 +1,28 @@
-import { defineConfig, chromium } from '@playwright/test'
+import { defineConfig, chromium } from 'playwright/test'
 import path from 'path'
 import fs from 'fs'
 import os from 'os'
 import { fileURLToPath } from 'url'
+import { parse } from 'smol-toml'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
+
+// Read TOML config directly — independent of src/config.js to avoid coupling
+// playwright's loader to the MCP module graph.
+const tomlPath = path.join(__dirname, 'szkrabok.config.toml')
+const toml = fs.existsSync(tomlPath) ? parse(fs.readFileSync(tomlPath, 'utf8')) : {}
+const tomlDefault = toml.default ?? {}
+const tomlPresets = toml.preset ?? {}
+
+// Resolve preset: merge [default] → [preset.<name>] (preset wins on conflict)
+const presetName = process.env.SZKRABOK_PRESET || 'default'
+const override = presetName !== 'default' ? (tomlPresets[presetName] ?? {}) : {}
+const preset = {
+  userAgent: override.userAgent ?? tomlDefault.userAgent ?? undefined,
+  viewport:  (override.viewport  ?? tomlDefault.viewport)  ? { width: (override.viewport ?? tomlDefault.viewport).width, height: (override.viewport ?? tomlDefault.viewport).height } : undefined,
+  locale:    override.locale    ?? tomlDefault.locale    ?? undefined,
+  timezone:  override.timezone  ?? tomlDefault.timezone  ?? undefined,
+}
 
 // Session id injected by browser.run_test via env var, or set manually:
 //   SZKRABOK_SESSION=my-session npx playwright test --project=automation
@@ -70,6 +88,13 @@ export default defineConfig({
         // Load existing session state when launching a new browser.
         // Skipped when SZKRABOK_CDP_ENDPOINT is set (live browser already has state).
         storageState: (!cdpEndpoint && fs.existsSync(stateFile)) ? stateFile : undefined,
+        // Apply preset identity for standalone runs (CDP mode reuses live session).
+        ...(!cdpEndpoint ? {
+          userAgent: preset.userAgent ?? undefined,
+          viewport:  preset.viewport  ?? undefined,
+          locale:    preset.locale    ?? undefined,
+          timezoneId: preset.timezone ?? undefined,
+        } : {}),
         launchOptions: {
           ...(executablePath ? { executablePath } : {}),
         },
@@ -78,6 +103,9 @@ export default defineConfig({
   ],
 
   // automation-only global options (only apply when running that project)
+  globalSetup: process.env.PLAYWRIGHT_PROJECT === 'automation'
+    ? './automation/setup.js'
+    : undefined,
   globalTeardown: process.env.PLAYWRIGHT_PROJECT === 'automation'
     ? './automation/teardown.js'
     : undefined,

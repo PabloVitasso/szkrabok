@@ -8,9 +8,9 @@
  * Without SZKRABOK_CDP_ENDPOINT the fixtures fall through to Playwright defaults,
  * so tests work standalone too (using storageState from playwright.config.ts).
  */
-import { test as base, chromium } from '@playwright/test'
+import { test as base, chromium } from 'playwright/test'
 
-export { expect } from '@playwright/test'
+export { expect } from 'playwright/test'
 
 const cdpEndpoint = process.env.SZKRABOK_CDP_ENDPOINT || ''
 

@@ -3,7 +3,7 @@
  * Provides MCP client setup for testing szkrabok features
  */
 
-import { test as baseTest, expect as baseExpect } from '@playwright/test'
+import { test as baseTest, expect as baseExpect } from 'playwright/test'
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import path from 'path'

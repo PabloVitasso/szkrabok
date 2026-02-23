@@ -1,0 +1,148 @@
+# szkrabok.config.toml
+#
+# Browser identity, viewport, and locale configuration for szkrabok.
+#
+# ── How this file is used ─────────────────────────────────────────────────────
+#
+#   MCP session launch:
+#     Loaded by src/config.js at server startup.
+#     session.open applies [default] unless a preset is requested:
+#       session.open { "id": "x", "config": { "preset": "mobile-iphone-15" } }
+#     The resolved config (all effective values) is returned in the response.
+#
+#   Playwright standalone runs:
+#     Loaded by playwright.config.ts.
+#     Set SZKRABOK_PRESET=<name> to select a preset (defaults to "default").
+#     The resolved preset is printed to console at test start via globalSetup.
+#
+# ── Merge behaviour ───────────────────────────────────────────────────────────
+#
+#   Presets are sparse — they only need to override what differs from [default].
+#   Anything not set in a preset is inherited from [default].
+#   Merge order: [default] → [preset.<name>]
+#
+# ── Override hierarchy (highest wins) ────────────────────────────────────────
+#
+#   1. session.open config.* fields (per-call, MCP only)
+#   2. SZKRABOK_PRESET env var (selects preset for Playwright standalone)
+#   3. [preset.<name>] values
+#   4. [default] values
+#   5. Hardcoded fallbacks in src/config.js
+#
+# ── Stealth ───────────────────────────────────────────────────────────────────
+#
+#   Stealth (playwright-extra + puppeteer-extra-plugin-stealth) is a separate
+#   concern from browser identity. It is configured in [stealth] and applies
+#   independently of which preset is selected.
+#   Toggle per-session: session.open { "config": { "stealth": false } }
+#
+# ─────────────────────────────────────────────────────────────────────────────
+
+# ── Default ───────────────────────────────────────────────────────────────────
+#
+# Applied when no preset is specified. Represents a typical desktop Chrome
+# session on Windows — the most common and least suspicious fingerprint.
+
+[default]
+# Human-readable label shown in session.open response, session.list, and
+# Playwright console output. Set to any string that helps you identify this config.
+label     = "Desktop / Windows 10 / Chrome 120"
+# Windows 10 Chrome 120 — broad compatibility, low bot-detection risk
+userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+# BCP 47 language tag — affects Accept-Language header and navigator.language
+locale    = "en-US"
+# IANA timezone — affects Date, Intl, and timezone detection fingerprints
+timezone  = "America/New_York"
+# false = headed (visible window). Set HEADLESS=true env var for CI.
+# Presets do not override headless — it is an environment decision, not an identity.
+headless  = false
+
+[default.viewport]
+# Standard 16:10 laptop resolution
+width  = 1280
+height = 800
+
+# ── Stealth plugin ────────────────────────────────────────────────────────────
+#
+# Controls playwright-extra + puppeteer-extra-plugin-stealth.
+# Applies globally; individual sessions can override via
+# session.open { "config": { "stealth": false } }
+
+[stealth]
+# Master switch — disables all evasions when false
+enabled = true
+
+# ── Desktop presets ───────────────────────────────────────────────────────────
+
+[preset.desktop-chrome-win]
+label     = "Desktop / Windows 10 / Chrome 120"
+userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+
+[preset.desktop-chrome-win.viewport]
+width  = 1280
+height = 800
+
+[preset.desktop-chrome-mac]
+label     = "Desktop / macOS Ventura / Chrome 120"
+# macOS Ventura — common developer machine fingerprint
+userAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+
+[preset.desktop-chrome-mac.viewport]
+# Standard MacBook Pro resolution
+width  = 1440
+height = 900
+
+[preset.desktop-firefox-win]
+label     = "Desktop / Windows 10 / Firefox 121"
+# Gecko UA — distinct from the Chrome family, useful for testing Firefox-specific behaviour
+userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0"
+
+[preset.desktop-firefox-win.viewport]
+width  = 1280
+height = 800
+
+[preset.desktop-safari-mac]
+label     = "Desktop / macOS Sonoma / Safari 17"
+# WebKit UA — note: Playwright always runs Chromium; only the UA string and
+# viewport change. Use for sites that serve different content to Safari.
+userAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_2_1) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Safari/605.1.15"
+
+[preset.desktop-safari-mac.viewport]
+width  = 1440
+height = 900
+
+# ── Mobile presets ────────────────────────────────────────────────────────────
+
+[preset.mobile-iphone-15]
+label     = "Mobile / iPhone 15 / iOS 17 / Safari"
+# Mobile Safari on iPhone 15, iOS 17.2
+userAgent = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Mobile/15E148 Safari/604.1"
+locale    = "en-US"
+timezone  = "America/New_York"
+
+[preset.mobile-iphone-15.viewport]
+# iPhone 15 logical resolution (3× DPR device, reported as CSS pixels)
+width  = 393
+height = 852
+
+[preset.mobile-android-chrome]
+label     = "Mobile / Pixel 8 / Android 14 / Chrome 120"
+# Chrome 120 on Pixel 8, Android 14
+userAgent = "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.6099.144 Mobile Safari/537.36"
+
+[preset.mobile-android-chrome.viewport]
+# Pixel 8 logical resolution
+width  = 412
+height = 915
+
+# ── Tablet presets ────────────────────────────────────────────────────────────
+
+[preset.tablet-ipad-pro]
+label     = "Tablet / iPad Pro 12.9\" / iPadOS 17 / Safari"
+# Safari on iPad Pro 12.9", iPadOS 17.2
+userAgent = "Mozilla/5.0 (iPad; CPU OS 17_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Mobile/15E148 Safari/604.1"
+
+[preset.tablet-ipad-pro.viewport]
+# iPad Pro 12.9" logical resolution (landscape)
+width  = 1366
+height = 1024

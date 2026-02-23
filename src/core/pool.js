@@ -3,8 +3,8 @@ import { log } from '../utils/logger.js'
 
 const sessions = new Map()
 
-export const add = (id, context, page, cdpPort) => {
-  sessions.set(id, { context, page, cdpPort, createdAt: Date.now() })
+export const add = (id, context, page, cdpPort, preset, label) => {
+  sessions.set(id, { context, page, cdpPort, preset, label, createdAt: Date.now() })
 }
 
 export const get = id => {
@@ -41,6 +41,8 @@ export const remove = id => {
 export const list = () =>
   Array.from(sessions.entries()).map(([id, session]) => ({
     id,
+    preset:    session.preset,
+    label:     session.label,
     createdAt: session.createdAt,
   }))
 
