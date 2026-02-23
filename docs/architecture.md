@@ -49,6 +49,15 @@ src/
 
   upstream/
     wrapper.js            launchPersistentContext, navigate helpers
+
+playwright-tests/
+  tests/
+    park4night.spec.ts    cookie banner acceptance test
+    stealthcheck.spec.ts  bot.sannysoft.com stealth check (11 Intoli + 20 fp-collect)
+  scripts/
+    inspect-page.mjs      generic table+iframe inspector (browser.run_file)
+  fixtures.ts             CDP session sharing + storageState fallback
+  playwright.config.ts    browser resolution + JSON reporter
 ```
 
 ## Tool ownership

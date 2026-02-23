@@ -5,7 +5,7 @@ import { fileURLToPath } from 'url'
 import { createWriteStream } from 'fs'
 import { readFile, mkdir } from 'fs/promises'
 
-const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', '..')
+const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..')
 
 export const run_test = async args => {
   const { id, grep, params = {}, config = 'playwright-tests/playwright.config.ts' } = args

@@ -94,6 +94,46 @@ Raw files also written to `sessions/{id}/last-run.log` and `sessions/{id}/last-r
 
 ---
 
+## Available tests
+
+| File | grep | What it tests |
+|---|---|---|
+| `tests/park4night.spec.ts` | `acceptCookies` | Cookie banner dismissed; skips on reused session |
+| `tests/stealthcheck.spec.ts` | `stealthcheck` | bot.sannysoft.com — 11 Intoli + 20 fp-collect checks, asserts no `td.failed`/`td.warn` |
+
+---
+
+## Scripts (`playwright-tests/scripts/`)
+
+### inspect-page.mjs
+
+Generic table + iframe inspector. Run via `browser.run_file` to explore any page before writing assertions.
+
+```json
+{
+  "tool": "browser.run_file",
+  "args": {
+    "id": "my-session",
+    "path": "playwright-tests/scripts/inspect-page.mjs",
+    "args": {
+      "url":        "https://example.com",
+      "wait":       "table tr",
+      "settle":     1000,
+      "nameCol":    0,
+      "valueCol":  -1,
+      "statusCol": -1,
+      "filterCls":  "error|warning",
+      "filterText": "FAIL",
+      "iframes":    true
+    }
+  }
+}
+```
+
+All args optional. Omit `url` to inspect the current page. Use `filterCls`/`filterText` to reduce output. Returns `{ rows: [{name, value, cls}], iframes: [{url, rows}] }`.
+
+---
+
 ## Writing tests
 
 Import from `fixtures` (not `@playwright/test`) to get CDP session sharing:
