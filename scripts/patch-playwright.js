@@ -2,124 +2,134 @@
 /**
  * patch-playwright.js
  *
- * Goal
- * ────
- * Apply the rebrowser Runtime.enable leak fixes directly to the compiled
- * playwright-core lib/ files installed in node_modules.  This avoids the
- * fragility of line-number-based .patch files while staying independent of
- * any third-party patcher keeping up with playwright releases.
+ * ── Goal ──────────────────────────────────────────────────────────────────────
+ * Apply anti-bot detection fixes directly to compiled playwright-core lib/
+ * files in node_modules.  Pattern-based string replacement — more resilient
+ * than line-number .patch files, independent of any third-party patcher.
  *
- * What it fixes
- * ─────────────
- * By default playwright calls CDP Runtime.enable on every frame, worker and
- * service-worker session.  Anti-bot systems (Cloudflare, DataDome, etc.) detect
- * this call and flag the session as automated.  The fix:
+ * ── What it fixes ─────────────────────────────────────────────────────────────
  *
- *   1. Suppresses automatic Runtime.enable calls in crPage, crDevTools,
- *      crServiceWorker.
- *   2. Adds __re__emitExecutionContext / __re__getMainWorld /
- *      __re__getIsolatedWorld helpers to CRConnection that obtain a valid
- *      execution-context ID without Runtime.enable, using an addBinding
- *      round-trip instead (the "addBinding" mode, default and safest).
- *   3. Rewires Frame._context() and Worker.evaluateExpression() to use the
- *      new helpers so all page.evaluate() calls still work transparently.
- *   4. Renames the internal UtilityScript class (compiled bundle injected into
- *      every page context) to a generic name.  The rebrowser bot-detector
- *      intercepts document.getElementById and checks new Error().stack for the
- *      string "UtilityScript." — renaming the class eliminates that signal.
+ * FIX A — Runtime.enable CDP leak (patches #2 #3 #4 #5 #6)
+ *   Playwright calls CDP Runtime.enable on every frame/worker/service-worker.
+ *   Anti-bot systems (Cloudflare, DataDome) detect this and flag the session.
+ *   Fix: suppress Runtime.enable; obtain execution-context IDs on-demand via
+ *   an addBinding round-trip (__re__getMainWorld) or Page.createIsolatedWorld
+ *   (__re__getIsolatedWorld) instead.
  *
- * Source of logic
- * ───────────────
- * Derived from rebrowser-patches (https://github.com/rebrowser/rebrowser-patches)
- * MIT licence.  We re-implement the same logical changes as pattern-based
- * string replacements so they survive minor refactors across playwright
- * versions without requiring the external patcher tool.
+ * FIX B — sourceUrlLeak (patch #7)
+ *   The rebrowser bot-detector overrides document.getElementById and inspects
+ *   new Error().stack for the string "UtilityScript." (class.method notation).
+ *   Playwright injects a compiled bundle with class UtilityScript into every
+ *   page context; all page.evaluate() calls run through UtilityScript.evaluate().
+ *   Fix: rename the class to __pwUs inside the compiled bundle. The export key
+ *   "UtilityScript" stays unchanged so internal playwright code is unaffected.
+ *   NOTE: rebrowser-patches does NOT include this fix for playwright (only for
+ *   puppeteer). This is an original szkrabok addition.
  *
- * Behaviour flags (env vars, same as rebrowser-patches)
- * ──────────────────────────────────────────────────────
+ * ── The utility-world name bug and waitForSelector fix ─────────────────────────
+ *   After suppressing Runtime.enable, playwright never receives automatic
+ *   Runtime.executionContextCreated events.  We emit them manually from
+ *   __re__emitExecutionContext.  The emitted contextPayload must include the
+ *   exact utility world name that crPage.js checks when registering a context:
+ *
+ *     crPage.js: this.utilityWorldName = `__playwright_utility_world_${this._page.guid}`
+ *     crPage.js: if (contextPayload.name === this._crPage.utilityWorldName) worldName = "utility"
+ *
+ *   The name is per-page (includes a GUID) and CANNOT be hardcoded.
+ *   We pass it explicitly from frames.js patch #5b, where the frame has
+ *   access to this._page.delegate.utilityWorldName (the CRPage instance).
+ *   crConnection.js receives it as `callerUtilityWorldName` — it stays
+ *   decoupled from CRPage internals so only frames.js needs updating if the
+ *   property moves upstream.
+ *   Without this fix: waitForSelector / locators / page.click all hang forever
+ *   because the utility world context is never registered.
+ *
+ * ── Multiple playwright-core installs ─────────────────────────────────────────
+ *   npm may install playwright-core in two locations:
+ *     node_modules/playwright-core              — used by the MCP server
+ *     node_modules/playwright/node_modules/playwright-core — used by the
+ *       test runner (browser.run_test spawns `npx playwright test` which
+ *       resolves playwright-core through its own nested copy)
+ *   Both must be patched. This script finds and patches all copies.
+ *   Each patched install gets a `.szkrabok-patched` stamp file next to
+ *   package.json so patches are visible at a glance.
+ *   To re-patch after a version bump: rm -rf both dirs, npm install, re-run.
+ *
+ * ── Upstream merge survival ────────────────────────────────────────────────────
+ *   Each patch uses a search string anchored to a stable code pattern.
+ *   When a patch fails (pattern not found), update the search string to match
+ *   the new compiled source and re-run. Per-patch fragility notes are inline.
+ *   Key things to re-verify after any playwright-core version bump:
+ *     - crPage.js still has `utilityWorldName` property (used by patch #5b)
+ *     - crPage.js still matches context by name === utilityWorldName (patch #1)
+ *     - Worker constructor signature (patches #3b, #6a)
+ *     - PageBinding.dispatch still parses JSON payload (patch #6c)
+ *   Reference: vendor/rebrowser-patches/patches/playwright-core/src.patch
+ *   Reference: docs/rebrowser-patches-research.md
+ *   Reference: docs/waitForSelector-bug.md
+ *
+ * ── Source of logic ───────────────────────────────────────────────────────────
+ *   Derived from rebrowser-patches (https://github.com/rebrowser/rebrowser-patches)
+ *   MIT licence. We re-implement as pattern-based replacements.
+ *   Reference copy: vendor/rebrowser-patches/ (gitignored, update with git pull)
+ *
+ * ── Behaviour flags (env vars, same as rebrowser-patches) ─────────────────────
  *   REBROWSER_PATCHES_RUNTIME_FIX_MODE=addBinding   (default — safest)
  *   REBROWSER_PATCHES_RUNTIME_FIX_MODE=alwaysIsolated
  *   REBROWSER_PATCHES_RUNTIME_FIX_MODE=enableDisable
- *   REBROWSER_PATCHES_RUNTIME_FIX_MODE=0            (disable fix)
- *   REBROWSER_PATCHES_SOURCE_URL=app.js             (default)
- *   REBROWSER_PATCHES_SOURCE_URL=0                  (disable sourceURL fix)
+ *   REBROWSER_PATCHES_RUNTIME_FIX_MODE=0            (disable all fixes)
  *   REBROWSER_PATCHES_DEBUG=1                       (verbose logging)
  *
- * Atomicity / rollback
- * ────────────────────
- * Before touching any file the script writes a .orig backup next to it.
- * If ANY patch step fails, ALL modified files are restored from their backups
- * and the process exits non-zero with a clear diagnostic.  On success the
- * backups are removed.
+ * ── Atomicity / rollback ──────────────────────────────────────────────────────
+ *   Before touching any file the script writes <file>.bak to disk.
+ *   If ANY patch step fails, all modified files for that install are restored
+ *   from .bak and the process exits non-zero with a diagnostic.
+ *   On success .bak files are deleted.
  */
 
 import fs from 'fs'
 import path from 'path'
+import { execSync } from 'child_process'
 import { createRequire } from 'module'
 
 const require = createRequire(import.meta.url)
 
-// ── locate playwright-core ────────────────────────────────────────────────────
+// ── locate all playwright-core installs ───────────────────────────────────────
+// npm hoists one copy to node_modules/playwright-core but playwright itself
+// may carry its own nested copy at node_modules/playwright/node_modules/playwright-core.
+// Both must be patched — the MCP server uses the hoisted one, the test runner
+// (spawned by browser.run_test) uses whichever playwright/test resolves.
 
-let pkgRoot
-try {
-  pkgRoot = path.dirname(require.resolve('playwright-core/package.json'))
-} catch {
+function findPkgRoots() {
+  const roots = []
+  const nmDir = path.resolve('node_modules')
+
+  // 1. top-level playwright-core
+  const top = path.join(nmDir, 'playwright-core')
+  if (fs.existsSync(path.join(top, 'package.json'))) roots.push(top)
+
+  // 2. any nested playwright-core inside other packages
+  try {
+    const out = execSync('find node_modules -maxdepth 4 -name "package.json" -path "*/playwright-core/package.json" 2>/dev/null', { encoding: 'utf8' })
+    for (const line of out.trim().split('\n')) {
+      if (!line) continue
+      const dir = path.dirname(path.resolve(line))
+      if (!roots.includes(dir)) roots.push(dir)
+    }
+  } catch {}
+
+  return roots
+}
+
+const pkgRoots = findPkgRoots()
+if (!pkgRoots.length) {
   console.error('[patch-playwright] ERROR: playwright-core not found in node_modules.')
   console.error('  Run `npm install` first.')
   process.exit(1)
 }
 
-const pwVersion = JSON.parse(fs.readFileSync(path.join(pkgRoot, 'package.json'), 'utf8')).version
-const lib = path.join(pkgRoot, 'lib')
-
-console.log(`[patch-playwright] playwright-core ${pwVersion} found at ${pkgRoot}`)
-
 // ── helpers ───────────────────────────────────────────────────────────────────
-
-const backedUp = [] // rels that have a .bak file on disk
-
-function bakPath(rel) {
-  return path.join(lib, rel) + '.bak'
-}
-
-function read(rel) {
-  return fs.readFileSync(path.join(lib, rel), 'utf8')
-}
-
-function backup(rel) {
-  const src = path.join(lib, rel)
-  const bak = bakPath(rel)
-  fs.copyFileSync(src, bak)
-  backedUp.push(rel)
-  console.log(`  backed up ${rel} -> ${path.basename(bak)}`)
-}
-
-function rollback() {
-  console.error('[patch-playwright] Rolling back all changes ...')
-  for (const rel of backedUp) {
-    const src = path.join(lib, rel)
-    const bak = bakPath(rel)
-    try {
-      fs.copyFileSync(bak, src)
-      fs.unlinkSync(bak)
-      console.error(`  restored ${rel}`)
-    } catch (e) {
-      console.error(`  FAILED to restore ${rel}: ${e.message}`)
-      console.error(`  Backup is still at: ${bak}`)
-    }
-  }
-}
-
-function removeBaks() {
-  for (const rel of backedUp) {
-    try { fs.unlinkSync(bakPath(rel)) } catch {}
-  }
-}
-
-function write(rel, content) {
-  fs.writeFileSync(path.join(lib, rel), content, 'utf8')
-}
+// (read/write/backup/rollback/removeBaks are defined per-install inside the run loop)
 
 /**
  * Apply a single named replacement to content.
@@ -131,8 +141,8 @@ function replace(file, content, searchStr, replacement, label) {
       `[patch-playwright] Pattern not found in ${file}\n` +
       `  patch: "${label}"\n` +
       `  searched for: ${searchStr.slice(0, 120).replace(/\n/g, '\\n')}\n\n` +
-      `  This likely means playwright-core ${pwVersion} changed the code at this\n` +
-      `  location.  Update scripts/patch-playwright.js to match the new source.`
+      `  Update the search string in scripts/patch-playwright.js to match the new source.\n` +
+      `  Reference: vendor/rebrowser-patches/patches/playwright-core/src.patch`
     )
   }
   return content.replace(searchStr, replacement)
@@ -142,12 +152,29 @@ function replace(file, content, searchStr, replacement, label) {
 
 const patches = [
 
-  // ── 1. crConnection.js — inject __re__ helpers into CRConnection ────────────
+  // ── 1. crConnection.js — inject __re__ helpers into CRSession ────────────────
+  // Adds three methods to CRSession (the CDP session class):
+  //   __re__emitExecutionContext  — top-level coordinator; emits the
+  //     Runtime.executionContextCreated event that playwright needs
+  //   __re__getMainWorld          — gets the main-world context ID via
+  //     Runtime.addBinding round-trip (avoids Runtime.enable)
+  //   __re__getIsolatedWorld      — gets an isolated-world context ID via
+  //     Page.createIsolatedWorld
+  //
+  // KEY DESIGN: callerUtilityWorldName is passed in from frames.js (patch #5b)
+  // rather than derived here from frame._page.delegate.utilityWorldName.
+  // Reason: crConnection.js should not know CRPage internals. If the property
+  // moves upstream, only frames.js patch #5b needs updating.
+  //
+  // UPSTREAM FRAGILITY:
+  //   Anchor: end of CRSession class (this._callbacks.clear()) + start of
+  //   CDPSession class. Stable — class boundaries rarely move.
+  //   If it breaks: find the end of CRSession.dispose() and start of CDPSession.
   {
     file: 'server/chromium/crConnection.js',
     steps: (src) => {
       // Insert the three helper methods just before the closing brace of
-      // CRConnection (right after this._callbacks.clear(); })
+      // CRSession (right after this._callbacks.clear(); })
       const anchor = `    this._callbacks.clear();
   }
 }
@@ -159,7 +186,7 @@ class CDPSession`
   // ── rebrowser Runtime.enable fix ──────────────────────────────────────────
   // Obtains an execution-context ID for a given world without calling
   // Runtime.enable, which is detectable by anti-bot systems.
-  async __re__emitExecutionContext({ world, targetId, frame = null }) {
+  async __re__emitExecutionContext({ world, targetId, frame = null, utilityWorldName: callerUtilityWorldName }) {
     const fixMode = process.env['REBROWSER_PATCHES_RUNTIME_FIX_MODE'] || 'addBinding'
     const utilityWorldName =
       process.env['REBROWSER_PATCHES_UTILITY_WORLD_NAME'] !== '0'
@@ -172,7 +199,7 @@ class CDPSession`
     if (fixMode === 'addBinding') {
       if (world === 'utility') {
         getWorldPromise = this.__re__getIsolatedWorld({ client: this, frameId: targetId, worldName: utilityWorldName })
-          .then(contextId => ({ id: contextId, name: '__playwright_utility_world__', auxData: { frameId: targetId, isDefault: false } }))
+          .then(contextId => ({ id: contextId, name: callerUtilityWorldName || '__playwright_utility_world__', auxData: { frameId: targetId, isDefault: false } }))
       } else if (world === 'main') {
         getWorldPromise = this.__re__getMainWorld({ client: this, frameId: targetId, isWorker: frame === null })
           .then(contextId => ({ id: contextId, name: '', auxData: { frameId: targetId, isDefault: true } }))
@@ -234,7 +261,11 @@ class CDPSession`
     },
   },
 
-  // ── 2. crDevTools.js — suppress Runtime.enable ─────────────────────────────
+  // ── 2. crDevTools.js — suppress Runtime.enable ────────────────────────────────
+  // crDevTools.js enables the runtime for DevTools protocol sessions.
+  // UPSTREAM FRAGILITY: anchor is the literal `session.send("Runtime.enable"),`
+  // inside a Promise.all([...]). If the surrounding code is refactored or
+  // the Promise.all is removed, update the search string.
   {
     file: 'server/chromium/crDevTools.js',
     steps: (src) => {
@@ -247,7 +278,17 @@ class CDPSession`
     },
   },
 
-  // ── 3. crPage.js — suppress Runtime.enable (page + worker) ─────────────────
+  // ── 3. crPage.js — suppress Runtime.enable (page + worker) ───────────────────
+  // Three changes:
+  //   3a. Suppress page-level Runtime.enable in the session setup Promise.all
+  //   3b. Pass targetId + session to the Worker constructor (needed by patch #6)
+  //   3c. Suppress worker-level Runtime.enable
+  // UPSTREAM FRAGILITY:
+  //   3a: anchor is `this._client.send("Runtime.enable", {})` inside Promise.all
+  //   3b: anchor is `new import_page.Worker(this._page, url)` — if the Worker
+  //       constructor gains/loses args upstream, both this line AND patch #6a
+  //       must be updated together
+  //   3c: anchor is `session._sendMayFail("Runtime.enable")` in the worker handler
   {
     file: 'server/chromium/crPage.js',
     steps: (src) => {
@@ -275,7 +316,9 @@ class CDPSession`
     },
   },
 
-  // ── 4. crServiceWorker.js — suppress Runtime.enable ────────────────────────
+  // ── 4. crServiceWorker.js — suppress Runtime.enable ──────────────────────────
+  // UPSTREAM FRAGILITY: anchor includes the .catch((e) => {}) pattern.
+  // If the catch block changes (e.g. adds a log line), update both lines.
   {
     file: 'server/chromium/crServiceWorker.js',
     steps: (src) => {
@@ -291,7 +334,33 @@ class CDPSession`
     },
   },
 
-  // ── 5. frames.js — emit executionContextsCleared + rewire _context() ───────
+  // ── 5. frames.js — emit executionContextsCleared + rewire _context() ─────────
+  // Two changes:
+  //   5a. After each frame commit (navigation), emit executionContextsCleared on
+  //       the CRSession so existing context IDs are invalidated and re-acquired
+  //       on next use. Without this, stale context IDs from before navigation
+  //       are used and evaluate() calls fail silently.
+  //   5b. Rewire Frame._context() to lazily call __re__emitExecutionContext when
+  //       the context hasn't been established yet (which is always, since we
+  //       suppressed Runtime.enable in patches #2-#4).
+  //
+  //       CRITICAL — utilityWorldName passing:
+  //       This patch passes `this._page.delegate?.utilityWorldName` to
+  //       __re__emitExecutionContext as `utilityWorldName`. This is the per-page
+  //       GUID-suffixed name that crPage.js uses to register a context as the
+  //       utility world (crPage.js: contextPayload.name === this._crPage.utilityWorldName).
+  //       Without this, waitForSelector / locators / page.click hang forever —
+  //       the utility world context is created but never registered. See:
+  //       docs/waitForSelector-bug.md for full investigation.
+  //
+  // UPSTREAM FRAGILITY:
+  //   5a: anchor spans _recalculateNetworkIdle + _onLifecycleEvent("commit").
+  //       If the frame commit lifecycle changes, update both lines.
+  //   5b: anchor is the entire _context(world) function body (4 lines).
+  //       If playwright refactors _context() (e.g. adds parameters, renames),
+  //       update the search string.
+  //       Also: if crPage.js renames `utilityWorldName` property, update the
+  //       `this._page.delegate?.utilityWorldName` reference in the replacement.
   {
     file: 'server/frames.js',
     steps: (src) => {
@@ -329,7 +398,7 @@ class CDPSession`
       });
     }
     const crSession = (this._page.delegate._sessions?.get(this._id) || this._page.delegate._mainFrameSession)?._client
-    return crSession.__re__emitExecutionContext({ world, targetId: this._id, frame: this })
+    return crSession.__re__emitExecutionContext({ world, targetId: this._id, frame: this, utilityWorldName: this._page.delegate?.utilityWorldName })
       .then(() => this._context(world, true))
       .catch(error => {
         if (error.message.includes('No frame for given id found'))
@@ -343,7 +412,25 @@ class CDPSession`
     },
   },
 
-  // ── 6. page.js — update Worker constructor + guard PageBinding.dispatch ─────
+  // ── 6. page.js — update Worker constructor + guard PageBinding.dispatch ───────
+  // Three changes:
+  //   6a. Worker constructor: accept the targetId + session args added by patch #3b
+  //       and store them for use in getExecutionContext()
+  //   6b. Add getExecutionContext() to Worker; rewire evaluateExpression /
+  //       evaluateExpressionHandle to use it. On first call, triggers
+  //       __re__emitExecutionContext for the worker's main world.
+  //   6c. Guard PageBinding.dispatch against non-JSON payloads: the addBinding
+  //       round-trip in __re__getMainWorld fires Runtime.bindingCalled with a
+  //       raw string payload (not our JSON envelope), which would crash JSON.parse.
+  //
+  // UPSTREAM FRAGILITY:
+  //   6a: anchor is `constructor(parent, url)` + first two lines of Worker body.
+  //       Must stay in sync with patch #3b (which adds the extra args at call site).
+  //       If Worker constructor changes, update both #3b and #6a together.
+  //   6b: anchor spans both evaluateExpression + evaluateExpressionHandle.
+  //       If either method signature changes, update the search string.
+  //   6c: anchor is `static async dispatch(page, payload, context)` + JSON.parse line.
+  //       If dispatch is refactored, update search string.
   {
     file: 'server/page.js',
     steps: (src) => {
@@ -397,16 +484,22 @@ class CDPSession`
       return src
     },
   },
-  // ── 7. utilityScriptSource.js — rename UtilityScript class ────────────────
-  //
-  // The rebrowser bot-detector wraps document.getElementById and inspects
+  // ── 7. utilityScriptSource.js — rename UtilityScript class ───────────────────
+  // The rebrowser bot-detector overrides document.getElementById and inspects
   // new Error().stack for the string "UtilityScript." (class.method notation).
-  // Playwright injects a compiled bundle called UtilityScript into every page
-  // context and all page.evaluate() calls run through UtilityScript.evaluate().
-  // Renaming the class breaks the string match without affecting functionality.
+  // Playwright injects a compiled UtilityScript bundle into every page context;
+  // all page.evaluate() calls run through UtilityScript.evaluate().
+  // Renaming the class variable to __pwUs breaks the stack-trace string match
+  // without affecting functionality — the export key "UtilityScript" is kept so
+  // internal playwright code that references it by name is unaffected.
+  // This is an original szkrabok fix — rebrowser-patches only fixes this for
+  // puppeteer (pptr: sourceURL), not playwright.
   //
-  // Note: rebrowser-patches does NOT include this fix for playwright (only for
-  // puppeteer's pptr: sourceURL).  This is an original addition.
+  // UPSTREAM FRAGILITY:
+  //   The file is a large generated JS bundle (single-line string).
+  //   Anchors `var UtilityScript = class {` and `UtilityScript: () => UtilityScript`
+  //   are stable — they are part of the compiled output naming convention.
+  //   If playwright renames the class in source, update both search strings.
   {
     file: 'generated/utilityScriptSource.js',
     steps: (src) => {
@@ -436,78 +529,107 @@ class CDPSession`
 
 // Marker injected by patch #1 — if present the file is already patched.
 const PATCH_MARKER = '__re__emitExecutionContext'
+// Stamp file written next to package.json so it's easy to see patches are active.
+const STAMP_FILE = '.szkrabok-patched'
 
-function isAlreadyPatched() {
+function isAlreadyPatched(libDir) {
   try {
-    return read('server/chromium/crConnection.js').includes(PATCH_MARKER)
+    return fs.readFileSync(path.join(libDir, 'server/chromium/crConnection.js'), 'utf8').includes(PATCH_MARKER)
   } catch {
     return false
   }
 }
 
-if (isAlreadyPatched()) {
-  console.log('[patch-playwright] Already patched — nothing to do.')
-  process.exit(0)
+// ── patch each playwright-core install ────────────────────────────────────────
+
+let anyFailed = false
+
+for (const pkgRoot of pkgRoots) {
+  const pwVersion = JSON.parse(fs.readFileSync(path.join(pkgRoot, 'package.json'), 'utf8')).version
+  const lib = path.join(pkgRoot, 'lib')
+  const stamp = path.join(pkgRoot, STAMP_FILE)
+
+  console.log(`\n[patch-playwright] playwright-core ${pwVersion} at ${pkgRoot}`)
+
+  if (isAlreadyPatched(lib)) {
+    console.log('  Already patched — skipping.')
+    continue
+  }
+
+  // per-install backup list
+  const backedUp = []
+
+  function bakPath(rel) { return path.join(lib, rel) + '.bak' }
+  function read(rel) { return fs.readFileSync(path.join(lib, rel), 'utf8') }
+  function write(rel, content) { fs.writeFileSync(path.join(lib, rel), content, 'utf8') }
+
+  function backup(rel) {
+    fs.copyFileSync(path.join(lib, rel), bakPath(rel))
+    backedUp.push(rel)
+    console.log(`  backed up ${rel}`)
+  }
+
+  function rollback() {
+    console.error('  Rolling back ...')
+    for (const rel of backedUp) {
+      const bak = bakPath(rel)
+      try {
+        fs.copyFileSync(bak, path.join(lib, rel))
+        fs.unlinkSync(bak)
+        console.error(`    restored ${rel}`)
+      } catch (e) {
+        console.error(`    FAILED to restore ${rel}: ${e.message} — backup at ${bak}`)
+      }
+    }
+  }
+
+  function removeBaks() {
+    for (const rel of backedUp) { try { fs.unlinkSync(bakPath(rel)) } catch {} }
+  }
+
+  console.log(`  Applying ${patches.length} patch groups ...`)
+  let failed = false
+
+  for (const { file, steps } of patches) {
+    try { backup(file) } catch (e) {
+      console.error(`  ERROR backing up ${file}: ${e.message}`)
+      failed = true; break
+    }
+    let src
+    try { src = read(file) } catch (e) {
+      console.error(`  ERROR reading ${file}: ${e.message}`)
+      failed = true; break
+    }
+    let patched
+    try { patched = steps(src) } catch (e) {
+      console.error(e.message.replace('[patch-playwright] ', '  '))
+      failed = true; break
+    }
+    try {
+      write(file, patched)
+      console.log(`  patched  ${file}`)
+    } catch (e) {
+      console.error(`  ERROR writing ${file}: ${e.message}`)
+      failed = true; break
+    }
+  }
+
+  if (failed) {
+    rollback()
+    console.error(`\n  PATCH FAILED for playwright-core ${pwVersion} — files restored from .bak backups.`)
+    console.error('  What to do:')
+    console.error(`    1. Check what changed in playwright-core ${pwVersion}.`)
+    console.error('    2. Update the failing patch step search string in scripts/patch-playwright.js.')
+    console.error('    3. Re-run: node scripts/patch-playwright.js')
+    console.error('  Reference: vendor/rebrowser-patches/patches/playwright-core/src.patch')
+    anyFailed = true
+  } else {
+    removeBaks()
+    // write stamp file so patches are visible at a glance
+    fs.writeFileSync(stamp, `szkrabok-patched playwright-core@${pwVersion}\n`)
+    console.log(`  All patches applied. Stamp: ${STAMP_FILE}`)
+  }
 }
 
-console.log(`[patch-playwright] Applying ${patches.length} patch groups ...`)
-
-let failed = false
-
-for (const { file, steps } of patches) {
-  // back up to disk before touching anything
-  try {
-    backup(file)
-  } catch (e) {
-    console.error(`[patch-playwright] ERROR backing up ${file}: ${e.message}`)
-    failed = true
-    break
-  }
-
-  let src
-  try {
-    src = read(file)
-  } catch (e) {
-    console.error(`[patch-playwright] ERROR reading ${file}: ${e.message}`)
-    failed = true
-    break
-  }
-
-  let patched
-  try {
-    patched = steps(src)
-  } catch (e) {
-    console.error(e.message)
-    failed = true
-    break
-  }
-
-  try {
-    write(file, patched)
-    console.log(`  patched  ${file}`)
-  } catch (e) {
-    console.error(`[patch-playwright] ERROR writing ${file}: ${e.message}`)
-    failed = true
-    break
-  }
-}
-
-if (failed) {
-  rollback()
-  console.error('')
-  console.error('[patch-playwright] PATCH FAILED — all files restored from .bak backups.')
-  console.error('')
-  console.error('  What to do:')
-  console.error(`  1. Check playwright-core version (installed: ${pwVersion}).`)
-  console.error('  2. Open scripts/patch-playwright.js and update the search strings')
-  console.error('     in the failing patch step to match the new source.')
-  console.error('  3. Re-run:  node scripts/patch-playwright.js')
-  console.error('')
-  console.error('  The MCP server will still work — just without the Runtime.enable fix,')
-  console.error('  meaning sourceUrlLeak / mainWorldExecution / exposeFunctionLeak checks')
-  console.error('  on bot-detector.rebrowser.net will continue to fail.')
-  process.exit(1)
-}
-
-removeBaks()
-console.log(`[patch-playwright] All patches applied successfully (playwright-core ${pwVersion}).`)
+if (anyFailed) process.exit(1)
+console.log('\n[patch-playwright] Done.')

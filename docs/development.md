@@ -42,17 +42,27 @@ in `node_modules` must be cleanly replaced — npm caches packages and will NOT 
 modified files with just `npm install`.
 
 ```bash
-rm -rf node_modules/playwright-core
+rm -rf node_modules/playwright-core node_modules/playwright/node_modules/playwright-core
 npm install --ignore-scripts        # reinstall clean, skip postinstall
-node scripts/patch-playwright.js    # re-apply our patches manually
+node scripts/patch-playwright.js    # re-apply our patches to all copies
 ```
 
 Then restart the MCP server.
 
 If `patch-playwright.js` fails after a playwright-core version bump, the search strings
-in the relevant patch step need updating — see comments in the script for guidance.
-Check `vendor/rebrowser-patches/patches/playwright-core/src.patch` for reference
-on what the upstream logic looks like in TypeScript.
+in the relevant patch step need updating — see inline `UPSTREAM FRAGILITY` comments in
+the script for guidance on what to look for per patch.
+
+Key things to re-verify after any playwright-core version bump:
+- `crPage.js` still has `utilityWorldName` property (used by patch #5b to pass the
+  per-page GUID-suffixed name — critical for `waitForSelector` / locators to work)
+- `crPage.js` still matches context by `contextPayload.name === this._crPage.utilityWorldName`
+- Worker constructor signature (patches #3b and #6a must stay in sync)
+- `PageBinding.dispatch` still parses a JSON payload string (patch #6c guard)
+
+Reference: `vendor/rebrowser-patches/patches/playwright-core/src.patch` for upstream TypeScript.
+Reference: `docs/rebrowser-patches-research.md` — detection results and patch overview.
+Reference: `docs/waitForSelector-bug.md` — investigation of the utility world name bug.
 
 ---
 

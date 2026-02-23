@@ -18,9 +18,14 @@
 | Selftest (MCP server) | `selftest/` |
 | Session storage | `sessions/{id}/` |
 
+## Workflow rules
+
+- **Always ask before committing or pushing.** Never commit or push without explicit user approval.
+- **Test after every change.** Run the relevant test before considering work done. Do not assume a change is correct — verify it. If a test cannot be run, say so explicitly and ask how to proceed.
+
 ## Restart MCP server
 
-After editing source files: `/mcp` -> **restart** szkrabok. No `pkill` needed.
+After editing source files: `/mcp` -> **restart** szkrabok.
 
 ## Run tests — required order
 

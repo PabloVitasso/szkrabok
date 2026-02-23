@@ -63,7 +63,13 @@ Remaining failures: mainWorldExecution (mode conflict), exposeFunctionLeak (no f
 `scripts/patch-playwright.js` — pattern-based string replacement on 7 compiled lib files.
 Runs as `postinstall` in `package.json`. Rolls back atomically on any failure.
 
-Files patched:
+**Two playwright-core installs must both be patched:**
+- `node_modules/playwright-core` — used by the MCP server
+- `node_modules/playwright/node_modules/playwright-core` — used by the test runner (`browser.run_test` spawns `npx playwright test` which resolves through this nested copy)
+
+The script finds and patches all copies automatically. Each gets a `.szkrabok-patched` stamp file.
+
+Files patched (in each install):
 
 | File | What |
 |---|---|
