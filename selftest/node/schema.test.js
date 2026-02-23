@@ -11,10 +11,7 @@ test('all tool schemas should be valid JSON Schema', () => {
   for (const tool of tools) {
     try {
       const valid = ajv.validateSchema(tool.inputSchema)
-      assert.ok(
-        valid,
-        `Schema for ${tool.name} is invalid: ${JSON.stringify(ajv.errors, null, 2)}`
-      )
+      assert.ok(valid, `Schema for ${tool.name} is invalid: ${JSON.stringify(ajv.errors, null, 2)}`)
     } catch (err) {
       assert.fail(`Schema validation for ${tool.name} threw error: ${err.message}`)
     }

@@ -19,7 +19,7 @@ export const login = async args => {
   await upstream.type(page, passwordSelector, password)
   await upstream.click(page, submitSelector)
 
-  await page.waitForLoadState('networkidle', { timeout: TIMEOUT }).catch(() => { })
+  await page.waitForLoadState('networkidle', { timeout: TIMEOUT }).catch(() => {})
 
   return { success: true }
 }

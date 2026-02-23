@@ -29,7 +29,7 @@ export const test = baseTest.extend({
 
       // Capture stderr
       if ('stderr' in transport && transport.stderr) {
-        transport.stderr.on('data', (chunk) => {
+        transport.stderr.on('data', chunk => {
           stderrBuffer += chunk.toString()
         })
       }
@@ -74,6 +74,7 @@ export function toHaveResponse(received, expected) {
   const pass = JSON.stringify(received).includes(JSON.stringify(expected))
   return {
     pass,
-    message: () => `Expected response to match ${JSON.stringify(expected)}, got ${JSON.stringify(received)}`,
+    message: () =>
+      `Expected response to match ${JSON.stringify(expected)}, got ${JSON.stringify(received)}`,
   }
 }

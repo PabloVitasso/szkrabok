@@ -10,6 +10,8 @@ export default async function globalSetup() {
   const vpStr = vp ? `${vp.width}×${vp.height}` : 'default'
 
   console.log(`[szkrabok] preset : ${resolved.preset} — ${resolved.label}`)
-  console.log(`[szkrabok] viewport: ${vpStr}  locale: ${resolved.locale}  timezone: ${resolved.timezone}`)
+  console.log(
+    `[szkrabok] viewport: ${vpStr}  locale: ${resolved.locale}  timezone: ${resolved.timezone}`
+  )
   console.log(`[szkrabok] userAgent: ${resolved.userAgent}`)
 }

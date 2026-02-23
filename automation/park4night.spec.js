@@ -49,9 +49,9 @@
 
 import { test, expect } from './fixtures.js'
 
-const BASE_URL    = 'https://park4night.com/en'
-const BANNER      = '.cc-section-landing'
-const BTN_REJECT  = `${BANNER} .cc-btn.cc-btn-reject`
+const BASE_URL = 'https://park4night.com/en'
+const BANNER = '.cc-section-landing'
+const BTN_REJECT = `${BANNER} .cc-btn.cc-btn-reject`
 
 test('acceptCookies', async ({ page }, testInfo) => {
   console.log('step 1. navigate to', BASE_URL)
@@ -59,7 +59,8 @@ test('acceptCookies', async ({ page }, testInfo) => {
 
   console.log('step 2. probe for cookie banner (8s timeout)')
   const btn = page.locator(BTN_REJECT)
-  const appeared = await btn.waitFor({ state: 'visible', timeout: 8000 })
+  const appeared = await btn
+    .waitFor({ state: 'visible', timeout: 8000 })
     .then(() => true)
     .catch(() => false)
 
@@ -68,7 +69,10 @@ test('acceptCookies', async ({ page }, testInfo) => {
   if (!appeared) {
     console.log('step 4. skipping — cookies already accepted')
     const result = { action: 'skipped', reason: 'banner_not_present' }
-    await testInfo.attach('result', { body: JSON.stringify(result), contentType: 'application/json' })
+    await testInfo.attach('result', {
+      body: JSON.stringify(result),
+      contentType: 'application/json',
+    })
     return
   }
 
@@ -79,7 +83,10 @@ test('acceptCookies', async ({ page }, testInfo) => {
   if (!isVisible || !isEnabled) {
     console.log('step 5. button not interactable — failing')
     const result = { action: 'failed', visible: isVisible, enabled: isEnabled }
-    await testInfo.attach('result', { body: JSON.stringify(result), contentType: 'application/json' })
+    await testInfo.attach('result', {
+      body: JSON.stringify(result),
+      contentType: 'application/json',
+    })
     expect(isVisible && isEnabled, 'Cookie reject button not interactable').toBe(true)
     return
   }
@@ -90,7 +97,7 @@ test('acceptCookies', async ({ page }, testInfo) => {
   console.log('step 6. waiting for banner to disappear')
   await page.locator(BANNER).waitFor({ state: 'hidden', timeout: 5000 })
   const bannerGone = !(await page.locator(BANNER).isVisible())
-
+  page.pause()
   console.log(`step 7. banner gone: ${bannerGone}`)
   const result = { action: 'clicked', dismissed: bannerGone }
   await testInfo.attach('result', { body: JSON.stringify(result), contentType: 'application/json' })

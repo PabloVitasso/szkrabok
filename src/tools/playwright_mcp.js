@@ -186,7 +186,10 @@ export const drag = async args => {
   const session = pool.get(id)
   await ensureScript(session.page)
 
-  const startHandle = await session.page.evaluateHandle(r => window['__mcp'].getElement(r), startRef)
+  const startHandle = await session.page.evaluateHandle(
+    r => window['__mcp'].getElement(r),
+    startRef
+  )
   const endHandle = await session.page.evaluateHandle(r => window['__mcp'].getElement(r), endRef)
 
   const start = startHandle.asElement()
@@ -390,9 +393,11 @@ export const network_requests = async args => {
 
   const requests = await session.page.evaluate(incStatic => {
     const reqs = window['__networkRequests']
-    return reqs?.filter?.(
-      req => incStatic || !req.url.match(/\.(js|css|png|jpg|jpeg|gif|svg|woff|woff2|ttf)$/)
-    ) || []
+    return (
+      reqs?.filter?.(
+        req => incStatic || !req.url.match(/\.(js|css|png|jpg|jpeg|gif|svg|woff|woff2|ttf)$/)
+      ) || []
+    )
   }, includeStatic)
 
   return { requests, url: session.page.url() }
@@ -402,9 +407,7 @@ export const file_upload = async args => {
   const { id, paths = [] } = args
   const session = pool.get(id)
 
-  const [fileChooser] = await Promise.all([
-    session.page.waitForEvent('filechooser'),
-  ])
+  const [fileChooser] = await Promise.all([session.page.waitForEvent('filechooser')])
 
   if (paths.length === 0) {
     await fileChooser.cancel()

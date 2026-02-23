@@ -28,11 +28,16 @@ export const run_test = async args => {
     )
   }
   const cdpEndpoint = `http://localhost:${session.cdpPort}`
-  const env = { ...process.env, SZKRABOK_SESSION: id, SZKRABOK_CDP_ENDPOINT: cdpEndpoint, ...paramEnv }
+  const env = {
+    ...process.env,
+    SZKRABOK_SESSION: id,
+    SZKRABOK_CDP_ENDPOINT: cdpEndpoint,
+    ...paramEnv,
+  }
 
   const sessionDir = join(REPO_ROOT, 'sessions', id)
   await mkdir(sessionDir, { recursive: true })
-  const logFile  = join(sessionDir, 'last-run.log')
+  const logFile = join(sessionDir, 'last-run.log')
   const jsonFile = join(sessionDir, 'last-run.json')
 
   const playwrightArgs = ['playwright', 'test', '--config', configPath, '--timeout', '60000']
@@ -63,9 +68,16 @@ export const run_test = async args => {
   // alive. Re-opening reconnects a fresh Playwright context to the running browser.
   let sessionReconnected = false
   if (keepOpen) {
-    const alive = pool.has(id) && (() => {
-      try { pool.get(id); return true } catch { return false }
-    })()
+    const alive =
+      pool.has(id) &&
+      (() => {
+        try {
+          pool.get(id)
+          return true
+        } catch {
+          return false
+        }
+      })()
     if (!alive) {
       pool.remove(id)
       await sessionOpen({ id })
@@ -75,7 +87,11 @@ export const run_test = async args => {
 
   const reportRaw = await readFile(jsonFile, 'utf8').catch(() => null)
   let report = null
-  try { report = reportRaw ? JSON.parse(reportRaw) : null } catch { /* malformed */ }
+  try {
+    report = reportRaw ? JSON.parse(reportRaw) : null
+  } catch {
+    /* malformed */
+  }
 
   if (!report) {
     return { exitCode: 1, log, error: 'JSON report not found or unparseable', sessionReconnected }
@@ -83,25 +99,36 @@ export const run_test = async args => {
 
   const decodeAttachment = att => {
     if (att.contentType !== 'application/json' || !att.body) return null
-    try { return JSON.parse(Buffer.from(att.body, 'base64').toString('utf8')) } catch { return null }
+    try {
+      return JSON.parse(Buffer.from(att.body, 'base64').toString('utf8'))
+    } catch {
+      return null
+    }
   }
 
   const { stats, suites } = report
-  const tests = (suites || []).flatMap(s => s.specs || []).flatMap(spec =>
-    (spec.tests || []).map(t => {
-      const result = t.results?.[0] ?? {}
-      const attachments = (result.attachments || [])
-        .filter(a => a.name === 'result')
-        .map(decodeAttachment)
-        .filter(Boolean)
-      return {
-        title: spec.title,
-        status: result.status ?? 'unknown',
-        error: result.error?.message ?? null,
-        result: attachments.length === 1 ? attachments[0] : attachments.length > 1 ? attachments : undefined,
-      }
-    })
-  )
+  const tests = (suites || [])
+    .flatMap(s => s.specs || [])
+    .flatMap(spec =>
+      (spec.tests || []).map(t => {
+        const result = t.results?.[0] ?? {}
+        const attachments = (result.attachments || [])
+          .filter(a => a.name === 'result')
+          .map(decodeAttachment)
+          .filter(Boolean)
+        return {
+          title: spec.title,
+          status: result.status ?? 'unknown',
+          error: result.error?.message ?? null,
+          result:
+            attachments.length === 1
+              ? attachments[0]
+              : attachments.length > 1
+                ? attachments
+                : undefined,
+        }
+      })
+    )
 
   return {
     log: log.split('\n').filter(line => line.trim()),

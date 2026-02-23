@@ -5,6 +5,7 @@ This directory contains shared contracts and schemas for the MCP (Model Context 
 ## Purpose
 
 The contracts directory provides:
+
 - JSON Schema definitions for tool inputs/outputs
 - Example request/response fixtures
 - Protocol version tracking
@@ -34,6 +35,7 @@ Contracts follow semantic versioning. Current version is stored in `mcp/version.
 ## Usage
 
 Servers can reference these schemas for:
+
 - Input validation
 - Output formatting
 - Documentation generation
@@ -49,10 +51,12 @@ Servers can reference these schemas for:
 ## Validation
 
 Schemas are validated in CI using JSON Schema validators:
+
 - Node.js servers: AJV
 - Python servers: jsonschema
 
 Run validation locally:
+
 ```bash
 cd /path/to/repo
 ./scripts/check-contracts.sh

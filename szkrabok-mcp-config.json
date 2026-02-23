@@ -2,10 +2,7 @@
   "mcpServers": {
     "szkrabok": {
       "command": "node",
-      "args": [
-        "/path/to/szkrabok/src/index.js",
-        "--headless"
-      ]
+      "args": ["/path/to/szkrabok/src/index.js", "--headless"]
     }
   }
 }

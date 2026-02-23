@@ -18,63 +18,63 @@
 
 const fs = require('fs')
 const path = require('path')
-const { execSync } = require('child_process');
+const { execSync } = require('child_process')
 
-const { browserTools } = require('playwright/lib/mcp/browser/tools');
+const { browserTools } = require('playwright/lib/mcp/browser/tools')
 
 const capabilities = {
   'core-navigation': 'Core automation',
-  'core': 'Core automation',
+  core: 'Core automation',
   'core-tabs': 'Tab management',
   'core-input': 'Core automation',
   'core-install': 'Browser installation',
-  'vision': 'Coordinate-based (opt-in via --caps=vision)',
-  'pdf': 'PDF generation (opt-in via --caps=pdf)',
-  'testing': 'Test assertions (opt-in via --caps=testing)',
-  'tracing': 'Tracing (opt-in via --caps=tracing)',
-};
+  vision: 'Coordinate-based (opt-in via --caps=vision)',
+  pdf: 'PDF generation (opt-in via --caps=pdf)',
+  testing: 'Test assertions (opt-in via --caps=testing)',
+  tracing: 'Tracing (opt-in via --caps=tracing)',
+}
 
 /** @type {Record<string, any[]>} */
-const toolsByCapability = {};
+const toolsByCapability = {}
 for (const [capability, title] of Object.entries(capabilities)) {
-  let tools = browserTools.filter(tool => tool.capability === capability && !tool.skillOnly);
-  tools = (toolsByCapability[title] || []).concat(tools);
-  toolsByCapability[title] = tools;
+  let tools = browserTools.filter(tool => tool.capability === capability && !tool.skillOnly)
+  tools = (toolsByCapability[title] || []).concat(tools)
+  toolsByCapability[title] = tools
 }
 for (const [, tools] of Object.entries(toolsByCapability))
-  tools.sort((a, b) => a.schema.name.localeCompare(b.schema.name));
+  tools.sort((a, b) => a.schema.name.localeCompare(b.schema.name))
 
 /**
  * @param {any} tool
  * @returns {string[]}
  */
 function formatToolForReadme(tool) {
-  const lines = /** @type {string[]} */ ([]);
-  lines.push(`<!-- NOTE: This has been generated via ${path.basename(__filename)} -->`);
-  lines.push(``);
-  lines.push(`- **${tool.name}**`);
-  lines.push(`  - Title: ${tool.title}`);
-  lines.push(`  - Description: ${tool.description}`);
+  const lines = /** @type {string[]} */ ([])
+  lines.push(`<!-- NOTE: This has been generated via ${path.basename(__filename)} -->`)
+  lines.push(``)
+  lines.push(`- **${tool.name}**`)
+  lines.push(`  - Title: ${tool.title}`)
+  lines.push(`  - Description: ${tool.description}`)
 
-  const inputSchema = /** @type {any} */ (tool.inputSchema ? tool.inputSchema.toJSONSchema() : {});
-  const requiredParams = inputSchema.required || [];
+  const inputSchema = /** @type {any} */ (tool.inputSchema ? tool.inputSchema.toJSONSchema() : {})
+  const requiredParams = inputSchema.required || []
   if (inputSchema.properties && Object.keys(inputSchema.properties).length) {
-    lines.push(`  - Parameters:`);
+    lines.push(`  - Parameters:`)
     Object.entries(inputSchema.properties).forEach(([name, param]) => {
-      const optional = !requiredParams.includes(name);
-      const meta = /** @type {string[]} */ ([]);
-      if (param.type)
-        meta.push(param.type);
-      if (optional)
-        meta.push('optional');
-      lines.push(`    - \`${name}\` ${meta.length ? `(${meta.join(', ')})` : ''}: ${param.description}`);
-    });
+      const optional = !requiredParams.includes(name)
+      const meta = /** @type {string[]} */ ([])
+      if (param.type) meta.push(param.type)
+      if (optional) meta.push('optional')
+      lines.push(
+        `    - \`${name}\` ${meta.length ? `(${meta.join(', ')})` : ''}: ${param.description}`
+      )
+    })
   } else {
-    lines.push(`  - Parameters: None`);
+    lines.push(`  - Parameters: None`)
   }
-  lines.push(`  - Read-only: **${tool.type === 'readOnly'}**`);
-  lines.push('');
-  return lines;
+  lines.push(`  - Read-only: **${tool.type === 'readOnly'}**`)
+  lines.push('')
+  return lines
 }
 
 /**
@@ -85,10 +85,10 @@ function formatToolForReadme(tool) {
  * @returns {Promise<string>}
  */
 async function updateSection(content, startMarker, endMarker, generatedLines) {
-  const startMarkerIndex = content.indexOf(startMarker);
-  const endMarkerIndex = content.indexOf(endMarker);
+  const startMarkerIndex = content.indexOf(startMarker)
+  const endMarkerIndex = content.indexOf(endMarker)
   if (startMarkerIndex === -1 || endMarkerIndex === -1)
-    throw new Error('Markers for generated section not found in README');
+    throw new Error('Markers for generated section not found in README')
 
   return [
     content.slice(0, startMarkerIndex + startMarker.length),
@@ -96,7 +96,7 @@ async function updateSection(content, startMarker, endMarker, generatedLines) {
     generatedLines.join('\n'),
     '',
     content.slice(endMarkerIndex),
-  ].join('\n');
+  ].join('\n')
 }
 
 /**
@@ -104,22 +104,21 @@ async function updateSection(content, startMarker, endMarker, generatedLines) {
  * @returns {Promise<string>}
  */
 async function updateTools(content) {
-  console.log('Loading tool information from compiled modules...');
+  console.log('Loading tool information from compiled modules...')
 
-  const generatedLines = /** @type {string[]} */ ([]);
+  const generatedLines = /** @type {string[]} */ ([])
   for (const [capability, tools] of Object.entries(toolsByCapability)) {
-    console.log('Updating tools for capability:', capability);
-    generatedLines.push(`<details>\n<summary><b>${capability}</b></summary>`);
-    generatedLines.push('');
-    for (const tool of tools)
-      generatedLines.push(...formatToolForReadme(tool.schema));
-    generatedLines.push(`</details>`);
-    generatedLines.push('');
+    console.log('Updating tools for capability:', capability)
+    generatedLines.push(`<details>\n<summary><b>${capability}</b></summary>`)
+    generatedLines.push('')
+    for (const tool of tools) generatedLines.push(...formatToolForReadme(tool.schema))
+    generatedLines.push(`</details>`)
+    generatedLines.push('')
   }
 
-  const startMarker = `<!--- Tools generated by ${path.basename(__filename)} -->`;
-  const endMarker = `<!--- End of tools generated section -->`;
-  return updateSection(content, startMarker, endMarker, generatedLines);
+  const startMarker = `<!--- Tools generated by ${path.basename(__filename)} -->`
+  const endMarker = `<!--- End of tools generated section -->`
+  return updateSection(content, startMarker, endMarker, generatedLines)
 }
 
 /**
@@ -127,57 +126,57 @@ async function updateTools(content) {
  * @returns {Promise<string>}
  */
 async function updateOptions(content) {
-  console.log('Listing options...');
-  execSync('node cli.js --help > help.txt');
-  const output = fs.readFileSync('help.txt');
-  fs.unlinkSync('help.txt');
-  const lines = output.toString().split('\n');
-  const firstLine = lines.findIndex(line => line.includes('--version'));
-  lines.splice(0, firstLine + 1);
-  const lastLine = lines.findIndex(line => line.includes('--help'));
-  lines.splice(lastLine);
+  console.log('Listing options...')
+  execSync('node cli.js --help > help.txt')
+  const output = fs.readFileSync('help.txt')
+  fs.unlinkSync('help.txt')
+  const lines = output.toString().split('\n')
+  const firstLine = lines.findIndex(line => line.includes('--version'))
+  lines.splice(0, firstLine + 1)
+  const lastLine = lines.findIndex(line => line.includes('--help'))
+  lines.splice(lastLine)
 
   /**
    * @type {{ name: string, value: string }[]}
    */
-  const options = [];
+  const options = []
   for (let line of lines) {
     if (line.startsWith('  --')) {
-      const l = line.substring('  --'.length);
-      const gapIndex = l.indexOf('  ');
-      const name = l.substring(0, gapIndex).trim();
-      const value = l.substring(gapIndex).trim();
-      options.push({ name, value });
+      const l = line.substring('  --'.length)
+      const gapIndex = l.indexOf('  ')
+      const name = l.substring(0, gapIndex).trim()
+      const value = l.substring(gapIndex).trim()
+      options.push({ name, value })
     } else {
-      const value = line.trim();
-      options[options.length - 1].value += ' ' + value;
+      const value = line.trim()
+      options[options.length - 1].value += ' ' + value
     }
   }
 
-  const table = [];
-  table.push(`| Option | Description |`);
-  table.push(`|--------|-------------|`);
+  const table = []
+  table.push(`| Option | Description |`)
+  table.push(`|--------|-------------|`)
   for (const option of options) {
-    const prefix = option.name.split(' ')[0];
-    const envName = `PLAYWRIGHT_MCP_` + prefix.toUpperCase().replace(/-/g, '_');
-    table.push(`| --${option.name} | ${option.value}<br>*env* \`${envName}\` |`);
+    const prefix = option.name.split(' ')[0]
+    const envName = `PLAYWRIGHT_MCP_` + prefix.toUpperCase().replace(/-/g, '_')
+    table.push(`| --${option.name} | ${option.value}<br>*env* \`${envName}\` |`)
   }
 
   if (process.env.PRINT_ENV) {
-    const envTable = [];
-    envTable.push(`| Environment |`);
-    envTable.push(`|-------------|`);
+    const envTable = []
+    envTable.push(`| Environment |`)
+    envTable.push(`|-------------|`)
     for (const option of options) {
-      const prefix = option.name.split(' ')[0];
-      const envName = `PLAYWRIGHT_MCP_` + prefix.toUpperCase().replace(/-/g, '_');
-      envTable.push(`| \`${envName}\` ${option.value} |`);
+      const prefix = option.name.split(' ')[0]
+      const envName = `PLAYWRIGHT_MCP_` + prefix.toUpperCase().replace(/-/g, '_')
+      envTable.push(`| \`${envName}\` ${option.value} |`)
     }
-    console.log(envTable.join('\n'));
+    console.log(envTable.join('\n'))
   }
 
-  const startMarker = `<!--- Options generated by ${path.basename(__filename)} -->`;
-  const endMarker = `<!--- End of options generated section -->`;
-  return updateSection(content, startMarker, endMarker, table);
+  const startMarker = `<!--- Options generated by ${path.basename(__filename)} -->`
+  const endMarker = `<!--- End of options generated section -->`
+  return updateSection(content, startMarker, endMarker, table)
 }
 
 /**
@@ -185,48 +184,46 @@ async function updateOptions(content) {
  * @returns {Promise<string>}
  */
 async function updateConfig(content) {
-  console.log('Updating config schema from config.d.ts...');
-  const configPath = path.join(__dirname, 'config.d.ts');
-  const configContent = await fs.promises.readFile(configPath, 'utf-8');
+  console.log('Updating config schema from config.d.ts...')
+  const configPath = path.join(__dirname, 'config.d.ts')
+  const configContent = await fs.promises.readFile(configPath, 'utf-8')
 
   // Extract the Config type definition
-  const configTypeMatch = configContent.match(/export type Config = (\{[\s\S]*?\n\});/);
-  if (!configTypeMatch)
-    throw new Error('Config type not found in config.d.ts');
+  const configTypeMatch = configContent.match(/export type Config = (\{[\s\S]*?\n\});/)
+  if (!configTypeMatch) throw new Error('Config type not found in config.d.ts')
 
-  const configType = configTypeMatch[1]; // Use capture group to get just the object definition
+  const configType = configTypeMatch[1] // Use capture group to get just the object definition
 
-  const startMarker = `<!--- Config generated by ${path.basename(__filename)} -->`;
-  const endMarker = `<!--- End of config generated section -->`;
-  return updateSection(content, startMarker, endMarker, [
-    '```typescript',
-    configType,
-    '```',
-  ]);
+  const startMarker = `<!--- Config generated by ${path.basename(__filename)} -->`
+  const endMarker = `<!--- End of config generated section -->`
+  return updateSection(content, startMarker, endMarker, ['```typescript', configType, '```'])
 }
 
 /**
  * @param {string} filePath
  */
 async function copyToPackage(filePath) {
-  await fs.promises.copyFile(path.join(__dirname, '../../', filePath), path.join(__dirname, filePath));
-  console.log(`${filePath} copied successfully`);
+  await fs.promises.copyFile(
+    path.join(__dirname, '../../', filePath),
+    path.join(__dirname, filePath)
+  )
+  console.log(`${filePath} copied successfully`)
 }
 
 async function updateReadme() {
-  const readmePath = path.join(__dirname, '../../README.md');
-  const readmeContent = await fs.promises.readFile(readmePath, 'utf-8');
-  const withTools = await updateTools(readmeContent);
-  const withOptions = await updateOptions(withTools);
-  const withConfig = await updateConfig(withOptions);
-  await fs.promises.writeFile(readmePath, withConfig, 'utf-8');
-  console.log('README updated successfully');
+  const readmePath = path.join(__dirname, '../../README.md')
+  const readmeContent = await fs.promises.readFile(readmePath, 'utf-8')
+  const withTools = await updateTools(readmeContent)
+  const withOptions = await updateOptions(withTools)
+  const withConfig = await updateConfig(withOptions)
+  await fs.promises.writeFile(readmePath, withConfig, 'utf-8')
+  console.log('README updated successfully')
 
-  await copyToPackage('README.md');
-  await copyToPackage('LICENSE');
+  await copyToPackage('README.md')
+  await copyToPackage('LICENSE')
 }
 
 updateReadme().catch(err => {
-  console.error('Error updating README:', err);
-  process.exit(1);
-});
+  console.error('Error updating README:', err)
+  process.exit(1)
+})

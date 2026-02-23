@@ -1,6 +1,7 @@
 # TOML config implementation progress
 
 ## Goal
+
 Single `szkrabok.config.toml` at repo root — browser presets (UA, viewport, locale, timezone,
 label) shared by both MCP session launch and Playwright standalone test runs. No duplicate
 configuration, no duplicate browser installs.
@@ -8,6 +9,7 @@ configuration, no duplicate browser installs.
 ## Status
 
 ### Done
+
 - [x] `smol-toml` installed (dependencies)
 - [x] `szkrabok.config.toml` created with default + 7 presets, labels, full comments
 - [x] `src/config.js` updated — loads TOML, exports `resolvePreset()`, `PRESETS`, `STEALTH_ENABLED`
@@ -17,10 +19,12 @@ configuration, no duplicate browser installs.
 - [x] `automation/setup.js` created — globalSetup prints resolved preset to console
 
 ### In progress
+
 - [ ] Fix `@playwright/test` import specifier everywhere (see issue below)
 - [ ] Fix `playwright.config.ts` — read TOML directly (do not import src/config.js)
 
 ### Todo
+
 - [ ] Run full test suite (selftest + automation) green
 - [ ] Verify `session.open` response includes preset + label + config
 - [ ] Verify Playwright standalone run prints preset line to console
@@ -38,6 +42,7 @@ Playwright's CLI used to intercept this internally but that stopped working afte
 The `packages/` subdirectory contains upstream files — leave those alone.
 
 **Files to fix (ours only):**
+
 - `playwright.config.ts`
 - `selftest/playwright/fixtures.js`
 - `automation/fixtures.js`

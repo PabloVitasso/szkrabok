@@ -1,6 +1,7 @@
 # Claude Code — Szkrabok
 
 ## Docs
+
 - [README.md](./README.md) — what szkrabok is
 - [docs/architecture.md](./docs/architecture.md) — file layout, tool ownership, szkrabok hacks
 - [docs/development.md](./docs/development.md) — fork relationship, merging upstream, adding tools
@@ -9,14 +10,14 @@
 
 ## Key locations
 
-| What | Where |
-|---|---|
-| MCP entry | `src/index.js` |
-| Tool registry | `src/tools/registry.js` |
-| Session pool | `src/core/pool.js` |
-| Automation tests | `automation/` |
-| Selftest (MCP server) | `selftest/` |
-| Session storage | `sessions/{id}/` |
+| What                  | Where                   |
+| --------------------- | ----------------------- |
+| MCP entry             | `src/index.js`          |
+| Tool registry         | `src/tools/registry.js` |
+| Session pool          | `src/core/pool.js`      |
+| Automation tests      | `automation/`           |
+| Selftest (MCP server) | `selftest/`             |
+| Session storage       | `sessions/{id}/`        |
 
 ## Workflow rules
 

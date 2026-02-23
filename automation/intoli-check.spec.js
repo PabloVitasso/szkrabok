@@ -67,11 +67,26 @@ const INTOLI_CHECKS = [
 // fp-collect table: the status td is the 2nd td in each row and carries
 // class "passed" when value is "ok", "failed" otherwise
 const FP_CHECKS = [
-  'PHANTOM_UA', 'PHANTOM_PROPERTIES', 'PHANTOM_ETSL', 'PHANTOM_LANGUAGE',
-  'PHANTOM_WEBSOCKET', 'MQ_SCREEN', 'PHANTOM_OVERFLOW', 'PHANTOM_WINDOW_HEIGHT',
-  'HEADCHR_UA', 'HEADCHR_CHROME_OBJ', 'HEADCHR_PERMISSIONS', 'HEADCHR_PLUGINS',
-  'HEADCHR_IFRAME', 'CHR_DEBUG_TOOLS', 'SELENIUM_DRIVER', 'CHR_BATTERY',
-  'CHR_MEMORY', 'TRANSPARENT_PIXEL', 'SEQUENTUM', 'VIDEO_CODECS',
+  'PHANTOM_UA',
+  'PHANTOM_PROPERTIES',
+  'PHANTOM_ETSL',
+  'PHANTOM_LANGUAGE',
+  'PHANTOM_WEBSOCKET',
+  'MQ_SCREEN',
+  'PHANTOM_OVERFLOW',
+  'PHANTOM_WINDOW_HEIGHT',
+  'HEADCHR_UA',
+  'HEADCHR_CHROME_OBJ',
+  'HEADCHR_PERMISSIONS',
+  'HEADCHR_PLUGINS',
+  'HEADCHR_IFRAME',
+  'CHR_DEBUG_TOOLS',
+  'SELENIUM_DRIVER',
+  'CHR_BATTERY',
+  'CHR_MEMORY',
+  'TRANSPARENT_PIXEL',
+  'SEQUENTUM',
+  'VIDEO_CODECS',
 ]
 
 test('intoli-check', async ({ page }, testInfo) => {
@@ -84,7 +99,7 @@ test('intoli-check', async ({ page }, testInfo) => {
 
   // ── Intoli table ────────────────────────────────────────────────────────
   console.log('step 3. collect Intoli check results')
-  const intoliResults = await page.evaluate((checks) => {
+  const intoliResults = await page.evaluate(checks => {
     const results = []
     document.querySelectorAll('tr').forEach(tr => {
       const tds = tr.querySelectorAll('td')
@@ -99,7 +114,7 @@ test('intoli-check', async ({ page }, testInfo) => {
 
   const intoliFailures = intoliResults.filter(r => r.cls.includes('failed'))
   const intoliWarnings = intoliResults.filter(r => r.cls.includes('warn'))
-  const intoliPassed   = intoliResults.filter(r => r.cls.includes('passed'))
+  const intoliPassed = intoliResults.filter(r => r.cls.includes('passed'))
 
   console.log(`step 4. Intoli (${intoliPassed.length}/${intoliResults.length} passed)`)
   for (const r of intoliResults) {
@@ -109,7 +124,7 @@ test('intoli-check', async ({ page }, testInfo) => {
 
   // ── fp-collect table ─────────────────────────────────────────────────────
   console.log('step 5. collect fp-collect check results (status = 2nd td, class "passed" when ok)')
-  const fpResults = await page.evaluate((checks) => {
+  const fpResults = await page.evaluate(checks => {
     const results = []
     document.querySelectorAll('tr').forEach(tr => {
       const tds = tr.querySelectorAll('td')
@@ -118,13 +133,17 @@ test('intoli-check', async ({ page }, testInfo) => {
       if (!checks.includes(name)) return
       // status is the 2nd td (index 1)
       const statusTd = tds[1]
-      results.push({ name, cls: statusTd.className.trim(), value: statusTd.textContent?.trim() ?? '' })
+      results.push({
+        name,
+        cls: statusTd.className.trim(),
+        value: statusTd.textContent?.trim() ?? '',
+      })
     })
     return results
   }, FP_CHECKS)
 
   const fpFailures = fpResults.filter(r => !r.cls.includes('passed'))
-  const fpPassed   = fpResults.filter(r => r.cls.includes('passed'))
+  const fpPassed = fpResults.filter(r => r.cls.includes('passed'))
 
   console.log(`step 6. fp-collect (${fpPassed.length}/${fpResults.length} passed)`)
   for (const r of fpResults) {
@@ -134,17 +153,22 @@ test('intoli-check', async ({ page }, testInfo) => {
 
   // ── attach result ─────────────────────────────────────────────────────────
   const result = {
-    intoli:    { passed: intoliPassed.length,  failed: intoliFailures.length, warned: intoliWarnings.length, failures: intoliFailures },
+    intoli: {
+      passed: intoliPassed.length,
+      failed: intoliFailures.length,
+      warned: intoliWarnings.length,
+      failures: intoliFailures,
+    },
     fpCollect: { passed: fpPassed.length, failed: fpFailures.length, failures: fpFailures },
   }
   await testInfo.attach('result', { body: JSON.stringify(result), contentType: 'application/json' })
 
   // ── assertions ────────────────────────────────────────────────────────────
-  expect(intoliPassed.length,  'expected all Intoli checks to pass').toBe(INTOLI_CHECKS.length)
-  expect(intoliFailures,       'expected no Intoli td.failed').toHaveLength(0)
-  expect(intoliWarnings,       'expected no Intoli td.warn').toHaveLength(0)
-  expect(fpPassed.length,      'expected all fp-collect checks to pass').toBe(FP_CHECKS.length)
-  expect(fpFailures,           'expected no fp-collect failures').toHaveLength(0)
+  expect(intoliPassed.length, 'expected all Intoli checks to pass').toBe(INTOLI_CHECKS.length)
+  expect(intoliFailures, 'expected no Intoli td.failed').toHaveLength(0)
+  expect(intoliWarnings, 'expected no Intoli td.warn').toHaveLength(0)
+  expect(fpPassed.length, 'expected all fp-collect checks to pass').toBe(FP_CHECKS.length)
+  expect(fpFailures, 'expected no fp-collect failures').toHaveLength(0)
 
   console.log('step 7. done — all intoli checks clean')
 })

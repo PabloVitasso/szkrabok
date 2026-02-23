@@ -31,15 +31,26 @@ const szkrabokTools = {
         config: {
           type: 'object',
           properties: {
-            preset:      { type: 'string', description: 'Preset name from szkrabok.config.toml (e.g. "mobile-iphone-15"). Merges over [default].' },
-            stealth:     { type: 'boolean', default: true },
-            disableWebGL:{ type: 'boolean', default: false },
-            headless:    { type: 'boolean' },
-            userAgent:         { type: 'string' },
-            overrideUserAgent: { type: 'boolean', description: 'When false, the browser UA string is not overridden. Use with Chromium to avoid mismatched userAgent/userAgentData signals.' },
-            viewport:    { type: 'object', properties: { width: { type: 'number' }, height: { type: 'number' } } },
-            locale:      { type: 'string' },
-            timezone:    { type: 'string' },
+            preset: {
+              type: 'string',
+              description:
+                'Preset name from szkrabok.config.toml (e.g. "mobile-iphone-15"). Merges over [default].',
+            },
+            stealth: { type: 'boolean', default: true },
+            disableWebGL: { type: 'boolean', default: false },
+            headless: { type: 'boolean' },
+            userAgent: { type: 'string' },
+            overrideUserAgent: {
+              type: 'boolean',
+              description:
+                'When false, the browser UA string is not overridden. Use with Chromium to avoid mismatched userAgent/userAgentData signals.',
+            },
+            viewport: {
+              type: 'object',
+              properties: { width: { type: 'number' }, height: { type: 'number' } },
+            },
+            locale: { type: 'string' },
+            timezone: { type: 'string' },
           },
         },
       },
@@ -564,9 +575,20 @@ const playwrightMcpTools = {
       properties: {
         id: { type: 'string' },
         grep: { type: 'string', description: 'Filter tests by name (regex)' },
-        params: { type: 'object', description: 'Key/value params passed as TEST_* env vars to the spec (e.g. {url:"https://..."} → TEST_URL)' },
-        config: { type: 'string', description: 'Config path relative to repo root. Defaults to playwright.config.ts' },
-        keepOpen: { type: 'boolean', description: 'After the test run, reconnect the session if the test subprocess invalidated the MCP context. Chrome stays alive; this restores the Playwright connection to it. Default false.' },
+        params: {
+          type: 'object',
+          description:
+            'Key/value params passed as TEST_* env vars to the spec (e.g. {url:"https://..."} → TEST_URL)',
+        },
+        config: {
+          type: 'string',
+          description: 'Config path relative to repo root. Defaults to playwright.config.ts',
+        },
+        keepOpen: {
+          type: 'boolean',
+          description:
+            'After the test run, reconnect the session if the test subprocess invalidated the MCP context. Chrome stays alive; this restores the Playwright connection to it. Default false.',
+        },
       },
       required: ['id'],
     },
@@ -581,7 +603,10 @@ const playwrightMcpTools = {
         id: { type: 'string' },
         path: { type: 'string', description: 'Absolute or relative path to an .mjs script file' },
         fn: { type: 'string', description: 'Named export to call. Defaults to "default".' },
-        args: { type: 'object', description: 'Arguments passed as second parameter to the function' },
+        args: {
+          type: 'object',
+          description: 'Arguments passed as second parameter to the function',
+        },
       },
       required: ['id', 'path'],
     },

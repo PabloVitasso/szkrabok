@@ -15,13 +15,13 @@ creating a pull request.
 
 Clone the Playwright repository. If you plan to send a pull request, it might be better to [fork the repository](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/working-with-forks/fork-a-repo) first.
 
-
 ```bash
 git clone https://github.com/microsoft/playwright
 cd playwright
 ```
 
 Install dependencies and run the build in watch mode.
+
 ```bash
 # install deps and run watch
 npm ci
@@ -37,6 +37,7 @@ ls -la packages/playwright/src/mcp
 ```
 
 Coding style is fully defined in [eslint.config.mjs](https://github.com/microsoft/playwright/blob/main/eslint.config.mjs). Before creating a pull request, or at any moment during development, run linter to check all kinds of things:
+
 ```bash
 # lint the source base before sending PR
 npm run flint
@@ -69,7 +70,7 @@ npm run mcp-test
 
 Since Playwright tests are using Playwright under the hood, everything from our documentation applies, for example [this guide on running and debugging tests](https://playwright.dev/docs/running-tests#running-tests).
 
-Note that tests should be *hermetic*, and not depend on external services. Tests should work on all three platforms: macOS, Linux and Windows.
+Note that tests should be _hermetic_, and not depend on external services. Tests should work on all three platforms: macOS, Linux and Windows.
 
 ## Write a commit message
 
@@ -83,17 +84,17 @@ description
 footer
 ```
 
-1. *label* is one of the following:
-    - `fix` - bug fixes
-    - `feat` - new features
-    - `docs` - documentation-only changes
-    - `test` - test-only changes
-    - `devops` - changes to the CI or build
-    - `chore` - everything that doesn't fall under previous categories
-2. *namespace* is put in parentheses after label and is optional. Must be lowercase.
-3. *title* is a brief summary of changes.
-4. *description* is **optional**, new-line separated from title and is in present tense.
-5. *footer* is **optional**, new-line separated from *description* and contains "fixes" / "references" attribution to GitHub issues.
+1. _label_ is one of the following:
+   - `fix` - bug fixes
+   - `feat` - new features
+   - `docs` - documentation-only changes
+   - `test` - test-only changes
+   - `devops` - changes to the CI or build
+   - `chore` - everything that doesn't fall under previous categories
+2. _namespace_ is put in parentheses after label and is optional. Must be lowercase.
+3. _title_ is a brief summary of changes.
+4. _description_ is **optional**, new-line separated from title and is in present tense.
+5. _footer_ is **optional**, new-line separated from _description_ and contains "fixes" / "references" attribution to GitHub issues.
 
 Example:
 
@@ -122,7 +123,7 @@ There is a very high bar for new dependencies, including updating to a new versi
 
 ## Contributor License Agreement
 
-This project welcomes contributions and suggestions.  Most contributions require you to agree to a
+This project welcomes contributions and suggestions. Most contributions require you to agree to a
 Contributor License Agreement (CLA) declaring that you have the right to, and actually do, grant us
 the rights to use your contribution. For details, visit https://cla.opensource.microsoft.com.
 

@@ -5,16 +5,16 @@
 A standard Playwright test case looks like this:
 
 ```typescript
-import { test, expect } from '@playwright/test';
+import { test, expect } from '@playwright/test'
 
 test('log in to ABC system', async ({ page }) => {
-  await page.goto('https://abc.example.com/login');
-  await page.getByLabel('Username').fill('myuser');
-  await page.getByLabel('Password').fill('mypass');
-  await page.getByRole('button', { name: 'Sign in' }).click();
-  await page.waitForURL('**/dashboard');
-  await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
-});
+  await page.goto('https://abc.example.com/login')
+  await page.getByLabel('Username').fill('myuser')
+  await page.getByLabel('Password').fill('mypass')
+  await page.getByRole('button', { name: 'Sign in' }).click()
+  await page.waitForURL('**/dashboard')
+  await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible()
+})
 ```
 
 The `browser.run_code` tool in szkrabok accepts an async function with exactly this signature:
@@ -31,7 +31,6 @@ is what differs between the two contexts.
 during development and debugging, then execute the same logic via `browser.run_code` to
 produce a persisted szkrabok session that is already logged in.
 
-
 ## What Works in run_code
 
 `run_code` evals the function string and calls it with the real Playwright `page` object:
@@ -44,19 +43,19 @@ const result = await fn(session.page)
 
 Everything available on the `page` object works:
 
-| API | Example |
-|-----|---------|
-| Navigation | `page.goto(url)`, `page.waitForURL('**/dashboard')` |
-| CSS selectors | `page.locator('#username').fill('user')` |
-| Role selectors | `page.getByRole('button', { name: 'Sign in' }).click()` |
-| Label selectors | `page.getByLabel('Password').fill('secret')` |
-| Text selectors | `page.getByText('Welcome').waitFor({ state: 'visible' })` |
-| Wait conditions | `page.waitForSelector('.spinner', { state: 'hidden' })` |
-| Load state | `page.waitForLoadState('networkidle')` |
-| Visibility check | `page.locator('.user-menu').isVisible()` |
-| Context access | `page.context().storageState()` |
-| Keyboard | `page.keyboard.press('Enter')` |
-| Evaluate JS | `page.evaluate(() => document.title)` |
+| API              | Example                                                   |
+| ---------------- | --------------------------------------------------------- |
+| Navigation       | `page.goto(url)`, `page.waitForURL('**/dashboard')`       |
+| CSS selectors    | `page.locator('#username').fill('user')`                  |
+| Role selectors   | `page.getByRole('button', { name: 'Sign in' }).click()`   |
+| Label selectors  | `page.getByLabel('Password').fill('secret')`              |
+| Text selectors   | `page.getByText('Welcome').waitFor({ state: 'visible' })` |
+| Wait conditions  | `page.waitForSelector('.spinner', { state: 'hidden' })`   |
+| Load state       | `page.waitForLoadState('networkidle')`                    |
+| Visibility check | `page.locator('.user-menu').isVisible()`                  |
+| Context access   | `page.context().storageState()`                           |
+| Keyboard         | `page.keyboard.press('Enter')`                            |
+| Evaluate JS      | `page.evaluate(() => document.title)`                     |
 
 **What does NOT work** (not available inside the eval'd string):
 
@@ -64,7 +63,6 @@ Everything available on the `page` object works:
 - `expect` from `@playwright/test` (use manual throws or return values instead)
 - `test()` wrapper
 - Any module-level variables from outside the string
-
 
 ## The Portable Script Pattern
 
@@ -82,54 +80,55 @@ so the core function can live in both worlds.
  */
 
 async function loginAbc(page, { username, password } = {}) {
-  const user = username || process.env.ABC_USER || 'demo';
-  const pass = password || process.env.ABC_PASS || 'demo123';
+  const user = username || process.env.ABC_USER || 'demo'
+  const pass = password || process.env.ABC_PASS || 'demo123'
 
-  await page.goto('https://abc.example.com/login');
-  await page.waitForSelector('#login-form', { state: 'visible' });
+  await page.goto('https://abc.example.com/login')
+  await page.waitForSelector('#login-form', { state: 'visible' })
 
-  await page.getByLabel('Username').fill(user);
-  await page.getByLabel('Password').fill(pass);
-  await page.getByRole('button', { name: 'Sign in' }).click();
+  await page.getByLabel('Username').fill(user)
+  await page.getByLabel('Password').fill(pass)
+  await page.getByRole('button', { name: 'Sign in' }).click()
 
   // Wait for redirect to dashboard
-  await page.waitForURL('**/dashboard', { timeout: 15000 });
+  await page.waitForURL('**/dashboard', { timeout: 15000 })
 
   // Verify login succeeded - throw instead of expect() for portability
-  const heading = page.getByRole('heading', { name: 'Dashboard' });
-  const visible = await heading.isVisible();
+  const heading = page.getByRole('heading', { name: 'Dashboard' })
+  const visible = await heading.isVisible()
   if (!visible) {
-    throw new Error('Login failed: Dashboard heading not visible after redirect');
+    throw new Error('Login failed: Dashboard heading not visible after redirect')
   }
 
-  return { success: true, url: page.url() };
+  return { success: true, url: page.url() }
 }
 
 // --- Playwright test wrapper (only used when running with `playwright test`) ---
 // This block is NOT included when pasting into run_code
 
 if (typeof module !== 'undefined') {
-  module.exports = { loginAbc };
+  module.exports = { loginAbc }
 }
 ```
 
 ### Playwright test file: `tests/login-abc.spec.ts`
 
 ```typescript
-import { test } from '@playwright/test';
+import { test } from '@playwright/test'
 // The function is imported - not copy-pasted
-const { loginAbc } = require('../scripts/login-abc.js');
+const { loginAbc } = require('../scripts/login-abc.js')
 
 test('log in to ABC system', async ({ page }) => {
   const result = await loginAbc(page, {
     username: process.env.ABC_USER,
     password: process.env.ABC_PASS,
-  });
-  console.log('Logged in, URL:', result.url);
-});
+  })
+  console.log('Logged in, URL:', result.url)
+})
 ```
 
 Run during development:
+
 ```bash
 npx playwright test tests/login-abc.spec.ts --headed
 ```
@@ -140,7 +139,7 @@ Paste only the function body (no imports, no module.exports block):
 
 ```javascript
 browser.run_code({
-  id: "abc-session",
+  id: 'abc-session',
   code: `async (page) => {
     const user = 'myuser';
     const pass = 'mypass';
@@ -158,13 +157,12 @@ browser.run_code({
     if (!visible) throw new Error('Login failed: Dashboard heading not visible');
 
     return { success: true, url: page.url() };
-  }`
+  }`,
 })
 ```
 
 After this call returns, the szkrabok session `abc-session` contains the logged-in browser
 state. Close (or just leave) the session and re-open it later - you are still logged in.
-
 
 ## Inlining a Page Object Model
 
@@ -173,7 +171,7 @@ inline the class definition inside the async function:
 
 ```javascript
 browser.run_code({
-  id: "abc-session",
+  id: 'abc-session',
   code: `async (page) => {
     // Inline POM - no imports needed
     class LoginPage {
@@ -211,35 +209,34 @@ browser.run_code({
     }
 
     return { success: true, url: page.url() };
-  }`
+  }`,
 })
 ```
 
 This pattern mirrors the official Playwright POM recommendation (from the Playwright docs):
+
 > "Page objects simplify authoring by creating a higher-level API which suits your application
 > and simplify maintenance by capturing element selectors in one place."
 
 The difference is that in `run_code` context the class is local to the function, not imported.
 
-
 ## Assertions: expect() vs Manual Throws
 
 `expect` from `@playwright/test` is not available inside `run_code`. The alternatives:
 
-| Playwright test | run_code equivalent |
-|----------------|---------------------|
-| `await expect(locator).toBeVisible()` | `if (!(await locator.isVisible())) throw new Error(...)` |
-| `await expect(page).toHaveURL('/dashboard')` | `await page.waitForURL('**/dashboard')` (throws on timeout) |
+| Playwright test                               | run_code equivalent                                                            |
+| --------------------------------------------- | ------------------------------------------------------------------------------ |
+| `await expect(locator).toBeVisible()`         | `if (!(await locator.isVisible())) throw new Error(...)`                       |
+| `await expect(page).toHaveURL('/dashboard')`  | `await page.waitForURL('**/dashboard')` (throws on timeout)                    |
 | `await expect(locator).toHaveText('Welcome')` | `const t = await locator.textContent(); if (!t.includes('Welcome')) throw ...` |
-| `await expect(locator).toBeEnabled()` | `if (!(await locator.isEnabled())) throw new Error(...)` |
+| `await expect(locator).toBeEnabled()`         | `if (!(await locator.isEnabled())) throw new Error(...)`                       |
 
 Playwright's `waitFor*` methods throw on timeout, which is often sufficient as an assertion:
 
 ```javascript
 // This throws if the element does not become visible within 10 seconds
-await page.waitForSelector('.dashboard-header', { state: 'visible', timeout: 10000 });
+await page.waitForSelector('.dashboard-header', { state: 'visible', timeout: 10000 })
 ```
-
 
 ## Full Login + Session Persistence Flow
 
@@ -259,6 +256,7 @@ await page.waitForSelector('.dashboard-header', { state: 'visible', timeout: 100
 ```
 
 Session data is stored as a native Chromium profile (not a JSON snapshot), so:
+
 - Cookies are in `sessions/abc-prod/profile/Default/Cookies` (SQLite)
 - localStorage/IndexedDB persist via LevelDB
 - This is identical to how a real browser saves your login
@@ -268,22 +266,22 @@ extract it via `run_code` using the Playwright `storageState()` API:
 
 ```javascript
 browser.run_code({
-  id: "abc-prod",
+  id: 'abc-prod',
   code: `async (page) => {
     // Export cookies + localStorage + IndexedDB as JSON
     const state = await page.context().storageState({ indexedDB: true });
     return state;
-  }`
+  }`,
 })
 ```
 
 This returns the same JSON format as Playwright's `context.storageState()` which can be used
 with `browser.newContext({ storageState: state })` in a standalone Playwright setup.
 
-
 ## A Proposed browser.run_script Tool
 
 The current `browser.run_code` accepts the function as an inline string, which means:
+
 - No syntax highlighting in editors
 - No module imports
 - Awkward for long scripts
@@ -293,9 +291,9 @@ A natural evolution would be a `browser.run_script` tool that accepts a file pat
 ```javascript
 // Hypothetical tool - not yet implemented
 browser.run_script({
-  id: "abc-session",
-  path: "./scripts/login-abc.mjs",
-  args: { username: "myuser", password: "mypass" }
+  id: 'abc-session',
+  path: './scripts/login-abc.mjs',
+  args: { username: 'myuser', password: 'mypass' },
 })
 ```
 
@@ -303,13 +301,13 @@ The script file would export a default async function:
 
 ```javascript
 // scripts/login-abc.mjs
-export default async function(page, args = {}) {
-  await page.goto('https://abc.example.com/login');
-  await page.getByLabel('Username').fill(args.username);
-  await page.getByLabel('Password').fill(args.password);
-  await page.getByRole('button', { name: 'Sign in' }).click();
-  await page.waitForURL('**/dashboard');
-  return { url: page.url() };
+export default async function (page, args = {}) {
+  await page.goto('https://abc.example.com/login')
+  await page.getByLabel('Username').fill(args.username)
+  await page.getByLabel('Password').fill(args.password)
+  await page.getByRole('button', { name: 'Sign in' }).click()
+  await page.waitForURL('**/dashboard')
+  return { url: page.url() }
 }
 ```
 
@@ -323,19 +321,18 @@ dual-use without any copy-pasting. Implementing this would require:
 This is architecturally straightforward since szkrabok is already ESM (`"type": "module"`
 in package.json).
 
-
 ## Summary
 
-| Question | Answer |
-|----------|--------|
-| Can run_code execute a playwright test body? | Yes - the `async (page) => {}` signature is identical |
-| Can you use page.locator(), getByRole(), etc.? | Yes - full Playwright page API |
-| Can you use expect() from @playwright/test? | No - use waitFor* or manual throws |
-| Can you import modules? | No - inline everything or use self-contained functions |
-| Can you use POM classes? | Yes - define them inline inside the function |
-| Does the session persist after run_code? | Yes - native Chromium profile, automatically saved |
-| Can you run the same logic as a standalone test? | Yes - wrap the function in test() with a thin import |
-| Is there a better approach for file-based scripts? | Yes - browser.run_file (implemented) |
+| Question                                           | Answer                                                 |
+| -------------------------------------------------- | ------------------------------------------------------ |
+| Can run_code execute a playwright test body?       | Yes - the `async (page) => {}` signature is identical  |
+| Can you use page.locator(), getByRole(), etc.?     | Yes - full Playwright page API                         |
+| Can you use expect() from @playwright/test?        | No - use waitFor\* or manual throws                    |
+| Can you import modules?                            | No - inline everything or use self-contained functions |
+| Can you use POM classes?                           | Yes - define them inline inside the function           |
+| Does the session persist after run_code?           | Yes - native Chromium profile, automatically saved     |
+| Can you run the same logic as a standalone test?   | Yes - wrap the function in test() with a thin import   |
+| Is there a better approach for file-based scripts? | Yes - browser.run_file (implemented)                   |
 
 ---
 
@@ -369,9 +366,9 @@ return pw.launchPersistentContext(userDataDir, launchOptions)
 
 ```javascript
 // Test runner manages its own browser lifecycle
-const browser = await chromium.launch({ headless: true });
-const context = await browser.newContext(); // isolated, temp dir
-const page = await context.newPage();
+const browser = await chromium.launch({ headless: true })
+const context = await browser.newContext() // isolated, temp dir
+const page = await context.newPage()
 ```
 
 - Spawns its own Chromium process with its own temp user data dir
@@ -385,7 +382,7 @@ disk (profile dir or storageState JSON) or via a live connection protocol (CDP).
 
 ---
 
-### Avenue A: Shared userDataDir  *(recommended - zero changes to szkrabok)*
+### Avenue A: Shared userDataDir _(recommended - zero changes to szkrabok)_
 
 This is the most elegant approach. szkrabok and Playwright both support
 `launchPersistentContext(userDataDir)`. Point them at the **same directory**.
@@ -413,85 +410,87 @@ the same userDataDir simultaneously. The workflow is therefore sequential:
 ```typescript
 // scripts/login-abc.ts
 // Classic Playwright - full imports, full expect, POM, utils, everything
-import { chromium } from 'playwright';
-import { LoginPage } from './pages/LoginPage';
-import { DashboardPage } from './pages/DashboardPage';
-import { expect } from '@playwright/test';
-import path from 'path';
+import { chromium } from 'playwright'
+import { LoginPage } from './pages/LoginPage'
+import { DashboardPage } from './pages/DashboardPage'
+import { expect } from '@playwright/test'
+import path from 'path'
 
-const SZKRABOK_SESSIONS = path.resolve('./sessions');
-const SESSION_ID = 'abc-prod';
-const USER_DATA_DIR = path.join(SZKRABOK_SESSIONS, SESSION_ID, 'profile');
+const SZKRABOK_SESSIONS = path.resolve('./sessions')
+const SESSION_ID = 'abc-prod'
+const USER_DATA_DIR = path.join(SZKRABOK_SESSIONS, SESSION_ID, 'profile')
 
-(async () => {
+;(async () => {
   // Matches szkrabok's own Chromium binary
   const context = await chromium.launchPersistentContext(USER_DATA_DIR, {
     headless: false, // headed for login - see what happens
     viewport: { width: 1280, height: 800 },
     locale: 'en-US',
     timezoneId: 'America/New_York',
-  });
+  })
 
-  const page = await context.newPage();
-  const loginPage = new LoginPage(page);
-  const dashboardPage = new DashboardPage(page);
+  const page = await context.newPage()
+  const loginPage = new LoginPage(page)
+  const dashboardPage = new DashboardPage(page)
 
-  await loginPage.goto();
-  await loginPage.login(process.env.ABC_USER!, process.env.ABC_PASS!);
+  await loginPage.goto()
+  await loginPage.login(process.env.ABC_USER!, process.env.ABC_PASS!)
 
   // Full expect() available here
-  await expect(dashboardPage.heading).toBeVisible();
-  await expect(page).toHaveURL(/dashboard/);
+  await expect(dashboardPage.heading).toBeVisible()
+  await expect(page).toHaveURL(/dashboard/)
 
-  console.log('Login successful. Session saved to:', USER_DATA_DIR);
-  await context.close(); // closes browser, profile dir remains on disk
-})();
+  console.log('Login successful. Session saved to:', USER_DATA_DIR)
+  await context.close() // closes browser, profile dir remains on disk
+})()
 ```
 
 Run it once:
+
 ```bash
 ABC_USER=myuser ABC_PASS=mypass npx tsx scripts/login-abc.ts
 ```
 
 Now in szkrabok:
+
 ```javascript
-session.open({ id: "abc-prod" })  // already logged in
+session.open({ id: 'abc-prod' }) // already logged in
 ```
 
 **As a Playwright test** (with `playwright test` runner):
 
 ```typescript
 // tests/setup/login-abc.setup.ts
-import { test as setup } from '@playwright/test';
-import { LoginPage } from '../pages/LoginPage';
-import path from 'path';
+import { test as setup } from '@playwright/test'
+import { LoginPage } from '../pages/LoginPage'
+import path from 'path'
 
-const USER_DATA_DIR = path.resolve('./sessions/abc-prod/profile');
+const USER_DATA_DIR = path.resolve('./sessions/abc-prod/profile')
 
 // This runs as a "setup" project in playwright.config.ts
 setup('bootstrap abc-prod szkrabok session', async () => {
   // Can't use the normal { page } fixture here because we need a specific userDataDir
   // Use Playwright library API directly inside a setup test
-  const { chromium } = await import('playwright');
+  const { chromium } = await import('playwright')
   const context = await chromium.launchPersistentContext(USER_DATA_DIR, {
     headless: true,
     viewport: { width: 1280, height: 800 },
-  });
+  })
 
-  const page = await context.newPage();
-  const loginPage = new LoginPage(page);
-  await loginPage.goto();
-  await loginPage.login(process.env.ABC_USER!, process.env.ABC_PASS!);
-  await page.waitForURL(/dashboard/);
+  const page = await context.newPage()
+  const loginPage = new LoginPage(page)
+  await loginPage.goto()
+  await loginPage.login(process.env.ABC_USER!, process.env.ABC_PASS!)
+  await page.waitForURL(/dashboard/)
 
-  await context.close();
-});
+  await context.close()
+})
 ```
 
 ```typescript
 // playwright.config.ts - login setup project
-import { defineConfig } from '@playwright/test';
-import path from 'path';
+import { defineConfig } from '@playwright/test'
+import path from 'path'
 
 export default defineConfig({
   projects: [
@@ -502,26 +501,30 @@ export default defineConfig({
     {
       name: 'tests',
       dependencies: ['szkrabok-setup'],
-      use: { /* your test config */ },
+      use: {
+        /* your test config */
+      },
     },
   ],
-});
+})
 ```
 
 **Pros of Avenue A:**
+
 - Zero changes to szkrabok
 - Full Playwright API: `expect()`, POM, imports, fixtures, utils
 - Perfect separation: Playwright does the login, szkrabok does the session management
 - Works with any multi-file test structure
 
 **Cons:**
+
 - Must use the same Chromium binary version (or accept minor profile migration)
 - Cannot run login script and szkrabok session simultaneously on same profile
 - Stealth plugin not applied during the login step (mitigable by adding playwright-extra)
 
 ---
 
-### Avenue B: CDP Bridge  *(requires small szkrabok option)*
+### Avenue B: CDP Bridge _(requires small szkrabok option)_
 
 Chromium supports a `--remote-debugging-port` flag that exposes a CDP HTTP endpoint.
 Playwright can attach to a running browser via this endpoint using `connectOverCDP`.
@@ -545,10 +548,10 @@ with the debug port works:
 ```javascript
 // MCP call:
 session.open({
-  id: "abc-prod",
+  id: 'abc-prod',
   config: {
-    args: ['--remote-debugging-port=9222']
-  }
+    args: ['--remote-debugging-port=9222'],
+  },
 })
 ```
 
@@ -560,29 +563,30 @@ Once the session exposes the port, a standalone Playwright test connects:
 
 ```typescript
 // scripts/login-abc-cdp.ts
-import { chromium, expect } from '@playwright/test';
-import { LoginPage } from './pages/LoginPage';
+import { chromium, expect } from '@playwright/test'
+import { LoginPage } from './pages/LoginPage'
 
-(async () => {
+;(async () => {
   // Attach to the already-running szkrabok Chromium
-  const browser = await chromium.connectOverCDP('http://localhost:9222');
+  const browser = await chromium.connectOverCDP('http://localhost:9222')
 
   // szkrabok's persistent context is browser.contexts()[0]
-  const context = browser.contexts()[0];
-  const page = context.pages()[0];
+  const context = browser.contexts()[0]
+  const page = context.pages()[0]
 
-  const loginPage = new LoginPage(page);
-  await loginPage.goto();
-  await loginPage.login(process.env.ABC_USER!, process.env.ABC_PASS!);
+  const loginPage = new LoginPage(page)
+  await loginPage.goto()
+  await loginPage.login(process.env.ABC_USER!, process.env.ABC_PASS!)
 
-  await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible()
 
   // Disconnect - szkrabok session stays alive with logged-in state
-  await browser.close(); // closes the CDP connection, NOT the browser
-})();
+  await browser.close() // closes the CDP connection, NOT the browser
+})()
 ```
 
 **Important CDP limitation from Playwright docs:**
+
 > "This connection is significantly lower fidelity than the Playwright protocol connection."
 
 This means some advanced Playwright features (network interception, auto-wait internals, etc.)
@@ -590,11 +594,13 @@ may behave differently over CDP vs native Playwright protocol. Basic actions (cl
 navigate, waitForSelector) work fine.
 
 **Pros of Avenue B:**
+
 - No disk coordination needed - operates on the live session
 - szkrabok session stays open while test runs; can use both simultaneously
 - After test finishes, cookies are already in the szkrabok session context
 
 **Cons:**
+
 - Requires szkrabok to pass `args` through to `launchPersistentContext` (small change)
 - CDP has lower fidelity than Playwright protocol - some features differ
 - Port management needed (hardcoded or dynamic port assignment)
@@ -630,16 +636,16 @@ POM classes, utils, and logic inlined.
 
 ```typescript
 // scripts/login-abc.ts  (entry point for bundle)
-import { LoginPage } from './pages/LoginPage';
-import { waitForDashboard } from './utils/navigation';
+import { LoginPage } from './pages/LoginPage'
+import { waitForDashboard } from './utils/navigation'
 
 // Export a function that matches run_code's expected signature
 export default async function loginAbc(page: any) {
-  const loginPage = new LoginPage(page);
-  await loginPage.goto();
-  await loginPage.login(process.env.ABC_USER!, process.env.ABC_PASS!);
-  await waitForDashboard(page);
-  return { success: true, url: page.url() };
+  const loginPage = new LoginPage(page)
+  await loginPage.goto()
+  await loginPage.login(process.env.ABC_USER!, process.env.ABC_PASS!)
+  await waitForDashboard(page)
+  return { success: true, url: page.url() }
 }
 ```
 
@@ -647,14 +653,14 @@ After bundling, extract the function and pass it:
 
 ```javascript
 // Node.js runner to produce the run_code string
-import { readFileSync } from 'fs';
+import { readFileSync } from 'fs'
 
-const bundle = readFileSync('dist/login-abc.bundle.js', 'utf8');
+const bundle = readFileSync('dist/login-abc.bundle.js', 'utf8')
 // The bundle exports to __loginScript.default - wrap it:
 const runCodeString = `async (page) => {
   ${bundle}
   return await __loginScript.default(page);
-}`;
+}`
 
 // Then call MCP tool with runCodeString as the code argument
 ```
@@ -685,28 +691,32 @@ code: `async (page) => {
 ```javascript
 // tools/run-script.mjs
 // Usage: node tools/run-script.mjs scripts/login-abc.ts abc-prod
-import { execSync } from 'child_process';
-import { readFileSync } from 'fs';
+import { execSync } from 'child_process'
+import { readFileSync } from 'fs'
 
-const [scriptPath, sessionId] = process.argv.slice(2);
+const [scriptPath, sessionId] = process.argv.slice(2)
 
 // 1. Bundle
-execSync(`npx esbuild ${scriptPath} --bundle --format=iife --global-name=__s --external:playwright --outfile=/tmp/szk-bundle.js`);
+execSync(
+  `npx esbuild ${scriptPath} --bundle --format=iife --global-name=__s --external:playwright --outfile=/tmp/szk-bundle.js`
+)
 
-const bundle = readFileSync('/tmp/szk-bundle.js', 'utf8');
-const code = `async (page) => { ${bundle}; return await __s.default(page); }`;
+const bundle = readFileSync('/tmp/szk-bundle.js', 'utf8')
+const code = `async (page) => { ${bundle}; return await __s.default(page); }`
 
 // 2. Inject into MCP call (via stdin or config)
 // This depends on how you invoke MCP tools from outside Claude
-console.log(JSON.stringify({ tool: 'browser.run_code', args: { id: sessionId, code } }));
+console.log(JSON.stringify({ tool: 'browser.run_code', args: { id: sessionId, code } }))
 ```
 
 **Pros of Avenue C:**
+
 - Works entirely within existing szkrabok API - no changes needed
 - POM classes and utils survive via bundling
 - Build step is a known pattern (esbuild is extremely fast)
 
 **Cons:**
+
 - `expect()` from `@playwright/test` still not available (eval context limitation)
 - Requires a build step before each run
 - Bundled code is harder to debug
@@ -725,35 +735,34 @@ This maps directly to the szkrabok use case.
 
 ```typescript
 // global-setup.ts
-import { chromium } from 'playwright';
-import { LoginPage } from './pages/LoginPage';
-import path from 'path';
+import { chromium } from 'playwright'
+import { LoginPage } from './pages/LoginPage'
+import path from 'path'
 
 export default async function globalSetup() {
-  const userDataDir = path.resolve(
-    './sessions/abc-prod/profile'
-  );
+  const userDataDir = path.resolve('./sessions/abc-prod/profile')
 
   const context = await chromium.launchPersistentContext(userDataDir, {
     headless: true,
     viewport: { width: 1280, height: 800 },
     locale: 'en-US',
     timezoneId: 'America/New_York',
-  });
+  })
 
-  const page = await context.newPage();
-  const loginPage = new LoginPage(page);
+  const page = await context.newPage()
+  const loginPage = new LoginPage(page)
 
-  await loginPage.goto();
-  await loginPage.login(process.env.ABC_USER!, process.env.ABC_PASS!);
-  await page.waitForURL(/\/dashboard/);
+  await loginPage.goto()
+  await loginPage.login(process.env.ABC_USER!, process.env.ABC_PASS!)
+  await page.waitForURL(/\/dashboard/)
 
-  await context.close(); // profile saved, browser closed
-  console.log('[setup] abc-prod session bootstrapped');
+  await context.close() // profile saved, browser closed
+  console.log('[setup] abc-prod session bootstrapped')
 }
 ```
 
 Run just the setup (no tests):
+
 ```bash
 npx playwright test --project=setup
 # or
@@ -761,8 +770,9 @@ npx tsx global-setup.ts
 ```
 
 Then in szkrabok:
+
 ```javascript
-session.open({ id: "abc-prod" })  // logged in
+session.open({ id: 'abc-prod' }) // logged in
 ```
 
 This is essentially Avenue A organized via Playwright's project system. It is the canonical
@@ -778,16 +788,16 @@ subsequent playwright tests."
 
 ### Comparison of Avenues
 
-| | A: Shared userDataDir | B: CDP Bridge | C: esbuild Bundle | D: globalSetup |
-|---|---|---|---|---|
-| szkrabok changes needed | None | `args` passthrough | None | None |
-| Full Playwright API | Yes | Partial (CDP) | No (eval context) | Yes |
-| `expect()` works | Yes | Yes | No | Yes |
-| Multi-file POM/utils | Yes (imports) | Yes (imports) | Yes (bundled) | Yes (imports) |
-| Live session access | No (sequential) | Yes | Via szkrabok | No (sequential) |
-| Build step required | No | No | Yes (esbuild) | No |
-| Complexity | Low | Medium | Medium | Low |
-| **Recommended for** | Simple login scripts | Complex interactive auth | Existing scripts | Playwright teams |
+|                         | A: Shared userDataDir | B: CDP Bridge            | C: esbuild Bundle | D: globalSetup   |
+| ----------------------- | --------------------- | ------------------------ | ----------------- | ---------------- |
+| szkrabok changes needed | None                  | `args` passthrough       | None              | None             |
+| Full Playwright API     | Yes                   | Partial (CDP)            | No (eval context) | Yes              |
+| `expect()` works        | Yes                   | Yes                      | No                | Yes              |
+| Multi-file POM/utils    | Yes (imports)         | Yes (imports)            | Yes (bundled)     | Yes (imports)    |
+| Live session access     | No (sequential)       | Yes                      | Via szkrabok      | No (sequential)  |
+| Build step required     | No                    | No                       | Yes (esbuild)     | No               |
+| Complexity              | Low                   | Medium                   | Medium            | Low              |
+| **Recommended for**     | Simple login scripts  | Complex interactive auth | Existing scripts  | Playwright teams |
 
 ---
 
@@ -813,16 +823,16 @@ login-scripts/
 **`sessions/abc-prod.ts`** — the entry point:
 
 ```typescript
-import { chromium } from 'playwright';
-import { expect } from '@playwright/test';
-import { LoginPage } from '../pages/LoginPage';
-import { DashboardPage } from '../pages/DashboardPage';
-import path from 'path';
+import { chromium } from 'playwright'
+import { expect } from '@playwright/test'
+import { LoginPage } from '../pages/LoginPage'
+import { DashboardPage } from '../pages/DashboardPage'
+import path from 'path'
 
-const SZKRABOK_ROOT = path.resolve(__dirname, '../../.');
+const SZKRABOK_ROOT = path.resolve(__dirname, '../../.')
 
 export async function bootstrapSession(sessionId: string, creds: { user: string; pass: string }) {
-  const userDataDir = path.join(SZKRABOK_ROOT, 'sessions', sessionId, 'profile');
+  const userDataDir = path.join(SZKRABOK_ROOT, 'sessions', sessionId, 'profile')
 
   const context = await chromium.launchPersistentContext(userDataDir, {
     headless: true,
@@ -830,24 +840,24 @@ export async function bootstrapSession(sessionId: string, creds: { user: string;
     locale: 'en-US',
     timezoneId: 'America/New_York',
     userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-  });
+  })
 
-  const page = await context.newPage();
+  const page = await context.newPage()
 
   try {
-    const loginPage = new LoginPage(page);
-    const dashboardPage = new DashboardPage(page);
+    const loginPage = new LoginPage(page)
+    const dashboardPage = new DashboardPage(page)
 
-    await loginPage.goto();
-    await loginPage.login(creds.user, creds.pass);
+    await loginPage.goto()
+    await loginPage.login(creds.user, creds.pass)
 
     // Full expect() - this is NOT inside browser.run_code
-    await expect(dashboardPage.heading).toBeVisible({ timeout: 15000 });
-    await expect(page).toHaveURL(/dashboard/);
+    await expect(dashboardPage.heading).toBeVisible({ timeout: 15000 })
+    await expect(page).toHaveURL(/dashboard/)
 
-    console.log(`[szkrabok] Session "${sessionId}" bootstrapped. URL: ${page.url()}`);
+    console.log(`[szkrabok] Session "${sessionId}" bootstrapped. URL: ${page.url()}`)
   } finally {
-    await context.close(); // saves profile, closes browser
+    await context.close() // saves profile, closes browser
   }
 }
 
@@ -856,18 +866,20 @@ if (require.main === module) {
   bootstrapSession('abc-prod', {
     user: process.env.ABC_USER!,
     pass: process.env.ABC_PASS!,
-  }).catch(console.error);
+  }).catch(console.error)
 }
 ```
 
 Run:
+
 ```bash
 ABC_USER=myuser ABC_PASS=mypass npx tsx sessions/abc-prod.ts
 ```
 
 Then use in szkrabok:
+
 ```javascript
-session.open({ id: "abc-prod" })
+session.open({ id: 'abc-prod' })
 // session is logged in and ready
 ```
 
@@ -890,6 +902,7 @@ Two tools were added to szkrabok to directly solve the multi-file coordination p
 ### `browser.run_file` — Named export dispatch into an ESM script file
 
 **Signature**:
+
 ```javascript
 browser.run_file({ id, path, fn?, args? })
 ```
@@ -906,78 +919,90 @@ dispatches to whichever one you name. One tool, one file, unlimited functions.
 
 ```javascript
 // scripts/abc-system.mjs
-import { LoginPage }     from './pages/LoginPage.mjs';
-import { DashboardPage } from './pages/DashboardPage.mjs';
-import { InvoicePage }   from './pages/InvoicePage.mjs';
-import { expect }        from '@playwright/test';
-import { fetchJSON }     from './utils/api.mjs';
+import { LoginPage } from './pages/LoginPage.mjs'
+import { DashboardPage } from './pages/DashboardPage.mjs'
+import { InvoicePage } from './pages/InvoicePage.mjs'
+import { expect } from '@playwright/test'
+import { fetchJSON } from './utils/api.mjs'
 
 // --- login -----------------------------------------------------------
 export async function login(page, { username, password }) {
-  const lp = new LoginPage(page);
-  await lp.goto();
-  await lp.fill(username, password);
-  await lp.submit();
-  await expect(page).toHaveURL(/dashboard/);
-  return { ok: true, url: page.url() };
+  const lp = new LoginPage(page)
+  await lp.goto()
+  await lp.fill(username, password)
+  await lp.submit()
+  await expect(page).toHaveURL(/dashboard/)
+  return { ok: true, url: page.url() }
 }
 
 // --- scrape invoices -------------------------------------------------
 export async function scrapeInvoices(page, { status = 'unpaid' } = {}) {
-  const ip = new InvoicePage(page);
-  await ip.goto();
-  await ip.filterByStatus(status);
-  const rows = await ip.readRows();          // returns array of objects
-  return { count: rows.length, rows };
+  const ip = new InvoicePage(page)
+  await ip.goto()
+  await ip.filterByStatus(status)
+  const rows = await ip.readRows() // returns array of objects
+  return { count: rows.length, rows }
 }
 
 // --- approve first pending invoice -----------------------------------
 export async function approveFirst(page, _args) {
-  const ip = new InvoicePage(page);
-  await ip.goto();
-  const id = await ip.approveFirst();
-  return { approved: id };
+  const ip = new InvoicePage(page)
+  await ip.goto()
+  const id = await ip.approveFirst()
+  return { approved: id }
 }
 
 // --- query API endpoint with session cookies -------------------------
 export async function apiQuery(page, { endpoint }) {
   // page.evaluate runs in browser context - uses live session cookies
-  const data = await page.evaluate(async (url) => {
-    const res = await fetch(url, { credentials: 'include' });
-    return res.json();
-  }, endpoint);
-  return data;
+  const data = await page.evaluate(async url => {
+    const res = await fetch(url, { credentials: 'include' })
+    return res.json()
+  }, endpoint)
+  return data
 }
 
 // default = login (shorthand)
-export default login;
+export default login
 ```
 
 **Calling each function via MCP**:
 
 ```javascript
 // Log in
-browser.run_file({ id: "abc", path: "./scripts/abc-system.mjs",
-  fn: "login", args: { username: "u", password: "p" } })
+browser.run_file({
+  id: 'abc',
+  path: './scripts/abc-system.mjs',
+  fn: 'login',
+  args: { username: 'u', password: 'p' },
+})
 // → { fn: "login", result: { ok: true, url: "https://..." }, url: "..." }
 
 // Scrape unpaid invoices
-browser.run_file({ id: "abc", path: "./scripts/abc-system.mjs",
-  fn: "scrapeInvoices", args: { status: "unpaid" } })
+browser.run_file({
+  id: 'abc',
+  path: './scripts/abc-system.mjs',
+  fn: 'scrapeInvoices',
+  args: { status: 'unpaid' },
+})
 // → { fn: "scrapeInvoices", result: { count: 4, rows: [...] }, url: "..." }
 
 // Approve first pending
-browser.run_file({ id: "abc", path: "./scripts/abc-system.mjs",
-  fn: "approveFirst" })
+browser.run_file({ id: 'abc', path: './scripts/abc-system.mjs', fn: 'approveFirst' })
 // → { fn: "approveFirst", result: { approved: "INV-007" }, url: "..." }
 
 // Hit an API endpoint using the session's live cookies
-browser.run_file({ id: "abc", path: "./scripts/abc-system.mjs",
-  fn: "apiQuery", args: { endpoint: "/api/v1/me" } })
+browser.run_file({
+  id: 'abc',
+  path: './scripts/abc-system.mjs',
+  fn: 'apiQuery',
+  args: { endpoint: '/api/v1/me' },
+})
 // → { fn: "apiQuery", result: { id: 42, name: "Alice" }, url: "..." }
 ```
 
 If you name a function that doesn't exist, the error tells you what is available:
+
 ```
 Export "typo" not found in "...abc-system.mjs". Available exports: [login, scrapeInvoices, approveFirst, apiQuery]
 ```
@@ -996,7 +1021,9 @@ export const run_file = async args => {
   const target = fn === 'default' ? mod.default : mod[fn]
 
   if (typeof target !== 'function') {
-    const available = Object.keys(mod).filter(k => typeof mod[k] === 'function').join(', ')
+    const available = Object.keys(mod)
+      .filter(k => typeof mod[k] === 'function')
+      .join(', ')
     throw new Error(
       `Export "${fn}" not found or not a function in "${absolutePath}". Available exports: [${available}]`
     )
@@ -1008,6 +1035,7 @@ export const run_file = async args => {
 ```
 
 **Script contract**:
+
 - File must be `.mjs` (or `.js` in a `"type":"module"` package)
 - Each export is `async function name(page, args) { return <json> }`
 - `page` is the live szkrabok session page
@@ -1018,19 +1046,19 @@ export const run_file = async args => {
 
 ```typescript
 // tests/abc-system.spec.ts
-import { test, expect } from '@playwright/test';
-import * as abc from '../scripts/abc-system.mjs';
+import { test, expect } from '@playwright/test'
+import * as abc from '../scripts/abc-system.mjs'
 
 test('login', async ({ page }) => {
-  const r = await abc.login(page, { username: process.env.U!, password: process.env.P! });
-  expect(r.ok).toBe(true);
-});
+  const r = await abc.login(page, { username: process.env.U!, password: process.env.P! })
+  expect(r.ok).toBe(true)
+})
 
 test('scrape invoices', async ({ page }) => {
   // assumes page is already logged in via storageState fixture
-  const r = await abc.scrapeInvoices(page, { status: 'unpaid' });
-  expect(r.count).toBeGreaterThan(0);
-});
+  const r = await abc.scrapeInvoices(page, { status: 'unpaid' })
+  expect(r.count).toBeGreaterThan(0)
+})
 ```
 
 The exact same `.mjs` file. No changes. `npx playwright test` or `browser.run_file` —
@@ -1045,7 +1073,7 @@ can `connect()` to this endpoint and get a full-fidelity Playwright connection t
 browser (not CDP — the native Playwright protocol, full fidelity).
 
 ```javascript
-session.endpoint({ id: "abc-prod" })
+session.endpoint({ id: 'abc-prod' })
 // Returns: { sessionId: "abc-prod", wsEndpoint: "ws://127.0.0.1:XXXXX/..." }
 ```
 
@@ -1053,24 +1081,24 @@ An external script connects to this endpoint and runs against the live session:
 
 ```javascript
 // external-script.mjs - runs outside szkrabok, connects to its browser
-import { chromium } from 'playwright';
-import { LoginPage } from './pages/LoginPage.mjs';
-import { expect } from '@playwright/test';
+import { chromium } from 'playwright'
+import { LoginPage } from './pages/LoginPage.mjs'
+import { expect } from '@playwright/test'
 
-const wsEndpoint = process.argv[2]; // passed from MCP result
+const wsEndpoint = process.argv[2] // passed from MCP result
 
-const browser = await chromium.connect(wsEndpoint);
-const context = browser.contexts()[0];   // szkrabok's persistent context
-const page = context.pages()[0];          // szkrabok's active page
+const browser = await chromium.connect(wsEndpoint)
+const context = browser.contexts()[0] // szkrabok's persistent context
+const page = context.pages()[0] // szkrabok's active page
 
 // Full Playwright test against the live szkrabok session
-const loginPage = new LoginPage(page);
-await loginPage.goto();
-await loginPage.login(process.env.ABC_USER, process.env.ABC_PASS);
-await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
+const loginPage = new LoginPage(page)
+await loginPage.goto()
+await loginPage.login(process.env.ABC_USER, process.env.ABC_PASS)
+await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible()
 
 // Disconnect without closing - szkrabok session stays alive and logged in
-await browser.close();
+await browser.close()
 ```
 
 **Implementation** (`src/tools/session.js`):
@@ -1089,14 +1117,14 @@ export const endpoint = async args => {
 
 **When to use `session.endpoint` vs `browser.run_file`**:
 
-| | `browser.run_file` | `session.endpoint` + external connect |
-|---|---|---|
-| Script location | On same machine, path known to szkrabok | Anywhere - could be remote |
-| Process model | Script runs inside szkrabok's Node process | Script runs in its own process |
-| Session stays open | Yes - script drives szkrabok's page | Yes - szkrabok keeps context open |
-| Use full POM/imports | Yes (ESM dynamic import) | Yes (own process, own imports) |
-| `expect()` works | Yes | Yes |
-| Playwright test runner | No - just a function | Can use `npx playwright test` |
+|                        | `browser.run_file`                         | `session.endpoint` + external connect |
+| ---------------------- | ------------------------------------------ | ------------------------------------- |
+| Script location        | On same machine, path known to szkrabok    | Anywhere - could be remote            |
+| Process model          | Script runs inside szkrabok's Node process | Script runs in its own process        |
+| Session stays open     | Yes - script drives szkrabok's page        | Yes - szkrabok keeps context open     |
+| Use full POM/imports   | Yes (ESM dynamic import)                   | Yes (own process, own imports)        |
+| `expect()` works       | Yes                                        | Yes                                   |
+| Playwright test runner | No - just a function                       | Can use `npx playwright test`         |
 
 Use `browser.run_file` when your script is a helper on the same machine.
 Use `session.endpoint` when you want to run a full `npx playwright test` suite against

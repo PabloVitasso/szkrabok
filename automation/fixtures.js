@@ -50,7 +50,7 @@ export const test = base.extend({
   context: async ({ _cdpBrowser, browser }, use) => {
     if (_cdpBrowser) {
       const contexts = _cdpBrowser.contexts()
-      const ctx = contexts[0] ?? await _cdpBrowser.newContext()
+      const ctx = contexts[0] ?? (await _cdpBrowser.newContext())
       await use(ctx)
       // Do NOT close — MCP session owns this context.
       return
@@ -66,7 +66,7 @@ export const test = base.extend({
   page: async ({ _cdpBrowser, context }, use) => {
     if (_cdpBrowser) {
       const pages = context.pages()
-      const pg = pages[0] ?? await context.newPage()
+      const pg = pages[0] ?? (await context.newPage())
       await use(pg)
       // Do NOT close — MCP session owns this page.
       return

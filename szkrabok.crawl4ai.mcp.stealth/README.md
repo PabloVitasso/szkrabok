@@ -14,6 +14,7 @@ This directory is reserved for a future Crawl4AI-based MCP server for intelligen
 ## Implementation Decision Pending
 
 The implementation approach for this server is still being decided. Options include:
+
 - Python-based using the crawl4ai library
 - Node.js-based adaptation of existing tools
 - Hybrid approach

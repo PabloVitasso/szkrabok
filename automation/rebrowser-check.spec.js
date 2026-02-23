@@ -53,7 +53,9 @@ const EXPECTED_PASS = [
 test('rebrowser-check', async ({ page }, testInfo) => {
   // Expose the function before navigation so it's present when the page loads
   console.log('step 1. expose function for exposeFunctionLeak test')
-  await page.exposeFunction('exposedFn', () => { console.log('exposedFn call') })
+  await page.exposeFunction('exposedFn', () => {
+    console.log('exposedFn call')
+  })
 
   console.log('step 2. navigate to', BASE_URL)
   await page.goto(BASE_URL)
@@ -77,7 +79,9 @@ test('rebrowser-check', async ({ page }, testInfo) => {
 
   let detections = null
   if (detectionsJson) {
-    try { detections = JSON.parse(detectionsJson) } catch {}
+    try {
+      detections = JSON.parse(detectionsJson)
+    } catch {}
   }
 
   if (detections) {
@@ -87,30 +91,38 @@ test('rebrowser-check', async ({ page }, testInfo) => {
   }
 
   console.log('step 6. collect check results from DOM')
-  const results = await page.evaluate((checks) => {
+  const results = await page.evaluate(checks => {
     // Each check row has a data-test-id or similar; fall back to text matching.
     // The page renders rows with the test name and an emoji/color indicator.
     // We look for elements that contain the check name and determine pass/fail
     // from the presence of green (🟢) vs other indicators in the row.
     const rows = []
-    document.querySelectorAll('tr, [class*="test"], [class*="row"], [class*="detection"]').forEach(el => {
-      const text = el.textContent ?? ''
-      for (const name of checks) {
-        if (text.includes(name)) {
-          // Green circle emoji or "passed"/"safe" text = pass
-          const passed = text.includes('🟢') || text.includes('passed') || text.includes('No leak') || text.includes('No webdriver') || text.includes('No window.__pw')
-          const failed = text.includes('🔴') || text.includes('failed') || text.includes('Leak detected')
-          rows.push({ name, passed, failed, snippet: text.replace(/\s+/g, ' ').slice(0, 120) })
-          break
+    document
+      .querySelectorAll('tr, [class*="test"], [class*="row"], [class*="detection"]')
+      .forEach(el => {
+        const text = el.textContent ?? ''
+        for (const name of checks) {
+          if (text.includes(name)) {
+            // Green circle emoji or "passed"/"safe" text = pass
+            const passed =
+              text.includes('🟢') ||
+              text.includes('passed') ||
+              text.includes('No leak') ||
+              text.includes('No webdriver') ||
+              text.includes('No window.__pw')
+            const failed =
+              text.includes('🔴') || text.includes('failed') || text.includes('Leak detected')
+            rows.push({ name, passed, failed, snippet: text.replace(/\s+/g, ' ').slice(0, 120) })
+            break
+          }
         }
-      }
-    })
+      })
     return rows
   }, EXPECTED_PASS)
 
   // Deduplicate by name (keep first match)
   const seen = new Set()
-  const deduped = results.filter(r => seen.has(r.name) ? false : (seen.add(r.name), true))
+  const deduped = results.filter(r => (seen.has(r.name) ? false : (seen.add(r.name), true)))
 
   console.log(`step 7. results (${deduped.filter(r => r.passed).length}/${deduped.length} passed)`)
   for (const r of deduped) {
@@ -126,7 +138,10 @@ test('rebrowser-check', async ({ page }, testInfo) => {
     failed: deduped.filter(r => r.failed).length,
     unknown: deduped.filter(r => !r.passed && !r.failed).length,
   }
-  await testInfo.attach('result', { body: JSON.stringify(result, null, 2), contentType: 'application/json' })
+  await testInfo.attach('result', {
+    body: JSON.stringify(result, null, 2),
+    contentType: 'application/json',
+  })
 
   // ── assertions ────────────────────────────────────────────────────────────
   const failures = deduped.filter(r => r.failed)

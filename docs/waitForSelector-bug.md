@@ -1,6 +1,7 @@
 # waitForSelector broken by rebrowser patches — investigation
 
 ## Status
+
 Root cause identified. Fix designed. Not yet applied.
 
 ---
@@ -33,7 +34,7 @@ where:
 
 ```js
 // crPage.js:72
-this.utilityWorldName = `__playwright_utility_world_${this._page.guid}`;
+this.utilityWorldName = `__playwright_utility_world_${this._page.guid}`
 ```
 
 The name is **per-page** (includes the page GUID, e.g. `__playwright_utility_world_page@abc123`).
@@ -104,7 +105,7 @@ async __re__emitExecutionContext({ world, targetId, frame = null, utilityWorldNa
 
 Fallback `'__playwright_utility_world__'` covers the worker case (no frame → no utilityWorldName).
 
-#### Why not access frame._page.delegate.utilityWorldName inside crConnection.js?
+#### Why not access frame.\_page.delegate.utilityWorldName inside crConnection.js?
 
 That would add a cross-module coupling: `crConnection.js` would need to know
 CRPage's internal property name. If either the `delegate` accessor or
@@ -122,11 +123,13 @@ separate from the contextPayload name — it's a DevTools label only. It can sta
 ## Secondary question: which patch introduced the break?
 
 All 7 patches together cause this. The break requires both:
+
 - Patch #3 (crPage.js) — suppresses `Runtime.enable` so no automatic context events fire
 - Patch #5b (frames.js) — rewires `_context()` to call `__re__emitExecutionContext`
 - Patch #1 (crConnection.js) — `__re__emitExecutionContext` emits with wrong name
 
 Individually:
+
 - Without patch #3: `Runtime.enable` fires → Chromium sends real `executionContextCreated` events
   with correct names → utility world is registered normally → no bug
 - Patches #1 + #5b alone (with Runtime.enable still running): no effect, contexts come from CDP
@@ -134,6 +137,7 @@ Individually:
 The wrong name has always been there; it only matters because Runtime.enable is suppressed.
 
 To isolate which of patches 1/5b introduces the final break:
+
 - The wrong name is in patch #1 (crConnection.js).
 - The code path that calls `__re__emitExecutionContext` for utility world is in patch #5b (frames.js).
 - Both are needed to reproduce.
@@ -142,13 +146,13 @@ To isolate which of patches 1/5b introduces the final break:
 
 ## Files to change
 
-| File | Change |
-|---|---|
-| `scripts/patch-playwright.js` | Fix the utility contextPayload name in patch #1 (crConnection.js injection) |
-| `node_modules/playwright-core/lib/server/chromium/crConnection.js` | Re-patch (or re-run script) |
-| `node_modules/playwright/node_modules/playwright-core/lib/server/chromium/crConnection.js` | Same |
-| `automation/intoli-check.spec.js` | Revert `waitForFunction` back to `waitForSelector` after fix confirmed |
-| `automation/waitselector-probe.spec.js` | Delete (temp probe file) |
+| File                                                                                       | Change                                                                      |
+| ------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------- |
+| `scripts/patch-playwright.js`                                                              | Fix the utility contextPayload name in patch #1 (crConnection.js injection) |
+| `node_modules/playwright-core/lib/server/chromium/crConnection.js`                         | Re-patch (or re-run script)                                                 |
+| `node_modules/playwright/node_modules/playwright-core/lib/server/chromium/crConnection.js` | Same                                                                        |
+| `automation/intoli-check.spec.js`                                                          | Revert `waitForFunction` back to `waitForSelector` after fix confirmed      |
+| `automation/waitselector-probe.spec.js`                                                    | Delete (temp probe file)                                                    |
 
 ---
 

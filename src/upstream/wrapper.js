@@ -47,17 +47,11 @@ export const launchPersistentContext = async (userDataDir, options = {}) => {
   // Suppress "Chromium did not shut down correctly" restore bubble.
   // Appears when the MCP server process is killed before Chrome can write
   // exit_type: "Normal" to the profile Preferences file.
-  launchOptions.args = [
-    '--hide-crash-restore-bubble',
-    ...(launchOptions.args || []),
-  ]
+  launchOptions.args = ['--hide-crash-restore-bubble', ...(launchOptions.args || [])]
 
   // Enable CDP remote debugging on the given port so tests can connectOverCDP
   if (launchOptions.cdpPort) {
-    launchOptions.args = [
-      ...launchOptions.args,
-      `--remote-debugging-port=${launchOptions.cdpPort}`,
-    ]
+    launchOptions.args = [...launchOptions.args, `--remote-debugging-port=${launchOptions.cdpPort}`]
     delete launchOptions.cdpPort
   }
 
@@ -66,7 +60,7 @@ export const launchPersistentContext = async (userDataDir, options = {}) => {
 
 export const closeBrowser = async () => {
   if (browser) {
-    await browser.close().catch(() => { })
+    await browser.close().catch(() => {})
     browser = null
   }
 }

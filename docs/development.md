@@ -23,10 +23,10 @@ git merge upstream/main
 
 ### Known conflict zones
 
-| File | Why | Resolution |
-|---|---|---|
-| `README.md` | Upstream owns it; we have a short szkrabok README | **Do not keep upstream content in README.md.** Move all new upstream content into `docs/playwright.md` and keep `README.md` as the short szkrabok overview. |
-| `docs/playwright.md` | Does not exist — link to upstream GitHub instead | Nothing to merge |
+| File                 | Why                                               | Resolution                                                                                                                                                  |
+| -------------------- | ------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `README.md`          | Upstream owns it; we have a short szkrabok README | **Do not keep upstream content in README.md.** Move all new upstream content into `docs/playwright.md` and keep `README.md` as the short szkrabok overview. |
+| `docs/playwright.md` | Does not exist — link to upstream GitHub instead  | Nothing to merge                                                                                                                                            |
 
 ### After resolving conflicts
 
@@ -54,6 +54,7 @@ in the relevant patch step need updating — see inline `UPSTREAM FRAGILITY` com
 the script for guidance on what to look for per patch.
 
 Key things to re-verify after any playwright-core version bump:
+
 - `crPage.js` still has `utilityWorldName` property (used by patch #5b to pass the
   per-page GUID-suffixed name — critical for `waitForSelector` / locators to work)
 - `crPage.js` still matches context by `contextPayload.name === this._crPage.utilityWorldName`
@@ -68,11 +69,11 @@ Reference: `docs/waitForSelector-bug.md` — investigation of the utility world 
 
 ## Branch conventions
 
-| Branch | Purpose |
-|---|---|
-| `main` | Stable, production |
-| `upstream-playwright-mcp` | Szkrabok-specific refactoring before an upstream merge |
-| `merge-upstream-playwright-mcp` | Active upstream merge in progress |
+| Branch                          | Purpose                                                |
+| ------------------------------- | ------------------------------------------------------ |
+| `main`                          | Stable, production                                     |
+| `upstream-playwright-mcp`       | Szkrabok-specific refactoring before an upstream merge |
+| `merge-upstream-playwright-mcp` | Active upstream merge in progress                      |
 
 ---
 

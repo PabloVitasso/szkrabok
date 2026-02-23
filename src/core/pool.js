@@ -41,8 +41,8 @@ export const remove = id => {
 export const list = () =>
   Array.from(sessions.entries()).map(([id, session]) => ({
     id,
-    preset:    session.preset,
-    label:     session.label,
+    preset: session.preset,
+    label: session.label,
     createdAt: session.createdAt,
   }))
 

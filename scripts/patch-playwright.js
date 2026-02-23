@@ -110,7 +110,10 @@ function findPkgRoots() {
 
   // 2. any nested playwright-core inside other packages
   try {
-    const out = execSync('find node_modules -maxdepth 4 -name "package.json" -path "*/playwright-core/package.json" 2>/dev/null', { encoding: 'utf8' })
+    const out = execSync(
+      'find node_modules -maxdepth 4 -name "package.json" -path "*/playwright-core/package.json" 2>/dev/null',
+      { encoding: 'utf8' }
+    )
     for (const line of out.trim().split('\n')) {
       if (!line) continue
       const dir = path.dirname(path.resolve(line))
@@ -139,10 +142,10 @@ function replace(file, content, searchStr, replacement, label) {
   if (!content.includes(searchStr)) {
     throw new Error(
       `[patch-playwright] Pattern not found in ${file}\n` +
-      `  patch: "${label}"\n` +
-      `  searched for: ${searchStr.slice(0, 120).replace(/\n/g, '\\n')}\n\n` +
-      `  Update the search string in scripts/patch-playwright.js to match the new source.\n` +
-      `  Reference: vendor/rebrowser-patches/patches/playwright-core/src.patch`
+        `  patch: "${label}"\n` +
+        `  searched for: ${searchStr.slice(0, 120).replace(/\n/g, '\\n')}\n\n` +
+        `  Update the search string in scripts/patch-playwright.js to match the new source.\n` +
+        `  Reference: vendor/rebrowser-patches/patches/playwright-core/src.patch`
     )
   }
   return content.replace(searchStr, replacement)
@@ -151,7 +154,6 @@ function replace(file, content, searchStr, replacement, label) {
 // ── patch definitions ─────────────────────────────────────────────────────────
 
 const patches = [
-
   // ── 1. crConnection.js — inject __re__ helpers into CRSession ────────────────
   // Adds three methods to CRSession (the CDP session class):
   //   __re__emitExecutionContext  — top-level coordinator; emits the
@@ -172,7 +174,7 @@ const patches = [
   //   If it breaks: find the end of CRSession.dispose() and start of CDPSession.
   {
     file: 'server/chromium/crConnection.js',
-    steps: (src) => {
+    steps: src => {
       // Insert the three helper methods just before the closing brace of
       // CRSession (right after this._callbacks.clear(); })
       const anchor = `    this._callbacks.clear();
@@ -268,9 +270,10 @@ class CDPSession`
   // the Promise.all is removed, update the search string.
   {
     file: 'server/chromium/crDevTools.js',
-    steps: (src) => {
+    steps: src => {
       return replace(
-        'crDevTools.js', src,
+        'crDevTools.js',
+        src,
         `      session.send("Runtime.enable"),`,
         `      (() => { if (process.env['REBROWSER_PATCHES_RUNTIME_FIX_MODE'] === '0') return session.send('Runtime.enable', {}) })(),`,
         'suppress Runtime.enable in crDevTools'
@@ -291,23 +294,26 @@ class CDPSession`
   //   3c: anchor is `session._sendMayFail("Runtime.enable")` in the worker handler
   {
     file: 'server/chromium/crPage.js',
-    steps: (src) => {
+    steps: src => {
       // 3a. page-level Runtime.enable
       src = replace(
-        'crPage.js', src,
+        'crPage.js',
+        src,
         `      this._client.send("Runtime.enable", {}),`,
         `      (() => { if (process.env['REBROWSER_PATCHES_RUNTIME_FIX_MODE'] === '0') return this._client.send('Runtime.enable', {}) })(),`,
         'suppress Runtime.enable for page in crPage'
       )
       // 3b. worker-level Runtime.enable + pass targetId/session to Worker
       src = replace(
-        'crPage.js', src,
+        'crPage.js',
+        src,
         `    const worker = new import_page.Worker(this._page, url);`,
         `    const worker = new import_page.Worker(this._page, url, event.targetInfo.targetId, session);`,
         'pass targetId+session to Worker constructor'
       )
       src = replace(
-        'crPage.js', src,
+        'crPage.js',
+        src,
         `    session._sendMayFail("Runtime.enable");`,
         `    if (process.env['REBROWSER_PATCHES_RUNTIME_FIX_MODE'] === '0') session._sendMayFail('Runtime.enable');`,
         'suppress Runtime.enable for worker in crPage'
@@ -321,9 +327,10 @@ class CDPSession`
   // If the catch block changes (e.g. adds a log line), update both lines.
   {
     file: 'server/chromium/crServiceWorker.js',
-    steps: (src) => {
+    steps: src => {
       return replace(
-        'crServiceWorker.js', src,
+        'crServiceWorker.js',
+        src,
         `    session.send("Runtime.enable", {}).catch((e) => {
     });`,
         `    if (process.env['REBROWSER_PATCHES_RUNTIME_FIX_MODE'] === '0') {
@@ -363,11 +370,12 @@ class CDPSession`
   //       `this._page.delegate?.utilityWorldName` reference in the replacement.
   {
     file: 'server/frames.js',
-    steps: (src) => {
+    steps: src => {
       // 5a. emit executionContextsCleared on commit so CRConnection knows
       //     to re-acquire context IDs after navigation
       src = replace(
-        'frames.js', src,
+        'frames.js',
+        src,
         `    this._page.mainFrame()._recalculateNetworkIdle(this);
     this._onLifecycleEvent("commit");
   }`,
@@ -381,7 +389,8 @@ class CDPSession`
       // 5b. rewire Frame._context() to use __re__emitExecutionContext instead
       //     of waiting on the contextPromise that never resolves without Runtime.enable
       src = replace(
-        'frames.js', src,
+        'frames.js',
+        src,
         `  _context(world) {
     return this._contextData.get(world).contextPromise.then((contextOrDestroyedReason) => {
       if (contextOrDestroyedReason instanceof js.ExecutionContext)
@@ -433,10 +442,11 @@ class CDPSession`
   //       If dispatch is refactored, update search string.
   {
     file: 'server/page.js',
-    steps: (src) => {
+    steps: src => {
       // 6a. Worker constructor: accept targetId + session
       src = replace(
-        'page.js', src,
+        'page.js',
+        src,
         `  constructor(parent, url) {
     super(parent, "worker");
     this._executionContextPromise = new import_manualPromise.ManualPromise();`,
@@ -449,7 +459,8 @@ class CDPSession`
       )
       // 6b. evaluateExpression / evaluateExpressionHandle: use getExecutionContext()
       src = replace(
-        'page.js', src,
+        'page.js',
+        src,
         `  async evaluateExpression(expression, isFunction, arg) {
     return js.evaluateExpression(await this._executionContextPromise, expression, { returnByValue: true, isFunction }, arg);
   }
@@ -473,7 +484,8 @@ class CDPSession`
       // 6c. PageBinding.dispatch: ignore binding calls that are not JSON
       //     (the addBinding helper emits raw strings, not our JSON payloads)
       src = replace(
-        'page.js', src,
+        'page.js',
+        src,
         `  static async dispatch(page, payload, context) {
     const { name, seq, serializedArgs } = JSON.parse(payload);`,
         `  static async dispatch(page, payload, context) {
@@ -502,20 +514,22 @@ class CDPSession`
   //   If playwright renames the class in source, update both search strings.
   {
     file: 'generated/utilityScriptSource.js',
-    steps: (src) => {
+    steps: src => {
       // The source is a large single-line JS string.  Inside it, the class is
       // declared as "var UtilityScript = class {" and exported via the key
       // "UtilityScript: () => UtilityScript".  We rename the variable only
       // (not the export key, which other playwright code references by name).
       src = replace(
-        'utilityScriptSource.js', src,
+        'utilityScriptSource.js',
+        src,
         `var UtilityScript = class {`,
         `var __pwUs = class {`,
         'rename UtilityScript class variable'
       )
       // The export arrow also references the old name — update it
       src = replace(
-        'utilityScriptSource.js', src,
+        'utilityScriptSource.js',
+        src,
         `UtilityScript: () => UtilityScript`,
         `UtilityScript: () => __pwUs`,
         'update UtilityScript export reference'
@@ -534,7 +548,9 @@ const STAMP_FILE = '.szkrabok-patched'
 
 function isAlreadyPatched(libDir) {
   try {
-    return fs.readFileSync(path.join(libDir, 'server/chromium/crConnection.js'), 'utf8').includes(PATCH_MARKER)
+    return fs
+      .readFileSync(path.join(libDir, 'server/chromium/crConnection.js'), 'utf8')
+      .includes(PATCH_MARKER)
   } catch {
     return false
   }
@@ -559,9 +575,15 @@ for (const pkgRoot of pkgRoots) {
   // per-install backup list
   const backedUp = []
 
-  function bakPath(rel) { return path.join(lib, rel) + '.bak' }
-  function read(rel) { return fs.readFileSync(path.join(lib, rel), 'utf8') }
-  function write(rel, content) { fs.writeFileSync(path.join(lib, rel), content, 'utf8') }
+  function bakPath(rel) {
+    return path.join(lib, rel) + '.bak'
+  }
+  function read(rel) {
+    return fs.readFileSync(path.join(lib, rel), 'utf8')
+  }
+  function write(rel, content) {
+    fs.writeFileSync(path.join(lib, rel), content, 'utf8')
+  }
 
   function backup(rel) {
     fs.copyFileSync(path.join(lib, rel), bakPath(rel))
@@ -584,42 +606,60 @@ for (const pkgRoot of pkgRoots) {
   }
 
   function removeBaks() {
-    for (const rel of backedUp) { try { fs.unlinkSync(bakPath(rel)) } catch {} }
+    for (const rel of backedUp) {
+      try {
+        fs.unlinkSync(bakPath(rel))
+      } catch {}
+    }
   }
 
   console.log(`  Applying ${patches.length} patch groups ...`)
   let failed = false
 
   for (const { file, steps } of patches) {
-    try { backup(file) } catch (e) {
+    try {
+      backup(file)
+    } catch (e) {
       console.error(`  ERROR backing up ${file}: ${e.message}`)
-      failed = true; break
+      failed = true
+      break
     }
     let src
-    try { src = read(file) } catch (e) {
+    try {
+      src = read(file)
+    } catch (e) {
       console.error(`  ERROR reading ${file}: ${e.message}`)
-      failed = true; break
+      failed = true
+      break
     }
     let patched
-    try { patched = steps(src) } catch (e) {
+    try {
+      patched = steps(src)
+    } catch (e) {
       console.error(e.message.replace('[patch-playwright] ', '  '))
-      failed = true; break
+      failed = true
+      break
     }
     try {
       write(file, patched)
       console.log(`  patched  ${file}`)
     } catch (e) {
       console.error(`  ERROR writing ${file}: ${e.message}`)
-      failed = true; break
+      failed = true
+      break
     }
   }
 
   if (failed) {
     rollback()
-    console.error(`\n  PATCH FAILED for playwright-core ${pwVersion} — files restored from .bak backups.`)
+    console.error(
+      `\n  PATCH FAILED for playwright-core ${pwVersion} — files restored from .bak backups.`
+    )
     console.error('  What to do:')
     console.error(`    1. Check what changed in playwright-core ${pwVersion}.`)
-    console.error('    2. Update the failing patch step search string in scripts/patch-playwright.js.')
+    console.error(
+      '    2. Update the failing patch step search string in scripts/patch-playwright.js.'
+    )
     console.error('    3. Re-run: node scripts/patch-playwright.js')
     console.error('  Reference: vendor/rebrowser-patches/patches/playwright-core/src.patch')
     anyFailed = true

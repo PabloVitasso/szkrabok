@@ -1,7 +1,15 @@
 import { launchPersistentContext, navigate } from '../upstream/wrapper.js'
 import * as pool from '../core/pool.js'
 import * as storage from '../core/storage.js'
-import { resolvePreset, HEADLESS, VIEWPORT, USER_AGENT, LOCALE, TIMEZONE, STEALTH_ENABLED } from '../config.js'
+import {
+  resolvePreset,
+  HEADLESS,
+  VIEWPORT,
+  USER_AGENT,
+  LOCALE,
+  TIMEZONE,
+  STEALTH_ENABLED,
+} from '../config.js'
 import { log } from '../utils/logger.js'
 
 // Derive a deterministic CDP port from session id.
@@ -31,7 +39,14 @@ export const open = async args => {
           await navigate(session.page, url)
           await storage.updateMeta(id, { lastUrl: url })
         }
-        return { success: true, id, url, reused: true, preset: session.preset, label: session.label }
+        return {
+          success: true,
+          id,
+          url,
+          reused: true,
+          preset: session.preset,
+          label: session.label,
+        }
       }
     } catch (err) {
       log(`Session ${id} check failed, removing from pool: ${err.message}`)
@@ -45,15 +60,15 @@ export const open = async args => {
   const resolved = resolvePreset(config.preset)
 
   // Per-call overrides win over preset (except stealth which has its own flag)
-  const effectiveViewport       = config.viewport            || resolved.viewport  || VIEWPORT
-  const effectiveOverrideUA     = config.overrideUserAgent   ?? resolved.overrideUserAgent ?? true
-  const effectiveUserAgent      = effectiveOverrideUA
-    ? (config.userAgent || resolved.userAgent || USER_AGENT)
+  const effectiveViewport = config.viewport || resolved.viewport || VIEWPORT
+  const effectiveOverrideUA = config.overrideUserAgent ?? resolved.overrideUserAgent ?? true
+  const effectiveUserAgent = effectiveOverrideUA
+    ? config.userAgent || resolved.userAgent || USER_AGENT
     : undefined
-  const effectiveLocale         = config.locale     || resolved.locale    || LOCALE
-  const effectiveTimezone       = config.timezone   || resolved.timezone  || TIMEZONE
-  const effectiveStealth        = config.stealth    ?? STEALTH_ENABLED
-  const effectiveHeadless       = config.headless   ?? HEADLESS
+  const effectiveLocale = config.locale || resolved.locale || LOCALE
+  const effectiveTimezone = config.timezone || resolved.timezone || TIMEZONE
+  const effectiveStealth = config.stealth ?? STEALTH_ENABLED
+  const effectiveHeadless = config.headless ?? HEADLESS
 
   // Use userDataDir for complete profile persistence
   const userDataDir = storage.getUserDataDir(id)
@@ -63,12 +78,12 @@ export const open = async args => {
 
   // Launch persistent context
   const context = await launchPersistentContext(userDataDir, {
-    stealth:    effectiveStealth,
-    viewport:   effectiveViewport,
-    userAgent:  effectiveUserAgent,
-    locale:     effectiveLocale,
+    stealth: effectiveStealth,
+    viewport: effectiveViewport,
+    userAgent: effectiveUserAgent,
+    locale: effectiveLocale,
     timezoneId: effectiveTimezone,
-    headless:   effectiveHeadless,
+    headless: effectiveHeadless,
     cdpPort,
   })
 
@@ -100,18 +115,18 @@ export const open = async args => {
 
   const meta = {
     id,
-    created:  Date.now(),
+    created: Date.now(),
     lastUsed: Date.now(),
-    preset:   resolved.preset,
-    label:    resolved.label,
+    preset: resolved.preset,
+    label: resolved.label,
     config: {
       overrideUserAgent: effectiveOverrideUA,
-      userAgent:         effectiveUserAgent,
-      viewport:          effectiveViewport,
-      locale:            effectiveLocale,
-      timezone:          effectiveTimezone,
-      stealth:           effectiveStealth,
-      headless:          effectiveHeadless,
+      userAgent: effectiveUserAgent,
+      viewport: effectiveViewport,
+      locale: effectiveLocale,
+      timezone: effectiveTimezone,
+      stealth: effectiveStealth,
+      headless: effectiveHeadless,
     },
     userDataDir,
   }
@@ -128,14 +143,14 @@ export const open = async args => {
     id,
     url,
     preset: resolved.preset,
-    label:  resolved.label,
+    label: resolved.label,
     config: {
       overrideUserAgent: effectiveOverrideUA,
-      userAgent:         effectiveUserAgent,
-      viewport:          effectiveViewport,
-      locale:            effectiveLocale,
-      timezone:          effectiveTimezone,
-      stealth:           effectiveStealth,
+      userAgent: effectiveUserAgent,
+      viewport: effectiveViewport,
+      locale: effectiveLocale,
+      timezone: effectiveTimezone,
+      stealth: effectiveStealth,
     },
   }
 }
@@ -177,9 +192,9 @@ export const list = async () => {
     const isActive = active.find(a => a.id === id)
     return {
       id,
-      active:  !!isActive,
-      preset:  isActive?.preset,
-      label:   isActive?.label,
+      active: !!isActive,
+      preset: isActive?.preset,
+      label: isActive?.label,
       viewport: isActive?.viewport,
     }
   })
