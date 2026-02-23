@@ -55,9 +55,10 @@ npm run test:auto   # requires SZKRABOK_SESSION set
 | File | grep | What it does | Notes |
 |---|---|---|---|
 | `automation/park4night.spec.js` | `acceptCookies` | Navigates to park4night.com, dismisses cookie banner | Skips gracefully on reused session (cookies already set) |
-| `automation/stealthcheck.spec.js` | `stealthcheck` | Runs bot.sannysoft.com — 10 Intoli checks + 20 fp-collect checks | WebGL Renderer excluded (hardware GPU string, not a stealth evasion) |
+| `automation/intoli-check.spec.js` | `intoli-check` | Runs bot.sannysoft.com — 10 Intoli checks + 20 fp-collect checks; session id: `intoli` | WebGL Renderer excluded (hardware GPU string, not a stealth evasion) |
+| `automation/rebrowser-check.spec.js` | `rebrowser-check` | Runs bot-detector.rebrowser.net — 9 checks; session id: `rebrowser` | Triggers dummyFn, sourceUrlLeak, mainWorldExecution, exposeFunctionLeak before asserting |
 
-#### stealthcheck detail
+#### intoli-check detail
 
 **Intoli table (10 checks)** — result `td` carries class `result passed/failed/warn`:
 `User Agent` · `WebDriver` · `WebDriver Advanced` · `Chrome` · `Permissions` · `Plugins Length` · `Plugins is of type PluginArray` · `Languages` · `WebGL Vendor` · `Broken Image Dimensions`
@@ -142,6 +143,6 @@ Without an active MCP session, tests fall back to `storageState.json` from a pre
 |---|---|
 | `run_test` fails "Session not open" | Call `session.open {id}` first |
 | `run_test` fails "no CDP port" | Session opened before CDP support — close and reopen |
-| WebGL Renderer FAIL on stealthcheck | Not a stealth issue — it's the hardware GPU string; excluded from assertions |
+| WebGL Renderer FAIL on intoli-check | Not a stealth issue — it's the hardware GPU string; excluded from assertions |
 | `Executable doesn't exist` | `npx playwright install chromium` |
 | No JSON result in output | Add `testInfo.attach('result', {...})` to the test |

@@ -24,10 +24,10 @@
  * ── Run via MCP ──────────────────────────────────────────────────────────────
  *
  *   1. Open a session (launches Chrome with a persistent profile + CDP port):
- *        session.open { "id": "stealth" }
+ *        session.open { "id": "intoli" }
  *
  *   2. Run the test (connects to that Chrome via CDP):
- *        browser.run_test { "id": "stealth", "grep": "stealthcheck" }
+ *        browser.run_test { "id": "intoli", "grep": "intoli-check" }
  *
  *   Expected result on a clean stealth session:
  *     { "intoli": { passed: 11, failed: 0, warned: 0 },
@@ -35,9 +35,9 @@
  *
  * ── Run via Playwright CLI ───────────────────────────────────────────────────
  *
- *   SZKRABOK_SESSION=stealth \
+ *   SZKRABOK_SESSION=intoli \
  *     npx playwright test --config playwright-tests/playwright.config.ts \
- *     --grep "stealthcheck"
+ *     --grep "intoli-check"
  *
  * ─────────────────────────────────────────────────────────────────────────────
  */
@@ -74,7 +74,7 @@ const FP_CHECKS = [
   'CHR_MEMORY', 'TRANSPARENT_PIXEL', 'SEQUENTUM', 'VIDEO_CODECS',
 ]
 
-test('stealthcheck', async ({ page }, testInfo) => {
+test('intoli-check', async ({ page }, testInfo) => {
   console.log('step 1. navigate to', BASE_URL)
   await page.goto(BASE_URL)
 
@@ -146,5 +146,5 @@ test('stealthcheck', async ({ page }, testInfo) => {
   expect(fpPassed.length,      'expected all fp-collect checks to pass').toBe(FP_CHECKS.length)
   expect(fpFailures,           'expected no fp-collect failures').toHaveLength(0)
 
-  console.log('step 7. done — all stealth checks clean')
+  console.log('step 7. done — all intoli checks clean')
 })
