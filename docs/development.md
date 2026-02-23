@@ -27,6 +27,7 @@ git merge upstream/main
 | -------------------- | ------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `README.md`          | Upstream owns it; we have a short szkrabok README | **Do not keep upstream content in README.md.** Move all new upstream content into `docs/playwright.md` and keep `README.md` as the short szkrabok overview. |
 | `docs/playwright.md` | Does not exist — link to upstream GitHub instead  | Nothing to merge                                                                                                                                            |
+| `Dockerfile`         | Upstream Docker setup; szkrabok does not use it   | Handled automatically via `.gitattributes` (`merge=ours` keeps deletion). No manual action needed.                                                          |
 
 ### After resolving conflicts
 

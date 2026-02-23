@@ -1,0 +1,2 @@
+# Upstream files that szkrabok does not use — always keep our version (deletion) on merge
+Dockerfile merge=ours
