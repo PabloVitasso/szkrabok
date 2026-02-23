@@ -562,7 +562,7 @@ const playwrightMcpTools = {
         id: { type: 'string' },
         grep: { type: 'string', description: 'Filter tests by name (regex)' },
         params: { type: 'object', description: 'Key/value params passed as TEST_* env vars to the spec (e.g. {url:"https://..."} → TEST_URL)' },
-        config: { type: 'string', description: 'Config path relative to repo root. Defaults to playwright-tests/playwright.config.ts' },
+        config: { type: 'string', description: 'Config path relative to repo root. Defaults to playwright.config.ts' },
       },
       required: ['id'],
     },

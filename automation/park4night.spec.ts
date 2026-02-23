@@ -47,7 +47,7 @@
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
-import { test, expect } from '../fixtures';
+import { test, expect } from './fixtures';
 
 const BASE_URL    = 'https://park4night.com/en';
 const BANNER      = '.cc-section-landing';

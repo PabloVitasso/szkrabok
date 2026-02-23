@@ -50,14 +50,20 @@ src/
   upstream/
     wrapper.js            launchPersistentContext, navigate helpers
 
-playwright-tests/
-  tests/
-    park4night.spec.ts    cookie banner acceptance test
-    stealthcheck.spec.ts  bot.sannysoft.com stealth check (11 Intoli + 20 fp-collect)
+selftest/
+  node/                   node:test specs — schema, basic, MCP protocol, scraping
+  playwright/             playwright specs — session lifecycle, stealth, CSS tools
+    fixtures.ts           MCP subprocess client fixture
+
+automation/
+  park4night.spec.ts      cookie banner acceptance
+  stealthcheck.spec.ts    bot.sannysoft.com stealth check (11 Intoli + 20 fp-collect)
+  fixtures.ts             CDP session sharing + storageState fallback
+  teardown.ts             saves storageState after run
   scripts/
     inspect-page.mjs      generic table+iframe inspector (browser.run_file)
-  fixtures.ts             CDP session sharing + storageState fallback
-  playwright.config.ts    browser resolution + JSON reporter
+
+playwright.config.ts      single root config — projects: selftest + automation
 ```
 
 ## Tool ownership

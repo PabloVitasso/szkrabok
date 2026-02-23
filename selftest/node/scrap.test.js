@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert'
 import { writeFile } from 'fs/promises'
-import * as session from '../../src/tools/session.js'
+import * as session from '../../src/tools/szkrabok_session.js'
 import * as extract from '../../src/tools/extract.js'
 import * as pool from '../../src/core/pool.js'
 import { closeBrowser } from '../../src/upstream/wrapper.js'

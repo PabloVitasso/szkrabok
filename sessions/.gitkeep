@@ -1,4 +1,0 @@
-# This directory stores browser sessions
-# Each session gets its own subdirectory with:
-# - state.json (Playwright storageState)
-# - meta.json (metadata)

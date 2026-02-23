@@ -1,109 +1,72 @@
-# Testing Procedure
+# Testing
 
-## Prerequisites
+Two suites, one root `playwright.config.ts` with two projects: `selftest` and `automation`.
+
+---
+
+## selftest — MCP server internal tests
+
+Verifies the MCP server tools work correctly. No real browsing target needed.
 
 ```bash
-# Install Node deps (from repo root)
-npm install
+# Playwright specs (session lifecycle, stealth, CSS tools)
+npx playwright test --project=selftest
 
-# Install playwright browsers (if chromium-* not in ~/.cache/ms-playwright/)
-npx playwright install chromium
+# Node:test specs (schema, basic, MCP protocol)
+node --test selftest/node/*.test.js
+
+# Both
+npm run test:self
 ```
 
-The playwright config auto-detects installed browsers — if the exact version isn't present
-it falls back to the highest installed chromium. See [architecture.md](./architecture.md).
+### Test cases
 
----
-
-## Standalone playwright tests
-
-```bash
-# Run all tests
-SZKRABOK_SESSION=playwright-default \
-  npx playwright test --config playwright-tests/playwright.config.ts
-
-# Run specific test by name
-SZKRABOK_SESSION=playwright-default \
-  npx playwright test --config playwright-tests/playwright.config.ts --grep "page title"
-
-# Pass parameters (TEST_* env vars)
-SZKRABOK_SESSION=my-session \
-  TEST_URL=https://example.com \
-  TEST_TITLE=Example \
-  npx playwright test --config playwright-tests/playwright.config.ts --grep "page title"
-```
-
-Expected output: `2 passed` (or filtered subset).
-JSON results written to `playwright-tests/test-results.json`.
-
----
-
-## Via szkrabok MCP (`browser.run_test`)
-
-**Required order — `session.open` must come first:**
-
-```json
-{"tool": "session.open", "args": {"id": "my-session", "url": "https://example.com"}}
-```
-
-This launches Chrome with a deterministic CDP port (derived from the session id).
-`browser.run_test` connects to that same Chrome via `connectOverCDP` — tests share the live browser state.
-Calling `browser.run_test` without an open session fails with a clear message showing the exact `session.open` call needed.
-
-Run all tests:
-```json
-{"tool": "browser.run_test", "args": {"id": "my-session"}}
-```
-
-Run filtered + parametrized:
-```json
-{
-  "tool": "browser.run_test",
-  "args": {
-    "id": "my-session",
-    "grep": "page title",
-    "params": {"url": "https://example.com", "title": "Example"}
-  }
-}
-```
-
-Expected response:
-```json
-{
-  "log": [
-    "Running 1 test using 1 worker",
-    "step 1. navigate to https://example.com",
-    "  ✓  tests/example.spec.ts › page title (1.2s)",
-    "  1 passed (3.1s)"
-  ],
-  "passed": 1,
-  "failed": 0,
-  "skipped": 0,
-  "tests": [
-    {
-      "title": "page title check",
-      "status": "passed",
-      "result": {"title": "Example Domain", "url": "https://example.com"}
-    }
-  ]
-}
-```
-
-`log` — one array item per output line (console.log + list reporter).
-Raw files also written to `sessions/{id}/last-run.log` and `sessions/{id}/last-run.json`.
-
----
-
-## Available tests
-
-| File | grep | What it tests |
+| File | Suite | What it tests |
 |---|---|---|
-| `tests/park4night.spec.ts` | `acceptCookies` | Cookie banner dismissed; skips on reused session |
-| `tests/stealthcheck.spec.ts` | `stealthcheck` | bot.sannysoft.com — 11 Intoli + 20 fp-collect checks, asserts no `td.failed`/`td.warn` |
+| `selftest/playwright/session.spec.ts` | Session Management | `session.open` creates session; `session.list` returns it; `session.close` persists state; `session.delete` removes it |
+| `selftest/playwright/stealth.spec.ts` | Stealth Mode | Session opens with stealth enabled; sannysoft result attached |
+| `selftest/playwright/tools.spec.ts` | CSS Selector Tools / Workflow | `navigate.goto`, `extract.text`, `extract.html`, `workflow.scrape` |
+| `selftest/node/basic.test.js` | Basic | Server starts, tools listed |
+| `selftest/node/schema.test.js` | Schema | All tool schemas valid |
+| `selftest/node/playwright_mcp.test.js` | Playwright MCP | snapshot, click, type via CDP |
+| `selftest/node/scrap.test.js` | Scraping | extract + session open/close cycle |
 
 ---
 
-## Scripts (`playwright-tests/scripts/`)
+## automation — real browser workflows
+
+Real automation tasks against live sites. Also serve as integration/stealth health checks.
+Require an active MCP session with CDP (`session.open` first).
+
+```bash
+# Via MCP (recommended)
+session.open { "id": "my-session" }
+browser.run_test { "id": "my-session" }
+browser.run_test { "id": "my-session", "grep": "acceptCookies" }
+
+# Via CLI
+SZKRABOK_SESSION=my-session npx playwright test --project=automation
+npm run test:auto   # requires SZKRABOK_SESSION set
+```
+
+### Test cases
+
+| File | grep | What it does | Notes |
+|---|---|---|---|
+| `automation/park4night.spec.ts` | `acceptCookies` | Navigates to park4night.com, dismisses cookie banner | Skips gracefully on reused session (cookies already set) |
+| `automation/stealthcheck.spec.ts` | `stealthcheck` | Runs bot.sannysoft.com — 11 Intoli checks + 20 fp-collect checks | Requires `headless: false` — WebGL Renderer fails with SwiftShader in headless mode |
+
+#### stealthcheck detail
+
+**Intoli table (11 checks)** — result `td` carries class `result passed/failed/warn`:
+`User Agent` · `WebDriver` · `WebDriver Advanced` · `Chrome` · `Permissions` · `Plugins Length` · `Plugins is of type PluginArray` · `Languages` · `WebGL Vendor` · `WebGL Renderer` · `Broken Image Dimensions`
+
+**fp-collect table (20 checks)** — status `td` (2nd column) carries class `passed` when `ok`:
+`PHANTOM_UA` · `PHANTOM_PROPERTIES` · `PHANTOM_ETSL` · `PHANTOM_LANGUAGE` · `PHANTOM_WEBSOCKET` · `MQ_SCREEN` · `PHANTOM_OVERFLOW` · `PHANTOM_WINDOW_HEIGHT` · `HEADCHR_UA` · `HEADCHR_CHROME_OBJ` · `HEADCHR_PERMISSIONS` · `HEADCHR_PLUGINS` · `HEADCHR_IFRAME` · `CHR_DEBUG_TOOLS` · `SELENIUM_DRIVER` · `CHR_BATTERY` · `CHR_MEMORY` · `TRANSPARENT_PIXEL` · `SEQUENTUM` · `VIDEO_CODECS`
+
+---
+
+## Scripts (`automation/scripts/`)
 
 ### inspect-page.mjs
 
@@ -114,7 +77,7 @@ Generic table + iframe inspector. Run via `browser.run_file` to explore any page
   "tool": "browser.run_file",
   "args": {
     "id": "my-session",
-    "path": "playwright-tests/scripts/inspect-page.mjs",
+    "path": "automation/scripts/inspect-page.mjs",
     "args": {
       "url":        "https://example.com",
       "wait":       "table tr",
@@ -130,41 +93,37 @@ Generic table + iframe inspector. Run via `browser.run_file` to explore any page
 }
 ```
 
-All args optional. Omit `url` to inspect the current page. Use `filterCls`/`filterText` to reduce output. Returns `{ rows: [{name, value, cls}], iframes: [{url, rows}] }`.
+All args optional. Omit `url` to inspect the current page. Use `filterCls`/`filterText` to reduce output.
+Returns `{ rows: [{name, value, cls}], iframes: [{url, rows}] }`.
 
 ---
 
-## Writing tests
-
-Import from `fixtures` (not `@playwright/test`) to get CDP session sharing:
+## Writing automation tests
 
 ```typescript
-// playwright-tests/tests/your-spec.ts
-import { test, expect } from '../fixtures';
+// automation/your-task.spec.ts
+import { test, expect } from './fixtures';
 
-const TARGET = process.env.TEST_URL ?? 'https://default.example.com';
+test('my task', async ({ page }, testInfo) => {
+  await page.goto('https://example.com');
+  // ... actions / assertions ...
 
-test('my test', async ({ page }, testInfo) => {
-  await page.goto(TARGET);
-  // ... assertions ...
-
-  // Return structured data via attachment
   await testInfo.attach('result', {
-    body: JSON.stringify({ url: page.url(), /* any data */ }),
+    body: JSON.stringify({ url: page.url() }),
     contentType: 'application/json',
   });
 });
 ```
 
-Params mapping: `params: {url: "...", myKey: "..."}` → `TEST_URL`, `TEST_MYKEY` env vars.
+Params: `browser.run_test { params: { url: "..." } }` → `TEST_URL` env var.
 
 ---
 
 ## Session state sharing
 
-Tests connect to the same Chrome process as the MCP session via CDP — cookies, localStorage, and any browsing done via MCP tools are immediately visible to tests without needing a session close/reopen cycle.
+Automation tests connect to the same Chrome as the MCP session via CDP — cookies, localStorage, and browsing done via MCP tools are immediately visible without a close/reopen cycle.
 
-Without an active MCP session, tests fall back to `storageState.json` saved from a previous session if present.
+Without an active MCP session, tests fall back to `storageState.json` from a previous session if present.
 
 ---
 
@@ -172,9 +131,8 @@ Without an active MCP session, tests fall back to `storageState.json` saved from
 
 | Symptom | Fix |
 |---|---|
+| `run_test` fails "Session not open" | Call `session.open {id}` first |
+| `run_test` fails "no CDP port" | Session opened before CDP support — close and reopen |
+| WebGL Renderer FAIL on stealthcheck | Session must be opened with `headless: false` |
 | `Executable doesn't exist` | `npx playwright install chromium` |
-| `exports is not defined` | Ensure `playwright-tests/package.json` has `{"type":"commonjs"}` |
-| Tests pick wrong config | Use `--config playwright-tests/playwright.config.ts` explicitly |
 | No JSON result in output | Add `testInfo.attach('result', {...})` to the test |
-| `run_test` fails with "Session not open" | Call `session.open {id}` before `browser.run_test` |
-| `run_test` fails with "no CDP port" | Session was opened before CDP support — close and reopen |

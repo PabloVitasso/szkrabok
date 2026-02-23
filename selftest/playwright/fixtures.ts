@@ -25,7 +25,7 @@ export const test = baseTest.extend<TestFixtures>({
 
     await use(async () => {
       const rootDir = path.resolve(__dirname, '../..');
-      const serverPath = path.join(rootDir, 'index.js');
+      const serverPath = path.join(rootDir, 'src/index.js');
 
       let stderrBuffer = '';
       const transport = new StdioClientTransport({

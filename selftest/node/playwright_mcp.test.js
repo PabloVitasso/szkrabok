@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert'
-import * as session from '../../src/tools/session.js'
+import * as session from '../../src/tools/szkrabok_session.js'
 import * as playwrightMcp from '../../src/tools/playwright_mcp.js'
 import { closeBrowser } from '../../src/upstream/wrapper.js'
 

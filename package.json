@@ -20,12 +20,12 @@
     "lint:fix": "eslint . --fix",
     "format": "prettier --write \"**/*.{js,json,md}\"",
     "format:check": "prettier --check \"**/*.{js,json,md}\"",
-    "test": "npm run test:node && npm run test:playwright",
-    "test:node": "node --test tests/node/**/*.test.js",
-    "test:playwright": "playwright test --config=playwright.config.ts",
-    "test:watch": "node --test --watch tests/node",
-    "test:pw": "playwright test --config=playwright.config.ts --ui",
-    "prepare": "node scripts/setup.js"
+    "test": "npm run test:self && npm run test:auto",
+    "test:node": "node --test selftest/node/**/*.test.js",
+    "test:playwright": "playwright test --project=selftest",
+    "prepare": "node scripts/setup.js",
+    "test:self": "playwright test --project=selftest && node --test selftest/node/**/*.test.js",
+    "test:auto": "PLAYWRIGHT_PROJECT=automation playwright test --project=automation"
   },
   "keywords": [
     "mcp",

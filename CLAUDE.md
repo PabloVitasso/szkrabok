@@ -14,7 +14,8 @@
 | MCP entry | `src/index.js` |
 | Tool registry | `src/tools/registry.js` |
 | Session pool | `src/core/pool.js` |
-| Playwright tests | `playwright-tests/` |
+| Automation tests | `automation/` |
+| Selftest (MCP server) | `selftest/` |
 | Session storage | `sessions/{id}/` |
 
 ## Restart MCP server

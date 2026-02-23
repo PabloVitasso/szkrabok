@@ -42,7 +42,7 @@
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
-import { test, expect } from '../fixtures';
+import { test, expect } from './fixtures';
 
 const BASE_URL = 'https://bot.sannysoft.com/';
 
