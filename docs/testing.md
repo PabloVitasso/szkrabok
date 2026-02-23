@@ -46,6 +46,7 @@ browser.run_test { "id": "my-session", "grep": "acceptCookies" }
 
 # Via CLI
 SZKRABOK_SESSION=my-session npx playwright test --project=automation
+SZKRABOK_SESSION=my-session SZKRABOK_PRESET=mobile-iphone-15 npx playwright test --project=automation
 npm run test:auto   # requires SZKRABOK_SESSION set
 ```
 

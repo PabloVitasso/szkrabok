@@ -25,6 +25,40 @@ Fork of [microsoft/playwright-mcp](https://github.com/microsoft/playwright-mcp) 
 "Close session 'work'"
 ```
 
+## Configuration
+
+`szkrabok.config.toml` at repo root controls browser identity and presets:
+
+```toml
+[default]
+label     = "Desktop / Windows 10 / Chrome 120"
+userAgent = "Mozilla/5.0 ..."
+locale    = "en-US"
+timezone  = "America/New_York"
+headless  = false
+viewport  = { width = 1280, height = 800 }
+
+[stealth]
+enabled = true
+
+[preset.mobile-iphone-15]
+label     = "Mobile / iPhone 15 / Safari 17"
+userAgent = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 ...)"
+viewport  = { width = 393, height = 852 }
+```
+
+Presets are named browser identities (userAgent + viewport + locale + timezone + label).
+`[default]` applies when no preset is specified. Named presets override individual fields.
+
+Pass a preset in `session.open`:
+```
+session.open { "id": "mobile-test", "config": { "preset": "mobile-iphone-15" } }
+```
+
+The resolved preset name and label are returned in `session.open` and `session.list` responses.
+
+For Playwright standalone runs, set `SZKRABOK_PRESET=mobile-iphone-15` before running tests.
+
 ## Documentation
 
 | Doc | Contents |
