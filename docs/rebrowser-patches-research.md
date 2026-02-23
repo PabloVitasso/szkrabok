@@ -44,17 +44,43 @@ doesn't apply. Tradeoff: `window.*` vars set by page scripts are not accessible.
 | Check | Result | Notes |
 |---|---|---|
 | dummyFn | pass | addBinding mode gives main world access |
-| sourceUrlLeak | **patch #7 fixes this** | UtilityScript rename eliminates the signal |
+| sourceUrlLeak | pass | patch #7 (UtilityScript rename) |
 | mainWorldExecution | fail | requires alwaysIsolated; conflicts with dummyFn |
 | runtimeEnableLeak | pass | Runtime.enable suppressed |
-| exposeFunctionLeak | fail | unfixable — page.exposeFunction creates detectable `__playwright__binding__` window key |
-| navigatorWebdriver | pass | stealth plugin handles this |
-| viewport | pass | non-default viewport set |
-| pwInitScripts | pass | stealth plugin handles this |
+| exposeFunctionLeak | fail | unfixable — detectable `__playwright__binding__` window key |
+| navigatorWebdriver | pass | stealth plugin |
+| viewport | pass | non-default viewport |
+| pwInitScripts | pass | stealth plugin |
 | bypassCsp | pass | CSP not bypassed |
+| useragent | fail | Chrome for Testing (CfT) binary — see below |
 
-Expected after restart: **7/9** passing (sourceUrlLeak newly fixed).
-Remaining failures: mainWorldExecution (mode conflict), exposeFunctionLeak (no fix exists).
+**7/10 passing.** Three failures: mainWorldExecution (mode conflict), exposeFunctionLeak (no fix), useragent (binary identity).
+
+### useragent check — root cause
+
+`navigator.userAgentData.brands` reports only `Chromium/143` — no `Google Chrome` brand.
+This is the correct, honest signal for Chrome for Testing (CfT), which Playwright downloads
+via `npx playwright install chromium`. CfT deliberately omits the `Google Chrome` brand.
+
+The session config spoofs `navigator.userAgent` (the old string API) to `Chrome/120 Windows`.
+But `userAgentData` is a structured Client Hints API populated from the binary identity —
+it cannot be overridden by a UA string override. The result is two contradictory signals:
+old API says Chrome/120, structured API says Chromium/143. That is **more detectable** than
+just being honest.
+
+**Options:**
+
+| Option | Passes check | Honest | Cost |
+|---|---|---|---|
+| Use system Google Chrome stable (`executablePath`) | yes | yes | requires Chrome installed on host |
+| Remove UA string spoof — report Chromium honestly | no | yes | consistent signals, still fails |
+| Patch `userAgentData` brands via init script | yes | no | fragile, likely detectable |
+
+Correct fix: support `executablePath` in `session.open` so users can point at system Chrome.
+Until then: remove the fake UA string override for Chromium sessions so signals are at least
+consistent (both APIs report Chromium/143).
+
+The test now includes `useragent` in `EXPECTED_PASS` so it is tracked and reported.
 
 ---
 

@@ -45,12 +45,15 @@ export const open = async args => {
   const resolved = resolvePreset(config.preset)
 
   // Per-call overrides win over preset (except stealth which has its own flag)
-  const effectiveViewport  = config.viewport   || resolved.viewport  || VIEWPORT
-  const effectiveUserAgent = config.userAgent  || resolved.userAgent || USER_AGENT
-  const effectiveLocale    = config.locale     || resolved.locale    || LOCALE
-  const effectiveTimezone  = config.timezone   || resolved.timezone  || TIMEZONE
-  const effectiveStealth   = config.stealth    ?? STEALTH_ENABLED
-  const effectiveHeadless  = config.headless   ?? HEADLESS
+  const effectiveViewport       = config.viewport            || resolved.viewport  || VIEWPORT
+  const effectiveOverrideUA     = config.overrideUserAgent   ?? resolved.overrideUserAgent ?? true
+  const effectiveUserAgent      = effectiveOverrideUA
+    ? (config.userAgent || resolved.userAgent || USER_AGENT)
+    : undefined
+  const effectiveLocale         = config.locale     || resolved.locale    || LOCALE
+  const effectiveTimezone       = config.timezone   || resolved.timezone  || TIMEZONE
+  const effectiveStealth        = config.stealth    ?? STEALTH_ENABLED
+  const effectiveHeadless       = config.headless   ?? HEADLESS
 
   // Use userDataDir for complete profile persistence
   const userDataDir = storage.getUserDataDir(id)
@@ -102,12 +105,13 @@ export const open = async args => {
     preset:   resolved.preset,
     label:    resolved.label,
     config: {
-      userAgent: effectiveUserAgent,
-      viewport:  effectiveViewport,
-      locale:    effectiveLocale,
-      timezone:  effectiveTimezone,
-      stealth:   effectiveStealth,
-      headless:  effectiveHeadless,
+      overrideUserAgent: effectiveOverrideUA,
+      userAgent:         effectiveUserAgent,
+      viewport:          effectiveViewport,
+      locale:            effectiveLocale,
+      timezone:          effectiveTimezone,
+      stealth:           effectiveStealth,
+      headless:          effectiveHeadless,
     },
     userDataDir,
   }
@@ -126,11 +130,12 @@ export const open = async args => {
     preset: resolved.preset,
     label:  resolved.label,
     config: {
-      userAgent: effectiveUserAgent,
-      viewport:  effectiveViewport,
-      locale:    effectiveLocale,
-      timezone:  effectiveTimezone,
-      stealth:   effectiveStealth,
+      overrideUserAgent: effectiveOverrideUA,
+      userAgent:         effectiveUserAgent,
+      viewport:          effectiveViewport,
+      locale:            effectiveLocale,
+      timezone:          effectiveTimezone,
+      stealth:           effectiveStealth,
     },
   }
 }

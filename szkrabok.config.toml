@@ -46,9 +46,12 @@
 [default]
 # Human-readable label shown in session.open response, session.list, and
 # Playwright console output. Set to any string that helps you identify this config.
-label     = "Desktop / Windows 10 / Chrome 120"
-# Windows 10 Chrome 120 — broad compatibility, low bot-detection risk
-userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+label             = "Chromium (no UA spoof)"
+# false = don't override the UA string — both navigator.userAgent and
+# navigator.userAgentData report the actual binary consistently.
+# Set to true and provide userAgent to spoof a specific browser identity.
+overrideUserAgent = false
+# userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 # BCP 47 language tag — affects Accept-Language header and navigator.language
 locale    = "en-US"
 # IANA timezone — affects Date, Intl, and timezone detection fingerprints
@@ -71,6 +74,21 @@ height = 800
 [stealth]
 # Master switch — disables all evasions when false
 enabled = true
+
+# ── Honest Chromium preset ────────────────────────────────────────────────────
+#
+# Does not spoof the UA string. Both navigator.userAgent and navigator.userAgentData
+# report the actual Chromium binary version consistently.
+# The useragent check on bot-detector.rebrowser.net will still fail (no Google Chrome
+# brand), but there are no contradictory signals between the two UA APIs.
+
+[preset.chromium-honest]
+label             = "Chromium (no UA spoof)"
+overrideUserAgent = false
+
+[preset.chromium-honest.viewport]
+width  = 1280
+height = 800
 
 # ── Desktop presets ───────────────────────────────────────────────────────────
 

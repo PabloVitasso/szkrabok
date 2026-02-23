@@ -47,6 +47,7 @@ const EXPECTED_PASS = [
   'viewport',
   'pwInitScripts',
   'bypassCsp',
+  'useragent',
 ]
 
 test('rebrowser-check', async ({ page }, testInfo) => {

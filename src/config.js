@@ -19,12 +19,13 @@ const tomlPresets = toml.preset ?? {}
 // Returns the fully resolved config object plus the preset name and label.
 export const resolvePreset = name => {
   const base = {
-    label:     tomlDefault.label     ?? 'Default',
-    userAgent: tomlDefault.userAgent ?? null,
-    viewport:  tomlDefault.viewport  ?? null,
-    locale:    tomlDefault.locale    ?? null,
-    timezone:  tomlDefault.timezone  ?? null,
-    headless:  tomlDefault.headless  ?? null,
+    label:              tomlDefault.label              ?? 'Default',
+    userAgent:          tomlDefault.userAgent          ?? null,
+    overrideUserAgent:  tomlDefault.overrideUserAgent  ?? true,
+    viewport:           tomlDefault.viewport           ?? null,
+    locale:             tomlDefault.locale             ?? null,
+    timezone:           tomlDefault.timezone           ?? null,
+    headless:           tomlDefault.headless           ?? null,
   }
 
   if (!name || name === 'default') {
@@ -37,13 +38,14 @@ export const resolvePreset = name => {
   }
 
   return {
-    preset:    name,
-    label:     override.label     ?? base.label,
-    userAgent: override.userAgent ?? base.userAgent,
-    viewport:  override.viewport  ?? base.viewport,
-    locale:    override.locale    ?? base.locale,
-    timezone:  override.timezone  ?? base.timezone,
-    headless:  override.headless  ?? base.headless,
+    preset:             name,
+    label:              override.label             ?? base.label,
+    userAgent:          override.userAgent         ?? base.userAgent,
+    overrideUserAgent:  override.overrideUserAgent ?? base.overrideUserAgent,
+    viewport:           override.viewport          ?? base.viewport,
+    locale:             override.locale            ?? base.locale,
+    timezone:           override.timezone          ?? base.timezone,
+    headless:           override.headless          ?? base.headless,
   }
 }
 
