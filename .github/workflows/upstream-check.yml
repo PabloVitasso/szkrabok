@@ -8,62 +8,58 @@ on:
 jobs:
   check:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Add upstream remote
-        run: git remote add upstream https://github.com/microsoft/playwright-mcp.git
-
-      - name: Fetch upstream
-        run: git fetch upstream main
-
-      - name: Check for new upstream commits
-        id: check
+      - name: Check upstream difference
+        id: compare
         run: |
-          COUNT=$(git rev-list --count HEAD..upstream/main)
-          echo "count=$COUNT" >> "$GITHUB_OUTPUT"
-          if [ "$COUNT" -gt 0 ]; then
-            echo "behind=true" >> "$GITHUB_OUTPUT"
-            echo "Found $COUNT new upstream commit(s):"
-            git log --oneline HEAD..upstream/main
-          else
-            echo "behind=false" >> "$GITHUB_OUTPUT"
-            echo "Already up to date with upstream."
-          fi
+          OWNER="${{ github.repository_owner }}"
+          REPO="${{ github.event.repository.name }}"
+          BASE_BRANCH="${{ github.ref_name }}"
+
+          UPSTREAM_OWNER="microsoft"
+          UPSTREAM_REPO="playwright-mcp"
+          UPSTREAM_BRANCH="main"
+
+          UPSTREAM_SHA=$(curl -s \
+            https://api.github.com/repos/$UPSTREAM_OWNER/$UPSTREAM_REPO/branches/$UPSTREAM_BRANCH \
+            | jq -r '.commit.sha')
+
+          RESPONSE=$(curl -s \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github+json" \
+            https://api.github.com/repos/$OWNER/$REPO/compare/$BASE_BRANCH...$UPSTREAM_SHA)
+
+          BEHIND=$(echo "$RESPONSE" | jq -r '.behind_by')
+
+          echo "behind=$BEHIND" >> "$GITHUB_OUTPUT"
 
       - name: Open issue if behind
-        if: steps.check.outputs.behind == 'true'
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const count = '${{ steps.check.outputs.count }}';
-            const { data: issues } = await github.rest.issues.listForRepo({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              state: 'open',
-              labels: 'upstream-sync',
-            });
-            if (issues.length > 0) {
-              console.log('Issue already open, skipping.');
-              return;
-            }
-            await github.rest.issues.create({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              title: `Upstream sync needed: ${count} new commit(s) in microsoft/playwright-mcp`,
-              body: [
-                '`upstream/main` has new commits not yet merged into this repo.',
-                '',
-                '**To merge:**',
-                '```bash',
-                'git fetch upstream',
-                'git checkout -b merge-upstream-playwright-mcp',
-                'git merge upstream/main',
-                '```',
-                '',
-                'See [docs/development.md](docs/development.md) for conflict resolution guidance.',
-              ].join('\n'),
-              labels: ['upstream-sync'],
-            });
+        if: steps.compare.outputs.behind != '0'
+        run: |
+          COUNT="${{ steps.compare.outputs.behind }}"
+          OWNER="${{ github.repository_owner }}"
+          REPO="${{ github.event.repository.name }}"
+
+          EXISTING=$(curl -s \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/$OWNER/$REPO/issues?state=open&labels=upstream-sync" \
+            | jq 'length')
+
+          if [ "$EXISTING" -gt 0 ]; then
+            echo "Issue already open, skipping."
+            exit 0
+          fi
+
+          curl -s -X POST \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github+json" \
+            https://api.github.com/repos/$OWNER/$REPO/issues \
+            -d @- <<EOF
+          {
+            "title": "Upstream sync needed: $COUNT new commit(s) in microsoft/playwright-mcp",
+            "body": "\`upstream/main\` has $COUNT new commit(s) not yet merged.\n\n**To merge:**\n\`\`\`bash\ngit fetch upstream\ngit checkout -b merge-upstream-playwright-mcp\ngit merge upstream/main\n\`\`\`\n\nSee [docs/development.md](docs/development.md) for conflict resolution guidance.",
+            "labels": ["upstream-sync"]
+          }
+EOF
