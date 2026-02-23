@@ -1,0 +1,69 @@
+name: Upstream check
+
+on:
+  schedule:
+    - cron: '0 9 * * 1'  # every Monday at 09:00 UTC
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Add upstream remote
+        run: git remote add upstream https://github.com/microsoft/playwright-mcp.git
+
+      - name: Fetch upstream
+        run: git fetch upstream main
+
+      - name: Check for new upstream commits
+        id: check
+        run: |
+          COUNT=$(git rev-list --count HEAD..upstream/main)
+          echo "count=$COUNT" >> "$GITHUB_OUTPUT"
+          if [ "$COUNT" -gt 0 ]; then
+            echo "behind=true" >> "$GITHUB_OUTPUT"
+            echo "Found $COUNT new upstream commit(s):"
+            git log --oneline HEAD..upstream/main
+          else
+            echo "behind=false" >> "$GITHUB_OUTPUT"
+            echo "Already up to date with upstream."
+          fi
+
+      - name: Open issue if behind
+        if: steps.check.outputs.behind == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const count = '${{ steps.check.outputs.count }}';
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'upstream-sync',
+            });
+            if (issues.length > 0) {
+              console.log('Issue already open, skipping.');
+              return;
+            }
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `Upstream sync needed: ${count} new commit(s) in microsoft/playwright-mcp`,
+              body: [
+                '`upstream/main` has new commits not yet merged into this repo.',
+                '',
+                '**To merge:**',
+                '```bash',
+                'git fetch upstream',
+                'git checkout -b merge-upstream-playwright-mcp',
+                'git merge upstream/main',
+                '```',
+                '',
+                'See [docs/development.md](docs/development.md) for conflict resolution guidance.',
+              ].join('\n'),
+              labels: ['upstream-sync'],
+            });
