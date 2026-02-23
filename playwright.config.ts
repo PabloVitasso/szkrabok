@@ -64,10 +64,13 @@ function resolveExecutable(expectedPath: string): string | undefined {
 const executablePath = resolveExecutable(chromium.executablePath())
 const cdpEndpoint = process.env.SZKRABOK_CDP_ENDPOINT || ''
 
+const sessionResultsDir = path.resolve(__dirname, 'sessions', sessionId, 'test-results')
+
 export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   timeout: 60000,
+  outputDir: sessionResultsDir,
   reporter: [
     ['list'],
     ['json', { outputFile: path.resolve(__dirname, 'sessions', sessionId, 'last-run.json') }],
