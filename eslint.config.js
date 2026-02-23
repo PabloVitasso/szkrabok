@@ -1,5 +1,8 @@
 export default [
   {
+    ignores: ['packages/**', 'roll.js', 'node_modules/**'],
+  },
+  {
     files: ['**/*.js'],
     languageOptions: {
       ecmaVersion: 'latest',
