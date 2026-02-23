@@ -1,4 +1,5 @@
 import * as pool from '../core/pool.js'
+import { open as sessionOpen } from './szkrabok_session.js'
 import { resolve, dirname, join } from 'path'
 import { spawn } from 'child_process'
 import { fileURLToPath } from 'url'
@@ -8,7 +9,7 @@ import { readFile, mkdir } from 'fs/promises'
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..')
 
 export const run_test = async args => {
-  const { id, grep, params = {}, config = 'playwright.config.ts' } = args
+  const { id, grep, params = {}, config = 'playwright.config.ts', keepOpen = false } = args
 
   const configPath = resolve(REPO_ROOT, config)
 
@@ -57,12 +58,27 @@ export const run_test = async args => {
 
   const log = await readFile(logFile, 'utf8').catch(() => '')
 
+  // If keepOpen, reconnect the session — the test subprocess disconnecting its
+  // CDP WebSocket invalidates the MCP context object even though Chrome is still
+  // alive. Re-opening reconnects a fresh Playwright context to the running browser.
+  let sessionReconnected = false
+  if (keepOpen) {
+    const alive = pool.has(id) && (() => {
+      try { pool.get(id); return true } catch { return false }
+    })()
+    if (!alive) {
+      pool.remove(id)
+      await sessionOpen({ id })
+      sessionReconnected = true
+    }
+  }
+
   const reportRaw = await readFile(jsonFile, 'utf8').catch(() => null)
   let report = null
   try { report = reportRaw ? JSON.parse(reportRaw) : null } catch { /* malformed */ }
 
   if (!report) {
-    return { exitCode: 1, log, error: 'JSON report not found or unparseable' }
+    return { exitCode: 1, log, error: 'JSON report not found or unparseable', sessionReconnected }
   }
 
   const decodeAttachment = att => {
@@ -93,6 +109,7 @@ export const run_test = async args => {
     failed: stats?.unexpected ?? 0,
     skipped: stats?.skipped ?? 0,
     tests,
+    ...(keepOpen ? { sessionReconnected } : {}),
   }
 }
 
