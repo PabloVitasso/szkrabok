@@ -24,7 +24,7 @@
     "test:node": "node --test selftest/node/*.test.js",
     "test:playwright": "playwright test --project=selftest",
     "prepare": "node scripts/setup.js",
-    "postinstall": "npx rebrowser-patches@latest patch --packageName playwright-core",
+    "postinstall": "node scripts/patch-playwright.js",
     "test:self": "playwright test --project=selftest && node --test selftest/node/*.test.js",
     "test:auto": "PLAYWRIGHT_PROJECT=automation playwright test --project=automation"
   },
@@ -48,6 +48,7 @@
     "@modelcontextprotocol/sdk": "^1.0.4",
     "@playwright/mcp": "^0.0.54",
     "playwright": "^1.49.1",
+    "playwright-core": "^1.58.2",
     "playwright-extra": "^4.3.6",
     "puppeteer": "^24.34.0",
     "puppeteer-extra-plugin-stealth": "^2.11.2",
