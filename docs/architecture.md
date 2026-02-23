@@ -43,7 +43,7 @@ src/
     szkrabok_stealth.js   playwright-extra + stealth plugin setup  [szkrabok-only]
     config.js             TOML + env config, resolvePreset(), findChromiumPath()
 
-szkrabok.config.toml      Browser identity presets (userAgent, viewport, locale, timezone, label)
+szkrabok.config.toml      Browser identity presets (overrideUserAgent, userAgent, viewport, locale, timezone, label)
 
   utils/
     errors.js             wrapError, structured error responses
@@ -78,7 +78,7 @@ playwright.config.ts      single root config — projects: selftest + automation
 
 ## Szkrabok-specific hacks (preserve on upstream updates)
 
-- **TOML config** `szkrabok.config.toml` — browser presets (userAgent, viewport, locale, timezone, label, headless). `src/config.js` and `playwright.config.ts` read it independently via `smol-toml`. Headless priority: `HEADLESS` env var → `DISPLAY` presence → TOML `[default].headless`.
+- **TOML config** `szkrabok.config.toml` — browser presets (overrideUserAgent, userAgent, viewport, locale, timezone, label, headless). `overrideUserAgent = false` (default) skips passing a UA string so `navigator.userAgent` and `navigator.userAgentData` report the real binary consistently; set to `true` with a `userAgent` string to spoof. Also includes a named `chromium-honest` preset as an explicit alias for the no-spoof default. `src/config.js` and `playwright.config.ts` read it independently via `smol-toml`. Headless priority: `HEADLESS` env var → `DISPLAY` presence → TOML `[default].headless`.
 - **Stealth** `core/szkrabok_stealth.js` — playwright-extra + stealth plugin; `user-data-dir` evasion disabled (conflicts with persistent profile); imported by both MCP session launch and standalone automation fixtures
 - **CDP port** `tools/szkrabok_session.js` — deterministic port from session ID (`20000 + abs(hash) % 10000`); enables `chromium.connectOverCDP()`
 - **Persistent profile** `core/storage.js` — sessions stored in `sessions/{id}/profile/`; no manual storageState saves

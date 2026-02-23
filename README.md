@@ -32,8 +32,9 @@ Fork of [microsoft/playwright-mcp](https://github.com/microsoft/playwright-mcp) 
 
 ```toml
 [default]
-label     = "Desktop / Windows 10 / Chrome 120"
-userAgent = "Mozilla/5.0 ..."
+label             = "Chromium (no UA spoof)"
+overrideUserAgent = false   # false = don't pass a UA string; browser reports its real binary UA
+# userAgent = "Mozilla/5.0 ..."  # only used when overrideUserAgent = true
 locale    = "en-US"
 timezone  = "America/New_York"
 headless  = false
@@ -43,12 +44,17 @@ viewport  = { width = 1280, height = 800 }
 enabled = true
 
 [preset.mobile-iphone-15]
-label     = "Mobile / iPhone 15 / Safari 17"
-userAgent = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 ...)"
-viewport  = { width = 393, height = 852 }
+label             = "Mobile / iPhone 15 / Safari 17"
+overrideUserAgent = true
+userAgent         = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 ...)"
+viewport          = { width = 393, height = 852 }
 ```
 
-Presets are named browser identities (userAgent + viewport + locale + timezone + label).
+`overrideUserAgent = false` (the default) lets the browser report its real binary UA, keeping
+`navigator.userAgent` and `navigator.userAgentData` consistent — no contradictory signals.
+Set `overrideUserAgent = true` and provide `userAgent` to spoof a specific browser identity.
+
+Presets are named browser identities (overrideUserAgent + userAgent + viewport + locale + timezone + label).
 `[default]` applies when no preset is specified. Named presets override individual fields.
 
 Pass a preset in `session.open`:
