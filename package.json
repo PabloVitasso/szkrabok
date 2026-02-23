@@ -24,6 +24,7 @@
     "test:node": "node --test selftest/node/*.test.js",
     "test:playwright": "playwright test --project=selftest",
     "prepare": "node scripts/setup.js",
+    "postinstall": "npx rebrowser-patches@latest patch --packageName playwright-core",
     "test:self": "playwright test --project=selftest && node --test selftest/node/*.test.js",
     "test:auto": "PLAYWRIGHT_PROJECT=automation playwright test --project=automation"
   },
