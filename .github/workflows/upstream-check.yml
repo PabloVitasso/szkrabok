@@ -52,14 +52,10 @@ jobs:
             exit 0
           fi
 
+          BODY=$(printf '`upstream/main` has %s new commit(s) not yet merged.\n\n**To merge:**\n```bash\ngit fetch upstream\ngit checkout -b merge-upstream-playwright-mcp\ngit merge upstream/main\n```\n\nSee [docs/development.md](docs/development.md) for conflict resolution guidance.' "$COUNT")
+
           curl -s -X POST \
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             -H "Accept: application/vnd.github+json" \
             https://api.github.com/repos/$OWNER/$REPO/issues \
-            -d @- <<EOF
-          {
-            "title": "Upstream sync needed: $COUNT new commit(s) in microsoft/playwright-mcp",
-            "body": "\`upstream/main\` has $COUNT new commit(s) not yet merged.\n\n**To merge:**\n\`\`\`bash\ngit fetch upstream\ngit checkout -b merge-upstream-playwright-mcp\ngit merge upstream/main\n\`\`\`\n\nSee [docs/development.md](docs/development.md) for conflict resolution guidance.",
-            "labels": ["upstream-sync"]
-          }
-EOF
+            -d "$(jq -n --arg title "Upstream sync needed: $COUNT new commit(s) in microsoft/playwright-mcp" --arg body "$BODY" '{"title":$title,"body":$body,"labels":["upstream-sync"]}')"
