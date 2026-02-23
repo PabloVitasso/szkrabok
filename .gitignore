@@ -5,7 +5,8 @@ __pycache__/
 .venv/
 venv/
 
-# Session data - keep sessions in each server
+# Session data
+sessions/
 */sessions/
 logs/
 
