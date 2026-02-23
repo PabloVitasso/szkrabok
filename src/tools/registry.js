@@ -40,11 +40,6 @@ const szkrabokTools = {
             disableWebGL: { type: 'boolean', default: false },
             headless: { type: 'boolean' },
             userAgent: { type: 'string' },
-            overrideUserAgent: {
-              type: 'boolean',
-              description:
-                'When false, the browser UA string is not overridden. Use with Chromium to avoid mismatched userAgent/userAgentData signals.',
-            },
             viewport: {
               type: 'object',
               properties: { width: { type: 'number' }, height: { type: 'number' } },

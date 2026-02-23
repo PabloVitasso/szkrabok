@@ -59,16 +59,23 @@ export const open = async args => {
   // Resolve preset: per-call config.preset → TOML preset → TOML default
   const resolved = resolvePreset(config.preset);
 
-  // Per-call overrides win over preset (except stealth which has its own flag)
+  // Per-call overrides win over preset
   const effectiveViewport = config.viewport || resolved.viewport || VIEWPORT;
-  const effectiveOverrideUA = config.overrideUserAgent ?? resolved.overrideUserAgent ?? true;
-  const effectiveUserAgent = effectiveOverrideUA
-    ? config.userAgent || resolved.userAgent || USER_AGENT
-    : undefined;
+  const effectiveUserAgent = config.userAgent || resolved.userAgent || USER_AGENT;
   const effectiveLocale = config.locale || resolved.locale || LOCALE;
   const effectiveTimezone = config.timezone || resolved.timezone || TIMEZONE;
   const effectiveStealth = config.stealth ?? STEALTH_ENABLED;
   const effectiveHeadless = config.headless ?? HEADLESS;
+
+  // presetConfig is passed to enhanceWithStealth so the user-agent-override
+  // evasion receives the correct identity (userAgent, locale) for this session.
+  const presetConfig = {
+    userAgent: effectiveUserAgent,
+    locale: effectiveLocale,
+    // overrideUserAgent from preset controls whether user-agent-override evasion
+    // is active for this session. Defaults to TOML evasion enabled state.
+    overrideUserAgent: config.overrideUserAgent ?? resolved.overrideUserAgent,
+  };
 
   // Use userDataDir for complete profile persistence
   const userDataDir = storage.getUserDataDir(id);
@@ -79,6 +86,7 @@ export const open = async args => {
   // Launch persistent context
   const context = await launchPersistentContext(userDataDir, {
     stealth: effectiveStealth,
+    presetConfig,
     viewport: effectiveViewport,
     userAgent: effectiveUserAgent,
     locale: effectiveLocale,
@@ -120,7 +128,6 @@ export const open = async args => {
     preset: resolved.preset,
     label: resolved.label,
     config: {
-      overrideUserAgent: effectiveOverrideUA,
       userAgent: effectiveUserAgent,
       viewport: effectiveViewport,
       locale: effectiveLocale,
@@ -145,7 +152,6 @@ export const open = async args => {
     preset: resolved.preset,
     label: resolved.label,
     config: {
-      overrideUserAgent: effectiveOverrideUA,
       userAgent: effectiveUserAgent,
       viewport: effectiveViewport,
       locale: effectiveLocale,

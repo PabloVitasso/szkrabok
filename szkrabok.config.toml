@@ -46,11 +46,9 @@
 [default]
 # Human-readable label shown in session.open response, session.list, and
 # Playwright console output. Set to any string that helps you identify this config.
-label             = "Chromium (no UA spoof)"
-# false = don't override the UA string — both navigator.userAgent and
-# navigator.userAgentData report the actual binary consistently.
-# Set to true and provide userAgent to spoof a specific browser identity.
-overrideUserAgent = false
+label = "Chromium (no UA spoof)"
+# To spoof a specific browser identity, set userAgent here and enable UA spoofing
+# in [puppeteer-extra-plugin-stealth."user-agent-override"] (enabled = true).
 # userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 # BCP 47 language tag — affects Accept-Language header and navigator.language
 locale    = "en-US"
@@ -71,15 +69,124 @@ log_level   = "info"
 width  = 1280
 height = 800
 
-# ── Stealth plugin ────────────────────────────────────────────────────────────
+# ── puppeteer-extra-plugin-stealth ────────────────────────────────────────────
 #
-# Controls playwright-extra + puppeteer-extra-plugin-stealth.
-# Applies globally; individual sessions can override via
-# session.open { "config": { "stealth": false } }
+# All settings in this section map 1:1 to the npm package:
+#   puppeteer-extra-plugin-stealth
+#   https://github.com/berstend/puppeteer-extra/tree/master/packages/puppeteer-extra-plugin-stealth
+#
+# Each evasion is a sub-plugin that patches a specific browser API to hide
+# headless/automation signals. Evasion names below are the exact strings used
+# by the plugin — they can be copy-pasted into enabledEvasions.add/delete calls.
+#
+# Per-session override (MCP only):
+#   session.open { "config": { "stealth": false } }  — disables all evasions
 
-[stealth]
-# Master switch — disables all evasions when false
+[puppeteer-extra-plugin-stealth]
+# Master switch. When false, no evasions are applied at all and the browser
+# runs as vanilla headless Chromium — easily detectable.
 enabled = true
+
+# ── Headless Chrome API mocks ─────────────────────────────────────────────────
+# These fix APIs that are absent or behave incorrectly in headless Chromium.
+# Disabling any of them makes standard headless detection trivial.
+# None of these have configurable options — enabled/disabled only.
+
+[puppeteer-extra-plugin-stealth.evasions]
+# chrome.app          — mocks window.chrome.app (missing in headless)
+# chrome.csi          — mocks window.chrome.csi() timing function (missing in headless)
+# chrome.loadTimes    — mocks window.chrome.loadTimes() (missing in headless)
+# chrome.runtime      — mocks window.chrome.runtime on secure pages (missing in headless)
+# defaultArgs         — removes automation-specific Chromium launch arguments
+#                       e.g. --enable-automation, --disable-background-networking
+# iframe.contentWindow — fixes HEADCHR_IFRAME: iframe.contentWindow.chrome detection
+# media.codecs        — makes Chromium report correct codec support (broken in headless)
+# navigator.permissions — fixes Notification.permission inconsistency in headless
+# navigator.plugins   — populates navigator.plugins + navigator.mimeTypes (empty in headless)
+# navigator.webdriver — removes navigator.webdriver = true (most basic automation signal)
+# sourceurl           — strips sourceURL comments injected by puppeteer into eval'd scripts
+# window.outerdimensions — sets window.outerWidth / window.outerHeight (missing in headless)
+"chrome.app"             = true
+"chrome.csi"             = true
+"chrome.loadTimes"       = true
+"chrome.runtime"         = true
+"defaultArgs"            = true
+"iframe.contentWindow"   = true
+"media.codecs"           = true
+"navigator.permissions"  = true
+"navigator.plugins"      = true
+"navigator.webdriver"    = true
+"sourceurl"              = true
+"window.outerdimensions" = true
+# user-data-dir: PERMANENTLY DISABLED in szkrabok.
+# This evasion conflicts with persistent session profiles (sessions/{id}/profile/).
+# szkrabok manages user data directories directly — do not add this evasion.
+
+# ── user-agent-override ───────────────────────────────────────────────────────
+# The most important evasion. Applies the full browser identity bundle
+# consistently via CDP Network.setUserAgentOverride on every new page:
+#   - navigator.userAgent            (the UA string)
+#   - navigator.userAgentData        (brands, platform, version, architecture)
+#   - navigator.platform             (Win32, MacIntel, Linux, etc.)
+#   - Accept-Language request header
+# All four are kept in sync — eliminates the most common detection vector
+# (contradictory userAgent vs userAgentData signals).
+#
+# user_agent and locale are NOT set here — they are taken automatically from
+# the active preset ([default] or named preset). Set them in the preset to
+# control the spoofed identity.
+#
+# When enabled = false: browser reports its real Chromium UA and Linux platform.
+# HeadlessChrome is not stripped. Consistent, but trivially detectable as headless.
+
+[puppeteer-extra-plugin-stealth."user-agent-override"]
+enabled    = true
+# mask_linux: when true, rewrites the Linux platform token in the UA string to
+# "Windows NT 10.0; Win64; x64" even when no explicit userAgent is configured.
+# Prevents the "running on Linux = headless bot" signal.
+# Set to false only if you intentionally want to report Linux (e.g. server UA).
+mask_linux = true
+
+# ── navigator.vendor ─────────────────────────────────────────────────────────
+# Sets navigator.vendor. In headless Chromium the default is an empty string,
+# which is a well-known bot signal. Real Chrome reports "Google Inc.".
+# Change only when spoofing a non-Chrome UA (e.g. Safari → "Apple Computer, Inc.").
+
+[puppeteer-extra-plugin-stealth."navigator.vendor"]
+enabled = true
+vendor  = "Google Inc."
+
+# ── navigator.hardwareConcurrency ─────────────────────────────────────────────
+# Sets navigator.hardwareConcurrency (number of logical CPU cores).
+# Headless Chromium reports 2 by default, which is suspicious for a "desktop
+# browser". Common real values: 4 (laptop), 8 (desktop), 16 (workstation).
+
+[puppeteer-extra-plugin-stealth."navigator.hardwareConcurrency"]
+enabled              = true
+hardware_concurrency = 4
+
+# ── navigator.languages ───────────────────────────────────────────────────────
+# Sets navigator.languages array and the Accept-Language header.
+# Derived automatically from the active preset locale — no override needed
+# unless you want navigator.languages to differ from the preset locale.
+# Example override: languages = ["en-GB", "en"]
+
+[puppeteer-extra-plugin-stealth."navigator.languages"]
+enabled = true
+# languages = []  # leave empty to derive from active preset locale
+
+# ── webgl.vendor ──────────────────────────────────────────────────────────────
+# Overrides the WebGL VENDOR and RENDERER strings reported by the GPU.
+# Headless defaults are "Google Inc." / "Google SwiftShader" — well-known
+# bot fingerprints. Use values matching the UA's implied hardware.
+# Common alternatives:
+#   vendor   = "NVIDIA Corporation"  renderer = "NVIDIA GeForce GTX 1080/PCIe/SSE2"
+#   vendor   = "ATI Technologies"    renderer = "AMD Radeon RX 580"
+
+[puppeteer-extra-plugin-stealth."webgl.vendor"]
+enabled  = true
+vendor   = "Intel Inc."
+renderer = "Intel Iris OpenGL Engine"
 
 # ── Honest Chromium preset ────────────────────────────────────────────────────
 #
@@ -89,8 +196,9 @@ enabled = true
 # brand), but there are no contradictory signals between the two UA APIs.
 
 [preset.chromium-honest]
-label             = "Chromium (no UA spoof)"
-overrideUserAgent = false
+# No userAgent set — stealth user-agent-override evasion strips HeadlessChrome
+# but does not spoof platform. Consistent signals, no Windows masking.
+label = "Chromium (no UA spoof)"
 
 [preset.chromium-honest.viewport]
 width  = 1280

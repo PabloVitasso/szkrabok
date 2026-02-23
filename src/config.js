@@ -21,7 +21,6 @@ export const resolvePreset = name => {
   const base = {
     label: tomlDefault.label ?? 'Default',
     userAgent: tomlDefault.userAgent ?? null,
-    overrideUserAgent: tomlDefault.overrideUserAgent ?? true,
     viewport: tomlDefault.viewport ?? null,
     locale: tomlDefault.locale ?? null,
     timezone: tomlDefault.timezone ?? null,
@@ -41,7 +40,6 @@ export const resolvePreset = name => {
     preset: name,
     label: override.label ?? base.label,
     userAgent: override.userAgent ?? base.userAgent,
-    overrideUserAgent: override.overrideUserAgent ?? base.overrideUserAgent,
     viewport: override.viewport ?? base.viewport,
     locale: override.locale ?? base.locale,
     timezone: override.timezone ?? base.timezone,
@@ -50,7 +48,33 @@ export const resolvePreset = name => {
 };
 
 export const PRESETS = Object.keys(tomlPresets);
-export const STEALTH_ENABLED = toml.stealth?.enabled ?? true;
+
+// ── puppeteer-extra-plugin-stealth config ─────────────────────────────────────
+
+const tomlStealth = toml['puppeteer-extra-plugin-stealth'] ?? {};
+const tomlStealthEvasions = tomlStealth.evasions ?? {};
+
+export const STEALTH_ENABLED = tomlStealth.enabled ?? true;
+
+// Full stealth config passed to szkrabok_stealth.js.
+// Each key maps to a named evasion in puppeteer-extra-plugin-stealth.
+export const STEALTH_CONFIG = {
+  // Flat boolean map of simple headless-fix evasions (no options)
+  evasions: tomlStealthEvasions,
+  // Configurable evasions — each has an enabled flag plus options
+  'user-agent-override': tomlStealth['user-agent-override'] ?? { enabled: true, mask_linux: true },
+  'navigator.vendor': tomlStealth['navigator.vendor'] ?? { enabled: true, vendor: 'Google Inc.' },
+  'navigator.hardwareConcurrency': tomlStealth['navigator.hardwareConcurrency'] ?? {
+    enabled: true,
+    hardware_concurrency: 4,
+  },
+  'navigator.languages': tomlStealth['navigator.languages'] ?? { enabled: true },
+  'webgl.vendor': tomlStealth['webgl.vendor'] ?? {
+    enabled: true,
+    vendor: 'Intel Inc.',
+    renderer: 'Intel Iris OpenGL Engine',
+  },
+};
 
 // ── Resolved defaults (from TOML) ─────────────────────────────────────────────
 

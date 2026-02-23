@@ -24,7 +24,10 @@ export const getBrowser = async (options = {}) => {
 };
 
 export const launchPersistentContext = async (userDataDir, options = {}) => {
-  const pw = options.stealth ? enhanceWithStealth(chromium) : chromium;
+  // presetConfig carries identity fields (userAgent, locale, overrideUserAgent)
+  // needed by the stealth user-agent-override evasion.
+  const presetConfig = options.presetConfig ?? {};
+  const pw = options.stealth ? enhanceWithStealth(chromium, presetConfig) : chromium;
   const executablePath = findChromiumPath();
 
   if (executablePath) {
@@ -32,17 +35,22 @@ export const launchPersistentContext = async (userDataDir, options = {}) => {
   }
 
   const launchOptions = {
+    ...options,
     headless: options.headless ?? HEADLESS,
     executablePath,
     viewport: options.viewport,
-    userAgent: options.userAgent,
     locale: options.locale,
     timezoneId: options.timezoneId,
-    ...options,
+    // When stealth is active, user-agent-override evasion owns the UA via CDP
+    // (per-page, after launch). Do not set userAgent at launch level to avoid
+    // the evasion overriding an already-overridden value inconsistently.
+    // Spread is above so this assignment always wins.
+    userAgent: options.stealth ? undefined : options.userAgent,
   };
 
   // Remove options that are not valid for launchPersistentContext
   delete launchOptions.stealth;
+  delete launchOptions.presetConfig;
 
   // Suppress "Chromium did not shut down correctly" restore bubble.
   // Appears when the MCP server process is killed before Chrome can write
