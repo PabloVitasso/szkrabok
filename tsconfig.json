@@ -9,5 +9,5 @@
     "skipLibCheck": true,
     "noEmit": true
   },
-  "include": ["test/**/*.js", "core/**/*.js", "tools/**/*.js", "upstream/**/*.js"]
+  "include": ["playwright.config.ts"]
 }

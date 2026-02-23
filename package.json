@@ -21,10 +21,10 @@
     "format": "prettier --write \"**/*.{js,json,md}\"",
     "format:check": "prettier --check \"**/*.{js,json,md}\"",
     "test": "npm run test:self && npm run test:auto",
-    "test:node": "node --test selftest/node/**/*.test.js",
+    "test:node": "node --test selftest/node/*.test.js",
     "test:playwright": "playwright test --project=selftest",
     "prepare": "node scripts/setup.js",
-    "test:self": "playwright test --project=selftest && node --test selftest/node/**/*.test.js",
+    "test:self": "playwright test --project=selftest && node --test selftest/node/*.test.js",
     "test:auto": "PLAYWRIGHT_PROJECT=automation playwright test --project=automation"
   },
   "keywords": [

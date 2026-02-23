@@ -53,13 +53,13 @@ src/
 selftest/
   node/                   node:test specs — schema, basic, MCP protocol, scraping
   playwright/             playwright specs — session lifecycle, stealth, CSS tools
-    fixtures.ts           MCP subprocess client fixture
+    fixtures.js           MCP subprocess client fixture
 
 automation/
-  park4night.spec.ts      cookie banner acceptance
-  stealthcheck.spec.ts    bot.sannysoft.com stealth check (11 Intoli + 20 fp-collect)
-  fixtures.ts             CDP session sharing + storageState fallback
-  teardown.ts             saves storageState after run
+  park4night.spec.js      cookie banner acceptance
+  stealthcheck.spec.js    bot.sannysoft.com stealth check (10 Intoli + 20 fp-collect)
+  fixtures.js             CDP session sharing + storageState fallback
+  teardown.js             saves storageState after run
   scripts/
     inspect-page.mjs      generic table+iframe inspector (browser.run_file)
 
@@ -93,7 +93,7 @@ session.open(id)
 browser.run_test(id, grep?, params?)
   -> verify session exists and has cdpPort
   -> spawn: npx playwright test with SZKRABOK_SESSION=id SZKRABOK_CDP_ENDPOINT=http://localhost:cdpPort
-  -> fixtures.ts connects to live browser via connectOverCDP
+  -> fixtures.js connects to live browser via connectOverCDP
   -> tests run, attach JSON results via testInfo.attach('result')
   -> parse JSON report, return {passed, failed, tests}
 

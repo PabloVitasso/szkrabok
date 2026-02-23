@@ -23,9 +23,9 @@ npm run test:self
 
 | File | Suite | What it tests |
 |---|---|---|
-| `selftest/playwright/session.spec.ts` | Session Management | `session.open` creates session; `session.list` returns it; `session.close` persists state; `session.delete` removes it |
-| `selftest/playwright/stealth.spec.ts` | Stealth Mode | Session opens with stealth enabled; sannysoft result attached |
-| `selftest/playwright/tools.spec.ts` | CSS Selector Tools / Workflow | `navigate.goto`, `extract.text`, `extract.html`, `workflow.scrape` |
+| `selftest/playwright/session.spec.js` | Session Management | `session.open` creates session; `session.list` returns it; `session.close` persists state; `session.delete` removes it |
+| `selftest/playwright/stealth.spec.js` | Stealth Mode | Session opens with stealth enabled; sannysoft result attached |
+| `selftest/playwright/tools.spec.js` | CSS Selector Tools / Workflow | `navigate.goto`, `extract.text`, `extract.html`, `workflow.scrape` |
 | `selftest/node/basic.test.js` | Basic | Server starts, tools listed |
 | `selftest/node/schema.test.js` | Schema | All tool schemas valid |
 | `selftest/node/playwright_mcp.test.js` | Playwright MCP | snapshot, click, type via CDP |
@@ -53,13 +53,15 @@ npm run test:auto   # requires SZKRABOK_SESSION set
 
 | File | grep | What it does | Notes |
 |---|---|---|---|
-| `automation/park4night.spec.ts` | `acceptCookies` | Navigates to park4night.com, dismisses cookie banner | Skips gracefully on reused session (cookies already set) |
-| `automation/stealthcheck.spec.ts` | `stealthcheck` | Runs bot.sannysoft.com — 11 Intoli checks + 20 fp-collect checks | Requires `headless: false` — WebGL Renderer fails with SwiftShader in headless mode |
+| `automation/park4night.spec.js` | `acceptCookies` | Navigates to park4night.com, dismisses cookie banner | Skips gracefully on reused session (cookies already set) |
+| `automation/stealthcheck.spec.js` | `stealthcheck` | Runs bot.sannysoft.com — 10 Intoli checks + 20 fp-collect checks | WebGL Renderer excluded (hardware GPU string, not a stealth evasion) |
 
 #### stealthcheck detail
 
-**Intoli table (11 checks)** — result `td` carries class `result passed/failed/warn`:
-`User Agent` · `WebDriver` · `WebDriver Advanced` · `Chrome` · `Permissions` · `Plugins Length` · `Plugins is of type PluginArray` · `Languages` · `WebGL Vendor` · `WebGL Renderer` · `Broken Image Dimensions`
+**Intoli table (10 checks)** — result `td` carries class `result passed/failed/warn`:
+`User Agent` · `WebDriver` · `WebDriver Advanced` · `Chrome` · `Permissions` · `Plugins Length` · `Plugins is of type PluginArray` · `Languages` · `WebGL Vendor` · `Broken Image Dimensions`
+
+`WebGL Renderer` is excluded — it reports the hardware GPU string (SwiftShader on machines without a GPU), which stealth cannot spoof. `WebGL Vendor` covers the GL identity check.
 
 **fp-collect table (20 checks)** — status `td` (2nd column) carries class `passed` when `ok`:
 `PHANTOM_UA` · `PHANTOM_PROPERTIES` · `PHANTOM_ETSL` · `PHANTOM_LANGUAGE` · `PHANTOM_WEBSOCKET` · `MQ_SCREEN` · `PHANTOM_OVERFLOW` · `PHANTOM_WINDOW_HEIGHT` · `HEADCHR_UA` · `HEADCHR_CHROME_OBJ` · `HEADCHR_PERMISSIONS` · `HEADCHR_PLUGINS` · `HEADCHR_IFRAME` · `CHR_DEBUG_TOOLS` · `SELENIUM_DRIVER` · `CHR_BATTERY` · `CHR_MEMORY` · `TRANSPARENT_PIXEL` · `SEQUENTUM` · `VIDEO_CODECS`
@@ -100,20 +102,24 @@ Returns `{ rows: [{name, value, cls}], iframes: [{url, rows}] }`.
 
 ## Writing automation tests
 
-```typescript
-// automation/your-task.spec.ts
-import { test, expect } from './fixtures';
+```javascript
+// automation/your-task.spec.js
+import { test, expect } from './fixtures.js'
 
 test('my task', async ({ page }, testInfo) => {
-  await page.goto('https://example.com');
+  await page.goto('https://example.com')
   // ... actions / assertions ...
 
   await testInfo.attach('result', {
     body: JSON.stringify({ url: page.url() }),
     contentType: 'application/json',
-  });
-});
+  })
+})
 ```
+
+Stealth is active whether running via MCP (`browser.run_test`) or standalone CLI — the fixture
+connects to the stealth-enhanced MCP session browser via CDP when `SZKRABOK_CDP_ENDPOINT` is set,
+and falls back to `storageState.json` from a previous session for cookies when running standalone.
 
 Params: `browser.run_test { params: { url: "..." } }` → `TEST_URL` env var.
 
@@ -133,6 +139,6 @@ Without an active MCP session, tests fall back to `storageState.json` from a pre
 |---|---|
 | `run_test` fails "Session not open" | Call `session.open {id}` first |
 | `run_test` fails "no CDP port" | Session opened before CDP support — close and reopen |
-| WebGL Renderer FAIL on stealthcheck | Session must be opened with `headless: false` |
+| WebGL Renderer FAIL on stealthcheck | Not a stealth issue — it's the hardware GPU string; excluded from assertions |
 | `Executable doesn't exist` | `npx playwright install chromium` |
 | No JSON result in output | Add `testInfo.attach('result', {...})` to the test |

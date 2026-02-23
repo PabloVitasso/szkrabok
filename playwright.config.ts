@@ -59,13 +59,13 @@ export default defineConfig({
     {
       name: 'selftest',
       testDir: './selftest/playwright',
-      testMatch: '**/*.spec.ts',
+      testMatch: '**/*.spec.js',
       // No browser — tests run Playwright as test runner against an MCP subprocess.
     },
     {
       name: 'automation',
       testDir: './automation',
-      testMatch: '**/*.spec.ts',
+      testMatch: '**/*.spec.js',
       use: {
         // Load existing session state when launching a new browser.
         // Skipped when SZKRABOK_CDP_ENDPOINT is set (live browser already has state).
@@ -79,6 +79,6 @@ export default defineConfig({
 
   // automation-only global options (only apply when running that project)
   globalTeardown: process.env.PLAYWRIGHT_PROJECT === 'automation'
-    ? './automation/teardown'
+    ? './automation/teardown.js'
     : undefined,
 })

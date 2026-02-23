@@ -8,13 +8,13 @@
  * Without SZKRABOK_CDP_ENDPOINT the fixtures fall through to Playwright defaults,
  * so tests work standalone too (using storageState from playwright.config.ts).
  */
-import { test as base, chromium, Browser, BrowserContext, Page } from '@playwright/test'
+import { test as base, chromium } from '@playwright/test'
 
 export { expect } from '@playwright/test'
 
 const cdpEndpoint = process.env.SZKRABOK_CDP_ENDPOINT || ''
 
-export const test = base.extend<{}, { _cdpBrowser: Browser | null }>({
+export const test = base.extend({
   // Worker-scoped: one CDP connection per worker process, reused across tests.
   _cdpBrowser: [
     async ({}, use) => {
@@ -41,7 +41,7 @@ export const test = base.extend<{}, { _cdpBrowser: Browser | null }>({
       return
     }
     const contexts = _cdpBrowser.contexts()
-    const ctx: BrowserContext = contexts[0] ?? await _cdpBrowser.newContext()
+    const ctx = contexts[0] ?? await _cdpBrowser.newContext()
     await use(ctx)
     // Do NOT close — MCP session owns this context.
   },
@@ -53,7 +53,7 @@ export const test = base.extend<{}, { _cdpBrowser: Browser | null }>({
       return
     }
     const pages = context.pages()
-    const pg: Page = pages[0] ?? await context.newPage()
+    const pg = pages[0] ?? await context.newPage()
     await use(pg)
     // Do NOT close — MCP session owns this page.
   },

@@ -9,7 +9,7 @@ export default [
       quotes: ['error', 'single'],
       semi: ['error', 'never'],
       indent: ['error', 2],
-      'no-unused-vars': ['warn'],
+      'no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
       'no-console': ['off'],
     },
   },

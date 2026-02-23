@@ -105,7 +105,7 @@ export const open = async args => {
 }
 
 export const close = async args => {
-  const { id, save = true } = args
+  const { id } = args
 
   // Wrap with error handling in case context is already closed
   try {

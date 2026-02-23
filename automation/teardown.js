@@ -1,10 +1,12 @@
-import { chromium, FullConfig } from '@playwright/test'
 import path from 'path'
 import fs from 'fs'
+import { fileURLToPath } from 'url'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 // Saves storageState (cookies + localStorage) to the szkrabok session dir after test run.
 // szkrabok can then load this state via session.open() + storageState import.
-export default async function globalTeardown(_config: FullConfig) {
+export default async function globalTeardown(_config) {
   const sessionId = process.env.SZKRABOK_SESSION ?? 'playwright-default'
   const stateFile = path.resolve(
     __dirname, '..', 'sessions', sessionId, 'storageState.json'
