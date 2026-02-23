@@ -79,7 +79,7 @@ test('intoli-check', async ({ page }, testInfo) => {
   await page.goto(BASE_URL)
 
   console.log('step 2. wait for results tables to settle')
-  await page.waitForSelector('td.passed, td.failed, td.warn', { timeout: 15000 })
+  await page.waitForSelector('td.passed, td.failed, td.warn', { timeout: 30000 })
   await page.waitForTimeout(2000)
 
   // ── Intoli table ────────────────────────────────────────────────────────

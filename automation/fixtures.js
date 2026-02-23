@@ -61,14 +61,18 @@ export const test = base.extend({
   },
 
   // Reuse the existing page from the live session; create new one otherwise.
-  page: async ({ _cdpBrowser, context, page }, use) => {
-    if (!_cdpBrowser) {
-      await use(page)
+  // NOTE: base `page` fixture is NOT listed as a dependency — doing so would
+  // cause Playwright to open an extra blank tab in the CDP-connected browser.
+  page: async ({ _cdpBrowser, context }, use) => {
+    if (_cdpBrowser) {
+      const pages = context.pages()
+      const pg = pages[0] ?? await context.newPage()
+      await use(pg)
+      // Do NOT close — MCP session owns this page.
       return
     }
-    const pages = context.pages()
-    const pg = pages[0] ?? await context.newPage()
+    const pg = await context.newPage()
     await use(pg)
-    // Do NOT close — MCP session owns this page.
+    await pg.close()
   },
 })

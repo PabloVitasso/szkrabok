@@ -48,3 +48,4 @@ coverage/
 
 # Keep documentation
 !*.md
+vendor/
