@@ -1,3 +1,5 @@
+import prettierConfig from 'eslint-config-prettier';
+
 export default [
   {
     ignores: ['packages/**', 'roll.js', 'node_modules/**'],
@@ -9,9 +11,7 @@ export default [
       sourceType: 'module',
     },
     rules: {
-      quotes: ['error', 'single'],
-      semi: ['error', 'never'],
-      indent: 'off',
+      ...prettierConfig.rules,
       'no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
       'no-console': ['off'],
     },
