@@ -118,9 +118,11 @@ test('my task', async ({ page }, testInfo) => {
 })
 ```
 
-Stealth is active whether running via MCP (`browser.run_test`) or standalone CLI — the fixture
-connects to the stealth-enhanced MCP session browser via CDP when `SZKRABOK_CDP_ENDPOINT` is set,
-and falls back to `storageState.json` from a previous session for cookies when running standalone.
+Stealth is active in both modes:
+- **MCP** (`browser.run_test`) — fixture connects to the live stealth session via CDP
+- **Standalone CLI** — fixture launches its own stealth browser via `enhanceWithStealth(chromium)`
+
+Both paths use the same `playwright-extra` + `puppeteer-extra-plugin-stealth` library with identical evasions. `storageState.json` from a previous session is loaded for cookies when running standalone.
 
 Params: `browser.run_test { params: { url: "..." } }` → `TEST_URL` env var.
 
