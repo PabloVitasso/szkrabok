@@ -35,6 +35,25 @@ git merge upstream/main
 3. Update the version note at the top of `docs/playwright.md`
 4. Commit with: `merge: upstream/main (0.0.X -> 0.0.Y)`
 
+### playwright-core version bump during merge
+
+If the merge updates `playwright` / `playwright-core` to a new version, the lib files
+in `node_modules` must be cleanly replaced — npm caches packages and will NOT overwrite
+modified files with just `npm install`.
+
+```bash
+rm -rf node_modules/playwright-core
+npm install --ignore-scripts        # reinstall clean, skip postinstall
+node scripts/patch-playwright.js    # re-apply our patches manually
+```
+
+Then restart the MCP server.
+
+If `patch-playwright.js` fails after a playwright-core version bump, the search strings
+in the relevant patch step need updating — see comments in the script for guidance.
+Check `vendor/rebrowser-patches/patches/playwright-core/src.patch` for reference
+on what the upstream logic looks like in TypeScript.
+
 ---
 
 ## Branch conventions

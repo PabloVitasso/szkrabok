@@ -77,25 +77,43 @@ console.log(`[patch-playwright] playwright-core ${pwVersion} found at ${pkgRoot}
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
-const backups = new Map() // filePath -> originalContent
+const backedUp = [] // rels that have a .bak file on disk
+
+function bakPath(rel) {
+  return path.join(lib, rel) + '.bak'
+}
 
 function read(rel) {
   return fs.readFileSync(path.join(lib, rel), 'utf8')
 }
 
-function backup(rel, content) {
-  backups.set(rel, content)
+function backup(rel) {
+  const src = path.join(lib, rel)
+  const bak = bakPath(rel)
+  fs.copyFileSync(src, bak)
+  backedUp.push(rel)
+  console.log(`  backed up ${rel} -> ${path.basename(bak)}`)
 }
 
 function rollback() {
   console.error('[patch-playwright] Rolling back all changes ...')
-  for (const [rel, original] of backups) {
+  for (const rel of backedUp) {
+    const src = path.join(lib, rel)
+    const bak = bakPath(rel)
     try {
-      fs.writeFileSync(path.join(lib, rel), original, 'utf8')
+      fs.copyFileSync(bak, src)
+      fs.unlinkSync(bak)
       console.error(`  restored ${rel}`)
     } catch (e) {
       console.error(`  FAILED to restore ${rel}: ${e.message}`)
+      console.error(`  Backup is still at: ${bak}`)
     }
+  }
+}
+
+function removeBaks() {
+  for (const rel of backedUp) {
+    try { fs.unlinkSync(bakPath(rel)) } catch {}
   }
 }
 
@@ -416,11 +434,36 @@ class CDPSession`
 
 // ── run ───────────────────────────────────────────────────────────────────────
 
+// Marker injected by patch #1 — if present the file is already patched.
+const PATCH_MARKER = '__re__emitExecutionContext'
+
+function isAlreadyPatched() {
+  try {
+    return read('server/chromium/crConnection.js').includes(PATCH_MARKER)
+  } catch {
+    return false
+  }
+}
+
+if (isAlreadyPatched()) {
+  console.log('[patch-playwright] Already patched — nothing to do.')
+  process.exit(0)
+}
+
 console.log(`[patch-playwright] Applying ${patches.length} patch groups ...`)
 
 let failed = false
 
 for (const { file, steps } of patches) {
+  // back up to disk before touching anything
+  try {
+    backup(file)
+  } catch (e) {
+    console.error(`[patch-playwright] ERROR backing up ${file}: ${e.message}`)
+    failed = true
+    break
+  }
+
   let src
   try {
     src = read(file)
@@ -429,8 +472,6 @@ for (const { file, steps } of patches) {
     failed = true
     break
   }
-
-  backup(file, src)
 
   let patched
   try {
@@ -443,7 +484,7 @@ for (const { file, steps } of patches) {
 
   try {
     write(file, patched)
-    console.log(`  patched ${file}`)
+    console.log(`  patched  ${file}`)
   } catch (e) {
     console.error(`[patch-playwright] ERROR writing ${file}: ${e.message}`)
     failed = true
@@ -454,7 +495,7 @@ for (const { file, steps } of patches) {
 if (failed) {
   rollback()
   console.error('')
-  console.error('[patch-playwright] PATCH FAILED — all files restored to original state.')
+  console.error('[patch-playwright] PATCH FAILED — all files restored from .bak backups.')
   console.error('')
   console.error('  What to do:')
   console.error(`  1. Check playwright-core version (installed: ${pwVersion}).`)
@@ -468,4 +509,5 @@ if (failed) {
   process.exit(1)
 }
 
+removeBaks()
 console.log(`[patch-playwright] All patches applied successfully (playwright-core ${pwVersion}).`)
