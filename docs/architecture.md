@@ -48,7 +48,7 @@ szkrabok.config.local.toml Machine-specific overrides, gitignored — deep-merge
 
   utils/
     errors.js             wrapError, structured error responses
-    logger.js             logError
+    logger.js             log/logDebug/logWarn/logError; when log_level is "none"/empty/unset (the default) all logging is suppressed and no /tmp file is created (privacy); set log_level="debug" in local TOML to enable verbose file logging to /tmp/YYYYMMDDHHMMszkrabok-mcp.log
 
   upstream/
     wrapper.js            launchPersistentContext, navigate helpers
@@ -61,7 +61,7 @@ selftest/
 automation/
   park4night.spec.js             cookie banner acceptance (headed + headless)
   intoli-check.spec.js           bot.sannysoft.com stealth check (10 Intoli + 20 fp-collect)
-  rebrowser-check.spec.js        bot-detector.rebrowser.net (7/10 passing)
+  rebrowser-check.spec.js        bot-detector.rebrowser.net (8/10 passing)
   navigator-properties.spec.js   whatismybrowser.com navigator props + userAgentData eval
   fixtures.js                    CDP session sharing + storageState fallback
   teardown.js                    saves storageState after run
@@ -82,7 +82,12 @@ playwright.config.ts      single root config — projects: selftest + automation
 ## Szkrabok-specific hacks (preserve on upstream updates)
 
 - **TOML config** — two files: `szkrabok.config.toml` (committed, repo defaults) and `szkrabok.config.local.toml` (gitignored, machine-specific). Local is deep-merged on top of base at startup in both `src/config.js` and `playwright.config.ts`. Keys: `overrideUserAgent`, `userAgent`, `executablePath`, `viewport`, `locale`, `timezone`, `label`, `headless`. `executablePath` selects the Chromium binary; use `bash scripts/detect_browsers.sh` to find options. Headless priority: `HEADLESS` env var → `DISPLAY` presence → TOML `[default].headless`.
-- **Stealth** `core/szkrabok_stealth.js` — playwright-extra + stealth plugin; `user-data-dir` evasion disabled (conflicts with persistent profile); `applyStealthToExistingPage` applies evasions (UA override, userAgentData brands JS injection, hardwareConcurrency, languages, WebGL) via CDP to the initial page which `launchPersistentContext` creates before `onPageCreated` fires; imported by both MCP session launch and standalone automation fixtures
+- **Stealth** `core/szkrabok_stealth.js` — playwright-extra + stealth plugin; `user-data-dir` evasion disabled (conflicts with persistent profile); `applyStealthToExistingPage` applies evasions to the initial page which `launchPersistentContext` creates before `onPageCreated` fires; imported by both MCP session launch and standalone automation fixtures. **Critical constraints** (hard-won, do not revert):
+  - `Network.setUserAgentOverride` is **target-scoped** — persists regardless of which CDP session drives navigation. Used for UA string, platform, Accept-Language.
+  - `Page.addScriptToEvaluateOnNewDocument` via `newCDPSession` is **effectively session-scoped** — scripts registered this way never fire when navigations are driven by Playwright's own internal CDP session (e.g. `browser.navigate`, test runner). Dead end: do not use for init scripts.
+  - **`page.addInitScript()`** is the correct API for init scripts — it uses Playwright's internal session and fires before page JS on every navigation regardless of which client navigates.
+  - All property overrides must target **`Navigator.prototype`**, not the `navigator` instance. Defining on the instance makes the property visible in `Object.getOwnPropertyNames(navigator)`, which the rebrowser `navigatorWebdriver` check flags.
+  - Rebrowser score: **8/10**. Permanent failures (no fix available): `mainWorldExecution` (requires rebrowser-patches binary patch), `exposeFunctionLeak` (`page.exposeFunction` fingerprint).
 - **Playwright patches** `scripts/patch-playwright.js` — pattern-based patches applied to `node_modules/playwright-core` after `npm install`; patch #8 injects greasy brands generation into `calculateUserAgentMetadata` so `Emulation.setUserAgentOverride` includes correct brands; run `node scripts/patch-playwright.js` after any playwright-core version bump
 - **CDP port** `tools/szkrabok_session.js` — deterministic port from session ID (`20000 + abs(hash) % 10000`); enables `chromium.connectOverCDP()`
 - **Persistent profile** `core/storage.js` — sessions stored in `sessions/{id}/profile/`; no manual storageState saves

@@ -8,7 +8,7 @@ import NavigatorHardwareConcurrency from 'puppeteer-extra-plugin-stealth/evasion
 import NavigatorLanguages from 'puppeteer-extra-plugin-stealth/evasions/navigator.languages/index.js';
 import WebGLVendor from 'puppeteer-extra-plugin-stealth/evasions/webgl.vendor/index.js';
 import { STEALTH_CONFIG } from '../config.js';
-import { log } from '../utils/logger.js';
+import { log, logDebug } from '../utils/logger.js';
 
 // Evasions handled via individual plugins with options — must be removed from
 // the bundled StealthPlugin to avoid running twice.
@@ -139,6 +139,7 @@ export const enhanceWithStealth = (browser, presetConfig = {}) => {
 // See docs/launchpersistentcontext-stealth-issue.md
 export const applyStealthToExistingPage = async (page, presetConfig = {}) => {
   try {
+    logDebug('applyStealthToExistingPage called', { presetConfig, STEALTH_CONFIG_hw: STEALTH_CONFIG['navigator.hardwareConcurrency'] });
     const uaConfig = STEALTH_CONFIG['user-agent-override'];
     const overrideUA = presetConfig.overrideUserAgent ?? uaConfig.enabled ?? true;
     const hwConfig = STEALTH_CONFIG['navigator.hardwareConcurrency'];
@@ -216,15 +217,12 @@ export const applyStealthToExistingPage = async (page, presetConfig = {}) => {
       });
 
       // ── navigator.userAgentData (brands) ──────────────────────────────────
-      // Network.setUserAgentOverride sets brands at the CDP level, but Playwright's
-      // internal _updateUserAgent() calls Emulation.setUserAgentOverride without
-      // brands on every navigation, clobbering ours. Injecting via
-      // Page.addScriptToEvaluateOnNewDocument runs before page JS on every
-      // navigation and is immune to CDP UA resets.
+      // page.addInitScript() uses Playwright's internal CDP session and fires
+      // before page JS on every navigation — immune to CDP UA resets from
+      // Playwright's own _updateUserAgent().
       const brandsJson = JSON.stringify(brands);
       const fullVersion = uaVersion;
-      await client.send('Page.addScriptToEvaluateOnNewDocument', {
-        source: `
+      await page.addInitScript(`
 (function() {
   const _brands = ${brandsJson};
   const _uad = {
@@ -249,18 +247,28 @@ export const applyStealthToExistingPage = async (page, presetConfig = {}) => {
   try {
     Object.defineProperty(Navigator.prototype, 'userAgentData', { get: () => _uad, configurable: true });
   } catch(e) {}
-})();`,
-      });
+})();`);
     }
 
     // ── navigator.hardwareConcurrency ───────────────────────────────────────
-    // Page.addScriptToEvaluateOnNewDocument runs before page JS on every future
-    // navigation of this page — equivalent to page.addInitScript() but via CDP.
+    // page.addInitScript() uses Playwright's internal CDP session so it fires
+    // correctly even when navigations are driven by a separate CDP client.
+    logDebug('hwConfig propagation check', { hwConfig, overrideUA });
     if (hwConfig.enabled ?? true) {
       const concurrency = hwConfig.hardware_concurrency ?? 4;
-      await client.send('Page.addScriptToEvaluateOnNewDocument', {
-        source: `Object.defineProperty(navigator, 'hardwareConcurrency', { get: () => ${concurrency} });`,
-      });
+      logDebug('registering hardwareConcurrency init script', { concurrency });
+      await page.addInitScript(`(function(){
+  console.error('[szkrabok-stealth] hardwareConcurrency init script running, target=${concurrency}');
+  try {
+    Object.defineProperty(Navigator.prototype, 'hardwareConcurrency', { get: () => ${concurrency}, configurable: true });
+    console.error('[szkrabok-stealth] hardwareConcurrency defineProperty succeeded, value=' + navigator.hardwareConcurrency);
+  } catch(e) {
+    console.error('[szkrabok-stealth] hardwareConcurrency defineProperty FAILED: ' + e.message);
+  }
+})()`);
+      logDebug('hardwareConcurrency init script registered', { concurrency });
+    } else {
+      logDebug('hardwareConcurrency evasion disabled by config');
     }
 
     // ── navigator.languages ─────────────────────────────────────────────────
@@ -268,17 +276,14 @@ export const applyStealthToExistingPage = async (page, presetConfig = {}) => {
       const locale = presetConfig.locale || 'en-US';
       const languages = langConfig.languages ?? [locale, locale.split('-')[0]].filter(Boolean);
       const langsJson = JSON.stringify(languages);
-      await client.send('Page.addScriptToEvaluateOnNewDocument', {
-        source: `Object.defineProperty(navigator, 'languages', { get: () => ${langsJson} });`,
-      });
+      await page.addInitScript(`Object.defineProperty(Navigator.prototype, 'languages', { get: () => ${langsJson}, configurable: true });`);
     }
 
     // ── webgl.vendor ────────────────────────────────────────────────────────
     if (webglConfig.enabled ?? true) {
       const vendor = webglConfig.vendor ?? 'Intel Inc.';
       const renderer = webglConfig.renderer ?? 'Intel Iris OpenGL Engine';
-      await client.send('Page.addScriptToEvaluateOnNewDocument', {
-        source: `
+      await page.addInitScript(`
 (function() {
   const _getParameter = WebGLRenderingContext.prototype.getParameter;
   WebGLRenderingContext.prototype.getParameter = function(p) {
@@ -294,13 +299,11 @@ export const applyStealthToExistingPage = async (page, presetConfig = {}) => {
       return _get2.call(this, p);
     };
   }
-})();`,
-      });
+})()`);
     }
 
-    // Do NOT detach — Network.setUserAgentOverride and
-    // Page.addScriptToEvaluateOnNewDocument are scoped to the CDP session.
-    // Detaching removes the overrides. Chrome cleans up when the page closes.
+    // Do NOT detach — Network.setUserAgentOverride is scoped to the CDP session.
+    // Detaching removes it. Chrome cleans up when the page closes.
     log('Applied stealth evasions to existing page via CDP');
   } catch (err) {
     log('applyStealthToExistingPage failed', err.message);

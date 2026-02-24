@@ -44,11 +44,18 @@ called from `src/upstream/wrapper.js` after `launchPersistentContext`.
 session drives navigation. Fixes `navigator.platform`, `navigator.userAgent`,
 `Accept-Language` header.
 
-### What doesn't work
-`Page.addScriptToEvaluateOnNewDocument` — **effectively session-scoped**: scripts
-registered via the MCP server's CDP session do not fire when navigations are
-initiated from a separate CDP session (the test runner's or MCP tool's Playwright).
-Result: `hardwareConcurrency`, `webgl.vendor`, `navigator.languages` remain real.
+### What doesn't work via CDP session
+`Page.addScriptToEvaluateOnNewDocument` via `newCDPSession` — **effectively
+session-scoped**: scripts registered via a separate CDP session do not fire when
+navigations are driven by Playwright's own internal session.
+
+### Fix: page.addInitScript()
+`page.addInitScript()` uses Playwright's **internal** CDP session and fires correctly
+on every navigation regardless of which client drives them. All init-script-based
+overrides (`hardwareConcurrency`, `webgl.vendor`, `navigator.languages`,
+`userAgentData`) have been migrated to `page.addInitScript()` in
+`applyStealthToExistingPage`. Verified working: `hardwareConcurrency: 4`,
+`languages: ["en-US","en"]`, `userAgentData.brands` ✓
 
 ### navigator.userAgentData — unfixed
 `Network.setUserAgentOverride` accepts `userAgentMetadata` (brands, platform, etc.)

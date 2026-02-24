@@ -61,8 +61,11 @@ headless        = false
 timeout     = 30000
 # Disable WebGL to reduce fingerprinting surface
 disable_webgl = true
-# Log verbosity: error, warn, info, debug
-log_level   = "info"
+# Log verbosity: error, warn, info, debug — or "none"/unset to disable entirely.
+# Default is "none": no logs written, no /tmp files created (privacy).
+# Override in szkrabok.config.local.toml to enable on a specific machine.
+# When enabled, logs go to e.g. /tmp/202602242135szkrabok-mcp.log
+log_level   = "none"
 
 [default.viewport]
 # Standard 16:10 laptop resolution

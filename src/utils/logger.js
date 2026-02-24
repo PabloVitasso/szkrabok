@@ -1,4 +1,5 @@
 import { LOG_LEVEL } from '../config.js';
+import { createWriteStream } from 'fs';
 
 const levels = {
   error: 0,
@@ -7,7 +8,24 @@ const levels = {
   debug: 3,
 };
 
+// "none", empty string, or unset → levels[LOG_LEVEL] is undefined → always false.
 const shouldLog = level => levels[level] <= levels[LOG_LEVEL];
+
+// Only open a log file and tee console.error when logging is actually enabled.
+// Avoids creating /tmp files (privacy) when log_level is "none" or unset.
+if (shouldLog('error')) {
+  const _ts = new Date();
+  const _pad = n => String(n).padStart(2, '0');
+  const _logFile = `/tmp/${_ts.getFullYear()}${_pad(_ts.getMonth()+1)}${_pad(_ts.getDate())}${_pad(_ts.getHours())}${_pad(_ts.getMinutes())}szkrabok-mcp.log`;
+  const _fileStream = createWriteStream(_logFile, { flags: 'a' });
+
+  const _origConsoleError = console.error.bind(console);
+  console.error = (...args) => {
+    const line = args.map(a => (typeof a === 'string' ? a : JSON.stringify(a))).join(' ');
+    _origConsoleError(...args);
+    _fileStream.write(line + '\n');
+  };
+}
 
 const format = (level, msg, meta) => {
   const timestamp = new Date().toISOString();
