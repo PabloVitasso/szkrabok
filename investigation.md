@@ -69,11 +69,9 @@ Chrome fails without $DISPLAY. Pre-existing issue, not a regression.
 - [ ] Fix `getHighEntropyValues.fullVersionList` — extend the JS override in
       `applyStealthToExistingPage` to return a correct `fullVersionList` matching the
       greasy brands
-- [ ] Auto-detect system Chromium on startup — if `executablePath` is not set in TOML,
-      scan known paths (`/usr/bin/google-chrome`, `/usr/bin/chromium`,
-      `flatpak run io.github.ungoogled_software.ungoogled_chromium`, etc.) and log a
-      suggestion. Playwright bundled binary is "Chrome for Testing" which brands itself
-      as automation tooling — a bot signal. Ungoogled-chromium (current default) avoids
-      that but still needs greasy brands patch. Regular Google Chrome stable would be
-      best for native brands but requires manual install.
+- [x] Browser detection + local config — `scripts/detect_browsers.sh` scans for usable
+      binaries and outputs ready-to-paste TOML lines. `szkrabok.config.local.toml`
+      (gitignored) is deep-merged on top of the committed base config. `install.sh`
+      runs the detector automatically. `findChromiumPath()` fixed to read
+      `tomlDefault.executablePath` (was reading from `defaults` which never included it).
 - [ ] Commit all changes once the above are resolved (or at a stable checkpoint)

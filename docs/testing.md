@@ -148,10 +148,11 @@ Without an active MCP session, tests fall back to `storageState.json` from a pre
 
 ## Troubleshooting
 
-| Symptom                             | Fix                                                                          |
-| ----------------------------------- | ---------------------------------------------------------------------------- |
-| `run_test` fails "Session not open" | Call `session.open {id}` first                                               |
-| `run_test` fails "no CDP port"      | Session opened before CDP support — close and reopen                         |
-| WebGL Renderer FAIL on intoli-check | Not a stealth issue — it's the hardware GPU string; excluded from assertions |
-| `Executable doesn't exist`          | `npx playwright install chromium`                                            |
-| No JSON result in output            | Add `testInfo.attach('result', {...})` to the test                           |
+| Symptom                             | Fix                                                                                            |
+| ----------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `run_test` fails "Session not open" | Call `session.open {id}` first                                                                 |
+| `run_test` fails "no CDP port"      | Session opened before CDP support — close and reopen                                           |
+| WebGL Renderer FAIL on intoli-check | Not a stealth issue — it's the hardware GPU string; excluded from assertions                   |
+| `Executable doesn't exist`          | `npx playwright install chromium`                                                              |
+| No JSON result in output            | Add `testInfo.attach('result', {...})` to the test                                             |
+| Wrong browser / want ungoogled      | Run `bash scripts/detect_browsers.sh`, copy `executablePath` to `szkrabok.config.local.toml`  |

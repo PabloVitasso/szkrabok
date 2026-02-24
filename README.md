@@ -28,42 +28,42 @@ Fork of [microsoft/playwright-mcp](https://github.com/microsoft/playwright-mcp) 
 
 ## Configuration
 
-`szkrabok.config.toml` at repo root controls browser identity and presets:
+Two config files at repo root — only the first is committed:
 
-```toml
-[default]
-label             = "Chromium (no UA spoof)"
-overrideUserAgent = false   # false = don't pass a UA string; browser reports its real binary UA
-# userAgent = "Mozilla/5.0 ..."  # only used when overrideUserAgent = true
-locale    = "en-US"
-timezone  = "America/New_York"
-headless  = false
-viewport  = { width = 1280, height = 800 }
+| File | Committed | Purpose |
+|---|---|---|
+| `szkrabok.config.toml` | ✓ | Repo defaults — browser identity, presets, stealth |
+| `szkrabok.config.local.toml` | ✗ gitignored | Machine-specific overrides (executablePath, UA, etc.) |
 
-[stealth]
-enabled = true
+`szkrabok.config.local.toml` is deep-merged on top of the base — only keys you set there override the default. Everything else inherits. Create it on a new machine:
 
-[preset.mobile-iphone-15]
-label             = "Mobile / iPhone 15 / Safari 17"
-overrideUserAgent = true
-userAgent         = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 ...)"
-viewport          = { width = 393, height = 852 }
+```bash
+bash scripts/detect_browsers.sh    # find your Chrome/Chromium binary
 ```
 
-`overrideUserAgent = false` (the default) lets the browser report its real binary UA, keeping
-`navigator.userAgent` and `navigator.userAgentData` consistent — no contradictory signals.
-Set `overrideUserAgent = true` and provide `userAgent` to spoof a specific browser identity.
+```toml
+# szkrabok.config.local.toml
+[default]
+executablePath    = "/home/you/.local/bin/ungoogled-chromium"
+overrideUserAgent = true
+userAgent         = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) ... Chrome/145.0.0.0 ..."
+label             = "My local Chrome"
+```
 
-Presets are named browser identities (overrideUserAgent + userAgent + viewport + locale + timezone + label).
-`[default]` is the TOML fallback. When no preset is requested, `session.open` reports `"preset": "chromium-honest"` — the named alias for the default identity. Named presets override individual fields.
+**Which binary to use:** the Playwright bundled binary (`Chrome for Testing`) works but
+brands itself as automation tooling — detectable. `detect_browsers.sh` scans for Google
+Chrome stable (best), ungoogled-chromium, Chromium, Brave, and Edge.
 
-Pass a preset in `session.open`:
+`overrideUserAgent = false` (repo default) lets the browser report its real binary UA,
+keeping `navigator.userAgent` and `navigator.userAgentData` consistent.
+Set `overrideUserAgent = true` with a `userAgent` string to spoof a specific identity.
+
+Presets are named browser identities (viewport + locale + timezone + userAgent + label).
+`[default]` is the TOML fallback. Pass a preset per-session:
 
 ```
 session.open { "id": "mobile-test", "config": { "preset": "mobile-iphone-15" } }
 ```
-
-The resolved preset name and label are returned in `session.open` and `session.list` responses.
 
 For Playwright standalone runs, set `SZKRABOK_PRESET=mobile-iphone-15` before running tests.
 

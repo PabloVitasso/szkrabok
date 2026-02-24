@@ -43,7 +43,8 @@ src/
     szkrabok_stealth.js   playwright-extra + stealth plugin setup  [szkrabok-only]
     config.js             TOML + env config, resolvePreset(), findChromiumPath()
 
-szkrabok.config.toml      Browser identity presets (overrideUserAgent, userAgent, viewport, locale, timezone, label)
+szkrabok.config.toml       Browser identity presets — repo defaults (committed)
+szkrabok.config.local.toml Machine-specific overrides, gitignored — deep-merged on top
 
   utils/
     errors.js             wrapError, structured error responses
@@ -80,7 +81,7 @@ playwright.config.ts      single root config — projects: selftest + automation
 
 ## Szkrabok-specific hacks (preserve on upstream updates)
 
-- **TOML config** `szkrabok.config.toml` — browser presets (overrideUserAgent, userAgent, viewport, locale, timezone, label, headless, executablePath). `overrideUserAgent = true` with `userAgent` spoofs the UA; set to `false` to report the real binary UA. `executablePath` overrides the Chromium binary (e.g. ungoogled-chromium via flatpak). `src/config.js` and `playwright.config.ts` read it independently via `smol-toml`. Headless priority: `HEADLESS` env var → `DISPLAY` presence → TOML `[default].headless`.
+- **TOML config** — two files: `szkrabok.config.toml` (committed, repo defaults) and `szkrabok.config.local.toml` (gitignored, machine-specific). Local is deep-merged on top of base at startup in both `src/config.js` and `playwright.config.ts`. Keys: `overrideUserAgent`, `userAgent`, `executablePath`, `viewport`, `locale`, `timezone`, `label`, `headless`. `executablePath` selects the Chromium binary; use `bash scripts/detect_browsers.sh` to find options. Headless priority: `HEADLESS` env var → `DISPLAY` presence → TOML `[default].headless`.
 - **Stealth** `core/szkrabok_stealth.js` — playwright-extra + stealth plugin; `user-data-dir` evasion disabled (conflicts with persistent profile); `applyStealthToExistingPage` applies evasions (UA override, userAgentData brands JS injection, hardwareConcurrency, languages, WebGL) via CDP to the initial page which `launchPersistentContext` creates before `onPageCreated` fires; imported by both MCP session launch and standalone automation fixtures
 - **Playwright patches** `scripts/patch-playwright.js` — pattern-based patches applied to `node_modules/playwright-core` after `npm install`; patch #8 injects greasy brands generation into `calculateUserAgentMetadata` so `Emulation.setUserAgentOverride` includes correct brands; run `node scripts/patch-playwright.js` after any playwright-core version bump
 - **CDP port** `tools/szkrabok_session.js` — deterministic port from session ID (`20000 + abs(hash) % 10000`); enables `chromium.connectOverCDP()`
