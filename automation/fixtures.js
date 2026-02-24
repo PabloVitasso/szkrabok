@@ -12,13 +12,16 @@ import { test as base, chromium } from 'playwright/test';
 import { enhanceWithStealth } from '../src/core/szkrabok_stealth.js';
 import { resolvePreset } from '../src/config.js';
 
-// Standalone automation runs use the default preset for stealth identity config
-const defaultPreset = resolvePreset('default');
-const stealthChromium = enhanceWithStealth(chromium, defaultPreset);
-
 export { expect } from 'playwright/test';
 
 const cdpEndpoint = process.env.SZKRABOK_CDP_ENDPOINT || '';
+
+// Only initialise stealth when no CDP endpoint is set (standalone mode).
+// Avoids a redundant enhanceWithStealth() call — and the log noise — when
+// the test subprocess is connecting to an already-stealthed MCP session.
+const stealthChromium = cdpEndpoint
+  ? null
+  : enhanceWithStealth(chromium, resolvePreset('default'));
 
 export const test = base.extend({
   // Worker-scoped: one CDP connection per worker process, reused across tests.
