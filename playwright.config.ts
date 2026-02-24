@@ -9,10 +9,29 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 // Read TOML config directly — independent of src/config.js to avoid coupling
 // playwright's loader to the MCP module graph.
+// Base:  szkrabok.config.toml       (committed, repo defaults)
+// Local: szkrabok.config.local.toml (gitignored, machine-specific overrides)
+const isPlainObject = (v: unknown): v is Record<string, unknown> =>
+  v !== null && typeof v === 'object' && !Array.isArray(v)
+
+const deepMerge = (base: Record<string, unknown>, override: Record<string, unknown>): Record<string, unknown> => {
+  const result = { ...base }
+  for (const key of Object.keys(override)) {
+    result[key] =
+      isPlainObject(base[key]) && isPlainObject(override[key])
+        ? deepMerge(base[key] as Record<string, unknown>, override[key] as Record<string, unknown>)
+        : override[key]
+  }
+  return result
+}
+
 const tomlPath = path.join(__dirname, 'szkrabok.config.toml')
-const toml = fs.existsSync(tomlPath) ? parse(fs.readFileSync(tomlPath, 'utf8')) : {}
-const tomlDefault = toml.default ?? {}
-const tomlPresets = toml.preset ?? {}
+const tomlLocalPath = path.join(__dirname, 'szkrabok.config.local.toml')
+const tomlBase = fs.existsSync(tomlPath) ? parse(fs.readFileSync(tomlPath, 'utf8')) : {}
+const tomlLocal = fs.existsSync(tomlLocalPath) ? parse(fs.readFileSync(tomlLocalPath, 'utf8')) : {}
+const toml = deepMerge(tomlBase as Record<string, unknown>, tomlLocal as Record<string, unknown>)
+const tomlDefault = (toml.default as Record<string, unknown>) ?? {}
+const tomlPresets = (toml.preset as Record<string, unknown>) ?? {}
 
 // Resolve preset: merge [default] → [preset.<name>] (preset wins on conflict)
 const presetName = process.env.SZKRABOK_PRESET || 'default'

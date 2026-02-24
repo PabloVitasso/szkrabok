@@ -8,9 +8,28 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(__dirname, '..');
 
 // ── TOML config ───────────────────────────────────────────────────────────────
+// Base:  szkrabok.config.toml       (committed, repo defaults)
+// Local: szkrabok.config.local.toml (gitignored, machine-specific overrides)
+// Local is deep-merged on top of base — only keys present in local override base.
+
+const isPlainObject = v => v !== null && typeof v === 'object' && !Array.isArray(v);
+
+const deepMerge = (base, override) => {
+  const result = { ...base };
+  for (const key of Object.keys(override)) {
+    result[key] =
+      isPlainObject(base[key]) && isPlainObject(override[key])
+        ? deepMerge(base[key], override[key])
+        : override[key];
+  }
+  return result;
+};
 
 const TOML_PATH = join(REPO_ROOT, 'szkrabok.config.toml');
-const toml = existsSync(TOML_PATH) ? parse(readFileSync(TOML_PATH, 'utf8')) : {};
+const TOML_LOCAL_PATH = join(REPO_ROOT, 'szkrabok.config.local.toml');
+const tomlBase = existsSync(TOML_PATH) ? parse(readFileSync(TOML_PATH, 'utf8')) : {};
+const tomlLocal = existsSync(TOML_LOCAL_PATH) ? parse(readFileSync(TOML_LOCAL_PATH, 'utf8')) : {};
+const toml = deepMerge(tomlBase, tomlLocal);
 
 const tomlDefault = toml.default ?? {};
 const tomlPresets = toml.preset ?? {};
@@ -112,8 +131,8 @@ export const TIMEZONE = defaults.timezone || 'America/New_York';
 
 export const findChromiumPath = () => {
   // TOML executablePath takes priority over auto-detection
-  if (defaults.executablePath) {
-    return defaults.executablePath;
+  if (tomlDefault.executablePath) {
+    return tomlDefault.executablePath;
   }
 
   const playwrightCache = join(homedir(), '.cache', 'ms-playwright');

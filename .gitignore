@@ -49,3 +49,6 @@ coverage/
 # Keep documentation
 !*.md
 vendor/
+
+# Local config overrides (machine-specific settings — not committed)
+szkrabok.config.local.toml
