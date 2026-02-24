@@ -11,6 +11,13 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+// Default config applied to every session.open call made through openSession().
+// Tests must not rely on the server's TOML for these values — selftest must be
+// self-contained and runnable in any environment (headless CI, no $DISPLAY, etc).
+const SESSION_DEFAULTS = {
+  headless: true,
+};
+
 export const test = baseTest.extend({
   startClient: async ({}, use) => {
     const clients = [];
@@ -65,6 +72,22 @@ export const test = baseTest.extend({
   client: async ({ startClient }, use) => {
     const { client } = await startClient();
     await use(client);
+  },
+
+  // openSession(client, id, extraArgs) — wraps session.open with SESSION_DEFAULTS.
+  // Use this in all selftests instead of calling session.open directly, so tests
+  // are independent of the server's TOML config.
+  openSession: async ({}, use) => {
+    await use(async (client, id, extraArgs = {}) => {
+      return client.callTool({
+        name: 'session.open',
+        arguments: {
+          id,
+          ...extraArgs,
+          config: { ...SESSION_DEFAULTS, ...(extraArgs.config ?? {}) },
+        },
+      });
+    });
   },
 });
 

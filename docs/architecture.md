@@ -55,15 +55,17 @@ szkrabok.config.toml      Browser identity presets (overrideUserAgent, userAgent
 selftest/
   node/                   node:test specs — schema, basic, MCP protocol, scraping
   playwright/             playwright specs — session lifecycle, stealth, CSS tools
-    fixtures.js           MCP subprocess client fixture
+    fixtures.js           MCP subprocess client fixture; openSession() injects headless:true
 
 automation/
-  park4night.spec.js      cookie banner acceptance
-  stealthcheck.spec.js    bot.sannysoft.com stealth check (10 Intoli + 20 fp-collect)
-  fixtures.js             CDP session sharing + storageState fallback
-  teardown.js             saves storageState after run
+  park4night.spec.js             cookie banner acceptance (headed + headless)
+  intoli-check.spec.js           bot.sannysoft.com stealth check (10 Intoli + 20 fp-collect)
+  rebrowser-check.spec.js        bot-detector.rebrowser.net (7/10 passing)
+  navigator-properties.spec.js   whatismybrowser.com navigator props + userAgentData eval
+  fixtures.js                    CDP session sharing + storageState fallback
+  teardown.js                    saves storageState after run
   scripts/
-    inspect-page.mjs      generic table+iframe inspector (browser.run_file)
+    inspect-page.mjs             generic table+iframe inspector (browser.run_file)
 
 playwright.config.ts      single root config — projects: selftest + automation
 ```
@@ -78,8 +80,9 @@ playwright.config.ts      single root config — projects: selftest + automation
 
 ## Szkrabok-specific hacks (preserve on upstream updates)
 
-- **TOML config** `szkrabok.config.toml` — browser presets (overrideUserAgent, userAgent, viewport, locale, timezone, label, headless). `overrideUserAgent = false` (default) skips passing a UA string so `navigator.userAgent` and `navigator.userAgentData` report the real binary consistently; set to `true` with a `userAgent` string to spoof. Also includes a named `chromium-honest` preset as an explicit alias for the no-spoof default. `src/config.js` and `playwright.config.ts` read it independently via `smol-toml`. Headless priority: `HEADLESS` env var → `DISPLAY` presence → TOML `[default].headless`.
-- **Stealth** `core/szkrabok_stealth.js` — playwright-extra + stealth plugin; `user-data-dir` evasion disabled (conflicts with persistent profile); imported by both MCP session launch and standalone automation fixtures
+- **TOML config** `szkrabok.config.toml` — browser presets (overrideUserAgent, userAgent, viewport, locale, timezone, label, headless, executablePath). `overrideUserAgent = true` with `userAgent` spoofs the UA; set to `false` to report the real binary UA. `executablePath` overrides the Chromium binary (e.g. ungoogled-chromium via flatpak). `src/config.js` and `playwright.config.ts` read it independently via `smol-toml`. Headless priority: `HEADLESS` env var → `DISPLAY` presence → TOML `[default].headless`.
+- **Stealth** `core/szkrabok_stealth.js` — playwright-extra + stealth plugin; `user-data-dir` evasion disabled (conflicts with persistent profile); `applyStealthToExistingPage` applies evasions (UA override, userAgentData brands JS injection, hardwareConcurrency, languages, WebGL) via CDP to the initial page which `launchPersistentContext` creates before `onPageCreated` fires; imported by both MCP session launch and standalone automation fixtures
+- **Playwright patches** `scripts/patch-playwright.js` — pattern-based patches applied to `node_modules/playwright-core` after `npm install`; patch #8 injects greasy brands generation into `calculateUserAgentMetadata` so `Emulation.setUserAgentOverride` includes correct brands; run `node scripts/patch-playwright.js` after any playwright-core version bump
 - **CDP port** `tools/szkrabok_session.js` — deterministic port from session ID (`20000 + abs(hash) % 10000`); enables `chromium.connectOverCDP()`
 - **Persistent profile** `core/storage.js` — sessions stored in `sessions/{id}/profile/`; no manual storageState saves
 - **Test integration** `tools/szkrabok_browser.js` — `browser.run_test` spawns `npx playwright test` with `SZKRABOK_SESSION={id}`; `browser.run_file` runs a named export from an `.mjs` script; both connect via CDP — **`session.open` must be called first**

@@ -7,19 +7,11 @@ import { test, expect } from './fixtures.js';
 import { randomUUID } from 'crypto';
 
 test.describe('CSS Selector Tools', () => {
-  test('navigate.goto navigates to URL', async ({ client }) => {
+  test('navigate.goto navigates to URL', async ({ client, openSession }) => {
     const sessionId = `nav-${randomUUID()}`;
 
-    // Open session
-    await client.callTool({
-      name: 'session.open',
-      arguments: {
-        id: sessionId,
-        url: 'https://example.com',
-      },
-    });
+    await openSession(client, sessionId, { url: 'https://example.com' });
 
-    // Navigate to different URL
     const response = await client.callTool({
       name: 'nav.goto',
       arguments: {
@@ -40,19 +32,11 @@ test.describe('CSS Selector Tools', () => {
     });
   });
 
-  test('extract.text extracts page text', async ({ client }) => {
+  test('extract.text extracts page text', async ({ client, openSession }) => {
     const sessionId = `extract-${randomUUID()}`;
 
-    // Open session
-    await client.callTool({
-      name: 'session.open',
-      arguments: {
-        id: sessionId,
-        url: 'https://example.com',
-      },
-    });
+    await openSession(client, sessionId, { url: 'https://example.com' });
 
-    // Extract text
     const response = await client.callTool({
       name: 'extract.text',
       arguments: {
@@ -73,19 +57,11 @@ test.describe('CSS Selector Tools', () => {
     });
   });
 
-  test('extract.html extracts page HTML', async ({ client }) => {
+  test('extract.html extracts page HTML', async ({ client, openSession }) => {
     const sessionId = `html-${randomUUID()}`;
 
-    // Open session
-    await client.callTool({
-      name: 'session.open',
-      arguments: {
-        id: sessionId,
-        url: 'https://example.com',
-      },
-    });
+    await openSession(client, sessionId, { url: 'https://example.com' });
 
-    // Extract HTML
     const response = await client.callTool({
       name: 'extract.html',
       arguments: { id: sessionId },
@@ -106,19 +82,11 @@ test.describe('CSS Selector Tools', () => {
 });
 
 test.describe('Workflow Tools', () => {
-  test('workflow.scrape extracts structured data', async ({ client }) => {
+  test('workflow.scrape extracts structured data', async ({ client, openSession }) => {
     const sessionId = `scrape-${randomUUID()}`;
 
-    // Open session
-    await client.callTool({
-      name: 'session.open',
-      arguments: {
-        id: sessionId,
-        url: 'https://example.com',
-      },
-    });
+    await openSession(client, sessionId, { url: 'https://example.com' });
 
-    // Scrape data
     const response = await client.callTool({
       name: 'workflow.scrape',
       arguments: {

@@ -21,6 +21,7 @@ export const resolvePreset = name => {
   const base = {
     label: tomlDefault.label ?? 'Default',
     userAgent: tomlDefault.userAgent ?? null,
+    overrideUserAgent: tomlDefault.overrideUserAgent ?? null,
     viewport: tomlDefault.viewport ?? null,
     locale: tomlDefault.locale ?? null,
     timezone: tomlDefault.timezone ?? null,
@@ -40,6 +41,7 @@ export const resolvePreset = name => {
     preset: name,
     label: override.label ?? base.label,
     userAgent: override.userAgent ?? base.userAgent,
+    overrideUserAgent: override.overrideUserAgent ?? base.overrideUserAgent,
     viewport: override.viewport ?? base.viewport,
     locale: override.locale ?? base.locale,
     timezone: override.timezone ?? base.timezone,
@@ -109,6 +111,11 @@ export const TIMEZONE = defaults.timezone || 'America/New_York';
 // ── Chromium path resolution ──────────────────────────────────────────────────
 
 export const findChromiumPath = () => {
+  // TOML executablePath takes priority over auto-detection
+  if (defaults.executablePath) {
+    return defaults.executablePath;
+  }
+
   const playwrightCache = join(homedir(), '.cache', 'ms-playwright');
 
   if (existsSync(playwrightCache)) {

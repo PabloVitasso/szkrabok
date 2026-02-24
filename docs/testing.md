@@ -31,6 +31,13 @@ npm run test:self
 | `selftest/node/playwright_mcp.test.js` | Playwright MCP                | snapshot, click, type via CDP                                                                                          |
 | `selftest/node/scrap.test.js`          | Scraping                      | extract + session open/close cycle                                                                                     |
 
+### Selftest isolation
+
+Selftests are fully self-contained. The `openSession(client, id, extraArgs)` fixture in
+`selftest/playwright/fixtures.js` always injects `{ headless: true }` as a default, so
+tests pass in any environment (no `$DISPLAY` required) regardless of the server's TOML
+config. Individual tests can override with `config: { headless: false }` if needed.
+
 ---
 
 ## automation — real browser workflows
@@ -52,11 +59,12 @@ npm run test:auto   # requires SZKRABOK_SESSION set
 
 ### Test cases
 
-| File                                 | grep              | What it does                                                                           | Notes                                                                                    |
-| ------------------------------------ | ----------------- | -------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| `automation/park4night.spec.js`      | `acceptCookies`   | Navigates to park4night.com, dismisses cookie banner                                   | Skips gracefully on reused session (cookies already set)                                 |
-| `automation/intoli-check.spec.js`    | `intoli-check`    | Runs bot.sannysoft.com — 10 Intoli checks + 20 fp-collect checks; session id: `intoli` | WebGL Renderer excluded (hardware GPU string, not a stealth evasion)                     |
-| `automation/rebrowser-check.spec.js` | `rebrowser-check` | Runs bot-detector.rebrowser.net — 9 checks; session id: `rebrowser`                    | Triggers dummyFn, sourceUrlLeak, mainWorldExecution, exposeFunctionLeak before asserting |
+| File                                        | grep                    | What it does                                                                            | Notes                                                                                                              |
+| ------------------------------------------- | ----------------------- | --------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `automation/park4night.spec.js`             | `acceptCookies`         | Navigates to park4night.com, dismisses cookie banner                                    | Skips gracefully on reused session (cookies already set); works in both headed and headless mode                   |
+| `automation/intoli-check.spec.js`           | `intoli-check`          | Runs bot.sannysoft.com — 10 Intoli checks + 20 fp-collect checks; session id: `intoli`  | WebGL Renderer excluded (hardware GPU string, not a stealth evasion)                                              |
+| `automation/rebrowser-check.spec.js`        | `rebrowser-check`       | Runs bot-detector.rebrowser.net — 10 checks; session id: `rebrowser-check`              | Currently 7/10: mainWorldExecution, exposeFunctionLeak (no fix available), useragent (WIP) always fail            |
+| `automation/navigator-properties.spec.js`   | `navigator-properties`  | Scrapes whatismybrowser.com navigator properties + evaluates userAgentData directly      | Shows what external sites see; use to verify stealth evasions are reaching the browser                            |
 
 #### intoli-check detail
 

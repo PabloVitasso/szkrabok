@@ -216,6 +216,45 @@ export const applyStealthToExistingPage = async (page, presetConfig = {}) => {
       });
     }
 
+    // ── navigator.userAgentData (brands) ────────────────────────────────────
+    // Network.setUserAgentOverride sets brands at the CDP level, but Playwright's
+    // internal _updateUserAgent() calls Emulation.setUserAgentOverride without
+    // brands on every navigation, clobbering ours. Injecting via
+    // Page.addScriptToEvaluateOnNewDocument runs before page JS on every
+    // navigation and is immune to CDP UA resets.
+    if (overrideUA) {
+      const brandsJson = JSON.stringify(brands);
+      const fullVersion = uaVersion;
+      await client.send('Page.addScriptToEvaluateOnNewDocument', {
+        source: `
+(function() {
+  const _brands = ${brandsJson};
+  const _uad = {
+    brands: _brands,
+    mobile: false,
+    platform: 'Windows',
+    getHighEntropyValues: async (hints) => {
+      const result = {};
+      if (hints.includes('brands')) result.brands = _brands;
+      if (hints.includes('mobile')) result.mobile = false;
+      if (hints.includes('platform')) result.platform = 'Windows';
+      if (hints.includes('platformVersion')) result.platformVersion = '10.0.0';
+      if (hints.includes('architecture')) result.architecture = 'x86';
+      if (hints.includes('bitness')) result.bitness = '64';
+      if (hints.includes('model')) result.model = '';
+      if (hints.includes('uaFullVersion')) result.uaFullVersion = ${JSON.stringify(fullVersion)};
+      if (hints.includes('fullVersionList')) result.fullVersionList = _brands.map(b => ({ brand: b.brand, version: b.version + '.0.0.0' }));
+      return result;
+    },
+    toJSON: () => ({ brands: _brands, mobile: false, platform: 'Windows' }),
+  };
+  try {
+    Object.defineProperty(Navigator.prototype, 'userAgentData', { get: () => _uad, configurable: true });
+  } catch(e) {}
+})();`,
+      });
+    }
+
     // ── navigator.hardwareConcurrency ───────────────────────────────────────
     // Page.addScriptToEvaluateOnNewDocument runs before page JS on every future
     // navigation of this page — equivalent to page.addInitScript() but via CDP.

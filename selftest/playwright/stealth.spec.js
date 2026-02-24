@@ -7,18 +7,12 @@ import { test, expect } from './fixtures.js';
 import { randomUUID } from 'crypto';
 
 test.describe('Stealth Mode', () => {
-  test('session opens with stealth enabled', async ({ client }) => {
+  test('session opens with stealth enabled', async ({ client, openSession }) => {
     const sessionId = `stealth-${randomUUID()}`;
 
-    const response = await client.callTool({
-      name: 'session.open',
-      arguments: {
-        id: sessionId,
-        url: 'https://bot.sannysoft.com/',
-        config: {
-          stealth: true,
-        },
-      },
+    const response = await openSession(client, sessionId, {
+      url: 'https://bot.sannysoft.com/',
+      config: { stealth: true },
     });
 
     expect(response.content).toHaveLength(1);
@@ -47,10 +41,7 @@ test.describe('Stealth Mode', () => {
     // Cleanup
     await client.callTool({
       name: 'session.close',
-      arguments: {
-        id: sessionId,
-        save: false,
-      },
+      arguments: { id: sessionId, save: false },
     });
   });
 });

@@ -46,17 +46,17 @@
 [default]
 # Human-readable label shown in session.open response, session.list, and
 # Playwright console output. Set to any string that helps you identify this config.
-label = "Chromium (no UA spoof)"
-# To spoof a specific browser identity, set userAgent here and enable UA spoofing
-# in [puppeteer-extra-plugin-stealth."user-agent-override"] (enabled = true).
-# userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+label             = "Ungoogled Chromium (spoofed UA)"
+overrideUserAgent = true
+userAgent         = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
 # BCP 47 language tag — affects Accept-Language header and navigator.language
 locale    = "en-US"
 # IANA timezone — affects Date, Intl, and timezone detection fingerprints
 timezone  = "America/New_York"
 # false = headed (visible window). Set HEADLESS=true env var for CI.
 # Presets do not override headless — it is an environment decision, not an identity.
-headless  = false
+headless        = false
+executablePath  = "/home/jones2/.local/bin/ungoogled-chromium"
 # Default timeout in milliseconds for Playwright operations
 timeout     = 30000
 # Disable WebGL to reduce fingerprinting surface

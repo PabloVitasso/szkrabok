@@ -17,6 +17,9 @@
  *   (__re__getIsolatedWorld) instead.
  *
  * FIX B — sourceUrlLeak (patch #7)
+ *   (see inline comment)
+ *
+ * FIX C — userAgentData brands (patch #8)
  *   The rebrowser bot-detector overrides document.getElementById and inspects
  *   new Error().stack for the string "UtilityScript." (class.method notation).
  *   Playwright injects a compiled bundle with class UtilityScript into every
@@ -496,6 +499,60 @@ class CDPSession`
       return src
     },
   },
+  // ── 8. crPage.js — inject greasy brands into calculateUserAgentMetadata ────────
+  // Problem: when browser.run_test connects via CDP, Playwright wraps the page via
+  // connectOverCDP. On frame init, crPage.js calls _updateUserAgent() which calls
+  // Emulation.setUserAgentOverride with calculateUserAgentMetadata(options). That
+  // function builds the metadata object but never sets `brands`, so Chrome reverts
+  // to its binary default (Chromium-only brands), clobbering the brands we set via
+  // Network.setUserAgentOverride in applyStealthToExistingPage.
+  //
+  // Fix: append brands generation (greasy brand algorithm) to the end of
+  // calculateUserAgentMetadata, just before `return metadata`. Brands are derived
+  // from the Chrome major version in the UA string, matching what
+  // applyStealthToExistingPage sets via Network.setUserAgentOverride.
+  //
+  // The greasy brand algorithm is the same as puppeteer-extra-plugin-stealth:
+  // rotates brand order by (seed % 6) to avoid a static fingerprint.
+  //
+  // UPSTREAM FRAGILITY:
+  //   Anchor: exact closing lines of calculateUserAgentMetadata.
+  //   If ua.includes("ARM") or the return line moves, update the search string.
+  {
+    file: 'server/chromium/crPage.js',
+    steps: src => {
+      src = replace(
+        'crPage.js',
+        src,
+        `  if (ua.includes("ARM"))
+    metadata.architecture = "arm";
+  return metadata;
+}`,
+        `  if (ua.includes("ARM"))
+    metadata.architecture = "arm";
+  // ── szkrabok: greasy brands ───────────────────────────────────────────────
+  // Generate navigator.userAgentData.brands from the Chrome major version so
+  // Playwright's own Emulation.setUserAgentOverride includes correct brands.
+  const chromeMatch = ua.match(/Chrome\\/(\\d+)/);
+  if (chromeMatch) {
+    const seed = parseInt(chromeMatch[1], 10);
+    const order = [[0,1,2],[0,2,1],[1,0,2],[1,2,0],[2,0,1],[2,1,0]][seed % 6];
+    const esc = [' ', ' ', ';'];
+    const grease = \`\${esc[order[0]]}Not\${esc[order[1]]}A\${esc[order[2]]}Brand\`;
+    const brands = [];
+    brands[order[0]] = { brand: grease, version: '99' };
+    brands[order[1]] = { brand: 'Chromium', version: String(seed) };
+    brands[order[2]] = { brand: 'Google Chrome', version: String(seed) };
+    metadata.brands = brands;
+  }
+  // ── end szkrabok greasy brands ────────────────────────────────────────────
+  return metadata;
+}`,
+        'inject greasy brands into calculateUserAgentMetadata'
+      )
+      return src
+    },
+  },
   // ── 7. utilityScriptSource.js — rename UtilityScript class ───────────────────
   // The rebrowser bot-detector overrides document.getElementById and inspects
   // new Error().stack for the string "UtilityScript." (class.method notation).
@@ -541,19 +598,23 @@ class CDPSession`
 
 // ── run ───────────────────────────────────────────────────────────────────────
 
-// Marker injected by patch #1 — if present the file is already patched.
-const PATCH_MARKER = '__re__emitExecutionContext'
+// Markers to detect already-patched installs.
+// All must be present for the install to be considered fully patched.
+const PATCH_MARKERS = [
+  { file: 'server/chromium/crConnection.js', marker: '__re__emitExecutionContext' }, // patch #1
+  { file: 'server/chromium/crPage.js',       marker: 'szkrabok: greasy brands' },    // patch #8
+]
 // Stamp file written next to package.json so it's easy to see patches are active.
 const STAMP_FILE = '.szkrabok-patched'
 
 function isAlreadyPatched(libDir) {
-  try {
-    return fs
-      .readFileSync(path.join(libDir, 'server/chromium/crConnection.js'), 'utf8')
-      .includes(PATCH_MARKER)
-  } catch {
-    return false
-  }
+  return PATCH_MARKERS.every(({ file, marker }) => {
+    try {
+      return fs.readFileSync(path.join(libDir, file), 'utf8').includes(marker)
+    } catch {
+      return false
+    }
+  })
 }
 
 // ── patch each playwright-core install ────────────────────────────────────────
