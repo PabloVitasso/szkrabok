@@ -64,8 +64,15 @@ Chrome fails without $DISPLAY. Pre-existing issue, not a regression.
 - [ ] Fix `navigator.platform` not spoofed — `Win32` expected, `Linux x86_64` shown;
       check if `applyStealthToExistingPage` platform derivation is correct and whether
       `Emulation.setUserAgentOverride` platform field is being set
-- [ ] Fix `hardwareConcurrency` — `16` shown instead of TOML-configured `4`; confirm
-      `applyStealthToExistingPage` init script is running on test-runner pages
+- [ ] Fix `hardwareConcurrency` — root cause found and patched, not yet verified:
+      `brands` and `uaVersion` declared with `const` inside first `if (overrideUA)` block
+      (lines ~154-217 of szkrabok_stealth.js), then referenced in a SECOND separate
+      `if (overrideUA)` block — ReferenceError thrown, caught silently, all subsequent
+      CDP calls (hardwareConcurrency, languages, webgl) never run.
+      Fix applied in src/core/szkrabok_stealth.js: merged second if block into first so
+      brandsJson/fullVersion are in scope. MCP restarted. Needs verification on a real page:
+        session.open { "id": "hc-test", "config": { "headless": true } }
+        # navigate to example.com, eval navigator.hardwareConcurrency → expect 4
 - [ ] Fix `getHighEntropyValues.fullVersionList` — extend the JS override in
       `applyStealthToExistingPage` to return a correct `fullVersionList` matching the
       greasy brands

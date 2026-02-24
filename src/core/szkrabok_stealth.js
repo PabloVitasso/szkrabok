@@ -214,15 +214,13 @@ export const applyStealthToExistingPage = async (page, presetConfig = {}) => {
           bitness: '64',
         },
       });
-    }
 
-    // ── navigator.userAgentData (brands) ────────────────────────────────────
-    // Network.setUserAgentOverride sets brands at the CDP level, but Playwright's
-    // internal _updateUserAgent() calls Emulation.setUserAgentOverride without
-    // brands on every navigation, clobbering ours. Injecting via
-    // Page.addScriptToEvaluateOnNewDocument runs before page JS on every
-    // navigation and is immune to CDP UA resets.
-    if (overrideUA) {
+      // ── navigator.userAgentData (brands) ──────────────────────────────────
+      // Network.setUserAgentOverride sets brands at the CDP level, but Playwright's
+      // internal _updateUserAgent() calls Emulation.setUserAgentOverride without
+      // brands on every navigation, clobbering ours. Injecting via
+      // Page.addScriptToEvaluateOnNewDocument runs before page JS on every
+      // navigation and is immune to CDP UA resets.
       const brandsJson = JSON.stringify(brands);
       const fullVersion = uaVersion;
       await client.send('Page.addScriptToEvaluateOnNewDocument', {
