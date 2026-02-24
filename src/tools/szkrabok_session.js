@@ -56,16 +56,21 @@ export const open = async args => {
 
   await storage.ensureSessionsDir();
 
-  // Resolve preset: per-call config.preset → TOML preset → TOML default
-  const resolved = resolvePreset(config.preset);
+  // Load saved meta for this session id (may be null for new sessions).
+  // Used to restore config when reopening a session without explicit args.
+  const savedMeta = await storage.loadMeta(id);
+  const savedConfig = savedMeta?.config ?? {};
 
-  // Per-call overrides win over preset
-  const effectiveViewport = config.viewport || resolved.viewport || VIEWPORT;
-  const effectiveUserAgent = config.userAgent || resolved.userAgent || USER_AGENT;
-  const effectiveLocale = config.locale || resolved.locale || LOCALE;
-  const effectiveTimezone = config.timezone || resolved.timezone || TIMEZONE;
-  const effectiveStealth = config.stealth ?? STEALTH_ENABLED;
-  const effectiveHeadless = config.headless ?? HEADLESS;
+  // Resolve preset: per-call config.preset → saved preset → TOML preset → TOML default
+  const resolved = resolvePreset(config.preset ?? savedMeta?.preset);
+
+  // Precedence: explicit call config → saved meta config → resolved preset → TOML default
+  const effectiveViewport = config.viewport || savedConfig.viewport || resolved.viewport || VIEWPORT;
+  const effectiveUserAgent = config.userAgent || savedConfig.userAgent || resolved.userAgent || USER_AGENT;
+  const effectiveLocale = config.locale || savedConfig.locale || resolved.locale || LOCALE;
+  const effectiveTimezone = config.timezone || savedConfig.timezone || resolved.timezone || TIMEZONE;
+  const effectiveStealth = config.stealth ?? savedConfig.stealth ?? STEALTH_ENABLED;
+  const effectiveHeadless = config.headless ?? savedConfig.headless ?? HEADLESS;
 
   // presetConfig is passed to enhanceWithStealth so the user-agent-override
   // evasion receives the correct identity (userAgent, locale) for this session.
@@ -123,7 +128,7 @@ export const open = async args => {
 
   const meta = {
     id,
-    created: Date.now(),
+    created: savedMeta?.created ?? Date.now(),
     lastUsed: Date.now(),
     preset: resolved.preset,
     label: resolved.label,

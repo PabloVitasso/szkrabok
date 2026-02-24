@@ -5,13 +5,13 @@
 Stealth evasions using `onPageCreated` hooks don't apply to the initial page of
 `launchPersistentContext`. Affected evasions:
 
-| Evasion | Property | Expected | Actual |
-|---|---|---|---|
-| `user-agent-override` | `navigator.userAgentData` | spoofed brands/platform | `null` |
-| `user-agent-override` | `navigator.platform` | `Win32` | `Linux x86_64` |
-| `navigator.hardwareConcurrency` | value | `4` | real (16) |
-| `webgl.vendor` | VENDOR/RENDERER | `Intel Inc.` | real GPU |
-| `navigator.languages` | value | `["en-US","en"]` | `["en-US"]` |
+| Evasion | Property | Status |
+|---|---|---|
+| `user-agent-override` | `navigator.userAgentData` | null — unfixed (see below) |
+| `user-agent-override` | `navigator.platform` | fixed via Option B |
+| `navigator.hardwareConcurrency` | value | real — init script doesn't fire cross-session |
+| `webgl.vendor` | VENDOR/RENDERER | real GPU — init script doesn't fire cross-session |
+| `navigator.languages` | value | partial — header fixed, navigator value real |
 
 Working fine: `navigator.webdriver`, `navigator.plugins`, `chrome.*`, `navigator.vendor`.
 
@@ -19,7 +19,7 @@ Working fine: `navigator.webdriver`, `navigator.plugins`, `chrome.*`, `navigator
 
 `launchPersistentContext` creates context + initial page atomically before
 playwright-extra's plugin hooks register. `onPageCreated` never fires for that page.
-With `launch()` + `newPage()` the hooks fire correctly.
+With `launch()` + `newPage()` the hooks fire correctly (standalone test mode).
 
 Upstream refs: puppeteer-extra [#6](https://github.com/berstend/puppeteer-extra/issues/6),
 [#323](https://github.com/berstend/puppeteer-extra/issues/323),
@@ -29,42 +29,50 @@ playwright [#24029](https://github.com/microsoft/playwright/issues/24029)
 
 ### about:blank navigation — FAILED
 `onPageCreated` fires on CDP `Target.targetCreated`, not on page navigation.
-Navigating the existing page doesn't help.
 
 ### close + context.newPage() — FAILED
 `browserContext.newPage()` throws `Protocol error (Target.createTarget): Failed to
 open a new tab` on playwright-extra wrapped persistent contexts.
 
-## Option B — manual CDP application
+## Option B — manual CDP application (partial fix)
 
 Implemented in `src/core/szkrabok_stealth.js` as `applyStealthToExistingPage()`,
 called from `src/upstream/wrapper.js` after `launchPersistentContext`.
 
-Uses only public APIs:
-- `page.context().newCDPSession(page)` — stable public Playwright API
-- `Network.setUserAgentOverride` — sets userAgent + full userAgentMetadata (brands
-  via greasy-brand algorithm, platform, platformVersion, architecture)
-- `Page.addScriptToEvaluateOnNewDocument` — registers init scripts for
-  hardwareConcurrency, navigator.languages, webgl.vendor — runs before page JS
-  on every future navigation
+### What works
+`Network.setUserAgentOverride` — **target-scoped**: persists regardless of which CDP
+session drives navigation. Fixes `navigator.platform`, `navigator.userAgent`,
+`Accept-Language` header.
 
-## Open question — session scope
+### What doesn't work
+`Page.addScriptToEvaluateOnNewDocument` — **effectively session-scoped**: scripts
+registered via the MCP server's CDP session do not fire when navigations are
+initiated from a separate CDP session (the test runner's or MCP tool's Playwright).
+Result: `hardwareConcurrency`, `webgl.vendor`, `navigator.languages` remain real.
 
-**Unconfirmed**: whether `Network.setUserAgentOverride` and
-`Page.addScriptToEvaluateOnNewDocument` are scoped to the CDP session (removed on
-`client.detach()`) or to the browser target (persist after detach).
+### navigator.userAgentData — unfixed
+`Network.setUserAgentOverride` accepts `userAgentMetadata` (brands, platform, etc.)
+but Chrome does not expose it as `navigator.userAgentData` in the page. Rebrowser
+flags this. No CDP-only fix known.
 
-Testing showed evasions still not applying with `client.detach()`. Removed detach
-— awaiting retest after MCP restart.
+### Disabling WebGL — not viable
+`--disable-webgl` makes `getContext('webgl')` return `null` — real users never have
+this, immediate bot signal. SwiftShader (`--disable-gpu`) exposes a known-bot
+renderer string. Current real GPU passthrough with Linux Mesa strings is the least
+bad option until init scripts can be applied correctly.
 
-If session-scoped: CDP session must be kept alive (no detach) for the lifetime of
-the page. Chrome cleans it up on page close.
+## Current test results (desktop-chrome-win + stealth)
 
-If target-scoped: detach is safe and the current approach should work.
+- **Intoli/sannysoft**: 10/10 ✓ — UA/platform spoofing sufficient for these checks
+- **Rebrowser**: 7/10 — 3 failures:
+  - `useragent` — `navigator.userAgentData` null (no fix)
+  - `mainWorldExecution` — Playwright main-world CDP call (needs rebrowser-patches binary patch)
+  - `exposeFunctionLeak` — `page.exposeFunction` fingerprint (no fix available)
 
 ## Files
 
 - `src/core/szkrabok_stealth.js` — `applyStealthToExistingPage()`
 - `src/upstream/wrapper.js` — calls it after `launchPersistentContext` when stealth
-- `automation/stealth-config-check.spec.js` — verification test (JSON report, no assertions)
-- `automation/rebrowser-check.spec.js` — real-world check (useragent check is the target)
+- `automation/stealth-config-check.spec.js` — property report (no assertions)
+- `automation/intoli-check.spec.js` — sannysoft 10/10 + fp-collect 20/20
+- `automation/rebrowser-check.spec.js` — rebrowser 7/10, useragent is the target
