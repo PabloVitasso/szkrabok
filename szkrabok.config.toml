@@ -60,7 +60,7 @@ headless  = false
 # Default timeout in milliseconds for Playwright operations
 timeout     = 30000
 # Disable WebGL to reduce fingerprinting surface
-disable_webgl = false
+disable_webgl = true
 # Log verbosity: error, warn, info, debug
 log_level   = "info"
 

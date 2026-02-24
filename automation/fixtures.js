@@ -10,8 +10,11 @@
  */
 import { test as base, chromium } from 'playwright/test';
 import { enhanceWithStealth } from '../src/core/szkrabok_stealth.js';
+import { resolvePreset } from '../src/config.js';
 
-const stealthChromium = enhanceWithStealth(chromium);
+// Standalone automation runs use the default preset for stealth identity config
+const defaultPreset = resolvePreset('default');
+const stealthChromium = enhanceWithStealth(chromium, defaultPreset);
 
 export { expect } from 'playwright/test';
 

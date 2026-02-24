@@ -1,5 +1,5 @@
 import { chromium } from 'playwright';
-import { enhanceWithStealth } from '../core/szkrabok_stealth.js';
+import { enhanceWithStealth, applyStealthToExistingPage } from '../core/szkrabok_stealth.js';
 import { TIMEOUT, HEADLESS, findChromiumPath } from '../config.js';
 import { log } from '../utils/logger.js';
 
@@ -41,11 +41,11 @@ export const launchPersistentContext = async (userDataDir, options = {}) => {
     viewport: options.viewport,
     locale: options.locale,
     timezoneId: options.timezoneId,
-    // When stealth is active, user-agent-override evasion owns the UA via CDP
-    // (per-page, after launch). Do not set userAgent at launch level to avoid
-    // the evasion overriding an already-overridden value inconsistently.
-    // Spread is above so this assignment always wins.
-    userAgent: options.stealth ? undefined : options.userAgent,
+    // userAgent is set at context level for reliable spoofing with launchPersistentContext.
+    // The user-agent-override stealth evasion additionally sets userAgentMetadata (brands,
+    // platform) via CDP on new pages — but cannot reach the initial persistent context page
+    // due to onPageCreated hook timing. See docs/launchpersistentcontext-stealth-issue.md.
+    userAgent: options.userAgent,
   };
 
   // Remove options that are not valid for launchPersistentContext
@@ -66,7 +66,21 @@ export const launchPersistentContext = async (userDataDir, options = {}) => {
     delete launchOptions.cdpPort;
   }
 
-  return pw.launchPersistentContext(userDataDir, launchOptions);
+  const context = await pw.launchPersistentContext(userDataDir, launchOptions);
+
+  // Option B workaround: playwright-extra's onPageCreated never fires for the
+  // initial page of launchPersistentContext. Manually apply evasions via CDP
+  // (Network.setUserAgentOverride, Page.addScriptToEvaluateOnNewDocument) so
+  // userAgentData, hardwareConcurrency, webgl.vendor, navigator.languages are
+  // spoofed on all future navigations of this page.
+  if (options.stealth) {
+    const pages = context.pages();
+    if (pages.length > 0) {
+      await applyStealthToExistingPage(pages[0], presetConfig);
+    }
+  }
+
+  return context;
 };
 
 export const closeBrowser = async () => {

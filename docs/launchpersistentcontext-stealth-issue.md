@@ -2,57 +2,69 @@
 
 ## Symptom
 
-Stealth evasions that use `onPageCreated` hooks do not apply to the initial
-page of a `launchPersistentContext` session:
+Stealth evasions using `onPageCreated` hooks don't apply to the initial page of
+`launchPersistentContext`. Affected evasions:
 
 | Evasion | Property | Expected | Actual |
 |---|---|---|---|
 | `user-agent-override` | `navigator.userAgentData` | spoofed brands/platform | `null` |
 | `user-agent-override` | `navigator.platform` | `Win32` | `Linux x86_64` |
-| `navigator.hardwareConcurrency` | `navigator.hardwareConcurrency` | `4` | real value |
-| `webgl.vendor` | WebGL VENDOR/RENDERER | `Intel Inc.` | real GPU |
-| `navigator.languages` | `navigator.languages` | `["en-US","en"]` | `["en-US"]` |
+| `navigator.hardwareConcurrency` | value | `4` | real (16) |
+| `webgl.vendor` | VENDOR/RENDERER | `Intel Inc.` | real GPU |
+| `navigator.languages` | value | `["en-US","en"]` | `["en-US"]` |
 
-Evasions without `onPageCreated` (e.g. `navigator.webdriver`, `navigator.plugins`,
-`chrome.*`) work correctly.
+Working fine: `navigator.webdriver`, `navigator.plugins`, `chrome.*`, `navigator.vendor`.
 
 ## Root cause
 
-`launchPersistentContext` creates a context **and** its initial page atomically.
-playwright-extra's plugin hooks fire after the browser object is returned, so
-`onPageCreated` never fires for that first page — it already exists.
+`launchPersistentContext` creates context + initial page atomically before
+playwright-extra's plugin hooks register. `onPageCreated` never fires for that page.
+With `launch()` + `newPage()` the hooks fire correctly.
 
-With `launch()` + `newPage()`, hooks are registered before the page is created,
-so evasions apply correctly.
+Upstream refs: puppeteer-extra [#6](https://github.com/berstend/puppeteer-extra/issues/6),
+[#323](https://github.com/berstend/puppeteer-extra/issues/323),
+playwright [#24029](https://github.com/microsoft/playwright/issues/24029)
 
-Upstream issues:
-- puppeteer-extra [#6](https://github.com/berstend/puppeteer-extra/issues/6) — target creation events triggered too late
-- puppeteer-extra [#323](https://github.com/berstend/puppeteer-extra/issues/323) — onPageCreated hooks should be synchronous
-- playwright [#24029](https://github.com/microsoft/playwright/issues/24029) — context.addInitScript not executed
+## Workarounds attempted
 
-## Workaround (researched, not yet applied)
+### about:blank navigation — FAILED
+`onPageCreated` fires on CDP `Target.targetCreated`, not on page navigation.
+Navigating the existing page doesn't help.
 
-Navigating to `about:blank` immediately after `launchPersistentContext` reliably
-triggers the plugin hooks before the first real navigation:
+### close + context.newPage() — FAILED
+`browserContext.newPage()` throws `Protocol error (Target.createTarget): Failed to
+open a new tab` on playwright-extra wrapped persistent contexts.
 
-```js
-const context = await pw.launchPersistentContext(userDataDir, launchOptions);
-const page = context.pages()[0];
-await page.goto('about:blank'); // triggers onPageCreated hooks
-// evasions now applied — navigate to real target
-```
+## Option B — manual CDP application
 
-Documented fix from puppeteer-extra issue #6. Adds no noticeable delay.
+Implemented in `src/core/szkrabok_stealth.js` as `applyStealthToExistingPage()`,
+called from `src/upstream/wrapper.js` after `launchPersistentContext`.
 
-## Affected file
+Uses only public APIs:
+- `page.context().newCDPSession(page)` — stable public Playwright API
+- `Network.setUserAgentOverride` — sets userAgent + full userAgentMetadata (brands
+  via greasy-brand algorithm, platform, platformVersion, architecture)
+- `Page.addScriptToEvaluateOnNewDocument` — registers init scripts for
+  hardwareConcurrency, navigator.languages, webgl.vendor — runs before page JS
+  on every future navigation
 
-`src/upstream/wrapper.js` — `launchPersistentContext()`
+## Open question — session scope
 
-## Impact on rebrowser-check
+**Unconfirmed**: whether `Network.setUserAgentOverride` and
+`Page.addScriptToEvaluateOnNewDocument` are scoped to the CDP session (removed on
+`client.detach()`) or to the browser target (persist after detach).
 
-`useragent` check fails because `navigator.userAgentData.brands` does not include
-`Google Chrome` — set by the `user-agent-override` evasion via CDP
-`Network.setUserAgentOverride`, which only runs in `onPageCreated`.
+Testing showed evasions still not applying with `client.detach()`. Removed detach
+— awaiting retest after MCP restart.
 
-`mainWorldExecution` and `exposeFunctionLeak` are separate pre-existing issues
-unrelated to this bug.
+If session-scoped: CDP session must be kept alive (no detach) for the lifetime of
+the page. Chrome cleans it up on page close.
+
+If target-scoped: detach is safe and the current approach should work.
+
+## Files
+
+- `src/core/szkrabok_stealth.js` — `applyStealthToExistingPage()`
+- `src/upstream/wrapper.js` — calls it after `launchPersistentContext` when stealth
+- `automation/stealth-config-check.spec.js` — verification test (JSON report, no assertions)
+- `automation/rebrowser-check.spec.js` — real-world check (useragent check is the target)

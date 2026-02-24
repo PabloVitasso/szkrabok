@@ -92,7 +92,13 @@ test('acceptCookies', async ({ page }, testInfo) => {
   }
 
   console.log('step 5. clicking "Only essential cookies"');
-  await btn.click();
+  await btn.scrollIntoViewIfNeeded();
+  const box = await btn.boundingBox();
+  if (box) {
+    await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+  } else {
+    await btn.click();
+  }
 
   console.log('step 6. waiting for banner to disappear');
   await page.locator(BANNER).waitFor({ state: 'hidden', timeout: 5000 });
