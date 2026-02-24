@@ -121,11 +121,9 @@ warn_browser() {
   echo "      This binary brands itself as automation tooling in navigator.userAgentData"
   echo "      and is easily detected by bot-detection services."
   echo ""
-  echo "      For better stealth, set executablePath in szkrabok.config.toml."
-  echo "      Run the browser detector to find installed options:"
+  echo "      Scanning for better options..."
   echo ""
-  echo "        bash scripts/detect_browsers.sh"
-  echo ""
+  bash "$SCRIPT_DIR/scripts/detect_browsers.sh" || true
 }
 
 clean_all_scopes() {
