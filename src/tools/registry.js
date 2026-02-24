@@ -564,7 +564,7 @@ const playwrightMcpTools = {
 
   'browser.run_test': {
     handler: szkrabokBrowser.run_test,
-    description: `${PLAYWRIGHT_MCP} Run Playwright .spec.ts tests via npx playwright test and return JSON results. Uses SZKRABOK_SESSION=id for storageState. Optional grep filters by test name.`,
+    description: `${PLAYWRIGHT_MCP} Run Playwright .spec.ts tests via npx playwright test and return JSON results. Uses SZKRABOK_SESSION=id for storageState. Optional grep filters by test name. IMPORTANT: session.open must be called first — browser.run_test connects to the already-running browser via CDP and will fail if the session is not open.`,
     inputSchema: {
       type: 'object',
       properties: {
@@ -591,7 +591,7 @@ const playwrightMcpTools = {
 
   'browser.run_file': {
     handler: szkrabokBrowser.run_file,
-    description: `${PLAYWRIGHT_MCP} Run a named export from a Playwright ESM script file against a session. Script receives (page, args) and must return JSON-serialisable value. Supports full imports, POM classes, expect().`,
+    description: `${PLAYWRIGHT_MCP} Run a named export from a Playwright ESM script file against a session. Script receives (page, args) and must return JSON-serialisable value. Supports full imports, POM classes, expect(). IMPORTANT: session.open must be called first.`,
     inputSchema: {
       type: 'object',
       properties: {
