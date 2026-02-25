@@ -1,4 +1,4 @@
-import { schemaToJSDoc } from './schema-to-jsdoc.js';
+import { schemaToJSDoc, schemaToTs } from './schema-to-jsdoc.js';
 
 /**
  * Group tools by namespace.
@@ -64,10 +64,22 @@ export function renderTools({ tools, hash, timestamp }) {
   const nsFactories = [];
   for (const [ns, nsTools] of groups) {
     const methodDefs = nsTools.map(t => {
-      const params = Object.keys(t.inputSchema.properties || {}).filter(k => k !== 'sessionName');
+      const props = t.inputSchema.properties || {};
+      const params = Object.keys(props).filter(k => k !== 'sessionName');
       const invokeArgs = params.length > 0 ? ', args' : '';
       const paramDecl = params.length > 0 ? 'args = {}' : '';
-      return `      ${t.method}: async (${paramDecl}) => invoke('${t.name}'${invokeArgs}),`;
+
+      let jsdoc = '';
+      if (params.length > 0) {
+        const fields = params.map(p => {
+          const isOptional = !t.inputSchema.required?.includes(p);
+          const type = schemaToJSDoc(props[p]);
+          return `${p}${isOptional ? '?' : ''}: ${type}`;
+        }).join(', ');
+        jsdoc = `      /** @param {{ ${fields} }} [args] */\n`;
+      }
+
+      return `${jsdoc}      ${t.method}: async (${paramDecl}) => invoke('${t.name}'${invokeArgs}),`;
     }).join('\n');
 
     nsFactories.push(`    ${ns}: {\n${methodDefs}\n    },`);
@@ -145,4 +157,56 @@ function registryHash(tools) {
 }`;
 
   return [header, imports, hashConst, typedef, connectFn].join('\n\n');
+}
+
+/**
+ * Render mcp-tools.d.ts declaration file.
+ * @param {object} options
+ * @param {Array} options.tools
+ * @param {string} options.timestamp
+ * @returns {string}
+ */
+export function renderDts({ tools, timestamp }) {
+  const groups = groupByNamespace(tools);
+
+  const interfaces = [];
+  for (const [ns, nsTools] of groups) {
+    const methods = nsTools.map(t => {
+      const props = t.inputSchema.properties || {};
+      const params = Object.keys(props).filter(k => k !== 'sessionName');
+
+      const toolDesc = t.description ? `  /** ${t.description.replace(/\*\//g, '*\/')} */\n` : '';
+
+      if (params.length === 0) {
+        return `${toolDesc}  ${t.method}(): Promise<unknown>;`;
+      }
+
+      const fields = params.map(p => {
+        const isOptional = !t.inputSchema.required?.includes(p);
+        const type = schemaToTs(props[p]);
+        const desc = props[p].description ? ` // ${props[p].description}` : '';
+        return `    ${p}${isOptional ? '?' : ''}: ${type};${desc}`;
+      }).join('\n');
+
+      return `${toolDesc}  ${t.method}(args: {\n${fields}\n  }): Promise<unknown>;`;
+    }).join('\n\n');
+
+    interfaces.push(`export interface ${capitalize(ns)}Handle {\n${methods}\n}`);
+  }
+
+  const handleProps = [...groups.keys()]
+    .map(ns => `  readonly ${ns}: ${capitalize(ns)}Handle;`)
+    .join('\n');
+
+  const mcpHandle = `export interface McpHandle {\n  close(): Promise<void>;\n${handleProps}\n}`;
+
+  const connectFn = `export declare function mcpConnect(\n  sessionName: string,\n  customAdapter?: object,\n  options?: {\n    sidecarEnabled?: boolean;\n    launchOptions?: Record<string, unknown>;\n  }\n): Promise<McpHandle>;`;
+
+  const header = `// AUTO-GENERATED — do not edit manually.\n// Regenerate: npm run codegen:mcp\n// Last generated: ${timestamp}`;
+
+  return [header, ...interfaces, mcpHandle, connectFn].join('\n\n') + '\n';
+}
+
+function capitalize(str) {
+  return str.charAt(0).toUpperCase() + str.slice(1);
 }

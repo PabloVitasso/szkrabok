@@ -1,6 +1,6 @@
 // AUTO-GENERATED — do not edit manually.
 // Regenerate: npm run codegen:mcp
-// Last generated: 2026-02-25T15:14:12.789Z
+// Last generated: 2026-02-25T19:32:16.891Z
 // Tools: 53  Hash: 8f33eb08edea
 
 import { createHash } from 'node:crypto';
@@ -114,65 +114,107 @@ export async function mcpConnect(sessionName, customAdapter = adapter, options =
   return {
     close,
     session: {
+      /** @param {{ url?: string, launchOptions?: object }} [args] */
       open: async (args = {}) => invoke('session.open', args),
+      /** @param {{ save?: boolean }} [args] */
       close: async (args = {}) => invoke('session.close', args),
       list: async () => invoke('session.list'),
       delete: async () => invoke('session.delete'),
       endpoint: async () => invoke('session.endpoint'),
     },
     nav: {
+      /** @param {{ url: string, wait?: 'load'|'domcontentloaded'|'networkidle' }} [args] */
       goto: async (args = {}) => invoke('nav.goto', args),
       back: async () => invoke('nav.back'),
       forward: async () => invoke('nav.forward'),
     },
     interact: {
+      /** @param {{ selector: string }} [args] */
       click: async (args = {}) => invoke('interact.click', args),
+      /** @param {{ selector: string, text: string }} [args] */
       type: async (args = {}) => invoke('interact.type', args),
+      /** @param {{ selector: string, value: string }} [args] */
       select: async (args = {}) => invoke('interact.select', args),
     },
     extract: {
+      /** @param {{ selector?: string }} [args] */
       text: async (args = {}) => invoke('extract.text', args),
+      /** @param {{ selector?: string }} [args] */
       html: async (args = {}) => invoke('extract.html', args),
+      /** @param {{ path?: string, fullPage?: boolean }} [args] */
       screenshot: async (args = {}) => invoke('extract.screenshot', args),
+      /** @param {{ code: string, args?: string[] }} [args] */
       evaluate: async (args = {}) => invoke('extract.evaluate', args),
     },
     workflow: {
+      /** @param {{ username: string, password: string }} [args] */
       login: async (args = {}) => invoke('workflow.login', args),
+      /** @param {{ fields: object }} [args] */
       fillForm: async (args = {}) => invoke('workflow.fillForm', args),
+      /** @param {{ selectors: object }} [args] */
       scrape: async (args = {}) => invoke('workflow.scrape', args),
     },
     browser: {
       snapshot: async () => invoke('browser.snapshot'),
+      /** @param {{ element: string, ref: string, doubleClick?: boolean, button?: 'left'|'right'|'middle', modifiers?: string[] }} [args] */
       click: async (args = {}) => invoke('browser.click', args),
+      /** @param {{ element: string, ref: string, text: string, submit?: boolean, slowly?: boolean }} [args] */
       type: async (args = {}) => invoke('browser.type', args),
+      /** @param {{ url: string }} [args] */
       navigate: async (args = {}) => invoke('browser.navigate', args),
       navigate_back: async () => invoke('browser.navigate_back'),
       close: async () => invoke('browser.close'),
+      /** @param {{ startElement: string, startRef: string, endElement: string, endRef: string }} [args] */
       drag: async (args = {}) => invoke('browser.drag', args),
+      /** @param {{ element: string, ref: string }} [args] */
       hover: async (args = {}) => invoke('browser.hover', args),
+      /** @param {{ function: string, element?: string, ref?: string }} [args] */
       evaluate: async (args = {}) => invoke('browser.evaluate', args),
+      /** @param {{ element: string, ref: string, values: string[] }} [args] */
       select_option: async (args = {}) => invoke('browser.select_option', args),
+      /** @param {{ fields: object[] }} [args] */
       fill_form: async (args = {}) => invoke('browser.fill_form', args),
+      /** @param {{ key: string }} [args] */
       press_key: async (args = {}) => invoke('browser.press_key', args),
+      /** @param {{ type?: 'png'|'jpeg', filename?: string, element?: string, ref?: string, fullPage?: boolean }} [args] */
       take_screenshot: async (args = {}) => invoke('browser.take_screenshot', args),
+      /** @param {{ time?: number, text?: string, textGone?: string }} [args] */
       wait_for: async (args = {}) => invoke('browser.wait_for', args),
+      /** @param {{ width: number, height: number }} [args] */
       resize: async (args = {}) => invoke('browser.resize', args),
+      /** @param {{ action: 'list'|'new'|'close'|'select', index?: number }} [args] */
       tabs: async (args = {}) => invoke('browser.tabs', args),
+      /** @param {{ level?: 'error'|'warning'|'info'|'debug' }} [args] */
       console_messages: async (args = {}) => invoke('browser.console_messages', args),
+      /** @param {{ includeStatic?: boolean }} [args] */
       network_requests: async (args = {}) => invoke('browser.network_requests', args),
+      /** @param {{ paths?: string[] }} [args] */
       file_upload: async (args = {}) => invoke('browser.file_upload', args),
+      /** @param {{ accept: boolean, promptText?: string }} [args] */
       handle_dialog: async (args = {}) => invoke('browser.handle_dialog', args),
+      /** @param {{ code: string }} [args] */
       run_code: async (args = {}) => invoke('browser.run_code', args),
+      /** @param {{ grep?: string, params?: object, config?: string, project?: string, files?: string[], keepOpen?: boolean }} [args] */
       run_test: async (args = {}) => invoke('browser.run_test', args),
+      /** @param {{ path: string, fn?: string, args?: object }} [args] */
       run_file: async (args = {}) => invoke('browser.run_file', args),
+      /** @param {{ element: string, x: number, y: number }} [args] */
       mouse_click_xy: async (args = {}) => invoke('browser.mouse_click_xy', args),
+      /** @param {{ element: string, x: number, y: number }} [args] */
       mouse_move_xy: async (args = {}) => invoke('browser.mouse_move_xy', args),
+      /** @param {{ element: string, startX: number, startY: number, endX: number, endY: number }} [args] */
       mouse_drag_xy: async (args = {}) => invoke('browser.mouse_drag_xy', args),
+      /** @param {{ filename?: string }} [args] */
       pdf_save: async (args = {}) => invoke('browser.pdf_save', args),
+      /** @param {{ element: string, ref: string }} [args] */
       generate_locator: async (args = {}) => invoke('browser.generate_locator', args),
+      /** @param {{ role: string, accessibleName: string }} [args] */
       verify_element_visible: async (args = {}) => invoke('browser.verify_element_visible', args),
+      /** @param {{ text: string }} [args] */
       verify_text_visible: async (args = {}) => invoke('browser.verify_text_visible', args),
+      /** @param {{ element: string, ref: string, items: string[] }} [args] */
       verify_list_visible: async (args = {}) => invoke('browser.verify_list_visible', args),
+      /** @param {{ type: string, element: string, ref: string, value: string }} [args] */
       verify_value: async (args = {}) => invoke('browser.verify_value', args),
       start_tracing: async () => invoke('browser.start_tracing'),
       stop_tracing: async () => invoke('browser.stop_tracing'),

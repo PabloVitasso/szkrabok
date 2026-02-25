@@ -1,4 +1,26 @@
 /**
+ * Pure function: derive TypeScript type string from JSON Schema property.
+ * @param {object} prop - JSON Schema property object
+ * @returns {string} TypeScript type string
+ */
+export function schemaToTs(prop) {
+  if (!prop || !prop.type) return 'any';
+
+  switch (prop.type) {
+    case 'string':
+      if (prop.enum) return prop.enum.map(v => `'${v}'`).join(' | ');
+      return 'string';
+    case 'boolean': return 'boolean';
+    case 'number':
+    case 'integer': return 'number';
+    case 'object': return 'Record<string, unknown>';
+    case 'array':
+      return prop.items ? `${schemaToTs(prop.items)}[]` : 'unknown[]';
+    default: return 'any';
+  }
+}
+
+/**
  * Pure function: derive JSDoc type string from JSON Schema property.
  * @param {object} prop - JSON Schema property object
  * @returns {string} JSDoc type string

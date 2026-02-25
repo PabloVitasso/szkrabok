@@ -316,7 +316,7 @@ const playwrightMcpTools = {
 
   'browser.navigate': {
     handler: browser.navigate,
-    description: `${PLAYWRIGHT_MCP} Navigate and return snapshot`,
+    description: `${PLAYWRIGHT_MCP} Navigate to URL and return an accessibility snapshot`,
     inputSchema: {
       type: 'object',
       properties: {
@@ -456,7 +456,7 @@ const playwrightMcpTools = {
 
   'browser.wait_for': {
     handler: browser.wait_for,
-    description: `${PLAYWRIGHT_MCP} Wait for condition`,
+    description: `${PLAYWRIGHT_MCP} Wait for a timeout, text to appear, or text to disappear`,
     inputSchema: {
       type: 'object',
       properties: {
@@ -552,7 +552,7 @@ const playwrightMcpTools = {
 
   'browser.run_code': {
     handler: browser.run_code,
-    description: `${PLAYWRIGHT_MCP} Run Playwright code`,
+    description: `${PLAYWRIGHT_MCP} Execute a Playwright script string against the session page`,
     inputSchema: {
       type: 'object',
       properties: {
@@ -565,7 +565,7 @@ const playwrightMcpTools = {
 
   'browser.run_test': {
     handler: szkrabokBrowser.run_test,
-    description: `${PLAYWRIGHT_MCP} Run Playwright .spec.ts tests via npx playwright test and return JSON results. Uses SZKRABOK_SESSION=sessionName for storageState. Optional grep filters by test name. IMPORTANT: session.open must be called first — browser.run_test connects to the already-running browser via CDP and will fail if the session is not open.`,
+    description: `${PLAYWRIGHT_MCP} Run Playwright .spec.js tests and return JSON results. Connects to the session browser via CDP. IMPORTANT: session.open must be called first.`,
     inputSchema: {
       type: 'object',
       properties: {
@@ -601,7 +601,7 @@ const playwrightMcpTools = {
 
   'browser.run_file': {
     handler: szkrabokBrowser.run_file,
-    description: `${PLAYWRIGHT_MCP} Run a named export from a Playwright ESM script file against a session. Script receives (page, args) and must return JSON-serialisable value. Supports full imports, POM classes, expect(). IMPORTANT: session.open must be called first.`,
+    description: `${PLAYWRIGHT_MCP} Run a named export from a Playwright ESM .mjs script against the session page. Function receives (page, args) and must return a JSON-serialisable value. IMPORTANT: session.open must be called first.`,
     inputSchema: {
       type: 'object',
       properties: {

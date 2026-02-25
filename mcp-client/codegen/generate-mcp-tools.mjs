@@ -1,14 +1,15 @@
 #!/usr/bin/env node
 
 import { spawnClient } from '../runtime/transport.js';
-import { renderTools } from './render-tools.js';
-import { readFile, writeFile, stat } from 'fs/promises';
+import { renderTools, renderDts } from './render-tools.js';
+import { readFile, writeFile } from 'fs/promises';
 import { createHash } from 'crypto';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const OUTPUT_PATH = join(__dirname, '..', 'mcp-tools.js');
+const DTS_PATH = join(__dirname, '..', 'mcp-tools.d.ts');
 
 /**
  * Compute registry hash.
@@ -43,20 +44,20 @@ async function main() {
   console.log(`Registry hash: ${hash}`);
 
   const content = renderTools({ tools, hash, timestamp });
+  const dts = renderDts({ tools, timestamp });
 
-  // Check if file exists and compare
-  try {
-    const existing = await readFile(OUTPUT_PATH, 'utf8');
-    if (existing === content) {
-      console.log('No changes.');
-      return;
-    }
-  } catch {
-    // File doesn't exist, proceed
+  async function writeIfChanged(path, next) {
+    try {
+      const existing = await readFile(path, 'utf8');
+      if (existing === next) { console.log(`No changes: ${path}`); return; }
+    } catch { /* file doesn't exist */ }
+    await writeFile(path, next, 'utf8');
+    console.log(`Generated ${path}`);
   }
 
-  await writeFile(OUTPUT_PATH, content, 'utf8');
-  console.log(`Generated ${OUTPUT_PATH} with ${tools.length} tools.`);
+  await writeIfChanged(OUTPUT_PATH, content);
+  await writeIfChanged(DTS_PATH, dts);
+  console.log(`Done. ${tools.length} tools.`);
 }
 
 main().catch(err => {
