@@ -19,7 +19,7 @@
 | Playwright config | `playwright.config.js` |
 | Config modules | `config/` (env, paths, toml, preset, session, browser) |
 | Project definitions | `playwright/projects/` (selftest, client, automation) |
-| MCP client library | `client/` — `mcpConnect()`, `spawnClient()`, codegen |
+| MCP client library | `mcp-client/` — `mcpConnect()`, `spawnClient()`, codegen |
 | Selftest | `selftest/` |
 | Automation tests | `automation/` |
 | Session storage | `sessions/{id}/` |

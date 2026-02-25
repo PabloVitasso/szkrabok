@@ -21,7 +21,7 @@
     "prettier": "prettier --write \"{src,automation,selftest}/**/*.{js,json,md}\" \"*.{js,json,md}\"",
     "format": "npm run prettier",
     "format:check": "prettier --check \"{src,automation,selftest}/**/*.{js,json,md}\" \"*.{js,json,md}\"",
-    "codegen:mcp": "node client/codegen/generate-mcp-tools.mjs",
+    "codegen:mcp": "node mcp-client/codegen/generate-mcp-tools.mjs",
     "test": "npm run test:self && npm run test:auto",
     "test:node": "node --test selftest/node/*.test.js",
     "test:playwright": "playwright test --project=selftest",

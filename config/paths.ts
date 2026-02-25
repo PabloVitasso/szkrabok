@@ -23,7 +23,7 @@ export const paths = {
 
   projects: {
     selftest: path.join(root, 'selftest', 'playwright'),
-    client: path.join(root, 'client'),
+    client: path.join(root, 'automation'),
     automation: path.join(root, 'automation'),
   },
 

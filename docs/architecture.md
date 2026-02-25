@@ -69,7 +69,7 @@ playwright.config.js      Root config — pure composition, no logic (~30 lines)
 szkrabok.config.toml       Browser identity presets — repo defaults (committed)
 szkrabok.config.local.toml Machine-specific overrides, gitignored — deep-merged on top
 
-client/                   MCP client library (see docs/mcp-client-library.md)
+mcp-client/                   MCP client library (see docs/mcp-client-library.md)
   mcp-tools.js            GENERATED — namespaced handle factory + JSDoc types
   runtime/
     transport.js          spawnClient() — stdio process lifecycle
@@ -86,7 +86,7 @@ client/                   MCP client library (see docs/mcp-client-library.md)
 selftest/
   node/                   node:test specs — schema, basic, MCP protocol, scraping
   playwright/             playwright specs — session lifecycle, stealth, CSS tools
-    fixtures.js           uses spawnClient() from client/runtime/transport.js; openSession() injects headless:true
+    fixtures.js           uses spawnClient() from mcp-client/runtime/transport.js; openSession() injects headless:true
 
 automation/
   park4night.spec.js             cookie banner acceptance (headed + headless)

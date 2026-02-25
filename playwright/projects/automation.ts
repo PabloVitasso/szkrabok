@@ -25,6 +25,7 @@ export function automationProject({
     name: 'automation',
     testDir: paths.projects.automation,
     testMatch: '**/*.spec.js',
+    testIgnore: '**/*.mcp.spec.js',
     use: {
       storageState:
         !useLiveBrowser && fs.existsSync(session.stateFile)

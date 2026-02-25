@@ -8,7 +8,7 @@ Three projects in `playwright.config.js`: `selftest`, `client`, and `automation`
 
 Verifies the MCP server tools work correctly end-to-end over the MCP protocol.
 Each test spawns a fresh `node src/index.js` subprocess via `spawnClient()` from
-`client/runtime/transport.js` and calls tools through it.
+`mcp-client/runtime/transport.js` and calls tools through it.
 
 ```bash
 # Playwright specs (session lifecycle, stealth, CSS tools)
@@ -36,7 +36,7 @@ npm run test:self
 ### Selftest isolation
 
 Selftests are fully self-contained. `selftest/playwright/fixtures.js` uses `spawnClient()`
-from `client/runtime/transport.js` — no custom transport setup. The `openSession(client, id,
+from `mcp-client/runtime/transport.js` — no custom transport setup. The `openSession(client, id,
 extraArgs)` fixture always injects `{ headless: true }` so tests pass in any environment
 (no `$DISPLAY` required) regardless of the server's TOML config. Individual tests can
 override with `launchOptions: { headless: false }` if needed.
@@ -45,7 +45,7 @@ override with `launchOptions: { headless: false }` if needed.
 
 ## client — MCP client library specs
 
-Tests that use the generated `client/mcp-tools.js` handle to drive the MCP server.
+Tests that use the generated `mcp-client/mcp-tools.js` handle to drive the MCP server.
 No browser fixture — harnesses manage their own session lifecycle via `mcpConnect()`.
 
 ```bash

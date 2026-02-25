@@ -23,7 +23,7 @@
  */
 
 import { test, expect } from 'playwright/test';
-import { mcpConnect } from './mcp-tools.js';
+import { mcpConnect } from '../mcp-client/mcp-tools.js';
 
 const SESSION = 'rebrowser-mcp-harness';
 
