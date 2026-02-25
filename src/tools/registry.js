@@ -578,7 +578,7 @@ const playwrightMcpTools = {
         },
         config: {
           type: 'string',
-          description: 'Config path relative to repo root. Defaults to playwright.config.ts',
+          description: 'Config path relative to repo root. Defaults to playwright.config.js',
         },
         project: {
           type: 'string',

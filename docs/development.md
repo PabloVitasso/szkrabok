@@ -26,15 +26,14 @@ git merge upstream/main
 | File                 | Why                                               | Resolution                                                                                                                                                  |
 | -------------------- | ------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `README.md`          | Upstream owns it; we have a short szkrabok README | **Do not keep upstream content in README.md.** Move all new upstream content into `docs/playwright.md` and keep `README.md` as the short szkrabok overview. |
-| `docs/playwright.md` | Does not exist — link to upstream GitHub instead  | Nothing to merge                                                                                                                                            |
+| upstream docs | Szkrabok does not mirror upstream docs locally — link to GitHub instead | Nothing to merge; upstream docs live at https://github.com/microsoft/playwright-mcp |
 | `Dockerfile`         | Upstream Docker setup; szkrabok does not use it   | Handled automatically via `.gitattributes` (`merge=ours` keeps deletion). No manual action needed.                                                          |
 
 ### After resolving conflicts
 
 1. Keep `README.md` as the short szkrabok overview — discard upstream README changes (see [../README.md](../README.md))
 2. Upstream docs live at https://github.com/microsoft/playwright-mcp — no local copy to maintain
-3. Update the version note at the top of `docs/playwright.md`
-4. Commit with: `merge: upstream/main (0.0.X -> 0.0.Y)`
+3. Commit with: `merge: upstream/main (0.0.X -> 0.0.Y)`
 
 ### playwright-core version bump during merge
 

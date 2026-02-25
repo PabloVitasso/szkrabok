@@ -6,18 +6,23 @@
 - [docs/architecture.md](./docs/architecture.md) — file layout, tool ownership, szkrabok hacks
 - [docs/development.md](./docs/development.md) — fork relationship, merging upstream, adding tools
 - [docs/testing.md](./docs/testing.md) — run tests via MCP and CLI
+- [docs/mcp-client-library.md](./docs/mcp-client-library.md) — MCP client library architecture
 - [microsoft/playwright-mcp](https://github.com/microsoft/playwright-mcp) — upstream reference
 
 ## Key locations
 
-| What                  | Where                   |
-| --------------------- | ----------------------- |
-| MCP entry             | `src/index.js`          |
-| Tool registry         | `src/tools/registry.js` |
-| Session pool          | `src/core/pool.js`      |
-| Automation tests      | `automation/`           |
-| Selftest (MCP server) | `selftest/`             |
-| Session storage       | `sessions/{id}/`        |
+| What | Where |
+| ---- | ----- |
+| MCP entry | `src/index.js` |
+| Tool registry | `src/tools/registry.js` |
+| Session pool | `src/core/pool.js` |
+| Playwright config | `playwright.config.js` |
+| Config modules | `config/` (env, paths, toml, preset, session, browser) |
+| Project definitions | `playwright/projects/` (selftest, client, automation) |
+| MCP client library | `client/` — `mcpConnect()`, `spawnClient()`, codegen |
+| Selftest | `selftest/` |
+| Automation tests | `automation/` |
+| Session storage | `sessions/{id}/` |
 
 ## Workflow rules
 

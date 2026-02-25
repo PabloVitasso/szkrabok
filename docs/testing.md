@@ -1,12 +1,14 @@
 # Testing
 
-Two suites, one root `playwright.config.ts` with two projects: `selftest` and `automation`.
+Three projects in `playwright.config.js`: `selftest`, `client`, and `automation`.
 
 ---
 
 ## selftest — MCP server internal tests
 
-Verifies the MCP server tools work correctly. No real browsing target needed.
+Verifies the MCP server tools work correctly end-to-end over the MCP protocol.
+Each test spawns a fresh `node src/index.js` subprocess via `spawnClient()` from
+`client/runtime/transport.js` and calls tools through it.
 
 ```bash
 # Playwright specs (session lifecycle, stealth, CSS tools)
@@ -21,28 +23,49 @@ npm run test:self
 
 ### Test cases
 
-| File                                   | Suite                         | What it tests                                                                                                          |
-| -------------------------------------- | ----------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| `selftest/playwright/session.spec.js`  | Session Management            | `session.open` creates session; `session.list` returns it; `session.close` persists state; `session.delete` removes it |
-| `selftest/playwright/stealth.spec.js`  | Stealth Mode                  | Session opens with stealth enabled; sannysoft result attached                                                          |
-| `selftest/playwright/tools.spec.js`    | CSS Selector Tools / Workflow | `navigate.goto`, `extract.text`, `extract.html`, `workflow.scrape`                                                     |
-| `selftest/node/basic.test.js`          | Basic                         | Server starts, tools listed                                                                                            |
-| `selftest/node/schema.test.js`         | Schema                        | All tool schemas valid                                                                                                 |
-| `selftest/node/playwright_mcp.test.js` | Playwright MCP                | snapshot, click, type via CDP                                                                                          |
-| `selftest/node/scrap.test.js`          | Scraping                      | extract + session open/close cycle                                                                                     |
+| File | Suite | What it tests |
+| ---- | ----- | ------------- |
+| `selftest/playwright/session.spec.js` | Session Management | `session.open` creates session; `session.list` returns it; `session.close` persists state; `session.delete` removes it |
+| `selftest/playwright/stealth.spec.js` | Stealth Mode | Session opens with stealth enabled; sannysoft result attached |
+| `selftest/playwright/tools.spec.js` | CSS Selector Tools / Workflow | `navigate.goto`, `extract.text`, `extract.html`, `workflow.scrape` |
+| `selftest/node/basic.test.js` | Basic | Server starts, tools listed |
+| `selftest/node/schema.test.js` | Schema | All tool schemas valid |
+| `selftest/node/playwright_mcp.test.js` | Playwright MCP | snapshot, click, type via CDP |
+| `selftest/node/scrap.test.js` | Scraping | extract + session open/close cycle |
 
 ### Selftest isolation
 
-Selftests are fully self-contained. The `openSession(client, id, extraArgs)` fixture in
-`selftest/playwright/fixtures.js` always injects `{ headless: true }` as a default, so
-tests pass in any environment (no `$DISPLAY` required) regardless of the server's TOML
-config. Individual tests can override with `config: { headless: false }` if needed.
+Selftests are fully self-contained. `selftest/playwright/fixtures.js` uses `spawnClient()`
+from `client/runtime/transport.js` — no custom transport setup. The `openSession(client, id,
+extraArgs)` fixture always injects `{ headless: true }` so tests pass in any environment
+(no `$DISPLAY` required) regardless of the server's TOML config. Individual tests can
+override with `launchOptions: { headless: false }` if needed.
+
+---
+
+## client — MCP client library specs
+
+Tests that use the generated `client/mcp-tools.js` handle to drive the MCP server.
+No browser fixture — harnesses manage their own session lifecycle via `mcpConnect()`.
+
+```bash
+npx playwright test --project=client
+npm run test:clientmcp
+```
+
+Regenerate `mcp-tools.js` after any registry change:
+
+```bash
+npm run codegen:mcp
+```
+
+See [docs/mcp-client-library.md](./mcp-client-library.md) for architecture.
 
 ---
 
 ## automation — real browser workflows
 
-Real automation tasks against live sites. Also serve as integration/stealth health checks.
+Real automation tasks against live sites. Also serve as integration and stealth health checks.
 Require an active MCP session with CDP (`session.open` first).
 
 ```bash
@@ -59,12 +82,12 @@ npm run test:auto   # requires SZKRABOK_SESSION set
 
 ### Test cases
 
-| File                                        | grep                    | What it does                                                                            | Notes                                                                                                              |
-| ------------------------------------------- | ----------------------- | --------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| `automation/park4night.spec.js`             | `acceptCookies`         | Navigates to park4night.com, dismisses cookie banner                                    | Skips gracefully on reused session (cookies already set); works in both headed and headless mode                   |
-| `automation/intoli-check.spec.js`           | `intoli-check`          | Runs bot.sannysoft.com — 10 Intoli checks + 20 fp-collect checks; session id: `intoli`  | WebGL Renderer excluded (hardware GPU string, not a stealth evasion)                                              |
-| `automation/rebrowser-check.spec.js`        | `rebrowser-check`       | Runs bot-detector.rebrowser.net — 10 checks; session id: `rebrowser-check`              | Currently 7/10: mainWorldExecution, exposeFunctionLeak (no fix available), useragent (WIP) always fail            |
-| `automation/navigator-properties.spec.js`   | `navigator-properties`  | Scrapes whatismybrowser.com navigator properties + evaluates userAgentData directly      | Shows what external sites see; use to verify stealth evasions are reaching the browser                            |
+| File | grep | What it does | Notes |
+| ---- | ---- | ------------ | ----- |
+| `automation/park4night.spec.js` | `acceptCookies` | Navigates to park4night.com, dismisses cookie banner | Skips gracefully on reused session (cookies already set) |
+| `automation/intoli-check.spec.js` | `intoli-check` | Runs bot.sannysoft.com — 10 Intoli checks + 20 fp-collect checks | WebGL Renderer excluded (hardware GPU string, not a stealth evasion) |
+| `automation/rebrowser-check.spec.js` | `rebrowser-check` | Runs bot-detector.rebrowser.net — 10 checks; **8/10 passing** | Permanent failures: `mainWorldExecution`, `exposeFunctionLeak` (no fix available) |
+| `automation/navigator-properties.spec.js` | `navigator-properties` | Scrapes whatismybrowser.com navigator properties + evaluates userAgentData | Shows what external sites see; use to verify stealth evasions |
 
 #### intoli-check detail
 
@@ -132,15 +155,17 @@ Stealth is active in both modes:
 - **MCP** (`browser.run_test`) — fixture connects to the live stealth session via CDP
 - **Standalone CLI** — fixture launches its own stealth browser via `enhanceWithStealth(chromium)`
 
-Both paths use the same `playwright-extra` + `puppeteer-extra-plugin-stealth` library with identical evasions. `storageState.json` from a previous session is loaded for cookies when running standalone.
+Both paths use the same `playwright-extra` + `puppeteer-extra-plugin-stealth` library.
+`storageState.json` from a previous session is loaded for cookies when running standalone.
 
-Params: `browser.run_test { params: { url: "..." } }` → `TEST_URL` env var.
+Params: `browser.run_test { params: { url: "..." } }` -> `TEST_URL` env var.
 
 ---
 
 ## Session state sharing
 
-Automation tests connect to the same Chrome as the MCP session via CDP — cookies, localStorage, and browsing done via MCP tools are immediately visible without a close/reopen cycle.
+Automation tests connect to the same Chrome as the MCP session via CDP — cookies, localStorage,
+and browsing done via MCP tools are immediately visible without a close/reopen cycle.
 
 Without an active MCP session, tests fall back to `storageState.json` from a previous session if present.
 
@@ -148,11 +173,12 @@ Without an active MCP session, tests fall back to `storageState.json` from a pre
 
 ## Troubleshooting
 
-| Symptom                             | Fix                                                                                            |
-| ----------------------------------- | ---------------------------------------------------------------------------------------------- |
-| `run_test` fails "Session not open" | Call `session.open {id}` first                                                                 |
-| `run_test` fails "no CDP port"      | Session opened before CDP support — close and reopen                                           |
-| WebGL Renderer FAIL on intoli-check | Not a stealth issue — it's the hardware GPU string; excluded from assertions                   |
-| `Executable doesn't exist`          | `npx playwright install chromium`                                                              |
-| No JSON result in output            | Add `testInfo.attach('result', {...})` to the test                                             |
-| Wrong browser / want ungoogled      | Run `bash scripts/detect_browsers.sh`, copy `executablePath` to `szkrabok.config.local.toml`  |
+| Symptom | Fix |
+| ------- | --- |
+| `run_test` fails "Session not open" | Call `session.open {id}` first |
+| `run_test` fails "no CDP port" | Session opened before CDP support — close and reopen |
+| `MCP registry drift detected` | Run `npm run codegen:mcp` then commit updated `mcp-tools.js` |
+| WebGL Renderer FAIL on intoli-check | Not a stealth issue — hardware GPU string; excluded from assertions |
+| `Executable doesn't exist` | `npx playwright install chromium` |
+| No JSON result in output | Add `testInfo.attach('result', {...})` to the test |
+| Wrong browser / want ungoogled | Run `bash scripts/detect_browsers.sh`, copy `executablePath` to `szkrabok.config.local.toml` |

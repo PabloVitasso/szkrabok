@@ -4,12 +4,7 @@
  */
 
 import { test as baseTest, expect as baseExpect } from 'playwright/test';
-import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
-import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import path from 'path';
-import { fileURLToPath } from 'url';
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+import { spawnClient } from '../../client/runtime/transport.js';
 
 // Default config applied to every session.open call made through openSession().
 // Tests must not rely on the server's TOML for these values — selftest must be
@@ -21,42 +16,11 @@ const SESSION_DEFAULTS = {
 export const test = baseTest.extend({
   startClient: async ({}, use) => {
     const clients = [];
-    const stderrBuffers = [];
 
     await use(async () => {
-      const rootDir = path.resolve(__dirname, '../..');
-      const serverPath = path.join(rootDir, 'src/index.js');
-
-      let stderrBuffer = '';
-      const transport = new StdioClientTransport({
-        command: 'node',
-        args: [serverPath],
-        stderr: 'pipe',
-      });
-
-      // Capture stderr
-      if ('stderr' in transport && transport.stderr) {
-        transport.stderr.on('data', chunk => {
-          stderrBuffer += chunk.toString();
-        });
-      }
-
-      const client = new Client(
-        {
-          name: 'szkrabok-test-client',
-          version: '1.0.0',
-        },
-        { capabilities: {} }
-      );
-
-      await client.connect(transport);
+      const client = await spawnClient();
       clients.push(client);
-      stderrBuffers.push(stderrBuffer);
-
-      return {
-        client,
-        stderr: () => stderrBuffers[stderrBuffers.length - 1],
-      };
+      return { client };
     });
 
     // Cleanup
