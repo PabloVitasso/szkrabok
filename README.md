@@ -55,8 +55,8 @@ log_level         = "debug"        # optional — logs to /tmp/YYYYMMDDHHMMszkra
 ## Quick usage
 
 ```
-session.open { "id": "p4n-test" }
-browser.run_test { "id": "p4n-test", "grep": "park4night" }
+session.open { "sessionName": "p4n-test" }
+browser.run_test { "sessionName": "p4n-test", "grep": "park4night" }
 ```
 
 The test navigates to park4night.com, accepts the cookie banner, and returns structured JSON.
@@ -139,7 +139,7 @@ Presets are named browser identities (viewport + locale + timezone + userAgent +
 `[default]` is the TOML fallback. Pass a preset per-session:
 
 ```
-session.open { "id": "mobile-test", "config": { "preset": "mobile-iphone-15" } }
+session.open { "sessionName": "mobile-test", "launchOptions": { "preset": "mobile-iphone-15" } }
 ```
 
 For Playwright standalone runs, set `SZKRABOK_PRESET=mobile-iphone-15` before running tests.

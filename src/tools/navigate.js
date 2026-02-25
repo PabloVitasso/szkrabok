@@ -3,25 +3,25 @@ import * as storage from '../core/storage.js';
 import * as upstream from '../upstream/wrapper.js';
 
 export const goto = async args => {
-  const { id, url, wait = 'domcontentloaded' } = args;
-  const session = pool.get(id);
+  const { sessionName, url, wait = 'domcontentloaded' } = args;
+  const session = pool.get(sessionName);
 
   await upstream.navigate(session.page, url, { waitUntil: wait });
-  await storage.updateMeta(id, { lastUrl: url });
+  await storage.updateMeta(sessionName, { lastUrl: url });
 
   return { success: true, url };
 };
 
 export const back = async args => {
-  const { id } = args;
-  const session = pool.get(id);
+  const { sessionName } = args;
+  const session = pool.get(sessionName);
   await upstream.back(session.page);
   return { success: true };
 };
 
 export const forward = async args => {
-  const { id } = args;
-  const session = pool.get(id);
+  const { sessionName } = args;
+  const session = pool.get(sessionName);
   await upstream.forward(session.page);
   return { success: true };
 };

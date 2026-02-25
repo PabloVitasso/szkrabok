@@ -24,10 +24,10 @@
  * ── Run via MCP ──────────────────────────────────────────────────────────────
  *
  *   1. Open a session (launches Chrome with a persistent profile + CDP port):
- *        session.open { "id": "intoli" }
+ *        session.open { "sessionName": "intoli" }
  *
  *   2. Run the test (connects to that Chrome via CDP):
- *        browser.run_test { "id": "intoli", "grep": "intoli-check" }
+ *        browser.run_test { "sessionName": "intoli", "grep": "intoli-check" }
  *
  *   Expected result on a clean stealth session:
  *     { "intoli": { passed: 11, failed: 0, warned: 0 },

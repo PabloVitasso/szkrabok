@@ -15,7 +15,7 @@ test.describe('CSS Selector Tools', () => {
     const response = await client.callTool({
       name: 'nav.goto',
       arguments: {
-        id: sessionId,
+        sessionName: sessionId,
         url: 'https://www.iana.org/domains/reserved',
       },
     });
@@ -28,7 +28,7 @@ test.describe('CSS Selector Tools', () => {
     // Cleanup
     await client.callTool({
       name: 'session.close',
-      arguments: { id: sessionId },
+      arguments: { sessionName: sessionId },
     });
   });
 
@@ -40,7 +40,7 @@ test.describe('CSS Selector Tools', () => {
     const response = await client.callTool({
       name: 'extract.text',
       arguments: {
-        id: sessionId,
+        sessionName: sessionId,
         selector: 'h1',
       },
     });
@@ -53,7 +53,7 @@ test.describe('CSS Selector Tools', () => {
     // Cleanup
     await client.callTool({
       name: 'session.close',
-      arguments: { id: sessionId },
+      arguments: { sessionName: sessionId },
     });
   });
 
@@ -64,7 +64,7 @@ test.describe('CSS Selector Tools', () => {
 
     const response = await client.callTool({
       name: 'extract.html',
-      arguments: { id: sessionId },
+      arguments: { sessionName: sessionId },
     });
 
     expect(response.content).toHaveLength(1);
@@ -76,7 +76,7 @@ test.describe('CSS Selector Tools', () => {
     // Cleanup
     await client.callTool({
       name: 'session.close',
-      arguments: { id: sessionId },
+      arguments: { sessionName: sessionId },
     });
   });
 });
@@ -90,7 +90,7 @@ test.describe('Workflow Tools', () => {
     const response = await client.callTool({
       name: 'workflow.scrape',
       arguments: {
-        id: sessionId,
+        sessionName: sessionId,
         selectors: {
           title: 'h1',
           paragraph: 'p',
@@ -106,7 +106,7 @@ test.describe('Workflow Tools', () => {
     // Cleanup
     await client.callTool({
       name: 'session.close',
-      arguments: { id: sessionId },
+      arguments: { sessionName: sessionId },
     });
   });
 });

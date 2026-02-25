@@ -21,27 +21,27 @@ const cdpPortForId = id => {
 };
 
 export const open = async args => {
-  const { id, url, config = {} } = args;
+  const { sessionName, url, launchOptions = {} } = args;
 
   // If session already exists in pool, reuse it
-  if (pool.has(id)) {
-    log(`Reusing existing session: ${id}`);
-    const session = pool.get(id);
+  if (pool.has(sessionName)) {
+    log(`Reusing existing session: ${sessionName}`);
+    const session = pool.get(sessionName);
 
     // Check if context is still alive
     try {
       if (session.context._closed || session.page.isClosed()) {
-        log(`Session ${id} context was closed, removing from pool`);
-        pool.remove(id);
+        log(`Session ${sessionName} context was closed, removing from pool`);
+        pool.remove(sessionName);
       } else {
         // Session is alive, optionally navigate
         if (url) {
           await navigate(session.page, url);
-          await storage.updateMeta(id, { lastUrl: url });
+          await storage.updateMeta(sessionName, { lastUrl: url });
         }
         return {
           success: true,
-          id,
+          sessionName,
           url,
           reused: true,
           preset: session.preset,
@@ -49,28 +49,28 @@ export const open = async args => {
         };
       }
     } catch (err) {
-      log(`Session ${id} check failed, removing from pool: ${err.message}`);
-      pool.remove(id);
+      log(`Session ${sessionName} check failed, removing from pool: ${err.message}`);
+      pool.remove(sessionName);
     }
   }
 
   await storage.ensureSessionsDir();
 
-  // Load saved meta for this session id (may be null for new sessions).
+  // Load saved meta for this session name (may be null for new sessions).
   // Used to restore config when reopening a session without explicit args.
-  const savedMeta = await storage.loadMeta(id);
+  const savedMeta = await storage.loadMeta(sessionName);
   const savedConfig = savedMeta?.config ?? {};
 
-  // Resolve preset: per-call config.preset → saved preset → TOML preset → TOML default
-  const resolved = resolvePreset(config.preset ?? savedMeta?.preset);
+  // Resolve preset: per-call launchOptions.preset → saved preset → TOML preset → TOML default
+  const resolved = resolvePreset(launchOptions.preset ?? savedMeta?.preset);
 
   // Precedence: explicit call config → saved meta config → resolved preset → TOML default
-  const effectiveViewport = config.viewport || savedConfig.viewport || resolved.viewport || VIEWPORT;
-  const effectiveUserAgent = config.userAgent || savedConfig.userAgent || resolved.userAgent || USER_AGENT;
-  const effectiveLocale = config.locale || savedConfig.locale || resolved.locale || LOCALE;
-  const effectiveTimezone = config.timezone || savedConfig.timezone || resolved.timezone || TIMEZONE;
-  const effectiveStealth = config.stealth ?? savedConfig.stealth ?? STEALTH_ENABLED;
-  const effectiveHeadless = config.headless ?? savedConfig.headless ?? HEADLESS;
+  const effectiveViewport = launchOptions.viewport || savedConfig.viewport || resolved.viewport || VIEWPORT;
+  const effectiveUserAgent = launchOptions.userAgent || savedConfig.userAgent || resolved.userAgent || USER_AGENT;
+  const effectiveLocale = launchOptions.locale || savedConfig.locale || resolved.locale || LOCALE;
+  const effectiveTimezone = launchOptions.timezone || savedConfig.timezone || resolved.timezone || TIMEZONE;
+  const effectiveStealth = launchOptions.stealth ?? savedConfig.stealth ?? STEALTH_ENABLED;
+  const effectiveHeadless = launchOptions.headless ?? savedConfig.headless ?? HEADLESS;
 
   // presetConfig is passed to enhanceWithStealth so the user-agent-override
   // evasion receives the correct identity (userAgent, locale) for this session.
@@ -79,14 +79,14 @@ export const open = async args => {
     locale: effectiveLocale,
     // overrideUserAgent from preset controls whether user-agent-override evasion
     // is active for this session. Defaults to TOML evasion enabled state.
-    overrideUserAgent: config.overrideUserAgent ?? resolved.overrideUserAgent,
+    overrideUserAgent: launchOptions.overrideUserAgent ?? resolved.overrideUserAgent,
   };
 
   // Use userDataDir for complete profile persistence
-  const userDataDir = storage.getUserDataDir(id);
+  const userDataDir = storage.getUserDataDir(sessionName);
 
-  // Deterministic CDP port — same session id always maps to same port
-  const cdpPort = cdpPortForId(id);
+  // Deterministic CDP port — same session name always maps to same port
+  const cdpPort = cdpPortForId(sessionName);
 
   // Launch persistent context
   const context = await launchPersistentContext(userDataDir, {
@@ -114,9 +114,9 @@ export const open = async args => {
 
   // Listen for context close event (e.g., user manually closes browser)
   context.on('close', () => {
-    log(`Context ${id} was closed manually or by user`);
-    if (pool.has(id)) {
-      pool.remove(id);
+    log(`Context ${sessionName} was closed manually or by user`);
+    if (pool.has(sessionName)) {
+      pool.remove(sessionName);
     }
   });
 
@@ -124,10 +124,10 @@ export const open = async args => {
   const pages = context.pages();
   const page = pages.length > 0 ? pages[0] : await context.newPage();
 
-  pool.add(id, context, page, cdpPort, resolved.preset, resolved.label);
+  pool.add(sessionName, context, page, cdpPort, resolved.preset, resolved.label);
 
   const meta = {
-    id,
+    sessionName,
     created: savedMeta?.created ?? Date.now(),
     lastUsed: Date.now(),
     preset: resolved.preset,
@@ -142,17 +142,17 @@ export const open = async args => {
     },
     userDataDir,
   };
-  await storage.saveMeta(id, meta);
+  await storage.saveMeta(sessionName, meta);
 
   if (url) {
     await navigate(page, url);
-    await storage.updateMeta(id, { lastUrl: url });
+    await storage.updateMeta(sessionName, { lastUrl: url });
   }
 
   // Return full resolved config so caller knows exactly what was applied
   return {
     success: true,
-    id,
+    sessionName,
     url,
     preset: resolved.preset,
     label: resolved.label,
@@ -167,28 +167,28 @@ export const open = async args => {
 };
 
 export const close = async args => {
-  const { id } = args;
+  const { sessionName } = args;
 
   // Wrap with error handling in case context is already closed
   try {
-    const session = pool.get(id);
+    const session = pool.get(sessionName);
 
     // userDataDir automatically persists everything, no need to save storageState
     // Just update metadata and close
-    await storage.updateMeta(id, { lastUsed: Date.now() });
+    await storage.updateMeta(sessionName, { lastUsed: Date.now() });
     await session.context.close();
-    pool.remove(id);
+    pool.remove(sessionName);
 
-    return { success: true, id };
+    return { success: true, sessionName };
   } catch (err) {
     // If context is already closed or session not found, just remove from pool
-    if (pool.has(id)) {
-      pool.remove(id);
+    if (pool.has(sessionName)) {
+      pool.remove(sessionName);
     }
 
     if (err.message?.includes('closed')) {
-      log(`Session ${id} was already closed`);
-      return { success: true, id, alreadyClosed: true };
+      log(`Session ${sessionName} was already closed`);
+      return { success: true, sessionName, alreadyClosed: true };
     }
 
     throw err;
@@ -214,25 +214,25 @@ export const list = async () => {
 };
 
 export const endpoint = async args => {
-  const { id } = args;
-  const session = pool.get(id);
+  const { sessionName } = args;
+  const session = pool.get(sessionName);
 
   const cdpEndpoint = `http://localhost:${session.cdpPort}`;
 
   return {
-    sessionId: id,
+    sessionName,
     cdpEndpoint,
     // Connect from Playwright: chromium.connectOverCDP(cdpEndpoint)
   };
 };
 
 export const deleteSession = async args => {
-  const { id } = args;
+  const { sessionName } = args;
 
-  if (pool.has(id)) {
-    await close({ id });
+  if (pool.has(sessionName)) {
+    await close({ sessionName });
   }
 
-  await storage.deleteSession(id);
-  return { success: true, id };
+  await storage.deleteSession(sessionName);
+  return { success: true, sessionName };
 };

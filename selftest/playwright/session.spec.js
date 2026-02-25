@@ -21,7 +21,7 @@ test.describe('Session Management', () => {
     // Cleanup
     await client.callTool({
       name: 'session.close',
-      arguments: { id: sessionId },
+      arguments: { sessionName: sessionId },
     });
   });
 
@@ -43,7 +43,7 @@ test.describe('Session Management', () => {
     // Cleanup
     await client.callTool({
       name: 'session.close',
-      arguments: { id: sessionId },
+      arguments: { sessionName: sessionId },
     });
   });
 
@@ -54,7 +54,7 @@ test.describe('Session Management', () => {
 
     const response = await client.callTool({
       name: 'session.close',
-      arguments: { id: sessionId, save: true },
+      arguments: { sessionName: sessionId, save: true },
     });
 
     expect(response.content).toHaveLength(1);
@@ -65,7 +65,7 @@ test.describe('Session Management', () => {
     // Cleanup
     await client.callTool({
       name: 'session.delete',
-      arguments: { id: sessionId },
+      arguments: { sessionName: sessionId },
     });
   });
 
@@ -76,12 +76,12 @@ test.describe('Session Management', () => {
 
     await client.callTool({
       name: 'session.close',
-      arguments: { id: sessionId, save: true },
+      arguments: { sessionName: sessionId, save: true },
     });
 
     const response = await client.callTool({
       name: 'session.delete',
-      arguments: { id: sessionId },
+      arguments: { sessionName: sessionId },
     });
 
     expect(response.content).toHaveLength(1);

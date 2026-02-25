@@ -4,7 +4,7 @@ import { TIMEOUT } from '../config.js';
 
 export const login = async args => {
   const {
-    id,
+    sessionName,
     username,
     password,
     usernameSelector = 'input[type="email"], input[name="username"], input[name="email"]',
@@ -12,7 +12,7 @@ export const login = async args => {
     submitSelector = 'button[type="submit"], input[type="submit"]',
   } = args;
 
-  const session = pool.get(id);
+  const session = pool.get(sessionName);
   const page = session.page;
 
   await upstream.type(page, usernameSelector, username);
@@ -25,8 +25,8 @@ export const login = async args => {
 };
 
 export const fillForm = async args => {
-  const { id, fields } = args;
-  const session = pool.get(id);
+  const { sessionName, fields } = args;
+  const session = pool.get(sessionName);
   const page = session.page;
 
   for (const [selector, value] of Object.entries(fields)) {
@@ -46,8 +46,8 @@ export const fillForm = async args => {
 };
 
 export const scrape = async args => {
-  const { id, selectors } = args;
-  const session = pool.get(id);
+  const { sessionName, selectors } = args;
+  const session = pool.get(sessionName);
   const page = session.page;
 
   const results = {};

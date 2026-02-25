@@ -4,10 +4,10 @@
  * ── Run via MCP ──────────────────────────────────────────────────────────────
  *
  *   1. Open a session (launches Chrome with a persistent profile + CDP port):
- *        session.open { "id": "p4n-test" }
+ *        session.open { "sessionName": "p4n-test" }
  *
  *   2. Run the test (connects to that Chrome via CDP):
- *        browser.run_test { "id": "p4n-test", "grep": "park4night" }
+ *        browser.run_test { "sessionName": "p4n-test", "grep": "park4night" }
  *
  *   Session behaviour:
  *     NEW session  — profile directory is empty; park4night will show the
@@ -19,9 +19,9 @@
  *                      { "action": "skipped", "reason": "banner_not_present" }
  *
  *   To force a fresh run, delete the session first:
- *        session.delete { "id": "p4n-test" }
- *        session.open   { "id": "p4n-test" }
- *        browser.run_test { "id": "p4n-test", "grep": "park4night" }
+ *        session.delete { "sessionName": "p4n-test" }
+ *        session.open   { "sessionName": "p4n-test" }
+ *        browser.run_test { "sessionName": "p4n-test", "grep": "park4night" }
  *
  * ── Run via Playwright CLI ───────────────────────────────────────────────────
  *

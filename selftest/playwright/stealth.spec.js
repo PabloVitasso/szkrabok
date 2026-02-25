@@ -12,7 +12,7 @@ test.describe('Stealth Mode', () => {
 
     const response = await openSession(client, sessionId, {
       url: 'https://bot.sannysoft.com/',
-      config: { stealth: true },
+      launchOptions: { stealth: true },
     });
 
     expect(response.content).toHaveLength(1);
@@ -26,7 +26,7 @@ test.describe('Stealth Mode', () => {
     // Extract page content to verify stealth
     const extractResponse = await client.callTool({
       name: 'extract.html',
-      arguments: { id: sessionId },
+      arguments: { sessionName: sessionId },
     });
 
     expect(extractResponse.content).toHaveLength(1);
@@ -41,7 +41,7 @@ test.describe('Stealth Mode', () => {
     // Cleanup
     await client.callTool({
       name: 'session.close',
-      arguments: { id: sessionId, save: false },
+      arguments: { sessionName: sessionId, save: false },
     });
   });
 });

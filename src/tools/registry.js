@@ -26,10 +26,11 @@ const szkrabokTools = {
     inputSchema: {
       type: 'object',
       properties: {
-        id: { type: 'string' },
+        sessionName: { type: 'string' },
         url: { type: 'string' },
-        config: {
+        launchOptions: {
           type: 'object',
+          description: 'Browser launch options — preset, stealth, headless, viewport, userAgent, locale, timezone, disableWebGL',
           properties: {
             preset: {
               type: 'string',
@@ -49,7 +50,7 @@ const szkrabokTools = {
           },
         },
       },
-      required: ['id'],
+      required: ['sessionName'],
     },
   },
 
@@ -59,10 +60,10 @@ const szkrabokTools = {
     inputSchema: {
       type: 'object',
       properties: {
-        id: { type: 'string' },
+        sessionName: { type: 'string' },
         save: { type: 'boolean', default: true },
       },
-      required: ['id'],
+      required: ['sessionName'],
     },
   },
 
@@ -77,8 +78,8 @@ const szkrabokTools = {
     description: `${SZKRABOK} Delete session permanently`,
     inputSchema: {
       type: 'object',
-      properties: { id: { type: 'string' } },
-      required: ['id'],
+      properties: { sessionName: { type: 'string' } },
+      required: ['sessionName'],
     },
   },
 
@@ -87,8 +88,8 @@ const szkrabokTools = {
     description: `${SZKRABOK} Get Playwright WebSocket endpoint for external script connection`,
     inputSchema: {
       type: 'object',
-      properties: { id: { type: 'string' } },
-      required: ['id'],
+      properties: { sessionName: { type: 'string' } },
+      required: ['sessionName'],
     },
   },
 
@@ -98,11 +99,11 @@ const szkrabokTools = {
     inputSchema: {
       type: 'object',
       properties: {
-        id: { type: 'string' },
+        sessionName: { type: 'string' },
         url: { type: 'string' },
         wait: { type: 'string', enum: ['load', 'domcontentloaded', 'networkidle'] },
       },
-      required: ['id', 'url'],
+      required: ['sessionName', 'url'],
     },
   },
 
@@ -111,8 +112,8 @@ const szkrabokTools = {
     description: `${SZKRABOK} Go back`,
     inputSchema: {
       type: 'object',
-      properties: { id: { type: 'string' } },
-      required: ['id'],
+      properties: { sessionName: { type: 'string' } },
+      required: ['sessionName'],
     },
   },
 
@@ -121,8 +122,8 @@ const szkrabokTools = {
     description: `${SZKRABOK} Go forward`,
     inputSchema: {
       type: 'object',
-      properties: { id: { type: 'string' } },
-      required: ['id'],
+      properties: { sessionName: { type: 'string' } },
+      required: ['sessionName'],
     },
   },
 
@@ -132,10 +133,10 @@ const szkrabokTools = {
     inputSchema: {
       type: 'object',
       properties: {
-        id: { type: 'string' },
+        sessionName: { type: 'string' },
         selector: { type: 'string' },
       },
-      required: ['id', 'selector'],
+      required: ['sessionName', 'selector'],
     },
   },
 
@@ -145,11 +146,11 @@ const szkrabokTools = {
     inputSchema: {
       type: 'object',
       properties: {
-        id: { type: 'string' },
+        sessionName: { type: 'string' },
         selector: { type: 'string' },
         text: { type: 'string' },
       },
-      required: ['id', 'selector', 'text'],
+      required: ['sessionName', 'selector', 'text'],
     },
   },
 
@@ -159,11 +160,11 @@ const szkrabokTools = {
     inputSchema: {
       type: 'object',
       properties: {
-        id: { type: 'string' },
+        sessionName: { type: 'string' },
         selector: { type: 'string' },
         value: { type: 'string' },
       },
-      required: ['id', 'selector', 'value'],
+      required: ['sessionName', 'selector', 'value'],
     },
   },
 
@@ -173,10 +174,10 @@ const szkrabokTools = {
     inputSchema: {
       type: 'object',
       properties: {
-        id: { type: 'string' },
+        sessionName: { type: 'string' },
         selector: { type: 'string' },
       },
-      required: ['id'],
+      required: ['sessionName'],
     },
   },
 
@@ -186,10 +187,10 @@ const szkrabokTools = {
     inputSchema: {
       type: 'object',
       properties: {
-        id: { type: 'string' },
+        sessionName: { type: 'string' },
         selector: { type: 'string' },
       },
-      required: ['id'],
+      required: ['sessionName'],
     },
   },
 
@@ -199,11 +200,11 @@ const szkrabokTools = {
     inputSchema: {
       type: 'object',
       properties: {
-        id: { type: 'string' },
+        sessionName: { type: 'string' },
         path: { type: 'string' },
         fullPage: { type: 'boolean' },
       },
-      required: ['id'],
+      required: ['sessionName'],
     },
   },
 
@@ -213,11 +214,11 @@ const szkrabokTools = {
     inputSchema: {
       type: 'object',
       properties: {
-        id: { type: 'string' },
+        sessionName: { type: 'string' },
         code: { type: 'string' },
         args: { type: 'array', items: { type: 'string' }, default: [] },
       },
-      required: ['id', 'code'],
+      required: ['sessionName', 'code'],
     },
   },
 
@@ -227,11 +228,11 @@ const szkrabokTools = {
     inputSchema: {
       type: 'object',
       properties: {
-        id: { type: 'string' },
+        sessionName: { type: 'string' },
         username: { type: 'string' },
         password: { type: 'string' },
       },
-      required: ['id', 'username', 'password'],
+      required: ['sessionName', 'username', 'password'],
     },
   },
 
@@ -241,10 +242,10 @@ const szkrabokTools = {
     inputSchema: {
       type: 'object',
       properties: {
-        id: { type: 'string' },
+        sessionName: { type: 'string' },
         fields: { type: 'object' },
       },
-      required: ['id', 'fields'],
+      required: ['sessionName', 'fields'],
     },
   },
 
@@ -254,10 +255,10 @@ const szkrabokTools = {
     inputSchema: {
       type: 'object',
       properties: {
-        id: { type: 'string' },
+        sessionName: { type: 'string' },
         selectors: { type: 'object' },
       },
-      required: ['id', 'selectors'],
+      required: ['sessionName', 'selectors'],
     },
   },
 };
@@ -273,9 +274,9 @@ const playwrightMcpTools = {
     inputSchema: {
       type: 'object',
       properties: {
-        id: { type: 'string' },
+        sessionName: { type: 'string' },
       },
-      required: ['id'],
+      required: ['sessionName'],
     },
   },
 
@@ -285,14 +286,14 @@ const playwrightMcpTools = {
     inputSchema: {
       type: 'object',
       properties: {
-        id: { type: 'string' },
+        sessionName: { type: 'string' },
         element: { type: 'string' },
         ref: { type: 'string' },
         doubleClick: { type: 'boolean' },
         button: { type: 'string', enum: ['left', 'right', 'middle'] },
         modifiers: { type: 'array', items: { type: 'string' } },
       },
-      required: ['id', 'ref', 'element'],
+      required: ['sessionName', 'ref', 'element'],
     },
   },
 
@@ -302,14 +303,14 @@ const playwrightMcpTools = {
     inputSchema: {
       type: 'object',
       properties: {
-        id: { type: 'string' },
+        sessionName: { type: 'string' },
         element: { type: 'string' },
         ref: { type: 'string' },
         text: { type: 'string' },
         submit: { type: 'boolean' },
         slowly: { type: 'boolean' },
       },
-      required: ['id', 'ref', 'text', 'element'],
+      required: ['sessionName', 'ref', 'text', 'element'],
     },
   },
 
@@ -319,10 +320,10 @@ const playwrightMcpTools = {
     inputSchema: {
       type: 'object',
       properties: {
-        id: { type: 'string' },
+        sessionName: { type: 'string' },
         url: { type: 'string' },
       },
-      required: ['id', 'url'],
+      required: ['sessionName', 'url'],
     },
   },
 
@@ -332,9 +333,9 @@ const playwrightMcpTools = {
     inputSchema: {
       type: 'object',
       properties: {
-        id: { type: 'string' },
+        sessionName: { type: 'string' },
       },
-      required: ['id'],
+      required: ['sessionName'],
     },
   },
 
@@ -344,9 +345,9 @@ const playwrightMcpTools = {
     inputSchema: {
       type: 'object',
       properties: {
-        id: { type: 'string' },
+        sessionName: { type: 'string' },
       },
-      required: ['id'],
+      required: ['sessionName'],
     },
   },
 
@@ -356,13 +357,13 @@ const playwrightMcpTools = {
     inputSchema: {
       type: 'object',
       properties: {
-        id: { type: 'string' },
+        sessionName: { type: 'string' },
         startElement: { type: 'string' },
         startRef: { type: 'string' },
         endElement: { type: 'string' },
         endRef: { type: 'string' },
       },
-      required: ['id', 'startRef', 'startElement', 'endRef', 'endElement'],
+      required: ['sessionName', 'startRef', 'startElement', 'endRef', 'endElement'],
     },
   },
 
@@ -372,11 +373,11 @@ const playwrightMcpTools = {
     inputSchema: {
       type: 'object',
       properties: {
-        id: { type: 'string' },
+        sessionName: { type: 'string' },
         element: { type: 'string' },
         ref: { type: 'string' },
       },
-      required: ['id', 'ref', 'element'],
+      required: ['sessionName', 'ref', 'element'],
     },
   },
 
@@ -386,12 +387,12 @@ const playwrightMcpTools = {
     inputSchema: {
       type: 'object',
       properties: {
-        id: { type: 'string' },
+        sessionName: { type: 'string' },
         function: { type: 'string' },
         element: { type: 'string' },
         ref: { type: 'string' },
       },
-      required: ['id', 'function'],
+      required: ['sessionName', 'function'],
     },
   },
 
@@ -401,12 +402,12 @@ const playwrightMcpTools = {
     inputSchema: {
       type: 'object',
       properties: {
-        id: { type: 'string' },
+        sessionName: { type: 'string' },
         element: { type: 'string' },
         ref: { type: 'string' },
         values: { type: 'array', items: { type: 'string' } },
       },
-      required: ['id', 'ref', 'element', 'values'],
+      required: ['sessionName', 'ref', 'element', 'values'],
     },
   },
 
@@ -416,10 +417,10 @@ const playwrightMcpTools = {
     inputSchema: {
       type: 'object',
       properties: {
-        id: { type: 'string' },
+        sessionName: { type: 'string' },
         fields: { type: 'array', items: { type: 'object' } },
       },
-      required: ['id', 'fields'],
+      required: ['sessionName', 'fields'],
     },
   },
 
@@ -429,10 +430,10 @@ const playwrightMcpTools = {
     inputSchema: {
       type: 'object',
       properties: {
-        id: { type: 'string' },
+        sessionName: { type: 'string' },
         key: { type: 'string' },
       },
-      required: ['id', 'key'],
+      required: ['sessionName', 'key'],
     },
   },
 
@@ -442,14 +443,14 @@ const playwrightMcpTools = {
     inputSchema: {
       type: 'object',
       properties: {
-        id: { type: 'string' },
+        sessionName: { type: 'string' },
         type: { type: 'string', enum: ['png', 'jpeg'] },
         filename: { type: 'string' },
         element: { type: 'string' },
         ref: { type: 'string' },
         fullPage: { type: 'boolean' },
       },
-      required: ['id'],
+      required: ['sessionName'],
     },
   },
 
@@ -459,12 +460,12 @@ const playwrightMcpTools = {
     inputSchema: {
       type: 'object',
       properties: {
-        id: { type: 'string' },
+        sessionName: { type: 'string' },
         time: { type: 'number' },
         text: { type: 'string' },
         textGone: { type: 'string' },
       },
-      required: ['id'],
+      required: ['sessionName'],
     },
   },
 
@@ -474,11 +475,11 @@ const playwrightMcpTools = {
     inputSchema: {
       type: 'object',
       properties: {
-        id: { type: 'string' },
+        sessionName: { type: 'string' },
         width: { type: 'number' },
         height: { type: 'number' },
       },
-      required: ['id', 'width', 'height'],
+      required: ['sessionName', 'width', 'height'],
     },
   },
 
@@ -488,11 +489,11 @@ const playwrightMcpTools = {
     inputSchema: {
       type: 'object',
       properties: {
-        id: { type: 'string' },
+        sessionName: { type: 'string' },
         action: { type: 'string', enum: ['list', 'new', 'close', 'select'] },
         index: { type: 'number' },
       },
-      required: ['id', 'action'],
+      required: ['sessionName', 'action'],
     },
   },
 
@@ -502,10 +503,10 @@ const playwrightMcpTools = {
     inputSchema: {
       type: 'object',
       properties: {
-        id: { type: 'string' },
+        sessionName: { type: 'string' },
         level: { type: 'string', enum: ['error', 'warning', 'info', 'debug'] },
       },
-      required: ['id'],
+      required: ['sessionName'],
     },
   },
 
@@ -515,10 +516,10 @@ const playwrightMcpTools = {
     inputSchema: {
       type: 'object',
       properties: {
-        id: { type: 'string' },
+        sessionName: { type: 'string' },
         includeStatic: { type: 'boolean' },
       },
-      required: ['id'],
+      required: ['sessionName'],
     },
   },
 
@@ -528,10 +529,10 @@ const playwrightMcpTools = {
     inputSchema: {
       type: 'object',
       properties: {
-        id: { type: 'string' },
+        sessionName: { type: 'string' },
         paths: { type: 'array', items: { type: 'string' } },
       },
-      required: ['id'],
+      required: ['sessionName'],
     },
   },
 
@@ -541,11 +542,11 @@ const playwrightMcpTools = {
     inputSchema: {
       type: 'object',
       properties: {
-        id: { type: 'string' },
+        sessionName: { type: 'string' },
         accept: { type: 'boolean' },
         promptText: { type: 'string' },
       },
-      required: ['id', 'accept'],
+      required: ['sessionName', 'accept'],
     },
   },
 
@@ -555,20 +556,20 @@ const playwrightMcpTools = {
     inputSchema: {
       type: 'object',
       properties: {
-        id: { type: 'string' },
+        sessionName: { type: 'string' },
         code: { type: 'string' },
       },
-      required: ['id', 'code'],
+      required: ['sessionName', 'code'],
     },
   },
 
   'browser.run_test': {
     handler: szkrabokBrowser.run_test,
-    description: `${PLAYWRIGHT_MCP} Run Playwright .spec.ts tests via npx playwright test and return JSON results. Uses SZKRABOK_SESSION=id for storageState. Optional grep filters by test name. IMPORTANT: session.open must be called first — browser.run_test connects to the already-running browser via CDP and will fail if the session is not open.`,
+    description: `${PLAYWRIGHT_MCP} Run Playwright .spec.ts tests via npx playwright test and return JSON results. Uses SZKRABOK_SESSION=sessionName for storageState. Optional grep filters by test name. IMPORTANT: session.open must be called first — browser.run_test connects to the already-running browser via CDP and will fail if the session is not open.`,
     inputSchema: {
       type: 'object',
       properties: {
-        id: { type: 'string' },
+        sessionName: { type: 'string' },
         grep: { type: 'string', description: 'Filter tests by name (regex)' },
         params: {
           type: 'object',
@@ -585,7 +586,7 @@ const playwrightMcpTools = {
             'After the test run, reconnect the session if the test subprocess invalidated the MCP context. Chrome stays alive; this restores the Playwright connection to it. Default false.',
         },
       },
-      required: ['id'],
+      required: ['sessionName'],
     },
   },
 
@@ -595,7 +596,7 @@ const playwrightMcpTools = {
     inputSchema: {
       type: 'object',
       properties: {
-        id: { type: 'string' },
+        sessionName: { type: 'string' },
         path: { type: 'string', description: 'Absolute or relative path to an .mjs script file' },
         fn: { type: 'string', description: 'Named export to call. Defaults to "default".' },
         args: {
@@ -603,7 +604,7 @@ const playwrightMcpTools = {
           description: 'Arguments passed as second parameter to the function',
         },
       },
-      required: ['id', 'path'],
+      required: ['sessionName', 'path'],
     },
   },
 
@@ -613,12 +614,12 @@ const playwrightMcpTools = {
     inputSchema: {
       type: 'object',
       properties: {
-        id: { type: 'string' },
+        sessionName: { type: 'string' },
         element: { type: 'string' },
         x: { type: 'number' },
         y: { type: 'number' },
       },
-      required: ['id', 'element', 'x', 'y'],
+      required: ['sessionName', 'element', 'x', 'y'],
     },
   },
 
@@ -628,12 +629,12 @@ const playwrightMcpTools = {
     inputSchema: {
       type: 'object',
       properties: {
-        id: { type: 'string' },
+        sessionName: { type: 'string' },
         element: { type: 'string' },
         x: { type: 'number' },
         y: { type: 'number' },
       },
-      required: ['id', 'element', 'x', 'y'],
+      required: ['sessionName', 'element', 'x', 'y'],
     },
   },
 
@@ -643,14 +644,14 @@ const playwrightMcpTools = {
     inputSchema: {
       type: 'object',
       properties: {
-        id: { type: 'string' },
+        sessionName: { type: 'string' },
         element: { type: 'string' },
         startX: { type: 'number' },
         startY: { type: 'number' },
         endX: { type: 'number' },
         endY: { type: 'number' },
       },
-      required: ['id', 'element', 'startX', 'startY', 'endX', 'endY'],
+      required: ['sessionName', 'element', 'startX', 'startY', 'endX', 'endY'],
     },
   },
 
@@ -660,10 +661,10 @@ const playwrightMcpTools = {
     inputSchema: {
       type: 'object',
       properties: {
-        id: { type: 'string' },
+        sessionName: { type: 'string' },
         filename: { type: 'string' },
       },
-      required: ['id'],
+      required: ['sessionName'],
     },
   },
 
@@ -673,11 +674,11 @@ const playwrightMcpTools = {
     inputSchema: {
       type: 'object',
       properties: {
-        id: { type: 'string' },
+        sessionName: { type: 'string' },
         element: { type: 'string' },
         ref: { type: 'string' },
       },
-      required: ['id', 'ref', 'element'],
+      required: ['sessionName', 'ref', 'element'],
     },
   },
 
@@ -687,11 +688,11 @@ const playwrightMcpTools = {
     inputSchema: {
       type: 'object',
       properties: {
-        id: { type: 'string' },
+        sessionName: { type: 'string' },
         role: { type: 'string' },
         accessibleName: { type: 'string' },
       },
-      required: ['id', 'role', 'accessibleName'],
+      required: ['sessionName', 'role', 'accessibleName'],
     },
   },
 
@@ -701,10 +702,10 @@ const playwrightMcpTools = {
     inputSchema: {
       type: 'object',
       properties: {
-        id: { type: 'string' },
+        sessionName: { type: 'string' },
         text: { type: 'string' },
       },
-      required: ['id', 'text'],
+      required: ['sessionName', 'text'],
     },
   },
 
@@ -714,12 +715,12 @@ const playwrightMcpTools = {
     inputSchema: {
       type: 'object',
       properties: {
-        id: { type: 'string' },
+        sessionName: { type: 'string' },
         element: { type: 'string' },
         ref: { type: 'string' },
         items: { type: 'array', items: { type: 'string' } },
       },
-      required: ['id', 'ref', 'element', 'items'],
+      required: ['sessionName', 'ref', 'element', 'items'],
     },
   },
 
@@ -729,13 +730,13 @@ const playwrightMcpTools = {
     inputSchema: {
       type: 'object',
       properties: {
-        id: { type: 'string' },
+        sessionName: { type: 'string' },
         type: { type: 'string' },
         element: { type: 'string' },
         ref: { type: 'string' },
         value: { type: 'string' },
       },
-      required: ['id', 'type', 'ref', 'element', 'value'],
+      required: ['sessionName', 'type', 'ref', 'element', 'value'],
     },
   },
 
@@ -745,9 +746,9 @@ const playwrightMcpTools = {
     inputSchema: {
       type: 'object',
       properties: {
-        id: { type: 'string' },
+        sessionName: { type: 'string' },
       },
-      required: ['id'],
+      required: ['sessionName'],
     },
   },
 
@@ -757,9 +758,9 @@ const playwrightMcpTools = {
     inputSchema: {
       type: 'object',
       properties: {
-        id: { type: 'string' },
+        sessionName: { type: 'string' },
       },
-      required: ['id'],
+      required: ['sessionName'],
     },
   },
 

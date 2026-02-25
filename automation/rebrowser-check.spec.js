@@ -17,10 +17,10 @@
  * ── Run via MCP ──────────────────────────────────────────────────────────────
  *
  *   1. Open a session (launches Chrome with a persistent profile + CDP port):
- *        session.open { "id": "rebrowser" }
+ *        session.open { "sessionName": "rebrowser" }
  *
  *   2. Run the test (connects to that Chrome via CDP):
- *        browser.run_test { "id": "rebrowser", "grep": "rebrowser-check" }
+ *        browser.run_test { "sessionName": "rebrowser", "grep": "rebrowser-check" }
  *
  * ── Run via Playwright CLI ───────────────────────────────────────────────────
  *

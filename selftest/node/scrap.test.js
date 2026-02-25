@@ -26,9 +26,9 @@ test(
     try {
       // Open temporary session
       const openResult = await session.open({
-        id: sessionId,
+        sessionName: sessionId,
         url: 'https://bot.sannysoft.com/',
-        config: { stealth: true },
+        launchOptions: { stealth: true },
       });
       assert.ok(openResult.success, 'Session should open successfully');
 
@@ -46,7 +46,7 @@ test(
       await page.waitForSelector('body', { state: 'visible' });
 
       // Extract HTML after ALL JS has run
-      const { content } = await extract.html({ id: sessionId });
+      const { content } = await extract.html({ sessionName: sessionId });
       assert.ok(content, 'Should extract HTML content');
       assert.ok(content.length > 0, 'HTML should not be empty');
 
@@ -73,13 +73,13 @@ test(
     } finally {
       // Always cleanup - ensure browser closes even if test fails
       try {
-        await session.close({ id: sessionId, save: false });
+        await session.close({ sessionName: sessionId, save: false });
       } catch (err) {
         console.error('Error closing session:', err.message);
       }
 
       try {
-        await session.deleteSession({ id: sessionId });
+        await session.deleteSession({ sessionName: sessionId });
       } catch (err) {
         console.error('Error deleting session:', err.message);
       }

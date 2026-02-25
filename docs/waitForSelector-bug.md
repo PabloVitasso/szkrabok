@@ -171,8 +171,8 @@ node scripts/patch-playwright.js
 # 4. Restart MCP server: /mcp -> restart szkrabok
 
 # 5. Run probe test
-# session.open { "id": "intoli" }
-# browser.run_test { "id": "intoli", "grep": "waitForSelector-probe" }
+# session.open { "sessionName": "intoli" }
+# browser.run_test { "sessionName": "intoli", "grep": "waitForSelector-probe" }
 
 # 6. If probe passes, revert intoli-check.spec.js waitForSelector change,
 #    delete waitselector-probe.spec.js, run full test suite

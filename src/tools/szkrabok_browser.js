@@ -9,33 +9,33 @@ import { readFile, mkdir } from 'fs/promises';
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
 export const run_test = async args => {
-  const { id, grep, params = {}, config = 'playwright.config.ts', keepOpen = false } = args;
+  const { sessionName, grep, params = {}, config = 'playwright.config.ts', keepOpen = false } = args;
 
   const configPath = resolve(REPO_ROOT, config);
 
   const paramEnv = Object.fromEntries(
     Object.entries(params).map(([k, v]) => [`TEST_${k.toUpperCase()}`, String(v)])
   );
-  if (!pool.has(id)) {
+  if (!pool.has(sessionName)) {
     throw new Error(
-      `Session "${id}" is not open. Run session.open first:\n  session.open { "id": "${id}" }`
+      `Session "${sessionName}" is not open. Run session.open first:\n  session.open { "sessionName": "${sessionName}" }`
     );
   }
-  const session = pool.get(id);
+  const session = pool.get(sessionName);
   if (!session.cdpPort) {
     throw new Error(
-      `Session "${id}" has no CDP port — it was opened before CDP support was added. Reopen it:\n  session.close { "id": "${id}" }\n  session.open { "id": "${id}" }`
+      `Session "${sessionName}" has no CDP port — it was opened before CDP support was added. Reopen it:\n  session.close { "sessionName": "${sessionName}" }\n  session.open { "sessionName": "${sessionName}" }`
     );
   }
   const cdpEndpoint = `http://localhost:${session.cdpPort}`;
   const env = {
     ...process.env,
-    SZKRABOK_SESSION: id,
+    SZKRABOK_SESSION: sessionName,
     SZKRABOK_CDP_ENDPOINT: cdpEndpoint,
     ...paramEnv,
   };
 
-  const sessionDir = join(REPO_ROOT, 'sessions', id);
+  const sessionDir = join(REPO_ROOT, 'sessions', sessionName);
   await mkdir(sessionDir, { recursive: true });
   const logFile = join(sessionDir, 'last-run.log');
   const jsonFile = join(sessionDir, 'last-run.json');
@@ -69,18 +69,18 @@ export const run_test = async args => {
   let sessionReconnected = false;
   if (keepOpen) {
     const alive =
-      pool.has(id) &&
+      pool.has(sessionName) &&
       (() => {
         try {
-          pool.get(id);
+          pool.get(sessionName);
           return true;
         } catch {
           return false;
         }
       })();
     if (!alive) {
-      pool.remove(id);
-      await sessionOpen({ id });
+      pool.remove(sessionName);
+      await sessionOpen({ sessionName });
       sessionReconnected = true;
     }
   }
@@ -141,8 +141,8 @@ export const run_test = async args => {
 };
 
 export const run_file = async args => {
-  const { id, path: scriptPath, fn = 'default', args: scriptArgs = {} } = args;
-  const session = pool.get(id);
+  const { sessionName, path: scriptPath, fn = 'default', args: scriptArgs = {} } = args;
+  const session = pool.get(sessionName);
 
   const absolutePath = resolve(scriptPath);
 

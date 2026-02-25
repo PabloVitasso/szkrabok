@@ -32,7 +32,7 @@ After editing source files: `/mcp` -> **restart** szkrabok.
 
 `browser.run_test` requires an active session with CDP port. Always:
 
-1. `session.open { "id": "<id>" }` — launches Chrome with CDP port
-2. `browser.run_test { "id": "<id>", ... }` — connects via CDP
+1. `session.open { "sessionName": "<name>" }` — launches Chrome with CDP port
+2. `browser.run_test { "sessionName": "<name>", ... }` — connects via CDP
 
 Calling `browser.run_test` without an open session fails with a clear error.

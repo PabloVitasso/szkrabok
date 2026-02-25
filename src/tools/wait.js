@@ -1,8 +1,8 @@
 import * as pool from '../core/pool.js';
 
 export const forClose = async args => {
-  const { id } = args;
-  const session = pool.get(id);
+  const { sessionName } = args;
+  const session = pool.get(sessionName);
 
   await session.page.waitForEvent('close', { timeout: 0 });
 
@@ -10,8 +10,8 @@ export const forClose = async args => {
 };
 
 export const forSelector = async args => {
-  const { id, selector, timeout = 30000 } = args;
-  const session = pool.get(id);
+  const { sessionName, selector, timeout = 30000 } = args;
+  const session = pool.get(sessionName);
 
   await session.page.waitForSelector(selector, { timeout });
 
@@ -19,8 +19,8 @@ export const forSelector = async args => {
 };
 
 export const forTimeout = async args => {
-  const { id, ms } = args;
-  const session = pool.get(id);
+  const { sessionName, ms } = args;
+  const session = pool.get(sessionName);
 
   await session.page.waitForTimeout(ms);
 

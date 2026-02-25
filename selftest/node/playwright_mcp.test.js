@@ -26,12 +26,12 @@ const withTimeout = (promise, ms, label = 'operation') => {
 };
 
 const openSession = () =>
-  withTimeout(session.open({ id: SESSION_ID, url: START_URL }), 10_000, 'open session');
+  withTimeout(session.open({ sessionName: SESSION_ID, url: START_URL }), 10_000, 'open session');
 
-const closeSession = () => withTimeout(session.close({ id: SESSION_ID }), 10_000, 'close session');
+const closeSession = () => withTimeout(session.close({ sessionName: SESSION_ID }), 10_000, 'close session');
 
 const getSnapshot = async () => {
-  const res = await withTimeout(playwrightMcp.snapshot({ id: SESSION_ID }), 10_000, 'snapshot');
+  const res = await withTimeout(playwrightMcp.snapshot({ sessionName: SESSION_ID }), 10_000, 'snapshot');
   assert.ok(res?.snapshot, 'Empty snapshot');
   return res.snapshot;
 };
@@ -42,10 +42,10 @@ const extractFirstLink = snapshot => {
   return { text: match[1], ref: match[2] };
 };
 
-const clickRef = ref => withTimeout(playwrightMcp.click({ id: SESSION_ID, ref }), 10_000, 'click');
+const clickRef = ref => withTimeout(playwrightMcp.click({ sessionName: SESSION_ID, ref }), 10_000, 'click');
 
 const navigateTo = url =>
-  withTimeout(playwrightMcp.navigate({ id: SESSION_ID, url }), 10_000, 'navigate');
+  withTimeout(playwrightMcp.navigate({ sessionName: SESSION_ID, url }), 10_000, 'navigate');
 
 // ---- test ------------------------------------------------------------------
 

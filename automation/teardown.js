@@ -25,7 +25,7 @@ export default async function globalTeardown(_config) {
       metaFile,
       JSON.stringify(
         {
-          id: sessionId,
+          sessionName: sessionId,
           created: Date.now(),
           lastUsed: Date.now(),
           config: {},

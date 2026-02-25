@@ -8,7 +8,7 @@
  * Usage via browser.run_file:
  *
  *   browser.run_file {
- *     "id": "<session>",
+ *     "sessionName": "<session>",
  *     "path": "playwright-tests/scripts/inspect-page.mjs",
  *     "args": {
  *       "url":        "https://example.com",  // optional — omit to use current page

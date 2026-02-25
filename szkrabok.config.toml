@@ -7,7 +7,7 @@
 #   MCP session launch:
 #     Loaded by src/config.js at server startup.
 #     session.open applies [default] unless a preset is requested:
-#       session.open { "id": "x", "config": { "preset": "mobile-iphone-15" } }
+#       session.open { "sessionName": "x", "launchOptions": { "preset": "mobile-iphone-15" } }
 #     The resolved config (all effective values) is returned in the response.
 #
 #   Playwright standalone runs:
@@ -34,7 +34,7 @@
 #   Stealth (playwright-extra + puppeteer-extra-plugin-stealth) is a separate
 #   concern from browser identity. It is configured in [stealth] and applies
 #   independently of which preset is selected.
-#   Toggle per-session: session.open { "config": { "stealth": false } }
+#   Toggle per-session: session.open { "launchOptions": { "stealth": false } }
 #
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -83,7 +83,7 @@ height = 800
 # by the plugin — they can be copy-pasted into enabledEvasions.add/delete calls.
 #
 # Per-session override (MCP only):
-#   session.open { "config": { "stealth": false } }  — disables all evasions
+#   session.open { "launchOptions": { "stealth": false } }  — disables all evasions
 
 [puppeteer-extra-plugin-stealth]
 # Master switch. When false, no evasions are applied at all and the browser

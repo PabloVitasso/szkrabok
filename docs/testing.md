@@ -47,9 +47,9 @@ Require an active MCP session with CDP (`session.open` first).
 
 ```bash
 # Via MCP (recommended)
-session.open { "id": "my-session" }
-browser.run_test { "id": "my-session" }
-browser.run_test { "id": "my-session", "grep": "acceptCookies" }
+session.open { "sessionName": "my-session" }
+browser.run_test { "sessionName": "my-session" }
+browser.run_test { "sessionName": "my-session", "grep": "acceptCookies" }
 
 # Via CLI
 SZKRABOK_SESSION=my-session npx playwright test --project=automation
@@ -88,7 +88,7 @@ Generic table + iframe inspector. Run via `browser.run_file` to explore any page
 {
   "tool": "browser.run_file",
   "args": {
-    "id": "my-session",
+    "sessionName": "my-session",
     "path": "automation/scripts/inspect-page.mjs",
     "args": {
       "url": "https://example.com",
