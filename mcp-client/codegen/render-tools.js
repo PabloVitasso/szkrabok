@@ -175,20 +175,26 @@ export function renderDts({ tools, timestamp }) {
       const props = t.inputSchema.properties || {};
       const params = Object.keys(props).filter(k => k !== 'sessionName');
 
-      const toolDesc = t.description ? `  /** ${t.description.replace(/\*\//g, '*\/')} */\n` : '';
+      const jsdocLines = [];
+      if (t.description) jsdocLines.push(`   * ${t.description.replace(/\*\//g, '*\/')}`);
+      for (const p of params) {
+        if (props[p].description) jsdocLines.push(`   * @param args.${p} ${props[p].description}`);
+      }
+      const jsdoc = jsdocLines.length
+        ? `  /**\n${jsdocLines.join('\n')}\n   */\n`
+        : '';
 
       if (params.length === 0) {
-        return `${toolDesc}  ${t.method}(): Promise<unknown>;`;
+        return `${jsdoc}  ${t.method}(): Promise<unknown>;`;
       }
 
       const fields = params.map(p => {
         const isOptional = !t.inputSchema.required?.includes(p);
         const type = schemaToTs(props[p]);
-        const desc = props[p].description ? ` // ${props[p].description}` : '';
-        return `    ${p}${isOptional ? '?' : ''}: ${type};${desc}`;
+        return `    ${p}${isOptional ? '?' : ''}: ${type};`;
       }).join('\n');
 
-      return `${toolDesc}  ${t.method}(args: {\n${fields}\n  }): Promise<unknown>;`;
+      return `${jsdoc}  ${t.method}(args: {\n${fields}\n  }): Promise<unknown>;`;
     }).join('\n\n');
 
     interfaces.push(`export interface ${capitalize(ns)}Handle {\n${methods}\n}`);
