@@ -1,7 +1,7 @@
 // AUTO-GENERATED — do not edit manually.
 // Regenerate: npm run codegen:mcp
-// Last generated: 2026-02-25T12:03:45.120Z
-// Tools: 53  Hash: 1dc2fbe45d27
+// Last generated: 2026-02-25T15:14:12.789Z
+// Tools: 53  Hash: 8f33eb08edea
 
 import { createHash } from 'node:crypto';
 import { spawnClient } from './runtime/transport.js';
@@ -9,7 +9,7 @@ import { createCallInvoker } from './runtime/invoker.js';
 import { createLogger } from './runtime/logger.js';
 import * as adapter from './adapters/szkrabok-session.js';
 
-const REGISTRY_HASH = '1dc2fbe45d27';
+const REGISTRY_HASH = '8f33eb08edea';
 
 /**
  * @typedef {Object} McpHandle
