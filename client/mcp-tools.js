@@ -1,8 +1,9 @@
 // AUTO-GENERATED — do not edit manually.
 // Regenerate: npm run codegen:mcp
-// Last generated: 2026-02-25T11:17:13.236Z
+// Last generated: 2026-02-25T11:36:12.105Z
 // Tools: 53  Hash: 62c51c023077
 
+import { createHash } from 'node:crypto';
 import { spawnClient } from './runtime/transport.js';
 import { createCallInvoker } from './runtime/invoker.js';
 import { createLogger } from './runtime/logger.js';
@@ -85,6 +86,7 @@ const REGISTRY_HASH = '62c51c023077';
  * @param {object} [customAdapter] - Optional custom adapter
  * @param {object} [options] - Connection options
  * @param {boolean} [options.sidecarEnabled=false] - Enable sidecar file logging
+ * @param {object} [options.launchOptions] - Browser launch options forwarded to session.open
  * @returns {Promise<McpHandle>}
  */
 export async function mcpConnect(sessionName, customAdapter = adapter, options = {}) {
@@ -106,12 +108,11 @@ export async function mcpConnect(sessionName, customAdapter = adapter, options =
     sessionName,
   });
 
-  // Open session
-  await customAdapter.open(client, sessionName);
+  // Open session — forward launchOptions if provided
+  await customAdapter.open(client, sessionName, options.launchOptions);
 
   return {
-    _invoke: invoke,
-    _close: close,
+    close,
     session: {
       open: async (args = {}) => invoke('session.open', args),
       close: async (args = {}) => invoke('session.close', args),
@@ -189,13 +190,8 @@ function registryHash(tools) {
   const canonical = tools
     .map(t => ({ name: t.name, inputSchema: t.inputSchema }))
     .sort((a, b) => a.name.localeCompare(b.name));
-
-  // Simple hash for now - in production would use crypto
-  const str = JSON.stringify(canonical);
-  let h = 0;
-  for (let i = 0; i < str.length; i++) {
-    h = ((h << 5) - h) + str.charCodeAt(i);
-    h = h & h;
-  }
-  return Math.abs(h).toString(16).slice(0, 12);
+  return createHash('sha1')
+    .update(JSON.stringify(canonical))
+    .digest('hex')
+    .slice(0, 12);
 }

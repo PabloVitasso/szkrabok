@@ -17,6 +17,7 @@ export async function spawnClient() {
   const transport = new StdioClientTransport({
     command: 'node',
     args: [serverPath],
+    env: process.env,
   });
 
   const client = new Client(

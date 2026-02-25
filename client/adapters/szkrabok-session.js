@@ -27,12 +27,14 @@ export function injectSession(args, sessionName) {
  * Open a session.
  * @param {object} client - MCP client
  * @param {string} sessionName - Session name
+ * @param {object} [launchOptions] - Browser launch options forwarded to session.open
  * @returns {Promise<object>} Open result
  */
-export async function open(client, sessionName) {
+export async function open(client, sessionName, launchOptions) {
+  const args = launchOptions ? { sessionName, launchOptions } : { sessionName };
   const result = await client.callTool({
     name: 'session.open',
-    arguments: { sessionName },
+    arguments: args,
   });
 
   // Parse result

@@ -55,7 +55,15 @@ export const launchPersistentContext = async (userDataDir, options = {}) => {
   // Suppress "Chromium did not shut down correctly" restore bubble.
   // Appears when the MCP server process is killed before Chrome can write
   // exit_type: "Normal" to the profile Preferences file.
-  launchOptions.args = ['--hide-crash-restore-bubble', ...(launchOptions.args || [])];
+  launchOptions.args = [
+    '--hide-crash-restore-bubble',
+    // Suppress D-Bus portal initialisation — ungoogled-chromium exits if the
+    // XDG portal proxy is unavailable (no D-Bus session daemon in the process
+    // environment). This affects launchPersistentContext in any context where
+    // dbus is not running (spawned subprocesses, CI, etc).
+    '--disable-features=PortalActivationDelegate',
+    ...(launchOptions.args || []),
+  ];
 
   // Enable CDP remote debugging on the given port so tests can connectOverCDP
   if (launchOptions.cdpPort) {

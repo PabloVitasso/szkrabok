@@ -82,7 +82,8 @@ export function renderTools({ tools, hash, timestamp }) {
 // Tools: ${toolCount}  Hash: ${hash}`;
 
   // Imports
-  const imports = `import { spawnClient } from './runtime/transport.js';
+  const imports = `import { createHash } from 'node:crypto';
+import { spawnClient } from './runtime/transport.js';
 import { createCallInvoker } from './runtime/invoker.js';
 import { createLogger } from './runtime/logger.js';
 import * as adapter from './adapters/szkrabok-session.js';`;
@@ -97,6 +98,7 @@ import * as adapter from './adapters/szkrabok-session.js';`;
  * @param {object} [customAdapter] - Optional custom adapter
  * @param {object} [options] - Connection options
  * @param {boolean} [options.sidecarEnabled=false] - Enable sidecar file logging
+ * @param {object} [options.launchOptions] - Browser launch options forwarded to session.open
  * @returns {Promise<McpHandle>}
  */
 export async function mcpConnect(sessionName, customAdapter = adapter, options = {}) {
@@ -118,12 +120,11 @@ export async function mcpConnect(sessionName, customAdapter = adapter, options =
     sessionName,
   });
 
-  // Open session
-  await customAdapter.open(client, sessionName);
+  // Open session — forward launchOptions if provided
+  await customAdapter.open(client, sessionName, options.launchOptions);
 
   return {
-    _invoke: invoke,
-    _close: close,
+    close,
 ${handles}
   };
 }
@@ -137,15 +138,10 @@ function registryHash(tools) {
   const canonical = tools
     .map(t => ({ name: t.name, inputSchema: t.inputSchema }))
     .sort((a, b) => a.name.localeCompare(b.name));
-
-  // Simple hash for now - in production would use crypto
-  const str = JSON.stringify(canonical);
-  let h = 0;
-  for (let i = 0; i < str.length; i++) {
-    h = ((h << 5) - h) + str.charCodeAt(i);
-    h = h & h;
-  }
-  return Math.abs(h).toString(16).slice(0, 12);
+  return createHash('sha1')
+    .update(JSON.stringify(canonical))
+    .digest('hex')
+    .slice(0, 12);
 }`;
 
   return [header, imports, hashConst, typedef, connectFn].join('\n\n');

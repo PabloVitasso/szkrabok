@@ -6,7 +6,8 @@
  *
  * Checks covered:
  *   dummyFn, sourceUrlLeak, mainWorldExecution, runtimeEnableLeak,
- *   exposeFunctionLeak, navigatorWebdriver, viewport, pwInitScripts, bypassCsp
+ *   exposeFunctionLeak, navigatorWebdriver, viewport, pwInitScripts, bypassCsp,
+ *   useragent
  *
  * Required triggers (per the page instructions):
  *   - page.evaluate(() => window.dummyFn())          — dummyFn
@@ -14,7 +15,7 @@
  *   - page.evaluate(() => document.getElementById('detections-json')) — sourceUrlLeak
  *   - page.evaluate(() => document.getElementsByClassName('div'))     — mainWorldExecution
  *
- * ── Run via MCP ──────────────────────────────────────────────────────────────
+ * ── Run via MCP (recommended) ────────────────────────────────────────────────
  *
  *   1. Open a session (launches Chrome with a persistent profile + CDP port):
  *        session.open { "sessionName": "rebrowser" }
@@ -22,11 +23,20 @@
  *   2. Run the test (connects to that Chrome via CDP):
  *        browser.run_test { "sessionName": "rebrowser", "grep": "rebrowser-check" }
  *
- * ── Run via Playwright CLI ───────────────────────────────────────────────────
+ *   Expected score via MCP: 8/10. Permanent failures:
+ *     - mainWorldExecution: needs rebrowser-patches alwaysIsolated mode (conflicts with dummyFn)
+ *     - exposeFunctionLeak: page.exposeFunction is unfixable, no patch exists
+ *
+ * ── Run via Playwright CLI (standalone) ──────────────────────────────────────
  *
  *   SZKRABOK_SESSION=rebrowser \
- *     npx playwright test --config playwright-tests/playwright.config.ts \
- *     --grep "rebrowser-check"
+ *     npx playwright test --project=automation --grep "rebrowser-check"
+ *
+ *   Expected score standalone: 7/10. The useragent check additionally fails because
+ *   applyStealthToExistingPage (which injects the userAgentData.brands JS override)
+ *   is only called by wrapper.js after launchPersistentContext — it does not run
+ *   in the standalone browser.launch() path. The user-agent-override stealth plugin
+ *   spoofs navigator.userAgent (old string API) but not userAgentData.brands.
  *
  * ─────────────────────────────────────────────────────────────────────────────
  */
