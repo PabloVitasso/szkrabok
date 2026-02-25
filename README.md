@@ -10,6 +10,7 @@ Fork of [microsoft/playwright-mcp](https://github.com/microsoft/playwright-mcp) 
 - Deterministic CDP port per session — external Playwright scripts can `connectOverCDP()`
 - `browser.run_test` — run `.spec.js` tests against a live MCP session via CDP
 - `browser.run_file` — run a named export from an `.mjs` script against a live session
+- MCP client library — generated typed handle (`mcp.nav.goto(...)`, `mcp.browser.run_test(...)`) for driving szkrabok from Playwright specs; JSONL call log copy-pasteable for LLM invocation; registry drift detection at connect time
 
 ## Install
 
