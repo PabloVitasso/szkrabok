@@ -1,7 +1,7 @@
 // AUTO-GENERATED — do not edit manually.
 // Regenerate: npm run codegen:mcp
-// Last generated: 2026-02-25T11:36:12.105Z
-// Tools: 53  Hash: 62c51c023077
+// Last generated: 2026-02-25T12:03:45.120Z
+// Tools: 53  Hash: 1dc2fbe45d27
 
 import { createHash } from 'node:crypto';
 import { spawnClient } from './runtime/transport.js';
@@ -9,7 +9,7 @@ import { createCallInvoker } from './runtime/invoker.js';
 import { createLogger } from './runtime/logger.js';
 import * as adapter from './adapters/szkrabok-session.js';
 
-const REGISTRY_HASH = '62c51c023077';
+const REGISTRY_HASH = '1dc2fbe45d27';
 
 /**
  * @typedef {Object} McpHandle
@@ -63,7 +63,7 @@ const REGISTRY_HASH = '62c51c023077';
     file_upload({ paths }): Promise<any>
     handle_dialog({ accept, promptText }): Promise<any>
     run_code({ code }): Promise<any>
-    run_test({ grep, params, config, keepOpen }): Promise<any>
+    run_test({ grep, params, config, project, files, keepOpen }): Promise<any>
     run_file({ path, fn, args }): Promise<any>
     mouse_click_xy({ element, x, y }): Promise<any>
     mouse_move_xy({ element, x, y }): Promise<any>

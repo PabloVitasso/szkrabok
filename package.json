@@ -29,7 +29,7 @@
     "postinstall": "node scripts/patch-playwright.js",
     "test:self": "playwright test --project=selftest && node --test selftest/node/*.test.js",
     "test:auto": "PLAYWRIGHT_PROJECT=automation playwright test --project=automation",
-    "test:clientmcp": "node --test client/*.mcp.spec.js"
+    "test:clientmcp": "playwright test --project=client"
   },
   "keywords": [
     "mcp",

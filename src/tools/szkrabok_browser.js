@@ -9,7 +9,7 @@ import { readFile, mkdir } from 'fs/promises';
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
 export const run_test = async args => {
-  const { sessionName, grep, params = {}, config = 'playwright.config.ts', keepOpen = false } = args;
+  const { sessionName, grep, params = {}, config = 'playwright.config.ts', project, files = [], keepOpen = false } = args;
 
   const configPath = resolve(REPO_ROOT, config);
 
@@ -41,7 +41,9 @@ export const run_test = async args => {
   const jsonFile = join(sessionDir, 'last-run.json');
 
   const playwrightArgs = ['playwright', 'test', '--config', configPath, '--timeout', '60000'];
+  if (project) playwrightArgs.push('--project', project);
   if (grep) playwrightArgs.push('--grep', grep);
+  if (files.length > 0) playwrightArgs.push(...files);
 
   await new Promise((resolveP, rejectP) => {
     const logStream = createWriteStream(logFile);

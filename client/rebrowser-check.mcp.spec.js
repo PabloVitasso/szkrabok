@@ -16,13 +16,13 @@
  *
  * ── Run ──────────────────────────────────────────────────────────────────────
  *
- *   node --test client/rebrowser-check.mcp.spec.js
+ *   npm run test:clientmcp
+ *   npx playwright test --project=client
  *
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
-import { test } from 'node:test';
-import assert from 'node:assert/strict';
+import { test, expect } from 'playwright/test';
 import { mcpConnect } from './mcp-tools.js';
 
 const SESSION = 'rebrowser-mcp-harness';
@@ -38,20 +38,13 @@ test('rebrowser-check via MCP — 8/10', async () => {
   const mcp = await mcpConnect(SESSION, undefined, { launchOptions: { headless: false } });
   try {
     // invoker already unwraps and JSON-parses the MCP text content
-    const result = await mcp.browser.run_test({ grep: 'rebrowser-check' });
+    const result = await mcp.browser.run_test({ files: ['automation/rebrowser-check.spec.js'] });
 
     // browser.run_test returns { passed, failed, tests: [{ result: { checks } }] }
     const checks = result?.tests?.[0]?.result?.checks;
-    assert.ok(Array.isArray(checks), `expected checks array, got: ${JSON.stringify(result)}`);
+    expect(Array.isArray(checks), `expected checks array, got: ${JSON.stringify(result)}`).toBe(true);
 
-    const unexpectedFailures = checks.filter(
-      c => c.failed && !KNOWN_FAILURES.has(c.name)
-    );
-
-    if (unexpectedFailures.length > 0) {
-      const names = unexpectedFailures.map(c => c.name).join(', ');
-      assert.fail(`Unexpected rebrowser failures: ${names}`);
-    }
+    const unexpectedFailures = checks.filter(c => c.failed && !KNOWN_FAILURES.has(c.name));
 
     const passed = checks.filter(c => c.passed).length;
     console.log(`rebrowser score: ${passed}/${checks.length}`);
@@ -60,8 +53,12 @@ test('rebrowser-check via MCP — 8/10', async () => {
       console.log(`  [${status}] ${c.name}`);
     }
 
-    assert.equal(passed, checks.length - KNOWN_FAILURES.size,
-      `Expected ${checks.length - KNOWN_FAILURES.size} passing checks`);
+    expect(
+      unexpectedFailures.map(c => c.name),
+      'unexpected rebrowser failures'
+    ).toHaveLength(0);
+
+    expect(passed).toBe(checks.length - KNOWN_FAILURES.size);
   } finally {
     await mcp.close();
   }

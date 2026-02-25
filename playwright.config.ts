@@ -103,6 +103,12 @@ export default defineConfig({
       // No browser — tests run Playwright as test runner against an MCP subprocess.
     },
     {
+      name: 'client',
+      testDir: './client',
+      testMatch: '**/*.mcp.spec.js',
+      // No browser fixture — harnesses manage their own MCP sessions via mcpConnect().
+    },
+    {
       name: 'automation',
       testDir: './automation',
       testMatch: '**/*.spec.js',
