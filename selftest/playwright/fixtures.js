@@ -78,13 +78,13 @@ export const test = baseTest.extend({
   // Use this in all selftests instead of calling session.open directly, so tests
   // are independent of the server's TOML config.
   openSession: async ({}, use) => {
-    await use(async (client, id, extraArgs = {}) => {
+    await use(async (client, sessionName, extraArgs = {}) => {
       return client.callTool({
         name: 'session.open',
         arguments: {
-          id,
+          sessionName,
           ...extraArgs,
-          config: { ...SESSION_DEFAULTS, ...(extraArgs.config ?? {}) },
+          launchOptions: { ...SESSION_DEFAULTS, ...(extraArgs.launchOptions ?? {}) },
         },
       });
     });
