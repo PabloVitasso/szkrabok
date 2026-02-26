@@ -70,8 +70,15 @@ test('navigator-properties', async ({ page }, testInfo) => {
   const highEntropy = await page.evaluate(async () => {
     try {
       return await navigator.userAgentData?.getHighEntropyValues([
-        'brands', 'mobile', 'platform', 'platformVersion',
-        'architecture', 'bitness', 'model', 'uaFullVersion', 'fullVersionList',
+        'brands',
+        'mobile',
+        'platform',
+        'platformVersion',
+        'architecture',
+        'bitness',
+        'model',
+        'uaFullVersion',
+        'fullVersionList',
       ]);
     } catch (e) {
       return { error: e.message };

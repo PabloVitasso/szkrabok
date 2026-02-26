@@ -26,6 +26,36 @@ export function createLogger({ sidecarDir = DEFAULT_SIDECAR_DIR, sidecarEnabled 
     console.log(line);
   };
 
+  // Unwrap the MCP wire result ({ content: [{ type:'text', text:'...' }] })
+  // into the parsed payload. Returns the raw result if unwrapping fails.
+  const unwrap = raw => {
+    try {
+      const text = raw?.content?.find(c => c.type === 'text')?.text;
+      return text ? JSON.parse(text) : raw;
+    } catch {
+      return raw;
+    }
+  };
+
+  // Registry of pretty-printers keyed by tool name.
+  // Each entry: { success(call, result, ms), failure(call, err, ms) }
+  // Either key is optional — omit to fall back to the default JSON log.
+  const formatters = {
+    'browser.run_test': {
+      success(call, result, ms) {
+        const r = unwrap(result);
+        const { files = [], grep, sessionName } = call.arguments ?? {};
+        const target = files.length ? files.join(', ') : grep ?? sessionName;
+        for (const line of r.log ?? []) console.log(`  ${line}`);
+      },
+      failure(call, err, ms) {
+        const { files = [], grep, sessionName } = call.arguments ?? {};
+        const target = files.length ? files.join(', ') : grep ?? sessionName;
+        console.log(`[browser.run_test] ${target} — ERROR (${ms}ms): ${err.message}`);
+      },
+    },
+  };
+
   return {
     /**
      * Log intent before making a call.
@@ -49,6 +79,10 @@ export function createLogger({ sidecarDir = DEFAULT_SIDECAR_DIR, sidecarEnabled 
      * @param {number} seq - Sequence number
      */
     afterSuccess(call, result, ms, seq) {
+      if (formatters[call.name]?.success) {
+        formatters[call.name].success(call, result, ms);
+        return;
+      }
       const resultStr = JSON.stringify(result);
       let loggedResult;
 
@@ -93,6 +127,10 @@ export function createLogger({ sidecarDir = DEFAULT_SIDECAR_DIR, sidecarEnabled 
      * @param {number} seq - Sequence number
      */
     afterFailure(call, err, ms, seq) {
+      if (formatters[call.name]?.failure) {
+        formatters[call.name].failure(call, err, ms);
+        return;
+      }
       writeLog({
         name: call.name,
         arguments: call.arguments,

@@ -139,7 +139,10 @@ export const enhanceWithStealth = (browser, presetConfig = {}) => {
 // See docs/launchpersistentcontext-stealth-issue.md
 export const applyStealthToExistingPage = async (page, presetConfig = {}) => {
   try {
-    logDebug('applyStealthToExistingPage called', { presetConfig, STEALTH_CONFIG_hw: STEALTH_CONFIG['navigator.hardwareConcurrency'] });
+    logDebug('applyStealthToExistingPage called', {
+      presetConfig,
+      STEALTH_CONFIG_hw: STEALTH_CONFIG['navigator.hardwareConcurrency'],
+    });
     const uaConfig = STEALTH_CONFIG['user-agent-override'];
     const overrideUA = presetConfig.overrideUserAgent ?? uaConfig.enabled ?? true;
     const hwConfig = STEALTH_CONFIG['navigator.hardwareConcurrency'];
@@ -276,7 +279,9 @@ export const applyStealthToExistingPage = async (page, presetConfig = {}) => {
       const locale = presetConfig.locale || 'en-US';
       const languages = langConfig.languages ?? [locale, locale.split('-')[0]].filter(Boolean);
       const langsJson = JSON.stringify(languages);
-      await page.addInitScript(`Object.defineProperty(Navigator.prototype, 'languages', { get: () => ${langsJson}, configurable: true });`);
+      await page.addInitScript(
+        `Object.defineProperty(Navigator.prototype, 'languages', { get: () => ${langsJson}, configurable: true });`
+      );
     }
 
     // ── webgl.vendor ────────────────────────────────────────────────────────

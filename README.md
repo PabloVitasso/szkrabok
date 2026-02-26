@@ -22,17 +22,18 @@ Fork of [microsoft/playwright-mcp](https://github.com/microsoft/playwright-mcp) 
 ```
 
 `install.sh` does the following:
+
 - Runs `npm ci` if `node_modules` is missing
 - Scans for Chrome/Chromium binaries and prints a ready-to-paste `szkrabok.config.local.toml` snippet (see Configuration below)
 - Registers the MCP server with Claude Code via `claude mcp add`
 
 **`--scope user` vs `--scope local`**
 
-| | `user` | `local` |
-|---|---|---|
-| Stored in | `~/.claude.json` | `.claude/settings.local.json` in this repo |
+|           | `user`                                   | `local`                                          |
+| --------- | ---------------------------------------- | ------------------------------------------------ |
+| Stored in | `~/.claude.json`                         | `.claude/settings.local.json` in this repo       |
 | Available | All Claude Code sessions on this machine | Only when Claude Code is opened inside this repo |
-| Use when | You want szkrabok always available | You want to isolate it to this project |
+| Use when  | You want szkrabok always available       | You want to isolate it to this project           |
 
 If both scopes are registered, `local` takes precedence. Use `--clean-all` to remove both before reinstalling.
 
@@ -108,9 +109,9 @@ SZKRABOK_SESSION=p4n-test \
 
 Two config files at repo root — only the first is committed:
 
-| File | Committed | Purpose |
-|---|---|---|
-| `szkrabok.config.toml` | ✓ | Repo defaults — browser identity, presets, stealth |
+| File                         | Committed    | Purpose                                               |
+| ---------------------------- | ------------ | ----------------------------------------------------- |
+| `szkrabok.config.toml`       | ✓            | Repo defaults — browser identity, presets, stealth    |
 | `szkrabok.config.local.toml` | ✗ gitignored | Machine-specific overrides (executablePath, UA, etc.) |
 
 `szkrabok.config.local.toml` is deep-merged on top of the base — only keys you set there override the default. Everything else inherits. Create it on a new machine:

@@ -65,10 +65,13 @@ export const open = async args => {
   const resolved = resolvePreset(launchOptions.preset ?? savedMeta?.preset);
 
   // Precedence: explicit call config → saved meta config → resolved preset → TOML default
-  const effectiveViewport = launchOptions.viewport || savedConfig.viewport || resolved.viewport || VIEWPORT;
-  const effectiveUserAgent = launchOptions.userAgent || savedConfig.userAgent || resolved.userAgent || USER_AGENT;
+  const effectiveViewport =
+    launchOptions.viewport || savedConfig.viewport || resolved.viewport || VIEWPORT;
+  const effectiveUserAgent =
+    launchOptions.userAgent || savedConfig.userAgent || resolved.userAgent || USER_AGENT;
   const effectiveLocale = launchOptions.locale || savedConfig.locale || resolved.locale || LOCALE;
-  const effectiveTimezone = launchOptions.timezone || savedConfig.timezone || resolved.timezone || TIMEZONE;
+  const effectiveTimezone =
+    launchOptions.timezone || savedConfig.timezone || resolved.timezone || TIMEZONE;
   const effectiveStealth = launchOptions.stealth ?? savedConfig.stealth ?? STEALTH_ENABLED;
   const effectiveHeadless = launchOptions.headless ?? savedConfig.headless ?? HEADLESS;
 

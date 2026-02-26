@@ -30,7 +30,8 @@ const szkrabokTools = {
         url: { type: 'string' },
         launchOptions: {
           type: 'object',
-          description: 'Browser launch options — preset, stealth, headless, viewport, userAgent, locale, timezone, disableWebGL',
+          description:
+            'Browser launch options — preset, stealth, headless, viewport, userAgent, locale, timezone, disableWebGL',
           properties: {
             preset: {
               type: 'string',
@@ -582,12 +583,14 @@ const playwrightMcpTools = {
         },
         project: {
           type: 'string',
-          description: 'Playwright project name to run (e.g. "automation"). Runs all projects if omitted.',
+          description:
+            'Playwright project name to run (e.g. "automation"). Runs all projects if omitted.',
         },
         files: {
           type: 'array',
           items: { type: 'string' },
-          description: 'File or directory paths passed as positional args to playwright test (e.g. ["automation/rebrowser-check.spec.js"] or ["automation/"]). Relative to repo root.',
+          description:
+            'File or directory paths passed as positional args to playwright test (e.g. ["automation/rebrowser-check.spec.js"] or ["automation/"]). Relative to repo root.',
         },
         keepOpen: {
           type: 'boolean',

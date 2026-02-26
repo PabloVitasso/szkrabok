@@ -16,7 +16,7 @@ const shouldLog = level => levels[level] <= levels[LOG_LEVEL];
 if (shouldLog('error')) {
   const _ts = new Date();
   const _pad = n => String(n).padStart(2, '0');
-  const _logFile = `/tmp/${_ts.getFullYear()}${_pad(_ts.getMonth()+1)}${_pad(_ts.getDate())}${_pad(_ts.getHours())}${_pad(_ts.getMinutes())}szkrabok-mcp.log`;
+  const _logFile = `/tmp/${_ts.getFullYear()}${_pad(_ts.getMonth() + 1)}${_pad(_ts.getDate())}${_pad(_ts.getHours())}${_pad(_ts.getMinutes())}szkrabok-mcp.log`;
   const _fileStream = createWriteStream(_logFile, { flags: 'a' });
 
   const _origConsoleError = console.error.bind(console);

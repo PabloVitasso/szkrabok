@@ -35,14 +35,16 @@ const KNOWN_FAILURES = new Set([
 ]);
 
 test('rebrowser-check via MCP — 8/10', async () => {
-  const mcp = await mcpConnect(SESSION, undefined, { launchOptions: { headless: false } });
+  const mcp = await mcpConnect(SESSION, undefined, { launchOptions: { headless: true } });
   try {
     // invoker already unwraps and JSON-parses the MCP text content
     const result = await mcp.browser.run_test({ files: ['automation/rebrowser-check.spec.js'] });
 
     // browser.run_test returns { passed, failed, tests: [{ result: { checks } }] }
     const checks = result?.tests?.[0]?.result?.checks;
-    expect(Array.isArray(checks), `expected checks array, got: ${JSON.stringify(result)}`).toBe(true);
+    expect(Array.isArray(checks), `expected checks array, got: ${JSON.stringify(result)}`).toBe(
+      true
+    );
 
     const unexpectedFailures = checks.filter(c => c.failed && !KNOWN_FAILURES.has(c.name));
 

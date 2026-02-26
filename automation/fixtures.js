@@ -19,9 +19,7 @@ const cdpEndpoint = process.env.SZKRABOK_CDP_ENDPOINT || '';
 // Only initialise stealth when no CDP endpoint is set (standalone mode).
 // Avoids a redundant enhanceWithStealth() call — and the log noise — when
 // the test subprocess is connecting to an already-stealthed MCP session.
-const stealthChromium = cdpEndpoint
-  ? null
-  : enhanceWithStealth(chromium, resolvePreset('default'));
+const stealthChromium = cdpEndpoint ? null : enhanceWithStealth(chromium, resolvePreset('default'));
 
 export const test = base.extend({
   // Worker-scoped: one CDP connection per worker process, reused across tests.

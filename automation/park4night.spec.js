@@ -48,6 +48,7 @@
  */
 
 import { test, expect } from './fixtures.js';
+import { humanClick } from './scripts/human.js';
 
 const BASE_URL = 'https://park4night.com/en';
 const BANNER = '.cc-section-landing';
@@ -60,7 +61,7 @@ test('acceptCookies', async ({ page }, testInfo) => {
   console.log('step 2. probe for cookie banner (8s timeout)');
   const btn = page.locator(BTN_REJECT);
   const appeared = await btn
-    .waitFor({ state: 'visible', timeout: 8000 })
+    .waitFor({ state: 'visible', timeout: 3000 })
     .then(() => true)
     .catch(() => false);
 
@@ -93,24 +94,20 @@ test('acceptCookies', async ({ page }, testInfo) => {
 
   console.log('step 5. clicking "Only essential cookies"');
   await btn.scrollIntoViewIfNeeded();
-  const box = await btn.boundingBox();
-  if (box) {
-    await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
-  } else {
-    await btn.click();
-  }
+  await humanClick(page, BTN_REJECT);
 
   console.log('step 6. waiting for banner to disappear');
   await page.locator(BANNER).waitFor({ state: 'hidden', timeout: 5000 });
   const bannerGone = !(await page.locator(BANNER).isVisible());
-  page.pause();
+
   console.log(`step 7. banner gone: ${bannerGone}`);
   const result = { action: 'clicked', dismissed: bannerGone };
+
   await testInfo.attach('result', {
     body: JSON.stringify(result),
     contentType: 'application/json',
   });
 
   expect(bannerGone, 'Cookie banner should be gone after clicking reject').toBe(true);
-  console.log('step 8. done');
+  console.log(`step 8. done, returning: ${JSON.stringify(result)}`);
 });

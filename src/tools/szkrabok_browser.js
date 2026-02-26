@@ -9,7 +9,15 @@ import { readFile, mkdir } from 'fs/promises';
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
 export const run_test = async args => {
-  const { sessionName, grep, params = {}, config = 'playwright.config.js', project, files = [], keepOpen = false } = args;
+  const {
+    sessionName,
+    grep,
+    params = {},
+    config = 'playwright.config.js',
+    project,
+    files = [],
+    keepOpen = false,
+  } = args;
 
   const configPath = resolve(REPO_ROOT, config);
 
@@ -32,6 +40,7 @@ export const run_test = async args => {
     ...process.env,
     SZKRABOK_SESSION: sessionName,
     SZKRABOK_CDP_ENDPOINT: cdpEndpoint,
+    FORCE_COLOR: '0',
     ...paramEnv,
   };
 
