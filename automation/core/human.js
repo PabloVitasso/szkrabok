@@ -1,4 +1,35 @@
 /**
+ * Human-like behavior utilities for automation.
+ * Moved from scripts/human.js for sharing across all page objects.
+ */
+
+/**
+ * Generates a random number from a Gaussian (normal) distribution.
+ * Uses Box-Muller transform.
+ *
+ * @param {number} mean - The mean of the distribution
+ * @param {number} stdDev - The standard deviation of the distribution
+ * @returns {number} A random number from the Gaussian distribution
+ */
+function gaussian(mean, stdDev) {
+  let u = 0, v = 0;
+  while (u === 0) u = Math.random();
+  while (v === 0) v = Math.random();
+  return mean + stdDev * Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+}
+
+/**
+ * Generates a random number within a range.
+ *
+ * @param {number} min - Minimum value (inclusive)
+ * @param {number} max - Maximum value (exclusive)
+ * @returns {number} A random number between min and max
+ */
+function rand(min, max) {
+  return Math.random() * (max - min) + min;
+}
+
+/**
  * Types text into an element with human-like behavior.
  * Simulates realistic typing patterns including variable speed,
  * occasional typos, and natural pauses.
@@ -135,33 +166,6 @@ export async function humanClick(page, selector) {
 
   // Small post-click pause
   await page.waitForTimeout(rand(80, 200));
-}
-
-/**
- * Generates a random number from a Gaussian (normal) distribution.
- * Uses Box-Muller transform.
- *
- * @param {number} mean - The mean of the distribution
- * @param {number} stdDev - The standard deviation of the distribution
- * @returns {number} A random number from the Gaussian distribution
- */
-function gaussian(mean, stdDev) {
-  let u = 0,
-    v = 0;
-  while (u === 0) u = Math.random();
-  while (v === 0) v = Math.random();
-  return mean + stdDev * Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
-}
-
-/**
- * Generates a random number within a range.
- *
- * @param {number} min - Minimum value (inclusive)
- * @param {number} max - Maximum value (exclusive)
- * @returns {number} A random number between min and max
- */
-function rand(min, max) {
-  return Math.random() * (max - min) + min;
 }
 
 /**
