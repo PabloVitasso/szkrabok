@@ -17,8 +17,8 @@
 | Tool registry       | `src/tools/registry.js`                                  |
 | Session pool        | `src/core/pool.js`                                       |
 | Playwright config   | `playwright.config.js`                                   |
-| Config modules      | `config/` (env, paths, toml, preset, session, browser)   |
-| Project definitions | `playwright/projects/` (selftest, client, automation)    |
+| Config modules      | `config/` (env, paths, toml, preset, session, browser, projects) |
+| Project definitions | `config/projects.ts` (selftest, mcp, automation)         |
 | MCP client library  | `mcp-client/` - `mcpConnect()`, `spawnClient()`, codegen |
 | Selftest            | `selftest/`                                              |
 | Automation tests    | `automation/`                                            |

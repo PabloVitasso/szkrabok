@@ -6,9 +6,7 @@ import { loadToml } from './config/toml.js';
 import { resolvePreset } from './config/preset.js';
 import { resolveSession } from './config/session.js';
 import { resolveExecutable } from './config/browser.js';
-import { selftestProject } from './playwright/projects/selftest.js';
-import { clientProject } from './playwright/projects/client.js';
-import { automationProject } from './playwright/projects/automation.js';
+import { selftest, mcp, automation } from './config/projects.js';
 
 const toml = loadToml(paths.config);
 const preset = resolvePreset(toml, env);
@@ -25,9 +23,9 @@ export default defineConfig({
   reporter: [['list'], ['json', { outputFile: session.lastRun }]],
 
   projects: [
-    selftestProject(paths),
-    clientProject(paths),
-    automationProject({ paths, preset, session, executable, env }),
+    selftest(paths),
+    mcp(paths),
+    automation({ paths, preset, session, executable, env }),
   ],
 
   globalSetup: env.project === 'automation' ? paths.automation.setup : undefined,

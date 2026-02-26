@@ -22,7 +22,7 @@ import { mcpConnect } from '../mcp-client/mcp-tools.js';
 const SESSION = 'park4night-mcp-harness';
 
 test('park4night cookie banner via MCP', async () => {
-  const mcp = await mcpConnect(SESSION, undefined, { launchOptions: { headless: true } });
+  const mcp = await mcpConnect(SESSION, undefined, { launchOptions: { headless: false } });
   try {
     // invoker already unwraps and JSON-parses the MCP text content
     const result = await mcp.browser.run_test({ files: ['automation/park4night.spec.js'] });

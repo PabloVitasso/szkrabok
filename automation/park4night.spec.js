@@ -48,7 +48,7 @@
  */
 
 import { test, expect } from './fixtures.js';
-import { humanClick } from './scripts/human.js';
+import { humanizeOnLoad, humanClick } from './scripts/human.js';
 
 const BASE_URL = 'https://park4night.com/en';
 const BANNER = '.cc-section-landing';
@@ -57,6 +57,7 @@ const BTN_REJECT = `${BANNER} .cc-btn.cc-btn-reject`;
 test('acceptCookies', async ({ page }, testInfo) => {
   console.log('step 1. navigate to', BASE_URL);
   await page.goto(BASE_URL);
+  await humanizeOnLoad(page);
 
   console.log('step 2. probe for cookie banner (8s timeout)');
   const btn = page.locator(BTN_REJECT);
@@ -97,7 +98,7 @@ test('acceptCookies', async ({ page }, testInfo) => {
   await humanClick(page, BTN_REJECT);
 
   console.log('step 6. waiting for banner to disappear');
-  await page.locator(BANNER).waitFor({ state: 'hidden', timeout: 5000 });
+  await page.locator(BANNER).waitFor({ state: 'hidden', timeout: 3000 });
   const bannerGone = !(await page.locator(BANNER).isVisible());
 
   console.log(`step 7. banner gone: ${bannerGone}`);
