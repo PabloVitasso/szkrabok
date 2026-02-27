@@ -31,7 +31,8 @@ export class BasePage {
    * @returns {Promise<boolean>} True if visible, false if timeout
    */
   async waitForVisible(selector, timeout = 3000) {
-    return this.page.locator(selector)
+    return this.page
+      .locator(selector)
       .waitFor({ state: 'visible', timeout })
       .then(() => true)
       .catch(() => false);
@@ -44,7 +45,8 @@ export class BasePage {
    * @returns {Promise<boolean>} True if hidden, false if timeout
    */
   async waitForHidden(selector, timeout = 3000) {
-    return this.page.locator(selector)
+    return this.page
+      .locator(selector)
       .waitFor({ state: 'hidden', timeout })
       .then(() => true)
       .catch(() => false);

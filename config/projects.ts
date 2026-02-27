@@ -48,7 +48,8 @@ export function automation({ paths, preset, session, executable, env }: Automati
           }
         : {}),
       launchOptions: {
-        ...(executable ? { executablePath: executable } : {}),
+        ...((preset.executablePath ?? executable) ? { executablePath: preset.executablePath ?? executable } : {}),
+        ...(preset.headless !== undefined ? { headless: preset.headless } : {}),
       },
     },
   }

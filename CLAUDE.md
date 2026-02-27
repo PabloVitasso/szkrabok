@@ -11,18 +11,18 @@
 
 ## Key Locations
 
-| What                | Where                                                    |
-| ------------------- | -------------------------------------------------------- |
-| MCP entry           | `src/index.js`                                           |
-| Tool registry       | `src/tools/registry.js`                                  |
-| Session pool        | `src/core/pool.js`                                       |
-| Playwright config   | `playwright.config.js`                                   |
+| What                | Where                                                            |
+| ------------------- | ---------------------------------------------------------------- |
+| MCP entry           | `src/index.js`                                                   |
+| Tool registry       | `src/tools/registry.js`                                          |
+| Session pool        | `src/core/pool.js`                                               |
+| Playwright config   | `playwright.config.js`                                           |
 | Config modules      | `config/` (env, paths, toml, preset, session, browser, projects) |
-| Project definitions | `config/projects.ts` (selftest, mcp, automation)         |
-| MCP client library  | `mcp-client/` - `mcpConnect()`, `spawnClient()`, codegen |
-| Selftest            | `selftest/`                                              |
-| Automation tests    | `automation/`                                            |
-| Session storage     | `sessions/{id}/`                                         |
+| Project definitions | `config/projects.ts` (selftest, mcp, automation)                 |
+| MCP client library  | `mcp-client/` - `mcpConnect()`, `spawnClient()`, codegen         |
+| Selftest            | `selftest/`                                                      |
+| Automation tests    | `automation/`                                                    |
+| Session storage     | `sessions/{id}/`                                                 |
 
 ## Workflow Rules
 

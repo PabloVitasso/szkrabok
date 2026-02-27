@@ -22,11 +22,7 @@ export default defineConfig({
 
   reporter: [['list'], ['json', { outputFile: session.lastRun }]],
 
-  projects: [
-    selftest(paths),
-    mcp(paths),
-    automation({ paths, preset, session, executable, env }),
-  ],
+  projects: [selftest(paths), mcp(paths), automation({ paths, preset, session, executable, env })],
 
   globalSetup: env.project === 'automation' ? paths.automation.setup : undefined,
   globalTeardown: env.project === 'automation' ? paths.automation.teardown : undefined,

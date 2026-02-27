@@ -6,6 +6,8 @@ export interface ResolvedPreset {
   viewport: { width: number; height: number } | undefined
   locale: string | undefined
   timezone: string | undefined
+  headless: boolean | undefined
+  executablePath: string | undefined
 }
 
 export function resolvePreset(
@@ -30,6 +32,12 @@ export function resolvePreset(
       : undefined,
     locale: (override.locale ?? toml.default.locale) as string | undefined,
     timezone: (override.timezone ?? toml.default.timezone) as
+      | string
+      | undefined,
+    headless: (override.headless ?? toml.default.headless) as
+      | boolean
+      | undefined,
+    executablePath: (override.executablePath ?? toml.default.executablePath) as
       | string
       | undefined,
   }

@@ -3,6 +3,9 @@
  * Moved from scripts/human.js for sharing across all page objects.
  */
 
+const toLocator = (page, selector) =>
+  typeof selector === 'string' ? page.locator(selector) : selector;
+
 /**
  * Generates a random number from a Gaussian (normal) distribution.
  * Uses Box-Muller transform.
@@ -12,7 +15,8 @@
  * @returns {number} A random number from the Gaussian distribution
  */
 function gaussian(mean, stdDev) {
-  let u = 0, v = 0;
+  let u = 0,
+    v = 0;
   while (u === 0) u = Math.random();
   while (v === 0) v = Math.random();
   return mean + stdDev * Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
@@ -43,8 +47,10 @@ function rand(min, max) {
  */
 export async function humanType(page, selector, text, options = {}) {
   const { occasionalTypo = false } = options;
-  const locator = page.locator(selector);
-  await locator.click();
+
+  await humanClick(page, selector);
+  //const locator = page.locator(selector);
+  //await locator.click();
 
   const typoChance = occasionalTypo ? 0.025 : 0;
   const pauseAfterWordChance = 0.15;
@@ -107,7 +113,7 @@ export async function humanType(page, selector, text, options = {}) {
  * @throws {Error} If the element is not visible
  */
 export async function humanClick(page, selector) {
-  const locator = page.locator(selector);
+  const locator = toLocator(page, selector);
 
   // Ensure visible (human would scroll)
   await locator.scrollIntoViewIfNeeded();
@@ -219,6 +225,8 @@ export async function humanizeOnLoad(page) {
   // Check if page can scroll
   const canScroll = await page.evaluate(() => document.body.scrollHeight > window.innerHeight);
 
+  let totalScrolled = 0;
+
   if (canScroll && Math.random() < 0.75) {
     const scrollAmount = rand(200, 600);
     const scrollSteps = Math.floor(rand(5, 12));
@@ -227,14 +235,64 @@ export async function humanizeOnLoad(page) {
       await page.mouse.wheel(0, scrollAmount / scrollSteps);
       await page.waitForTimeout(Math.max(30, gaussian(80, 25)));
     }
+    totalScrolled += scrollAmount;
 
     // Occasional upward correction
     if (Math.random() < 0.6) {
+      const correction = rand(50, 200);
       await page.waitForTimeout(rand(200, 600));
-      await page.mouse.wheel(0, -rand(50, 200));
+      await page.mouse.wheel(0, -correction);
+      totalScrolled -= correction;
+    }
+  }
+
+  // Always return to top
+  if (totalScrolled > 0) {
+    await page.waitForTimeout(rand(200, 500));
+    const returnSteps = Math.floor(rand(4, 10));
+    for (let i = 0; i < returnSteps; i++) {
+      await page.mouse.wheel(0, -(totalScrolled + rand(0, 60)) / returnSteps);
+      await page.waitForTimeout(Math.max(25, gaussian(60, 20)));
     }
   }
 
   // Final reading pause
   await page.waitForTimeout(rand(800, 2000));
+}
+
+export async function openHoverMenuAndClick(page, triggerSelector, itemSelector, options = {}) {
+  const { hoverDelay = 250, moveSteps = 14, timeout = 5000 } = options;
+
+  const randomPoint = box => ({
+    x: box.x + box.width * (0.45 + Math.random() * 0.1),
+    y: box.y + box.height * (0.45 + Math.random() * 0.1),
+  });
+
+  // --- Hover trigger ---
+  const trigger = toLocator(page, triggerSelector).first();
+  await trigger.waitFor({ state: 'visible', timeout });
+
+  const triggerBox = await trigger.boundingBox();
+  if (!triggerBox) throw new Error('Trigger not interactable');
+
+  const start = randomPoint(triggerBox);
+
+  await page.mouse.move(start.x, start.y, { steps: moveSteps });
+  await page.waitForTimeout(hoverDelay);
+
+  // --- Wait for dropdown item AFTER hover ---
+  const item = toLocator(page, itemSelector).first();
+  await item.waitFor({ state: 'attached', timeout });
+  await item.waitFor({ state: 'visible', timeout });
+
+  // Recalculate box right before click (handles animation shifts)
+  const itemBox = await item.boundingBox();
+  if (!itemBox) throw new Error('Dropdown item not interactable');
+
+  const target = randomPoint(itemBox);
+
+  await page.mouse.move(target.x, target.y, { steps: moveSteps });
+  await page.waitForTimeout(30 + Math.random() * 40);
+
+  await page.mouse.click(target.x, target.y);
 }

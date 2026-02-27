@@ -62,6 +62,7 @@ export const launchPersistentContext = async (userDataDir, options = {}) => {
     // environment). This affects launchPersistentContext in any context where
     // dbus is not running (spawned subprocesses, CI, etc).
     '--disable-features=PortalActivationDelegate',
+
     ...(launchOptions.args || []),
   ];
 

@@ -103,6 +103,37 @@ export const open = async args => {
     cdpPort,
   });
 
+  // Restore full browser state saved by the previous session.close():
+  //   cookies   — including session cookies (is_persistent=0) Chromium drops on restart
+  //   origins   — localStorage and IndexedDB per origin
+  const savedState = await storage.loadState(sessionName);
+  if (savedState) {
+    if (savedState.cookies?.length) {
+      try {
+        await context.addCookies(savedState.cookies);
+        log(`Restored ${savedState.cookies.length} cookies for ${sessionName}`);
+      } catch (err) {
+        log(`Cookie restore failed for ${sessionName}: ${err.message}`);
+      }
+    }
+    if (savedState.origins?.length) {
+      // localStorage/IndexedDB can only be injected via an init script that
+      // runs before the page JS, keyed by origin.
+      const origins = savedState.origins;
+      await context.addInitScript(savedOrigins => {
+        const origin = location.origin;
+        const entry = savedOrigins.find(o => o.origin === origin);
+        if (!entry?.localStorage?.length) return;
+        for (const { name, value } of entry.localStorage) {
+          try {
+            localStorage.setItem(name, value);
+          } catch {}
+        }
+      }, origins);
+      log(`Restored localStorage for ${savedState.origins.length} origin(s) in ${sessionName}`);
+    }
+  }
+
   // Add init script to mask iframe fingerprints
   await context.addInitScript(() => {
     const originalCreateElement = document.createElement;
@@ -176,8 +207,15 @@ export const close = async args => {
   try {
     const session = pool.get(sessionName);
 
-    // userDataDir automatically persists everything, no need to save storageState
-    // Just update metadata and close
+    // Save full browser state (cookies + localStorage + IndexedDB origins) to
+    // state.json before closing. Chromium does not restore session cookies
+    // (is_persistent=0) on restart, and localStorage/IndexedDB are never
+    // written to the profile in a way Playwright can reload. We restore
+    // everything explicitly in session.open via context.addCookies() +
+    // context.addInitScript() for storage.
+    const state = await session.context.storageState();
+    await storage.saveState(sessionName, state);
+
     await storage.updateMeta(sessionName, { lastUsed: Date.now() });
     await session.context.close();
     pool.remove(sessionName);
