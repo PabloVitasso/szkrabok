@@ -6,7 +6,7 @@ import { humanClick } from '../../core/human.js';
 
 export class MenuPage {
   constructor(page) {
-    this.page    = page;
+    this.page = page;
     this.menuBtn = page.getByRole('button', { name: 'Menu' });
   }
 
