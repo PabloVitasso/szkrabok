@@ -16,7 +16,7 @@ Persistent Browser Context (stealth + userDataDir)
      v
 sessions/{id}/                     <- file storage
   meta.json                        <- timestamps, config
-  storageState.json                <- cookies + localStorage (optional)
+  state.json                       <- cookies + localStorage (saved on close, restored on open)
   profile/                         <- Chromium native profile
 ```
 
@@ -118,7 +118,7 @@ automation/
   - Rebrowser score: **8/10**. Permanent failures (no fix available): `mainWorldExecution` (requires rebrowser-patches binary patch), `exposeFunctionLeak` (`page.exposeFunction` fingerprint).
 - **Playwright patches** `scripts/patch-playwright.js` — pattern-based patches applied to `node_modules/playwright-core` after `npm install`; patch #8 injects greasy brands generation into `calculateUserAgentMetadata` so `Emulation.setUserAgentOverride` includes correct brands; run `node scripts/patch-playwright.js` after any playwright-core version bump
 - **CDP port** `tools/szkrabok_session.js` — deterministic port from session ID (`20000 + abs(hash) % 10000`); enables `chromium.connectOverCDP()`
-- **Persistent profile** `core/storage.js` — sessions stored in `sessions/{id}/profile/`; no manual storageState saves
+- **Persistent profile** `core/storage.js` — sessions stored in `sessions/{id}/profile/`; `state.json` saves full `storageState()` (cookies + localStorage per origin) on `session.close` and restores it on `session.open` — cookies via `context.addCookies()`, localStorage via `context.addInitScript()` keyed by origin. Needed because Chromium does not restore session cookies (`is_persistent=0`) across restarts, and localStorage is never persisted to the native profile in a Playwright-readable form.
 - **Test integration** `tools/szkrabok_browser.js` — `browser.run_test` spawns `npx playwright test` with `SZKRABOK_SESSION={id}`; `browser.run_file` runs a named export from an `.mjs` script; both connect via CDP — **`session.open` must be called first**
 
 ## Session lifecycle
@@ -128,6 +128,7 @@ session.open(id)
   -> load sessions/{id}/profile/ as userDataDir
   -> derive cdpPort from id hash
   -> launchPersistentContext with --remote-debugging-port=cdpPort
+  -> restore state.json: addCookies() + addInitScript() for localStorage per origin
   -> store {context, page, cdpPort} in pool
 
 browser.run_test(id, grep?, params?)
@@ -138,6 +139,7 @@ browser.run_test(id, grep?, params?)
   -> parse JSON report, return {passed, failed, tests}
 
 session.close(id)
+  -> context.storageState() -> save cookies + localStorage to state.json
   -> update meta.json -> context.close() -> remove from pool
   -> profile persisted automatically (userDataDir)
 ```
