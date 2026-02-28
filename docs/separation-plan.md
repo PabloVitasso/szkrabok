@@ -21,6 +21,8 @@ These must hold permanently. Any violation is an architectural regression.
 4. MCP never imports stealth, config, or storage directly
 5. Consumer fixture never imports stealth
 6. Dev, MCP, and CI must use identical launch code paths
+7. `runtime.launch()` is idempotent per profile within a process (see Pool section)
+8. `browser.run_test` must not launch Chromium independently — runtime is authoritative
 
 Enforced via ESLint rules (see Phase 6) and contract tests (see Phase 5).
 
@@ -85,6 +87,40 @@ connect(cdpEndpoint: string) => Promise<{
 
 DO NOT expose: page, storage internals, stealth utilities, pool directly.
 
+#### Pool is process-scoped
+
+Pool is not global. Each process (MCP server, CLI, test runner) has its own
+pool. CDP endpoint is the cross-process identity — it is the only value that
+meaningfully crosses process boundaries.
+
+Consequences:
+- CLI `szkrabok open` holds a pool entry in its own process
+- MCP server holds its own pool entries in its process
+- A test subprocess spawned by `browser.run_test` has no pool — it connects
+  via `SZKRABOK_CDP_ENDPOINT` which points to the MCP process's running browser
+- This is correct behavior; do not attempt to share pool state across processes
+
+#### Idempotency (`reuse` option)
+
+Within a single process, calling `launch({ profile })` twice for the same
+profile must not create two browser contexts.
+
+```js
+launch(options?: {
+  profile?:  string,
+  preset?:   string,
+  headless?: boolean,
+  reuse?:    boolean,  // default: true — return existing if profile already open
+})
+```
+
+If `reuse: true` (default) and the profile is already in pool, return the
+existing handle without launching a new browser. This prevents accidental
+context duplication in dev mode (e.g. fixture called twice, globalSetup +
+test both calling launch).
+
+If `reuse: false`, force a new context (explicit intent required).
+
 ---
 
 ## Phase 1 — Extract `@szkrabok/runtime`
@@ -119,6 +155,26 @@ Changes:
 - `browser.run_test`: add optional `cwd` and `config` params so external
   project specs can be referenced by absolute path
 - Pool access goes through runtime only
+
+#### `browser.run_test` — required flow
+
+```
+MCP tool (browser.run_test)
+   └── session already open in runtime.pool (runtime.launch() was called at session.open)
+   └── read cdpEndpoint from pool
+   └── set SZKRABOK_CDP_ENDPOINT=<cdpEndpoint>
+   └── spawn: npx playwright test [files] [--config] [--grep]
+        └── fixture sees SZKRABOK_CDP_ENDPOINT
+        └── connectOverCDP(endpoint)  ← only browser action in subprocess
+        └── tests run against live session
+```
+
+The spawned subprocess must NOT call `runtime.launch()` or `chromium.launch*`.
+It only connects. Runtime in the MCP process is authoritative; the subprocess
+is a client of the already-running browser.
+
+This flow is preserved by invariant #8. The contract test in Phase 5.3 must
+verify that no `launchPersistentContext` call occurs within the subprocess.
 
 `packages/mcp/package.json` lists `@szkrabok/runtime` as a dependency.
 
