@@ -5,14 +5,11 @@
 ```
 packages/runtime/    @szkrabok/runtime    — browser bootstrap, stealth, pool, storage
                                             zero MCP knowledge
-src/                 MCP package          — transport + tools, depends on runtime
-automation/          reference consumer   — fixtures use runtime public API only
-mcp-client/          (not yet a package)  — consumer harness client; TODO: move to
-                                            packages/mcp-client/ as @szkrabok/mcp-client
+packages/mcp-client/ @szkrabok/mcp-client — typed MCP client, mcpConnect(), codegen
+src/                 MCP server           — transport + tools, imports from @szkrabok/runtime
 selftest/            test suites          — runtime unit/integration, MCP contracts, playwright
+automation/          szkrabok self-tests  — stealth checks, bot-detector specs
 ```
-
-See `docs/separation-progress.md` for what is done and what remains.
 
 ## Data flow
 
@@ -54,6 +51,20 @@ packages/runtime/
   scripts/
     patch-playwright.js  playwright-core patches (postinstall)
 
+packages/mcp-client/
+  index.js          Public API: mcpConnect, spawnClient
+  mcp-tools.js      GENERATED — namespaced handle factory + JSDoc types
+  runtime/
+    transport.js    spawnClient() — stdio process lifecycle
+    invoker.js      createCallInvoker() — serialization, closed guard
+    logger.js       createLogger() — JSONL formatter
+  adapters/
+    szkrabok-session.js  szkrabok session adapter
+  codegen/
+    generate-mcp-tools.mjs  entry — spawns server, writes mcp-tools.js
+    render-tools.js          pure: (tools[]) -> file content string
+    schema-to-jsdoc.js       pure: (inputSchema) -> JSDoc type strings
+
 src/
   index.js          MCP entry point, stdio transport
   config.js         MCP-layer config only: TIMEOUT, LOG_LEVEL, DISABLE_WEBGL
@@ -72,11 +83,6 @@ src/
 
   upstream/
     wrapper.js            Page-operation helpers (navigate, getText, getHtml, ...)
-                          No browser launch code — that moved to packages/runtime/launch.js
-
-  utils/
-    errors.js             wrapError, structured error responses
-    logger.js             log/logDebug/logWarn/logError
 
 config/                   Playwright config modules (TypeScript, pure functions)
   env.ts                  Single process.env reader
@@ -89,21 +95,9 @@ config/                   Playwright config modules (TypeScript, pure functions)
 
 playwright.config.js      Root config — pure composition, no logic
 
-szkrabok.config.toml       Browser identity presets — repo defaults (committed)
-szkrabok.config.local.toml Machine-specific overrides, gitignored
-
-mcp-client/
-  mcp-tools.js        GENERATED — namespaced handle factory + JSDoc types
-  runtime/
-    transport.js      spawnClient() — stdio process lifecycle
-    invoker.js        createCallInvoker() — serialization, closed guard
-    logger.js         createLogger() — JSONL formatter
-  adapters/
-    szkrabok-session.js  szkrabok session adapter
-  codegen/
-    generate-mcp-tools.mjs  entry — spawns server, writes mcp-tools.js
-    render-tools.js          pure: (tools[]) -> file content string
-    schema-to-jsdoc.js       pure: (inputSchema) -> JSDoc type strings
+szkrabok.config.toml          Browser identity presets — repo defaults (committed)
+szkrabok.config.local.toml    Machine-specific overrides (gitignored)
+szkrabok.config.local.toml.example  Template for local overrides
 
 selftest/
   node/               node:test specs — schema, basic, MCP protocol, scraping
@@ -119,17 +113,12 @@ automation/
   fixtures.js             Path A: connect(SZKRABOK_CDP_ENDPOINT); Path B: launch({profile:'dev'})
   setup.js                globalSetup — prints resolved preset
   teardown.js             globalTeardown
-  core/
-    human.js              Human-like interaction helpers
-    result.js             attachResult() utility
-    utils.js              timestampedPath, etc.
-  park4night/
-    park4night.spec.js    Cookie banner + login + GPS search (serial, independently runnable)
-    park4night.mcp.spec.js  MCP harness — full session lifecycle in one spec
-    pages/                POM: CookieBannerPage, AuthPromptPage
   intoli-check.spec.js    bot.sannysoft.com — 10 Intoli + 20 fp-collect checks
   rebrowser-check.spec.js bot-detector.rebrowser.net — 8/10 passing (headed only)
+  rebrowser-check.mcp.spec.js  same via MCP client
   navigator-properties.spec.js  whatismybrowser.com navigator props
+
+dist/                     npm pack output — szkrabok-runtime-x.y.z.tgz etc. (gitignored)
 ```
 
 ## Tool ownership
@@ -168,18 +157,18 @@ launch({
 }) => Promise<{ browser, context, cdpEndpoint, close() }>
 ```
 
-Do NOT import runtime internals (`stealth`, `storage`, `pool`, `config`) directly. Only `launch` and `connect` cross process boundaries.
+Do NOT import runtime internals (`stealth`, `storage`, `pool`, `config`) directly.
 
 ## Non-negotiable invariants
 
 1. Only `packages/runtime/launch.js` calls `launchPersistentContext`
 2. Stealth runs only during `runtime.launch()` — never conditionally, never elsewhere
 3. Profile resolution happens only in runtime
-4. MCP never imports stealth, config internals, or storage directly
+4. MCP tools never import stealth, config internals, or storage directly
 5. `automation/fixtures.js` never imports stealth or launches a browser directly
 6. `browser.run_test` subprocess connects via `connectOverCDP` — it never calls `launch*()`
 
-Enforced by ESLint boundary rules in `eslint.config.js` and contract tests in `selftest/mcp/contract.test.js`.
+Enforced by ESLint boundary rules in `eslint.config.js` and `selftest/mcp/contract.test.js`.
 
 ## Session lifecycle
 
@@ -218,27 +207,24 @@ Pool is process-scoped — not global. Each process has its own pool. CDP endpoi
 
 ## Stealth hacks (preserve on upstream updates)
 
-- **`Network.setUserAgentOverride`** is target-scoped — persists across navigations. Used for UA string, platform, Accept-Language.
-- **`Page.addScriptToEvaluateOnNewDocument`** via `newCDPSession` is session-scoped — scripts never fire when navigations are driven by Playwright's internal CDP session. Do not use.
-- **`page.addInitScript()`** is the correct API for init scripts — fires before page JS on every navigation regardless of which client navigates.
-- All property overrides must target **`Navigator.prototype`**, not the `navigator` instance. Defining on the instance makes the property visible in `Object.getOwnPropertyNames(navigator)`, which the rebrowser `navigatorWebdriver` check flags.
+- **`Network.setUserAgentOverride`** is target-scoped — persists across navigations.
+- **`page.addInitScript()`** is the correct API for init scripts — fires before page JS on every navigation.
+- All property overrides must target **`Navigator.prototype`**, not the `navigator` instance.
 - Rebrowser score: **8/10**. Permanent failures: `mainWorldExecution` (requires rebrowser-patches binary), `exposeFunctionLeak` (`page.exposeFunction` fingerprint — no fix available).
 
-## Playwright patches (`scripts/patch-playwright.js`)
+## Playwright patches (`packages/runtime/scripts/patch-playwright.js`)
 
-Pattern-based patches applied to `node_modules/playwright-core` after `npm install`. Patch #8 injects greasy brands into `calculateUserAgentMetadata` so `Emulation.setUserAgentOverride` produces correct brands. Run after any playwright-core version bump:
+Pattern-based patches applied to `node_modules/playwright-core` after `npm install`. Patch #8 injects greasy brands into `calculateUserAgentMetadata`. Run after any playwright-core version bump:
 
 ```bash
 rm -rf node_modules/playwright-core
 npm install --ignore-scripts
-node scripts/patch-playwright.js
+node packages/runtime/scripts/patch-playwright.js
 ```
-
-See `docs/rebrowser-patches-research.md` and `docs/waitForSelector-bug.md` for details.
 
 ## Chromium resolution
 
-Priority order (runtime and MCP both follow the same order):
+Priority (runtime and MCP both follow the same order):
 1. `TOML [default].executablePath`
 2. `~/.cache/ms-playwright/chromium-*/chrome-linux/chrome` (highest version)
 3. System binaries: `/usr/bin/chromium`, `/usr/bin/google-chrome`, etc.

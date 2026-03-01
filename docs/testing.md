@@ -1,6 +1,6 @@
 # Testing
 
-Four test categories, each validating different layers of the architecture.
+Six test categories validating different layers.
 
 ---
 
@@ -35,33 +35,15 @@ npm run test:contracts
 # node --test selftest/mcp/contract.test.js
 ```
 
-Verifies architecture invariants:
+Verifies architecture invariants via static import analysis — no browser launched:
 - No MCP tool calls `chromium.launch*` directly
 - `src/core/` does not exist
 - No MCP tool imports `@szkrabok/runtime/*` subpaths (only the public root)
+- `packages/runtime/launch.js` is the only file containing `launchPersistentContext`
 
 ---
 
-## 4. Playwright selftests — MCP server
-
-Each test spawns a fresh `node src/index.js` subprocess via `spawnClient()` and calls tools over MCP.
-
-```bash
-npx playwright test --project=selftest
-npm run test:playwright
-```
-
-`selftest/playwright/fixtures.js` uses `spawnClient()` from `mcp-client/runtime/transport.js`. The `openSession()` fixture always injects `{ headless: true }` so tests pass in any environment.
-
-| File | Suite | What it tests |
-| ---- | ----- | ------------- |
-| `session.spec.js` | Session Management | `session.open`, `session.list`, `session.close`, `session.delete` |
-| `stealth.spec.js` | Stealth Mode | Session opens with stealth; sannysoft result attached |
-| `tools.spec.js` | CSS Selector Tools / Workflow | `nav.goto`, `extract.text`, `extract.html`, `workflow.scrape` |
-
----
-
-## 5. Node:test selftests
+## 4. Node:test selftests
 
 ```bash
 npm run test:node
@@ -69,119 +51,122 @@ npm run test:node
 ```
 
 | File | What it tests |
-| ---- | ------------- |
-| `basic.test.js` | Server starts, tools listed via public API |
-| `schema.test.js` | All tool schemas valid |
-| `playwright_mcp.test.js` | snapshot, click, type via CDP |
-| `scrap.test.js` | extract + session open/close cycle |
+|------|---------------|
+| `basic.test.js` | `getSession` throws for missing session, `listRuntimeSessions` returns empty, preset resolves |
+| `schema.test.js` | All tool schemas valid JSON Schema, array properties have `items` |
+| `playwright_mcp.test.js` | snapshot, click, type via CDP against live browser |
+| `scrap.test.js` | extract + session open/close cycle against bot-detector |
 
 ---
 
-## 6. Automation — real browser workflows
+## 5. Playwright selftests
 
-Real automation against live sites. Serve as integration and stealth health checks.
-
-**Require an active MCP session** (`session.open` first).
-
-```
-session.open { "sessionName": "my-session" }
-browser.run_test { "sessionName": "my-session", "files": ["automation/intoli-check.spec.js"] }
-```
-
-Or run standalone (runtime launches its own browser):
+Each test spawns a fresh `node src/index.js` via `spawnClient()` and calls tools over MCP.
 
 ```bash
-npx playwright test --project=automation automation/intoli-check.spec.js
+npm run test:playwright
+# npx playwright test --project=selftest
 ```
 
-### Test cases
+`selftest/playwright/fixtures.js` uses `spawnClient()` from `@szkrabok/mcp-client`. The `openSession()` fixture always injects `{ headless: true }`.
+
+| File | Suite | What it tests |
+|------|-------|---------------|
+| `session.spec.js` | Session Management | `session.open`, `session.list`, `session.close`, `session.delete` |
+| `stealth.spec.js` | Stealth Mode | Session opens with stealth applied |
+| `tools.spec.js` | CSS Selector / Workflow | `nav.goto`, `extract.text`, `extract.html`, `workflow.scrape` |
+
+---
+
+## 6. Automation — stealth health checks
+
+Real browser against live bot-detection sites. **Require an active MCP session.**
+
+```
+session.open { "sessionName": "check" }
+browser.run_test { "sessionName": "check", "files": ["automation/rebrowser-check.spec.js"] }
+```
+
+Or standalone (runtime launches its own browser):
+
+```bash
+npx playwright test --project=automation automation/rebrowser-check.spec.js
+```
 
 | File | What it does | Mode |
-| ---- | ------------ | ---- |
-| `automation/park4night/park4night.spec.js` | Cookie banner + login + GPS search (serial, independently runnable) | headed |
-| `automation/intoli-check.spec.js` | bot.sannysoft.com — 10 Intoli + 20 fp-collect checks | headless or headed |
-| `automation/rebrowser-check.spec.js` | bot-detector.rebrowser.net — **8/10 passing** | **headed only** — site blocks headless |
-| `automation/navigator-properties.spec.js` | whatismybrowser.com navigator props + userAgentData eval | headed |
+|------|-------------|------|
+| `rebrowser-check.spec.js` | bot-detector.rebrowser.net — **8/10 passing** | **headed only** |
+| `rebrowser-check.mcp.spec.js` | Same via MCP client harness | headed |
+| `intoli-check.spec.js` | bot.sannysoft.com — 10 Intoli + 20 fp-collect checks | headless or headed |
+| `navigator-properties.spec.js` | whatismybrowser.com navigator props + userAgentData | headed |
 
 #### rebrowser-check
 
-Score: **8/10**. Permanent failures (no fix available):
-- `mainWorldExecution` — requires rebrowser-patches alwaysIsolated mode (conflicts with dummyFn)
-- `exposeFunctionLeak` — `page.exposeFunction` fingerprint is unfixable
+Score: **8/10**. Permanent failures:
+- `mainWorldExecution` — requires rebrowser-patches binary (conflicts with dummyFn)
+- `exposeFunctionLeak` — `page.exposeFunction` fingerprint, no fix available
 
-Always open the session headed:
+Always run headed:
 ```
 session.open { "sessionName": "rebrowser", "launchOptions": { "headless": false } }
 browser.run_test { "sessionName": "rebrowser", "files": ["automation/rebrowser-check.spec.js"] }
 ```
 
-#### intoli-check
-
-**Intoli table (10 checks):**
-`User Agent` · `WebDriver` · `WebDriver Advanced` · `Chrome` · `Permissions` · `Plugins Length` · `Plugins is of type PluginArray` · `Languages` · `WebGL Vendor` · `Broken Image Dimensions`
-
-`WebGL Renderer` excluded — hardware GPU string, not a stealth evasion issue.
-
-**fp-collect table (20 checks):**
-`PHANTOM_UA` · `PHANTOM_PROPERTIES` · `PHANTOM_ETSL` · `PHANTOM_LANGUAGE` · `PHANTOM_WEBSOCKET` · `MQ_SCREEN` · `PHANTOM_OVERFLOW` · `PHANTOM_WINDOW_HEIGHT` · `HEADCHR_UA` · `HEADCHR_CHROME_OBJ` · `HEADCHR_PERMISSIONS` · `HEADCHR_PLUGINS` · `HEADCHR_IFRAME` · `CHR_DEBUG_TOOLS` · `SELENIUM_DRIVER` · `CHR_BATTERY` · `CHR_MEMORY` · `TRANSPARENT_PIXEL` · `SEQUENTUM` · `VIDEO_CODECS`
-
 ---
 
-## 7. MCP client harness (project: mcp)
-
-Tests that use the generated `mcp-client/mcp-tools.js` handle. No browser fixture — harnesses manage their own session lifecycle via `mcpConnect()`.
+## Run all selftests
 
 ```bash
-npx playwright test --project=mcp
-npm run test:clientmcp
-```
-
-| File | What it does |
-| ---- | ------------ |
-| `automation/park4night/park4night.mcp.spec.js` | Opens session, delegates to park4night.spec.js via `browser.run_test`, closes |
-| `automation/rebrowser-check.mcp.spec.js` | Full rebrowser run via MCP client with known-failure exclusion |
-
-Regenerate `mcp-tools.js` after any registry change:
-
-```bash
-npm run codegen:mcp
+npm run test:node          # runtime unit + integration + node selftests
+npm run test:contracts     # MCP invariants
+npm run test:playwright    # Playwright selftests (browser required)
 ```
 
 ---
 
-## Writing automation tests
+## Writing specs for `browser.run_test`
 
-```javascript
+```js
 // automation/your-task.spec.js
 import { test, expect } from './fixtures.js';
 import { attachResult } from './core/result.js';
 
 test('my task', async ({ page }, testInfo) => {
   await page.goto('https://example.com');
-  // ... actions / assertions ...
   await attachResult(testInfo, { url: page.url() });
 });
 ```
 
 `automation/fixtures.js` handles two modes automatically:
 - **MCP** (`SZKRABOK_CDP_ENDPOINT` set) — connects to live session via CDP
-- **Standalone** — calls `runtime.launch({ profile: 'dev', reuse: true })` for a fresh stealth browser
+- **Standalone** — calls `runtime.launch({ profile: 'dev', reuse: true })`
 
-Pass params via `browser.run_test`:
+Pass params from MCP:
 ```
 browser.run_test { "sessionName": "s", "params": { "url": "https://..." } }
 ```
-→ available as `process.env.TEST_URL` in the spec.
+Available as `process.env.TEST_URL` in the spec.
+
+---
+
+## Regenerate mcp-tools.js
+
+After any tool registry change:
+
+```bash
+npm run codegen:mcp
+```
+
+Commit the updated `packages/mcp-client/mcp-tools.js`.
 
 ---
 
 ## Troubleshooting
 
 | Symptom | Fix |
-| ------- | --- |
+|---------|-----|
 | `run_test` fails "Session not open" | Call `session.open` first |
 | `run_test` fails "no CDP port" | Session opened before CDP support — close and reopen |
-| `MCP registry drift detected` | Run `npm run codegen:mcp` then commit updated `mcp-tools.js` |
 | `rebrowser-check` ERR_ABORTED | Site blocks headless — open session with `headless: false` |
 | intoli-check timeout (headed) | Intermittent — rerun |
 | `Executable doesn't exist` | `npx playwright install chromium` |
