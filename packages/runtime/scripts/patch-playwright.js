@@ -105,7 +105,7 @@ const require = createRequire(import.meta.url)
 
 function findPkgRoots() {
   const roots = []
-  const nmDir = path.resolve('node_modules')
+  const nmDir = path.join(process.env.INIT_CWD || process.cwd(), 'node_modules')
 
   // 1. top-level playwright-core
   const top = path.join(nmDir, 'playwright-core')
@@ -114,12 +114,12 @@ function findPkgRoots() {
   // 2. any nested playwright-core inside other packages
   try {
     const out = execSync(
-      'find node_modules -maxdepth 4 -name "package.json" -path "*/playwright-core/package.json" 2>/dev/null',
+      `find "${nmDir}" -maxdepth 4 -name "package.json" -path "*/playwright-core/package.json" 2>/dev/null`,
       { encoding: 'utf8' }
     )
     for (const line of out.trim().split('\n')) {
       if (!line) continue
-      const dir = path.dirname(path.resolve(line))
+      const dir = path.dirname(line)
       if (!roots.includes(dir)) roots.push(dir)
     }
   } catch {}
