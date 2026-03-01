@@ -210,7 +210,7 @@ Pool is process-scoped — not global. Each process has its own pool. CDP endpoi
 - **`Network.setUserAgentOverride`** is target-scoped — persists across navigations.
 - **`page.addInitScript()`** is the correct API for init scripts — fires before page JS on every navigation.
 - All property overrides must target **`Navigator.prototype`**, not the `navigator` instance.
-- Rebrowser score: **8/10**. Permanent failures: `mainWorldExecution` (requires rebrowser-patches binary), `exposeFunctionLeak` (`page.exposeFunction` fingerprint — no fix available).
+- Rebrowser score: **8/10**. Permanent failures: `mainWorldExecution` (requires [rebrowser-patches](https://github.com/rebrowser/rebrowser-patches) binary patching — see [rebrowser-patches-research.md](./rebrowser-patches-research.md)), `exposeFunctionLeak` (`page.exposeFunction` fingerprint — no fix available).
 
 ## Playwright patches (`packages/runtime/scripts/patch-playwright.js`)
 
