@@ -18,9 +18,9 @@ Tracks implementation state against the consumer portability goal:
 | 5 | Selftest suites (runtime unit, integration, mcp contracts) | DONE |
 | 6 | ESLint boundary rules | DONE |
 | 7 | CI pipeline yml | DONE (disabled — headless env not configured) |
-| **8** | **`mcp-client/` → `packages/mcp-client/` (`@szkrabok/mcp-client`)** | **TODO** |
-| **9** | **Remove repo-local `config/` imports from `automation/`** | **TODO** |
-| **10** | **Consumer install path (npm publish or git URL)** | **TODO** |
+| 8 | `mcp-client/` → `packages/mcp-client/` (`@szkrabok/mcp-client`) | DONE |
+| 9 | Remove repo-local `config/` imports from `automation/` | DONE |
+| **10** | **Consumer install path (`npm pack` + versioning)** | **TODO** |
 
 ---
 
@@ -70,63 +70,53 @@ keeps alive until SIGINT.
 `.github/workflows/ci.yml` exists but is disabled (renamed `.disabled`).
 Needs a headless-capable CI environment before enabling.
 
+### Phase 8 — `@szkrabok/mcp-client` package
+
+`mcp-client/` contents copied to `packages/mcp-client/` with a `package.json` naming it
+`@szkrabok/mcp-client`. Public API exported from `packages/mcp-client/index.js`:
+`mcpConnect`, `spawnClient`. All consumer imports updated to `@szkrabok/mcp-client`.
+`codegen:mcp` script updated to `packages/mcp-client/codegen/generate-mcp-tools.mjs`.
+
+### Phase 9 — Remove `config/` imports from `automation/`
+
+`automation/park4night/park4night.spec.js` now reads credentials from `P4N_EMAIL` and
+`P4N_PASSWORD` env vars. No `../../config/` imports remain in `automation/`.
+
 ---
 
 ## What is NOT done
 
-### Phase 8 — `@szkrabok/mcp-client` package
-
-**Current state:** `mcp-client/` sits at the repo root with no `package.json`.
-It is not a workspace package. Consumer specs import it via relative path:
-```js
-import { mcpConnect } from '../mcp-client/mcp-tools.js';       // repo-relative
-```
-
-**Target state:** Move to `packages/mcp-client/` with `package.json` naming it
-`@szkrabok/mcp-client`. Add to workspace. Consumer imports become:
-```js
-import { mcpConnect } from '@szkrabok/mcp-client';
-```
-
-Tasks:
-- [ ] Add `packages/mcp-client/package.json` (`@szkrabok/mcp-client`)
-- [ ] Move `mcp-client/` contents into `packages/mcp-client/`
-- [ ] Update root `package.json` workspace glob if needed
-- [ ] Fix all relative `../mcp-client/` imports in `automation/` to use `@szkrabok/mcp-client`
-- [ ] Add `postinstall` to auto-generate `mcp-tools.js` on install
-- [ ] Export `mcpConnect` from `packages/mcp-client/index.js`
-
-### Phase 9 — Remove repo-local `config/` imports from `automation/`
-
-**Current state:** `automation/park4night/park4night.spec.js` imports:
-```js
-import { loadToml } from '../../config/toml.js';
-import { paths } from '../../config/paths.js';
-```
-This is used only to read `[credentials.park4night]` from the local TOML.
-A consumer project has no `config/` directory — this import breaks portability.
-
-**Target state:** Credentials via env vars (`P4N_EMAIL`, `P4N_PASSWORD`) or a
-runtime-provided config helper. No `../../config/` imports anywhere in `automation/`.
-
-Tasks:
-- [ ] Add credential env var support to `park4night.spec.js` (`P4N_EMAIL`, `P4N_PASSWORD`)
-- [ ] Keep TOML path as optional fallback for this repo (or drop entirely)
-- [ ] Audit all `automation/` files for other `../../config/` or `../../src/` imports
-
-### Phase 10 — Consumer install path
+### Phase 10 — Consumer install path (`npm pack`)
 
 **Current state:** `@szkrabok/runtime` and `@szkrabok/mcp-client` exist only as
 workspace-local packages. A project outside this monorepo cannot install them.
 
-**Target state options (pick one):**
-- Publish to npm (`npm publish --workspaces`)
-- Install via git URL: `npm install github:PabloVitasso/szkrabok#main`
-- Private registry
+**Target state:** `npm pack` produces versioned tarballs in `dist/`. Consumer installs
+from a local path or URL to the tarball — no registry needed.
+
+**Versioning workflow (automated):**
+```bash
+# Bump patch version across all packages + root, then pack both into dist/
+npm run release:patch
+
+# Or minor
+npm run release:minor
+```
+This runs `npm version patch --workspaces --include-workspace-root` (bumps all
+`package.json` files consistently, creates a git tag `v1.0.1`), then packs both
+workspace packages into `dist/szkrabok-runtime-1.0.1.tgz` and
+`dist/szkrabok-mcp-client-1.0.1.tgz`.
+
+**Consumer install:**
+```bash
+npm install /path/to/dist/szkrabok-runtime-1.0.1.tgz
+npm install /path/to/dist/szkrabok-mcp-client-1.0.1.tgz
+```
 
 Tasks:
-- [ ] Decide on distribution mechanism
-- [ ] Test install from outside the repo
+- [ ] Run `npm run pack` and verify tarballs are produced
+- [ ] Test install from outside the repo (`npm install /abs/path/to/tgz`)
+- [ ] Verify `@szkrabok/runtime` and `@szkrabok/mcp-client` resolve correctly post-install
 - [ ] Document install steps in README
 
 ---

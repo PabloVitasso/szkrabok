@@ -17,7 +17,7 @@
  */
 
 import { test, expect } from 'playwright/test';
-import { mcpConnect } from '../../mcp-client/mcp-tools.js';
+import { mcpConnect } from '@szkrabok/mcp-client';
 
 /**
  * @typedef {{ lat: number, lng: number, z: number, label: string }} Coord

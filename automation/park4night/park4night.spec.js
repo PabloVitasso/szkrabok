@@ -47,19 +47,18 @@ import { CookieBannerPage } from './pages/CookieBannerPage.js';
 import { AuthPromptPage } from './pages/AuthPromptPage.js';
 import { attachResult } from '../core/result.js';
 import { timestampedPath } from '../core/utils.js';
-import { loadToml } from '../../config/toml.js';
-import { paths } from '../../config/paths.js';
 import fs from 'fs';
 
 // Tests share one page via CDP — must run serially to avoid modal race conditions.
 test.describe.configure({ mode: 'serial' });
 
-const toml = loadToml(paths.config);
-const creds = /** @type {any} */ (toml.raw?.credentials);
-const p4nCreds = /** @type {{email: string, password: string}} */ (creds?.park4night);
-if (!p4nCreds?.email || !p4nCreds?.password) {
+const p4nCreds = {
+  email: process.env.P4N_EMAIL,
+  password: process.env.P4N_PASSWORD,
+};
+if (!p4nCreds.email || !p4nCreds.password) {
   throw new Error(
-    '[credentials.park4night] email= , password= missing in szkrabok.config.local.toml'
+    'P4N_EMAIL and P4N_PASSWORD environment variables are required'
   );
 }
 

@@ -4,7 +4,7 @@
  */
 
 import { test as baseTest, expect as baseExpect } from 'playwright/test';
-import { spawnClient } from '../../mcp-client/runtime/transport.js';
+import { spawnClient } from '@szkrabok/mcp-client';
 
 // Default config applied to every session.open call made through openSession().
 // Tests must not rely on the server's TOML for these values — selftest must be

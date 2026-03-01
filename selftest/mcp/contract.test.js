@@ -134,7 +134,7 @@ describe('Invariant 5: packages/runtime is the only launch site', () => {
       join(REPO_ROOT, 'src'),
       join(REPO_ROOT, 'automation'),
       join(REPO_ROOT, 'selftest'),
-      join(REPO_ROOT, 'mcp-client'),
+      join(REPO_ROOT, 'packages', 'mcp-client'),
     ];
 
     const violations = [];
