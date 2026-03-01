@@ -119,7 +119,7 @@ browser.run_test { "sessionName": "rebrowser", "files": ["tests/playwright/e2e/r
 
 ---
 
-## Writing specs for `browser.run_test`
+## Authoring specs that run via `browser.run_test`
 
 ```js
 // tests/playwright/e2e/my-task.spec.js
@@ -140,6 +140,32 @@ Pass params from MCP:
 browser.run_test { "sessionName": "s", "params": { "url": "https://..." } }
 ```
 Available as `process.env.TEST_URL` in the spec.
+
+---
+
+## Calling `browser.run_test` from `@szkrabok/mcp-client`
+
+Use this when driving szkrabok programmatically from another Playwright spec or Node script:
+
+```js
+import { mcpConnect } from '@szkrabok/mcp-client';
+
+const mcp = await mcpConnect('my-session');
+
+const result = await mcp.browser.run_test({
+  files: ['tests/playwright/e2e/my-task.spec.js'],
+  params: { url: 'https://example.com' },
+  grep: 'my task',        // optional: filter by test name
+  project: 'e2e',         // optional: playwright project
+});
+
+console.log(result.passed, result.failed);
+// result.tests: [{ title, status, result }]
+
+await mcp.session.close({ save: true });
+```
+
+`mcpConnect` spawns the MCP server as a subprocess and returns a typed handle. `browser.run_test` returns `{ passed, failed, tests }` — decoded from the JSON reporter attachment.
 
 ---
 
