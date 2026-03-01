@@ -4,7 +4,7 @@ import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const REPO_ROOT = resolve(__dirname, '../..');
+const REPO_ROOT = resolve(__dirname, '../../..');
 
 /**
  * Spawns the MCP server and returns a connected client.

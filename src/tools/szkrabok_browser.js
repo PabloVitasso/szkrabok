@@ -1,4 +1,4 @@
-import * as pool from '../core/pool.js';
+import { getSession } from '@szkrabok/runtime';
 import { open as sessionOpen } from './szkrabok_session.js';
 import { resolve, dirname, join } from 'path';
 import { spawn } from 'child_process';
@@ -24,12 +24,14 @@ export const run_test = async args => {
   const paramEnv = Object.fromEntries(
     Object.entries(params).map(([k, v]) => [`TEST_${k.toUpperCase()}`, String(v)])
   );
-  if (!pool.has(sessionName)) {
+  let session;
+  try {
+    session = getSession(sessionName);
+  } catch {
     throw new Error(
       `Session "${sessionName}" is not open. Run session.open first:\n  session.open { "sessionName": "${sessionName}" }`
     );
   }
-  const session = pool.get(sessionName);
   if (!session.cdpPort) {
     throw new Error(
       `Session "${sessionName}" has no CDP port — it was opened before CDP support was added. Reopen it:\n  session.close { "sessionName": "${sessionName}" }\n  session.open { "sessionName": "${sessionName}" }`
@@ -79,18 +81,10 @@ export const run_test = async args => {
   // alive. Re-opening reconnects a fresh Playwright context to the running browser.
   let sessionReconnected = false;
   if (keepOpen) {
-    const alive =
-      pool.has(sessionName) &&
-      (() => {
-        try {
-          pool.get(sessionName);
-          return true;
-        } catch {
-          return false;
-        }
-      })();
+    const alive = (() => {
+      try { getSession(sessionName); return true; } catch { return false; }
+    })();
     if (!alive) {
-      pool.remove(sessionName);
       await sessionOpen({ sessionName });
       sessionReconnected = true;
     }
@@ -153,7 +147,7 @@ export const run_test = async args => {
 
 export const run_file = async args => {
   const { sessionName, path: scriptPath, fn = 'default', args: scriptArgs = {} } = args;
-  const session = pool.get(sessionName);
+  const session = getSession(sessionName);
 
   const absolutePath = resolve(scriptPath);
 

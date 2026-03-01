@@ -3,8 +3,7 @@ import assert from 'node:assert';
 import { writeFile } from 'fs/promises';
 import * as session from '../../src/tools/szkrabok_session.js';
 import * as extract from '../../src/tools/extract.js';
-import * as pool from '../../src/core/pool.js';
-import { closeBrowser } from '../../src/upstream/wrapper.js';
+import { getSession } from '@szkrabok/runtime';
 
 const formatTimestamp = () => {
   const now = new Date();
@@ -33,7 +32,7 @@ test(
       assert.ok(openResult.success, 'Session should open successfully');
 
       // Get page reference for direct control
-      const { page } = pool.get(sessionId);
+      const { page } = getSession(sessionId);
 
       // Wait for network to be idle (all requests done)
       await page.waitForLoadState('networkidle', { timeout: 10000 });
@@ -84,11 +83,6 @@ test(
         console.error('Error deleting session:', err.message);
       }
 
-      try {
-        await closeBrowser();
-      } catch (err) {
-        console.error('Error closing browser:', err.message);
-      }
     }
   },
   { timeout: 30000 }

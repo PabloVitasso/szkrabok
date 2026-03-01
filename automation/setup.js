@@ -1,4 +1,4 @@
-import { resolvePreset } from '../src/config.js';
+import { resolvePreset } from '@szkrabok/runtime';
 
 // Prints the resolved browser preset to console before automation tests run.
 // Visible in both `browser.run_test` log output and CLI runs.

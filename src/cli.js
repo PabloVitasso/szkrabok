@@ -118,4 +118,30 @@ program
     }
   });
 
+program
+  .command('open <profile>')
+  .description('Launch a browser session with full stealth + persistence. Prints CDP endpoint. Keeps process alive until Ctrl-C.')
+  .option('--preset <preset>', 'TOML preset name')
+  .option('--headless', 'Run headless')
+  .action(async (profile, options) => {
+    const { launch } = await import('@szkrabok/runtime');
+    const handle = await launch({
+      profile,
+      preset: options.preset,
+      headless: options.headless ?? undefined,
+      reuse: false,
+    });
+    console.log(handle.cdpEndpoint);
+    process.on('SIGINT', async () => {
+      await handle.close();
+      process.exit(0);
+    });
+    process.on('SIGTERM', async () => {
+      await handle.close();
+      process.exit(0);
+    });
+    // Keep alive
+    await new Promise(() => {});
+  });
+
 program.parse();
