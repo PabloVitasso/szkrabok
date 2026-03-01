@@ -1,20 +1,40 @@
 # Szkrabok
 
-Fork of [microsoft/playwright-mcp](https://github.com/microsoft/playwright-mcp) — adds persistent sessions, stealth mode, anti-bot patches, and a typed MCP client library.
+MCP server that supplements [microsoft/playwright-mcp](https://github.com/microsoft/playwright-mcp) with persistent sessions, stealth mode, and scripted automation.
 
-Layered monorepo: `@szkrabok/runtime` owns all browser lifecycle; the MCP server is transport only.
+Use it alongside `@playwright/mcp` — szkrabok handles session management and scripting; playwright-mcp handles browser interaction.
 
 ---
 
-## What it adds over upstream
+## What it adds
 
 - **Named persistent sessions** — cookies, localStorage, Chromium profile survive restarts
 - **Stealth mode** — playwright-extra + puppeteer-extra-plugin-stealth, applied exclusively in `@szkrabok/runtime`
 - **Anti-bot patches** — suppress CDP `Runtime.enable` leak, rename `UtilityScript` class; applied via `postinstall`
 - **Deterministic CDP port per session** — external Playwright scripts can `connectOverCDP()`
+- **`browser.run_code`** — run a Playwright function string against a live session
 - **`browser.run_test`** — run `.spec.js` tests against a live MCP session via CDP
 - **`browser.run_file`** — run a named export from an `.mjs` script against a live session
-- **`@szkrabok/mcp-client`** — generated typed handle (`mcp.workflow.scrape(...)`, `mcp.browser.run_test(...)`) for driving szkrabok from Playwright specs
+- **`workflow.login/fillForm/scrape`** — high-level automation helpers
+- **`@szkrabok/mcp-client`** — typed handle (`mcp.workflow.scrape(...)`, `mcp.browser.run_test(...)`) for driving szkrabok from Playwright specs
+
+---
+
+## Tools
+
+| Tool | Description |
+|------|-------------|
+| `session.open` | Launch a named Chrome session |
+| `session.close` | Save and close a session |
+| `session.list` | List active sessions |
+| `session.delete` | Delete a session permanently |
+| `session.endpoint` | Get CDP/WS endpoint for external connections |
+| `workflow.login` | Automated login |
+| `workflow.fillForm` | Fill a form |
+| `workflow.scrape` | Scrape structured data |
+| `browser.run_code` | Execute a Playwright script string |
+| `browser.run_test` | Run Playwright `.spec.js` tests via CDP |
+| `browser.run_file` | Run a named export from an `.mjs` script |
 
 ---
 
@@ -29,16 +49,27 @@ Both are packaged as npm tarballs via `npm run release:patch` → `dist/`.
 
 ---
 
-## Install (MCP server for Claude Code)
+## Install
 
-**1. Install**
+**1. Install dependencies**
 
 ```bash
 npm ci
+```
+
+**2. Register with Claude Code**
+
+```bash
 claude mcp add szkrabok node /path/to/szkrabok/src/index.js
 ```
 
-**2. Create `szkrabok.config.local.toml`**
+Also add `@playwright/mcp` for browser interaction tools:
+
+```bash
+claude mcp add -s user playwright npx '@playwright/mcp@latest'
+```
+
+**3. Create `szkrabok.config.local.toml`**
 
 ```bash
 bash scripts/detect_browsers.sh    # find your Chrome/Chromium binary
@@ -58,6 +89,8 @@ log_level         = "debug"
 ---
 
 ## Quick usage (Claude Code)
+
+Open a session, run code, scrape, close:
 
 ```
 session.open { "sessionName": "my-session", "url": "https://example.com" }
@@ -107,7 +140,6 @@ Produces `dist/szkrabok-runtime-x.y.z.tgz` and `dist/szkrabok-mcp-client-x.y.z.t
 | Doc | Contents |
 |-----|----------|
 | [docs/architecture.md](./docs/architecture.md) | Layer map, file layout, tool ownership, session lifecycle, invariants |
-| [docs/development.md](./docs/development.md) | Fork relationship, merging upstream, adding tools, release workflow |
+| [docs/development.md](./docs/development.md) | Adding tools, release workflow |
 | [docs/testing.md](./docs/testing.md) | All test categories, how to run, writing specs, troubleshooting |
 | [docs/mcp-client-library.md](./docs/mcp-client-library.md) | MCP client library architecture and codegen |
-| [microsoft/playwright-mcp](https://github.com/microsoft/playwright-mcp) | Upstream reference |
