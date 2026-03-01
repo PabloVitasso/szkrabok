@@ -1,6 +1,6 @@
 {
   "name": "@szkrabok/mcp-client",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "MCP client library for szkrabok — mcpConnect, spawnClient, codegen.",
   "type": "module",
   "main": "index.js",
@@ -11,5 +11,7 @@
   "bin": {
     "szkrabok-codegen": "./codegen/generate-mcp-tools.mjs"
   },
-  "dependencies": {}
+  "dependencies": {
+    "@modelcontextprotocol/sdk": ">=1.0.0"
+  }
 }
