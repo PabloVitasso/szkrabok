@@ -1,17 +1,13 @@
 import { addExtra } from 'playwright-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
-// Individual evasion plugins — imported directly to allow passing options.
-// The bundled StealthPlugin cannot pass opts to individual evasions.
 import UserAgentOverride from 'puppeteer-extra-plugin-stealth/evasions/user-agent-override/index.js';
 import NavigatorVendor from 'puppeteer-extra-plugin-stealth/evasions/navigator.vendor/index.js';
 import NavigatorHardwareConcurrency from 'puppeteer-extra-plugin-stealth/evasions/navigator.hardwareConcurrency/index.js';
 import NavigatorLanguages from 'puppeteer-extra-plugin-stealth/evasions/navigator.languages/index.js';
 import WebGLVendor from 'puppeteer-extra-plugin-stealth/evasions/webgl.vendor/index.js';
-import { STEALTH_CONFIG } from '../config.js';
-import { log, logDebug } from '../utils/logger.js';
+import { STEALTH_CONFIG } from './config.js';
+import { log, logDebug } from './logger.js';
 
-// Evasions handled via individual plugins with options — must be removed from
-// the bundled StealthPlugin to avoid running twice.
 const CONFIGURABLE_EVASIONS = [
   'user-agent-override',
   'navigator.vendor',
@@ -20,15 +16,6 @@ const CONFIGURABLE_EVASIONS = [
   'webgl.vendor',
 ];
 
-// enhanceWithStealth(browser, presetConfig)
-//
-// presetConfig — resolved preset from szkrabok_session.js:
-//   { userAgent, locale, overrideUserAgent }
-//
-// When user-agent-override evasion is enabled, userAgent and locale from the
-// preset are passed as opts so the evasion stays in sync with the identity.
-// When overrideUserAgent = false, user-agent-override is disabled regardless
-// of TOML — the browser reports its real Chromium UA.
 export const enhanceWithStealth = (browser, presetConfig = {}) => {
   log('Initializing puppeteer-extra-plugin-stealth');
 
@@ -36,19 +23,11 @@ export const enhanceWithStealth = (browser, presetConfig = {}) => {
     const enhanced = addExtra(browser);
     const stealth = StealthPlugin();
 
-    // ── Simple evasions (no options) ───────────────────────────────────────
-    // Apply the flat boolean map from [puppeteer-extra-plugin-stealth.evasions].
-    // Start from the plugin's default set, then apply TOML overrides.
-
-    // Remove configurable evasions — they are added individually below with opts
     for (const name of CONFIGURABLE_EVASIONS) {
       stealth.enabledEvasions.delete(name);
     }
-
-    // user-data-dir: always disabled — conflicts with szkrabok persistent profiles
     stealth.enabledEvasions.delete('user-data-dir');
 
-    // Apply TOML enabled/disabled for simple evasions
     for (const [name, enabled] of Object.entries(STEALTH_CONFIG.evasions)) {
       if (enabled) {
         stealth.enabledEvasions.add(name);
@@ -59,20 +38,11 @@ export const enhanceWithStealth = (browser, presetConfig = {}) => {
 
     enhanced.use(stealth);
 
-    // ── Configurable evasions (with options) ───────────────────────────────
-    // Each is added as an individual plugin so options can be passed.
-    // Evasion is skipped entirely when enabled = false in TOML.
-
-    // user-agent-override
-    // Controlled by both TOML and per-session overrideUserAgent flag.
-    // presetConfig.overrideUserAgent = false disables UA spoofing for this session.
     const uaConfig = STEALTH_CONFIG['user-agent-override'];
     const overrideUA = presetConfig.overrideUserAgent ?? uaConfig.enabled ?? true;
     if (overrideUA) {
       enhanced.use(
         UserAgentOverride({
-          // userAgent and locale come from the active preset — kept in sync
-          // with navigator.userAgentData, navigator.platform, Accept-Language
           userAgent: presetConfig.userAgent || undefined,
           locale: presetConfig.locale || undefined,
           maskLinux: uaConfig.mask_linux ?? true,
@@ -80,24 +50,16 @@ export const enhanceWithStealth = (browser, presetConfig = {}) => {
       );
     }
 
-    // navigator.vendor
     const vendorConfig = STEALTH_CONFIG['navigator.vendor'];
     if (vendorConfig.enabled ?? true) {
       enhanced.use(NavigatorVendor({ vendor: vendorConfig.vendor ?? 'Google Inc.' }));
     }
 
-    // navigator.hardwareConcurrency
     const hwConfig = STEALTH_CONFIG['navigator.hardwareConcurrency'];
     if (hwConfig.enabled ?? true) {
-      enhanced.use(
-        NavigatorHardwareConcurrency({
-          hardwareConcurrency: hwConfig.hardware_concurrency ?? 4,
-        })
-      );
+      enhanced.use(NavigatorHardwareConcurrency({ hardwareConcurrency: hwConfig.hardware_concurrency ?? 4 }));
     }
 
-    // navigator.languages
-    // Derive from preset locale when no explicit override in TOML.
     const langConfig = STEALTH_CONFIG['navigator.languages'];
     if (langConfig.enabled ?? true) {
       const locale = presetConfig.locale || 'en-US';
@@ -105,7 +67,6 @@ export const enhanceWithStealth = (browser, presetConfig = {}) => {
       enhanced.use(NavigatorLanguages({ languages }));
     }
 
-    // webgl.vendor
     const webglConfig = STEALTH_CONFIG['webgl.vendor'];
     if (webglConfig.enabled ?? true) {
       enhanced.use(
@@ -123,26 +84,9 @@ export const enhanceWithStealth = (browser, presetConfig = {}) => {
   }
 };
 
-// applyStealthToExistingPage(page, presetConfig)
-//
-// Option B workaround for launchPersistentContext: playwright-extra's onPageCreated
-// never fires for the initial page, so evasions that use init scripts or CDP calls
-// miss it entirely. This function manually applies those evasions via a CDP session
-// attached to the existing page BEFORE any real navigation.
-//
-// Uses only public Playwright APIs (page.context().newCDPSession) and stable CDP
-// commands (Network.setUserAgentOverride, Page.addScriptToEvaluateOnNewDocument).
-//
-// Network.setUserAgentOverride — applies to all network requests from this page.
-// Page.addScriptToEvaluateOnNewDocument — runs before page JS on every future navigation.
-//
-// See docs/launchpersistentcontext-stealth-issue.md
 export const applyStealthToExistingPage = async (page, presetConfig = {}) => {
   try {
-    logDebug('applyStealthToExistingPage called', {
-      presetConfig,
-      STEALTH_CONFIG_hw: STEALTH_CONFIG['navigator.hardwareConcurrency'],
-    });
+    logDebug('applyStealthToExistingPage called', { presetConfig });
     const uaConfig = STEALTH_CONFIG['user-agent-override'];
     const overrideUA = presetConfig.overrideUserAgent ?? uaConfig.enabled ?? true;
     const hwConfig = STEALTH_CONFIG['navigator.hardwareConcurrency'];
@@ -151,19 +95,12 @@ export const applyStealthToExistingPage = async (page, presetConfig = {}) => {
 
     const client = await page.context().newCDPSession(page);
 
-    // ── user-agent-override ─────────────────────────────────────────────────
-    // Replicates what the evasion does in onPageCreated: sets the full UA bundle
-    // (userAgent, platform, userAgentMetadata) consistently via CDP so
-    // navigator.userAgent and navigator.userAgentData report matching values.
     if (overrideUA) {
       const ua = presetConfig.userAgent || '';
       const chromeMatch = ua.match(/Chrome\/([\d.]+)/);
       const uaVersion = chromeMatch ? chromeMatch[1] : '120.0.0.0';
       const seed = parseInt(uaVersion.split('.')[0]);
 
-      // Greasy brand algorithm — same as puppeteer-extra-plugin-stealth.
-      // Randomises brand order based on Chrome major version to avoid
-      // a static fingerprint on the brands list itself.
       const order = [
         [0, 1, 2],
         [0, 2, 1],
@@ -179,7 +116,6 @@ export const applyStealthToExistingPage = async (page, presetConfig = {}) => {
       brands[order[1]] = { brand: 'Chromium', version: String(seed) };
       brands[order[2]] = { brand: 'Google Chrome', version: String(seed) };
 
-      // Derive platform from UA string — same logic as the evasion plugin.
       const maskLinux = uaConfig.mask_linux ?? true;
       let platform = 'Win32';
       let extPlatform = 'Windows';
@@ -199,7 +135,6 @@ export const applyStealthToExistingPage = async (page, presetConfig = {}) => {
         extPlatform = 'Linux';
         platformVersion = '';
       }
-      // Linux + maskLinux=true (default) stays as Win32/Windows above.
 
       const locale = presetConfig.locale || 'en-US';
 
@@ -219,10 +154,6 @@ export const applyStealthToExistingPage = async (page, presetConfig = {}) => {
         },
       });
 
-      // ── navigator.userAgentData (brands) ──────────────────────────────────
-      // page.addInitScript() uses Playwright's internal CDP session and fires
-      // before page JS on every navigation — immune to CDP UA resets from
-      // Playwright's own _updateUserAgent().
       const brandsJson = JSON.stringify(brands);
       const fullVersion = uaVersion;
       await page.addInitScript(`
@@ -253,28 +184,16 @@ export const applyStealthToExistingPage = async (page, presetConfig = {}) => {
 })();`);
     }
 
-    // ── navigator.hardwareConcurrency ───────────────────────────────────────
-    // page.addInitScript() uses Playwright's internal CDP session so it fires
-    // correctly even when navigations are driven by a separate CDP client.
-    logDebug('hwConfig propagation check', { hwConfig, overrideUA });
     if (hwConfig.enabled ?? true) {
       const concurrency = hwConfig.hardware_concurrency ?? 4;
       logDebug('registering hardwareConcurrency init script', { concurrency });
       await page.addInitScript(`(function(){
-  console.error('[szkrabok-stealth] hardwareConcurrency init script running, target=${concurrency}');
   try {
     Object.defineProperty(Navigator.prototype, 'hardwareConcurrency', { get: () => ${concurrency}, configurable: true });
-    console.error('[szkrabok-stealth] hardwareConcurrency defineProperty succeeded, value=' + navigator.hardwareConcurrency);
-  } catch(e) {
-    console.error('[szkrabok-stealth] hardwareConcurrency defineProperty FAILED: ' + e.message);
-  }
+  } catch(e) {}
 })()`);
-      logDebug('hardwareConcurrency init script registered', { concurrency });
-    } else {
-      logDebug('hardwareConcurrency evasion disabled by config');
     }
 
-    // ── navigator.languages ─────────────────────────────────────────────────
     if (langConfig.enabled ?? true) {
       const locale = presetConfig.locale || 'en-US';
       const languages = langConfig.languages ?? [locale, locale.split('-')[0]].filter(Boolean);
@@ -284,7 +203,6 @@ export const applyStealthToExistingPage = async (page, presetConfig = {}) => {
       );
     }
 
-    // ── webgl.vendor ────────────────────────────────────────────────────────
     if (webglConfig.enabled ?? true) {
       const vendor = webglConfig.vendor ?? 'Intel Inc.';
       const renderer = webglConfig.renderer ?? 'Intel Iris OpenGL Engine';
@@ -307,8 +225,6 @@ export const applyStealthToExistingPage = async (page, presetConfig = {}) => {
 })()`);
     }
 
-    // Do NOT detach — Network.setUserAgentOverride is scoped to the CDP session.
-    // Detaching removes it. Chrome cleans up when the page closes.
     log('Applied stealth evasions to existing page via CDP');
   } catch (err) {
     log('applyStealthToExistingPage failed', err.message);

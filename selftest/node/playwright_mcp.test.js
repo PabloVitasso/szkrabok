@@ -2,7 +2,6 @@ import { test } from 'node:test';
 import assert from 'node:assert';
 import * as session from '../../src/tools/szkrabok_session.js';
 import * as playwrightMcp from '../../src/tools/playwright_mcp.js';
-import { closeBrowser } from '../../src/upstream/wrapper.js';
 
 const TEST_TIMEOUT = 60_000;
 const SESSION_ID = 'test-mcp';
@@ -79,10 +78,5 @@ test('playwright mcp features', { timeout: TEST_TIMEOUT }, async () => {
       console.error('Error closing session:', err.message);
     }
 
-    try {
-      await closeBrowser();
-    } catch (err) {
-      console.error('Error closing browser:', err.message);
-    }
   }
 });

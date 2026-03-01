@@ -1,4 +1,4 @@
-import * as pool from '../core/pool.js';
+import { getSession, updateSessionPage } from '@szkrabok/runtime';
 
 const INJECT_SCRIPT = `
   window.__mcp = window.__mcp || {};
@@ -103,7 +103,7 @@ const ensureScript = async page => {
 // Core automation tools
 export const snapshot = async args => {
   const { sessionName } = args;
-  const session = pool.get(sessionName);
+  const session = getSession(sessionName);
   await ensureScript(session.page);
 
   const snap = await session.page.evaluate(() => window['__mcp'].snapshot());
@@ -112,7 +112,7 @@ export const snapshot = async args => {
 
 export const click = async args => {
   const { sessionName, ref, element, button = 'left', doubleClick = false, modifiers = [] } = args;
-  const session = pool.get(sessionName);
+  const session = getSession(sessionName);
   await ensureScript(session.page);
 
   const handle = await session.page.evaluateHandle(r => window['__mcp'].getElement(r), ref);
@@ -133,7 +133,7 @@ export const click = async args => {
 
 export const type = async args => {
   const { sessionName, ref, element, text, submit = false, slowly = false } = args;
-  const session = pool.get(sessionName);
+  const session = getSession(sessionName);
   await ensureScript(session.page);
 
   const handle = await session.page.evaluateHandle(r => window['__mcp'].getElement(r), ref);
@@ -158,7 +158,7 @@ export const type = async args => {
 
 export const navigate = async args => {
   const { sessionName, url } = args;
-  const session = pool.get(sessionName);
+  const session = getSession(sessionName);
 
   await session.page.goto(url, { waitUntil: 'domcontentloaded' });
   const snap = await snapshot({ sessionName });
@@ -167,7 +167,7 @@ export const navigate = async args => {
 
 export const navigate_back = async args => {
   const { sessionName } = args;
-  const session = pool.get(sessionName);
+  const session = getSession(sessionName);
 
   await session.page.goBack({ waitUntil: 'domcontentloaded' });
   return { success: true, url: session.page.url() };
@@ -175,7 +175,7 @@ export const navigate_back = async args => {
 
 export const close = async args => {
   const { sessionName } = args;
-  const session = pool.get(sessionName);
+  const session = getSession(sessionName);
 
   await session.page.close();
   return { success: true, sessionName };
@@ -183,7 +183,7 @@ export const close = async args => {
 
 export const drag = async args => {
   const { sessionName, startRef, startElement, endRef, endElement } = args;
-  const session = pool.get(sessionName);
+  const session = getSession(sessionName);
   await ensureScript(session.page);
 
   const startHandle = await session.page.evaluateHandle(
@@ -205,7 +205,7 @@ export const drag = async args => {
 
 export const hover = async args => {
   const { sessionName, ref, element } = args;
-  const session = pool.get(sessionName);
+  const session = getSession(sessionName);
   await ensureScript(session.page);
 
   const handle = await session.page.evaluateHandle(r => window['__mcp'].getElement(r), ref);
@@ -221,7 +221,7 @@ export const hover = async args => {
 
 export const evaluate = async args => {
   const { sessionName, function: fn, ref } = args;
-  const session = pool.get(sessionName);
+  const session = getSession(sessionName);
 
   let result;
   if (ref) {
@@ -241,7 +241,7 @@ export const evaluate = async args => {
 
 export const select_option = async args => {
   const { sessionName, ref, element, values } = args;
-  const session = pool.get(sessionName);
+  const session = getSession(sessionName);
   await ensureScript(session.page);
 
   const handle = await session.page.evaluateHandle(r => window['__mcp'].getElement(r), ref);
@@ -257,7 +257,7 @@ export const select_option = async args => {
 
 export const fill_form = async args => {
   const { sessionName, fields } = args;
-  const session = pool.get(sessionName);
+  const session = getSession(sessionName);
   await ensureScript(session.page);
 
   for (const field of fields) {
@@ -277,7 +277,7 @@ export const fill_form = async args => {
 
 export const press_key = async args => {
   const { sessionName, key } = args;
-  const session = pool.get(sessionName);
+  const session = getSession(sessionName);
 
   await session.page.keyboard.press(key);
   return { success: true, key, url: session.page.url() };
@@ -285,7 +285,7 @@ export const press_key = async args => {
 
 export const take_screenshot = async args => {
   const { sessionName, type = 'png', filename, ref, fullPage = false } = args;
-  const session = pool.get(sessionName);
+  const session = getSession(sessionName);
 
   if (ref) {
     await ensureScript(session.page);
@@ -304,7 +304,7 @@ export const take_screenshot = async args => {
 
 export const wait_for = async args => {
   const { sessionName, time, text, textGone } = args;
-  const session = pool.get(sessionName);
+  const session = getSession(sessionName);
 
   if (time) {
     await session.page.waitForTimeout(time * 1000);
@@ -326,7 +326,7 @@ export const wait_for = async args => {
 
 export const resize = async args => {
   const { sessionName, width, height } = args;
-  const session = pool.get(sessionName);
+  const session = getSession(sessionName);
 
   await session.page.setViewportSize({ width, height });
   return { success: true, width, height };
@@ -334,7 +334,7 @@ export const resize = async args => {
 
 export const tabs = async args => {
   const { sessionName, action, index } = args;
-  const session = pool.get(sessionName);
+  const session = getSession(sessionName);
 
   const pages = session.context.pages();
 
@@ -366,7 +366,7 @@ export const tabs = async args => {
     if (!pageToSelect) {
       throw new Error(`No page at index ${index}`);
     }
-    pool.add(sessionName, session.context, pageToSelect);
+    updateSessionPage(sessionName, pageToSelect);
     return { success: true, index, url: pageToSelect.url() };
   }
 
@@ -375,7 +375,7 @@ export const tabs = async args => {
 
 export const console_messages = async args => {
   const { sessionName, level = 'info' } = args;
-  const session = pool.get(sessionName);
+  const session = getSession(sessionName);
 
   const messages = await session.page.evaluate(lvl => {
     const levels = ['error', 'warning', 'info', 'debug'];
@@ -389,7 +389,7 @@ export const console_messages = async args => {
 
 export const network_requests = async args => {
   const { sessionName, includeStatic = false } = args;
-  const session = pool.get(sessionName);
+  const session = getSession(sessionName);
 
   const requests = await session.page.evaluate(incStatic => {
     const reqs = window['__networkRequests'];
@@ -405,7 +405,7 @@ export const network_requests = async args => {
 
 export const file_upload = async args => {
   const { sessionName, paths = [] } = args;
-  const session = pool.get(sessionName);
+  const session = getSession(sessionName);
 
   const [fileChooser] = await Promise.all([session.page.waitForEvent('filechooser')]);
 
@@ -420,7 +420,7 @@ export const file_upload = async args => {
 
 export const handle_dialog = async args => {
   const { sessionName, accept, promptText } = args;
-  const session = pool.get(sessionName);
+  const session = getSession(sessionName);
 
   session.page.once('dialog', async dialog => {
     if (accept) {
@@ -435,7 +435,7 @@ export const handle_dialog = async args => {
 
 export const run_code = async args => {
   const { sessionName, code } = args;
-  const session = pool.get(sessionName);
+  const session = getSession(sessionName);
 
   const fn = eval(`(${code})`);
   const result = await fn(session.page);
@@ -446,7 +446,7 @@ export const run_code = async args => {
 // Vision tools (coordinate-based)
 export const mouse_click_xy = async args => {
   const { sessionName, element, x, y } = args;
-  const session = pool.get(sessionName);
+  const session = getSession(sessionName);
 
   await session.page.mouse.click(x, y);
   return { success: true, element, x, y, url: session.page.url() };
@@ -454,7 +454,7 @@ export const mouse_click_xy = async args => {
 
 export const mouse_move_xy = async args => {
   const { sessionName, element, x, y } = args;
-  const session = pool.get(sessionName);
+  const session = getSession(sessionName);
 
   await session.page.mouse.move(x, y);
   return { success: true, element, x, y, url: session.page.url() };
@@ -462,7 +462,7 @@ export const mouse_move_xy = async args => {
 
 export const mouse_drag_xy = async args => {
   const { sessionName, element, startX, startY, endX, endY } = args;
-  const session = pool.get(sessionName);
+  const session = getSession(sessionName);
 
   await session.page.mouse.move(startX, startY);
   await session.page.mouse.down();
@@ -475,7 +475,7 @@ export const mouse_drag_xy = async args => {
 // PDF tools
 export const pdf_save = async args => {
   const { sessionName, filename } = args;
-  const session = pool.get(sessionName);
+  const session = getSession(sessionName);
 
   const path = filename || `page-${Date.now()}.pdf`;
   await session.page.pdf({ path });
@@ -486,7 +486,7 @@ export const pdf_save = async args => {
 // Testing tools
 export const generate_locator = async args => {
   const { sessionName, ref, element } = args;
-  const session = pool.get(sessionName);
+  const session = getSession(sessionName);
   await ensureScript(session.page);
 
   const handle = await session.page.evaluateHandle(r => window['__mcp'].getElement(r), ref);
@@ -502,7 +502,7 @@ export const generate_locator = async args => {
 
 export const verify_element_visible = async args => {
   const { sessionName, role, accessibleName } = args;
-  const session = pool.get(sessionName);
+  const session = getSession(sessionName);
 
   const locator = session.page.getByRole(role, { name: accessibleName });
   await locator.waitFor({ state: 'visible' });
@@ -512,7 +512,7 @@ export const verify_element_visible = async args => {
 
 export const verify_text_visible = async args => {
   const { sessionName, text } = args;
-  const session = pool.get(sessionName);
+  const session = getSession(sessionName);
 
   const locator = session.page.getByText(text);
   await locator.waitFor({ state: 'visible' });
@@ -522,7 +522,7 @@ export const verify_text_visible = async args => {
 
 export const verify_list_visible = async args => {
   const { sessionName, ref, element, items } = args;
-  const session = pool.get(sessionName);
+  const session = getSession(sessionName);
   await ensureScript(session.page);
 
   const handle = await session.page.evaluateHandle(r => window['__mcp'].getElement(r), ref);
@@ -543,7 +543,7 @@ export const verify_list_visible = async args => {
 
 export const verify_value = async args => {
   const { sessionName, type, ref, element, value } = args;
-  const session = pool.get(sessionName);
+  const session = getSession(sessionName);
   await ensureScript(session.page);
 
   const handle = await session.page.evaluateHandle(r => window['__mcp'].getElement(r), ref);
@@ -567,7 +567,7 @@ export const verify_value = async args => {
 // Tracing tools
 export const start_tracing = async args => {
   const { sessionName } = args;
-  const session = pool.get(sessionName);
+  const session = getSession(sessionName);
 
   await session.context.tracing.start({ screenshots: true, snapshots: true });
   return { success: true };
@@ -575,7 +575,7 @@ export const start_tracing = async args => {
 
 export const stop_tracing = async args => {
   const { sessionName } = args;
-  const session = pool.get(sessionName);
+  const session = getSession(sessionName);
 
   const path = `trace-${Date.now()}.zip`;
   await session.context.tracing.stop({ path });

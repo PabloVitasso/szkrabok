@@ -1,8 +1,8 @@
-import * as pool from '../core/pool.js';
+import { getSession } from '@szkrabok/runtime';
 
 export const forClose = async args => {
   const { sessionName } = args;
-  const session = pool.get(sessionName);
+  const session = getSession(sessionName);
 
   await session.page.waitForEvent('close', { timeout: 0 });
 
@@ -11,7 +11,7 @@ export const forClose = async args => {
 
 export const forSelector = async args => {
   const { sessionName, selector, timeout = 30000 } = args;
-  const session = pool.get(sessionName);
+  const session = getSession(sessionName);
 
   await session.page.waitForSelector(selector, { timeout });
 
@@ -20,7 +20,7 @@ export const forSelector = async args => {
 
 export const forTimeout = async args => {
   const { sessionName, ms } = args;
-  const session = pool.get(sessionName);
+  const session = getSession(sessionName);
 
   await session.page.waitForTimeout(ms);
 

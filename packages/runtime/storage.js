@@ -1,21 +1,21 @@
 import { readFile, writeFile, mkdir, rm, readdir } from 'fs/promises';
-import { join, dirname } from 'path';
+import { join } from 'path';
 import { existsSync } from 'fs';
-import { fileURLToPath } from 'url';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-const SESSIONS_DIR = join(__dirname, '..', '..', 'sessions');
+// Sessions dir: SZKRABOK_SESSIONS_DIR env > cwd/sessions
+const getSessionsDir = () =>
+  process.env.SZKRABOK_SESSIONS_DIR ?? join(process.cwd(), 'sessions');
 
-const getSessionDir = id => join(SESSIONS_DIR, id);
+const getSessionDir = id => join(getSessionsDir(), id);
 const getStatePath = id => join(getSessionDir(id), 'state.json');
 const getMetaPath = id => join(getSessionDir(id), 'meta.json');
 
 export const getUserDataDir = id => join(getSessionDir(id), 'profile');
 
 export const ensureSessionsDir = async () => {
-  if (!existsSync(SESSIONS_DIR)) {
-    await mkdir(SESSIONS_DIR, { recursive: true });
+  const dir = getSessionsDir();
+  if (!existsSync(dir)) {
+    await mkdir(dir, { recursive: true });
   }
 };
 
@@ -24,8 +24,7 @@ export const sessionExists = id => existsSync(getSessionDir(id));
 export const loadState = async id => {
   const path = getStatePath(id);
   if (!existsSync(path)) return null;
-  const data = await readFile(path, 'utf-8');
-  return JSON.parse(data);
+  return JSON.parse(await readFile(path, 'utf-8'));
 };
 
 export const saveState = async (id, state) => {
@@ -36,8 +35,7 @@ export const saveState = async (id, state) => {
 export const loadMeta = async id => {
   const path = getMetaPath(id);
   if (!existsSync(path)) return null;
-  const data = await readFile(path, 'utf-8');
-  return JSON.parse(data);
+  return JSON.parse(await readFile(path, 'utf-8'));
 };
 
 export const saveMeta = async (id, meta) => {
@@ -61,6 +59,6 @@ export const deleteSession = async id => {
 
 export const listSessions = async () => {
   await ensureSessionsDir();
-  const dirs = await readdir(SESSIONS_DIR, { withFileTypes: true });
+  const dirs = await readdir(getSessionsDir(), { withFileTypes: true });
   return dirs.filter(d => d.isDirectory()).map(d => d.name);
 };

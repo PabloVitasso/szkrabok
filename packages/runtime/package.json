@@ -1,0 +1,20 @@
+{
+  "name": "@szkrabok/runtime",
+  "version": "1.0.0",
+  "description": "Browser bootstrap for szkrabok — stealth, profiles, session pool. Zero MCP knowledge.",
+  "type": "module",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js"
+  },
+  "scripts": {
+    "postinstall": "node scripts/patch-playwright.js"
+  },
+  "dependencies": {
+    "playwright": "*",
+    "playwright-core": "*",
+    "playwright-extra": "*",
+    "puppeteer-extra-plugin-stealth": "*",
+    "smol-toml": "*"
+  }
+}

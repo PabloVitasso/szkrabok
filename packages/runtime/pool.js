@@ -1,5 +1,6 @@
-import { SessionNotFoundError } from '../utils/errors.js';
-import { log } from '../utils/logger.js';
+// Process-scoped session registry.
+// Each process (MCP server, CLI, test runner) has its own pool.
+// CDP endpoint is the cross-process identity.
 
 const sessions = new Map();
 
@@ -11,20 +12,16 @@ export const get = id => {
   const session = sessions.get(id);
   if (!session) throw new SessionNotFoundError(id);
 
-  // Check if context is still alive (only if methods exist - for real sessions)
   try {
     const contextClosed = session.context._closed === true;
     const pageClosed = typeof session.page.isClosed === 'function' && session.page.isClosed();
 
     if (contextClosed || pageClosed) {
-      log(`Session ${id} context was closed, removing from pool`);
       sessions.delete(id);
       throw new SessionNotFoundError(id, 'Session was closed. Please reopen the session.');
     }
   } catch (err) {
     if (err instanceof SessionNotFoundError) throw err;
-    // If check failed, assume context is closed
-    log(`Session ${id} health check failed: ${err.message}`);
     sessions.delete(id);
     throw new SessionNotFoundError(id, 'Session appears to be closed. Please reopen the session.');
   }
@@ -46,8 +43,17 @@ export const list = () =>
     createdAt: session.createdAt,
   }));
 
-export const closeAllSessions = async () => {
+export const closeAll = async () => {
   const promises = Array.from(sessions.values()).map(s => s.context.close());
   await Promise.allSettled(promises);
   sessions.clear();
 };
+
+class SessionNotFoundError extends Error {
+  constructor(id, customMessage = null) {
+    super(customMessage || `Session not found: ${id}`);
+    this.name = 'SessionNotFoundError';
+    this.code = 'SESSION_NOT_FOUND';
+    this.sessionId = id;
+  }
+}

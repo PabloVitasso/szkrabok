@@ -60,19 +60,22 @@ test('accept cookies and login via MCP', async () => {
       files: ['automation/park4night/park4night.spec.js'],
     });
 
-    const parsedResult = result.tests[0].result;
+    const test0 = result.tests[0];
+    if (!test0) throw new Error(`no tests in result — inner run may have failed to start. log:\n${result.log?.slice(-10).join('\n')}`);
+    const parsedResult = test0.result;
+    if (!parsedResult) throw new Error(`no result attachment — inner test may have failed before attachResult. status=${test0.status} error=${test0.error}`);
     console.log('accept cookies and login result:', JSON.stringify(parsedResult));
 
     const { cookieResult, isLogged } = parsedResult;
 
-    expect(['clicked', 'skipped']).toContain(cookieResult.action);
+    expect(['clicked', 'skipped'], `unexpected cookie action: ${JSON.stringify(cookieResult)}`).toContain(cookieResult.action);
     if (cookieResult.action === 'clicked') {
-      expect(cookieResult.dismissed).toBe(true);
+      expect(cookieResult.dismissed, 'banner click did not dismiss').toBe(true);
     } else {
-      expect(cookieResult.reason).toBe('banner_not_present');
+      expect(cookieResult.reason, 'unexpected skip reason').toBe('banner_not_present');
     }
 
-    expect(isLogged, 'login failed: isLogged is false').toBe(true);
+    expect(isLogged, 'login failed — check credentials in szkrabok.config.local.toml').toBe(true);
   });
 });
 
@@ -92,14 +95,17 @@ test('search by gps via MCP', async () => {
       params: { coords: JSON.stringify(HARNESS_COORDS) },
     });
 
-    const parsedResult = result.tests[0].result;
+    const test0 = result.tests[0];
+    if (!test0) throw new Error(`no tests in result — inner run may have failed to start. log:\n${result.log?.slice(-10).join('\n')}`);
+    const parsedResult = test0.result;
+    if (!parsedResult) throw new Error(`no result attachment — inner test may have failed before attachResult. status=${test0.status} error=${test0.error}`);
     console.log('search by gps result:', JSON.stringify(parsedResult));
 
-    expect(parsedResult.isLogged, 'login failed').toBe(true);
+    expect(parsedResult.isLogged, 'login failed — check credentials in szkrabok.config.local.toml').toBe(true);
 
     /** @type {{ label: string, dumpPath: string }[]} */
     const results = parsedResult.results;
-    expect(results).toHaveLength(HARNESS_COORDS.length);
+    expect(results, `expected ${HARNESS_COORDS.length} coord results, got: ${JSON.stringify(results)}`).toHaveLength(HARNESS_COORDS.length);
     results.forEach(r => {
       expect(r.dumpPath, `missing dumpPath for "${r.label}"`).toBeTruthy();
       console.log(`search by gps: "${r.label}" -> ${r.dumpPath}`);

@@ -2,7 +2,7 @@ import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { registerTools, handleToolCall } from './tools/registry.js';
-import { closeAllSessions } from './core/pool.js';
+import { closeAllSessions } from '@szkrabok/runtime';
 import { log } from './utils/logger.js';
 
 export const createServer = () => {

@@ -1,4 +1,4 @@
-import * as pool from '../core/pool.js';
+import { getSession } from '@szkrabok/runtime';
 import * as upstream from '../upstream/wrapper.js';
 import { TIMEOUT } from '../config.js';
 
@@ -12,7 +12,7 @@ export const login = async args => {
     submitSelector = 'button[type="submit"], input[type="submit"]',
   } = args;
 
-  const session = pool.get(sessionName);
+  const session = getSession(sessionName);
   const page = session.page;
 
   await upstream.type(page, usernameSelector, username);
@@ -26,7 +26,7 @@ export const login = async args => {
 
 export const fillForm = async args => {
   const { sessionName, fields } = args;
-  const session = pool.get(sessionName);
+  const session = getSession(sessionName);
   const page = session.page;
 
   for (const [selector, value] of Object.entries(fields)) {
@@ -47,7 +47,7 @@ export const fillForm = async args => {
 
 export const scrape = async args => {
   const { sessionName, selectors } = args;
-  const session = pool.get(sessionName);
+  const session = getSession(sessionName);
   const page = session.page;
 
   const results = {};

@@ -2,89 +2,94 @@ name: CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
 env:
-  PWMCP_DEBUG: '1'
-  PWDEBUGIMPL: '1'
+  HEADLESS: 'true'
+  FORCE_COLOR: '0'
 
 jobs:
   lint:
+    name: ESLint boundary checks
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
-    - name: Use Node.js 20
-      uses: actions/setup-node@v4
-      with:
-        node-version: '20'
-        cache: 'npm'
-    - run: npm ci
-    - run: npm run lint
-    - name: Ensure no changes
-      run: git diff --exit-code
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci --ignore-scripts
+      - run: npx eslint src/ automation/ selftest/ mcp-client/
+        name: Run ESLint (boundary rules)
 
-  test:
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macos-15, windows-latest]
-    runs-on: ${{ matrix.os }}
-    steps:
-    - uses: actions/checkout@v4
-    - name: Use Node.js 20
-      uses: actions/setup-node@v4
-      with:
-        node-version: '20'
-        cache: 'npm'
-    - name: Install dependencies
-      run: npm ci
-    - name: Playwright install
-      run: npx playwright install --with-deps
-    - name: Build
-      run: npm run build
-    - name: Run playwright-mcp tests
-      id: test-mcp
-      run: npm run test --workspace=packages/playwright-mcp
-      continue-on-error: true
-    - name: Run extension tests
-      id: test-extension
-      if: matrix.os == 'macos-15'
-      run: npm run test --workspace=packages/extension
-      continue-on-error: true
-    - name: Check test results
-      if: steps.test-mcp.outcome == 'failure' || steps.test-extension.outcome == 'failure'
-      run: exit 1
-
-  test_mcp_docker:
+  unit:
+    name: Runtime unit tests
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
-    - name: Use Node.js 20
-      uses: actions/setup-node@v4
-      with:
-        node-version: '20'
-        cache: 'npm'
-    - name: Install dependencies
-      run: npm ci
-    - name: Playwright install
-      run: npx playwright install --with-deps chromium
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
-    - name: Build and push
-      uses: docker/build-push-action@v6
-      with:
-        tags: playwright-mcp-dev:latest
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
-        load: true
-    - name: Run tests
-      shell: bash
-      run: |
-        # Used for the Docker tests to share the test-results folder with the container.
-        umask 0000
-        npm run test -- --project=chromium-docker
-      working-directory: ./packages/playwright-mcp
-      env:
-        MCP_IN_DOCKER: 1
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci --ignore-scripts
+      - run: node --test selftest/runtime/unit.test.js
+        name: Runtime unit tests (no browser)
+      - run: node --test selftest/node/basic.test.js
+        name: Node pool/storage unit tests
+
+  contract:
+    name: MCP contract tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci --ignore-scripts
+      - run: node --test selftest/mcp/contract.test.js
+        name: Static invariant checks
+
+  integration:
+    name: Runtime integration tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci --ignore-scripts
+      - run: npx playwright install --with-deps chromium
+        name: Install Playwright Chromium
+      - run: node scripts/patch-playwright.js
+        name: Patch playwright-core
+      - run: node --test selftest/runtime/integration.test.js
+        name: Runtime integration tests (real browser)
+        timeout-minutes: 5
+
+  selftest-mcp:
+    name: MCP selftest suite
+    runs-on: ubuntu-latest
+    needs: [lint, unit, contract]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci --ignore-scripts
+      - run: npx playwright install --with-deps chromium
+        name: Install Playwright Chromium
+      - run: node scripts/patch-playwright.js
+        name: Patch playwright-core
+      - run: npx playwright test --project=selftest
+        name: Playwright selftest project
+        env:
+          HEADLESS: 'true'
+      - run: node --test selftest/node/*.test.js
+        name: Node selftest suite
+        env:
+          HEADLESS: 'true'
