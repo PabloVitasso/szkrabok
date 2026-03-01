@@ -1,5 +1,21 @@
 # Architecture
 
+## Contents
+
+- [Layer overview](#layer-overview)
+- [Data flow](#data-flow)
+- [File layout](#file-layout)
+- [Tool ownership](#tool-ownership)
+- [Runtime public API](#runtime-public-api)
+- [Non-negotiable invariants](#non-negotiable-invariants)
+- [Session lifecycle](#session-lifecycle)
+- [Pool scoping](#pool-scoping)
+- [Stealth hacks](#stealth-hacks-preserve-on-upstream-updates)
+- [Playwright patches](#playwright-patches-packagesruntimescriptspatch-playwrightjs)
+- [Chromium resolution](#chromium-resolution)
+
+---
+
 ## Layer overview
 
 ```

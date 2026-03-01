@@ -1,5 +1,14 @@
 # rebrowser-patches Research
 
+## Contents
+
+- [What the patches fix](#what-the-patches-fix)
+- [Detection results — current state](#detection-results--current-state-playwright-core-1582-szkrabok)
+- [Our implementation](#our-implementation)
+- [Avenues to pursue](#avenues-to-pursue)
+
+---
+
 Reference repo: https://github.com/rebrowser/rebrowser-patches
 Cloned to: `vendor/rebrowser-patches/` (gitignored, update with `git pull` inside)
 Bot detector: https://bot-detector.rebrowser.net/

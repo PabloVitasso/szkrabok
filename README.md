@@ -1,5 +1,18 @@
 # Szkrabok
 
+## Contents
+
+- [What it adds](#what-it-adds)
+- [Tools](#tools)
+- [Packages](#packages)
+- [Install](#install)
+- [Quick usage](#quick-usage-claude-code)
+- [Configuration](#configuration)
+- [Release](#release)
+- [Documentation](#documentation)
+
+---
+
 MCP server that supplements [microsoft/playwright-mcp](https://github.com/microsoft/playwright-mcp) with persistent sessions, stealth mode, and scripted automation.
 
 Use it alongside `@playwright/mcp` — szkrabok handles session management and scripting; playwright-mcp handles browser interaction.

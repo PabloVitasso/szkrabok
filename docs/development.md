@@ -1,5 +1,14 @@
 # Development
 
+## Contents
+
+- [Adding a new MCP tool](#adding-a-new-mcp-tool)
+- [Release workflow](#release-workflow)
+- [Consumer projects](#consumer-projects)
+- [Config modules](#config-modules-config)
+
+---
+
 ## Adding a new MCP tool
 
 1. Add handler to the appropriate file in `src/tools/` (or create a new one)

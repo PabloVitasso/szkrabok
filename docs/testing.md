@@ -1,5 +1,19 @@
 # Testing
 
+## Contents
+
+- [Directory layout](#directory-layout)
+- [Node tests](#node-tests)
+- [Playwright integration tests](#playwright-integration-tests)
+- [E2E — stealth health checks](#e2e--stealth-health-checks)
+- [Authoring specs that run via browser.run_test](#authoring-specs-that-run-via-browserrun_test)
+- [Calling browser.run_test from @szkrabok/mcp-client](#calling-browserrun_test-from-szkrabokмcp-client)
+- [Regenerate mcp-tools.js](#regenerate-mcp-toolsjs)
+- [Run everything](#run-everything)
+- [Troubleshooting](#troubleshooting)
+
+---
+
 ## Directory layout
 
 ```

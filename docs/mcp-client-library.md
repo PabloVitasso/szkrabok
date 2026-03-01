@@ -1,5 +1,23 @@
 # MCP Client Library — Architecture
 
+## Contents
+
+- [File layout](#file-layout)
+- [Layers](#layers)
+- [Generated file: mcp-tools.js](#generated-file-mcp-toolsjs)
+- [runtime/transport.js](#runtimetransportjs)
+- [runtime/invoker.js](#runtimeinvokerjs)
+- [adapters/szkrabok-session.js](#adaptersszkrabok-sessionjs)
+- [Codegen script: generate-mcp-tools.mjs](#codegen-script-generate-mcp-toolsmjs)
+- [Namespace splitting](#namespace-splitting)
+- [Type derivation: schema-to-jsdoc.js](#type-derivation-schema-to-jsdocjs)
+- [Log format: runtime/logger.js](#log-format-runtimeloggerjs)
+- [Session lifecycle in tests](#session-lifecycle-in-tests)
+- [Sequences (optional)](#sequences-optional)
+- [What is NOT in scope](#what-is-not-in-scope)
+
+---
+
 Reusable library for calling szkrabok MCP tools from Playwright tests.
 Provides a typed handle object (`mcp.workflow.scrape(...)`) generated from the live
 tool registry, with JSONL console output that is 1:1 copy-pasteable for LLM
