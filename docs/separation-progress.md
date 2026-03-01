@@ -20,7 +20,7 @@ Tracks implementation state against the consumer portability goal:
 | 7 | CI pipeline yml | DONE (disabled — headless env not configured) |
 | 8 | `mcp-client/` → `packages/mcp-client/` (`@szkrabok/mcp-client`) | DONE |
 | 9 | Remove repo-local `config/` imports from `automation/` | DONE |
-| **10** | **Consumer install path (`npm pack` + versioning)** | **TODO** |
+| 10 | Consumer install path (`npm pack` + versioning) | DONE |
 
 ---
 
@@ -82,70 +82,36 @@ Needs a headless-capable CI environment before enabling.
 `automation/park4night/park4night.spec.js` now reads credentials from `P4N_EMAIL` and
 `P4N_PASSWORD` env vars. No `../../config/` imports remain in `automation/`.
 
----
-
-## What is NOT done
-
 ### Phase 10 — Consumer install path (`npm pack`)
 
-**Current state:** `@szkrabok/runtime` and `@szkrabok/mcp-client` exist only as
-workspace-local packages. A project outside this monorepo cannot install them.
+`npm run release:patch` / `release:minor` bumps all workspace versions via
+`npm version --workspaces --include-workspace-root --ignore-scripts` (git tag created,
+postinstall hooks skipped during bump), then packs both packages into `dist/`.
 
-**Target state:** `npm pack` produces versioned tarballs in `dist/`. Consumer installs
-from a local path or URL to the tarball — no registry needed.
+A `prepack` guard enforces that `npm run pack` is never called without a version tag
+at HEAD — raw packing is blocked with a clear error message.
 
-**Versioning workflow (automated):**
+`patch-playwright.js` uses `INIT_CWD` (set by npm to the consumer project root) to
+locate `node_modules/playwright-core` regardless of where postinstall runs from.
+
+**Consumer install (verified working):**
 ```bash
-# Bump patch version across all packages + root, then pack both into dist/
-npm run release:patch
-
-# Or minor
-npm run release:minor
+npm install /path/to/dist/szkrabok-runtime-1.0.4.tgz
+npm install /path/to/dist/szkrabok-mcp-client-1.0.4.tgz
 ```
-This runs `npm version patch --workspaces --include-workspace-root` (bumps all
-`package.json` files consistently, creates a git tag `v1.0.1`), then packs both
-workspace packages into `dist/szkrabok-runtime-1.0.1.tgz` and
-`dist/szkrabok-mcp-client-1.0.1.tgz`.
-
-**Consumer install:**
-```bash
-npm install /path/to/dist/szkrabok-runtime-1.0.1.tgz
-npm install /path/to/dist/szkrabok-mcp-client-1.0.1.tgz
-```
-
-Tasks:
-- [ ] Run `npm run pack` and verify tarballs are produced
-- [ ] Test install from outside the repo (`npm install /abs/path/to/tgz`)
-- [ ] Verify `@szkrabok/runtime` and `@szkrabok/mcp-client` resolve correctly post-install
-- [ ] Document install steps in README
 
 ---
 
 ## Consumer portability test
 
-The goal is met when this works on a fresh machine with no clone of this repo:
+All phases complete. Install from tarballs on a machine without this repo:
 
 ```bash
 mkdir my-project && cd my-project
 npm init -y
-npm install @szkrabok/runtime @szkrabok/mcp-client @playwright/test
+npm install /path/to/szkrabok-runtime-x.y.z.tgz /path/to/szkrabok-mcp-client-x.y.z.tgz
 ```
 
-```js
-// my-spec.spec.js
-import { test } from '@playwright/test';
-import { launch } from '@szkrabok/runtime';
-
-test('my test', async ({}) => {
-  const { context, close } = await launch({ profile: 'my-profile' });
-  const page = await context.newPage();
-  await page.goto('https://example.com');
-  await close();
-});
-```
-
-```bash
-npx playwright test my-spec.spec.js
-```
-
-This currently does NOT work. Phases 8-10 are required.
+Verified exports:
+- `@szkrabok/runtime`: `launch`, `connect`, `closeSession`, `getSession`, `listRuntimeSessions`, `resolvePreset`, `PRESETS` + more
+- `@szkrabok/mcp-client`: `mcpConnect`, `spawnClient`

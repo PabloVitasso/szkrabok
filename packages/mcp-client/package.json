@@ -1,6 +1,6 @@
 {
   "name": "@szkrabok/mcp-client",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "MCP client library for szkrabok — mcpConnect, spawnClient, codegen.",
   "type": "module",
   "main": "index.js",
