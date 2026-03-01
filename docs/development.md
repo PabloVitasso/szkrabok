@@ -1,49 +1,5 @@
 # Development
 
-## Upstream fork relationship
-
-Szkrabok is a fork of [microsoft/playwright-mcp](https://github.com/microsoft/playwright-mcp).
-
-```
-remote: upstream = https://github.com/microsoft/playwright-mcp.git
-remote: origin   = git@github.com:PabloVitasso/szkrabok.git
-```
-
-Files prefixed `szkrabok_` are ours only and will never conflict with upstream.
-
----
-
-## Merging upstream
-
-```bash
-git fetch upstream
-git checkout -b merge-upstream-playwright-mcp
-git merge upstream/main
-```
-
-### Known conflict zones
-
-| File | Why | Resolution |
-|------|-----|------------|
-| `README.md` | Upstream has its own README | Keep ours — discard upstream content |
-| `Dockerfile` | Upstream Docker setup; szkrabok does not use it | Handled by `.gitattributes` (`merge=ours`) |
-
-### After resolving conflicts
-
-1. Run `node packages/runtime/scripts/patch-playwright.js` if `playwright-core` version changed
-2. Run `npm run test:contracts` to verify invariants
-3. Commit with: `merge: upstream/main (0.0.X -> 0.0.Y)`
-
-### playwright-core version bump during merge
-
-```bash
-rm -rf node_modules/playwright-core
-npm install --ignore-scripts
-node packages/runtime/scripts/patch-playwright.js
-```
-
----
-
 ## Adding a new MCP tool
 
 1. Add handler to the appropriate file in `src/tools/` (or create a new one)
