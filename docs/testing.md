@@ -229,11 +229,16 @@ Use this when driving szkrabok programmatically from another Playwright spec or 
 ```js
 import { mcpConnect } from '@szkrabok/mcp-client';
 
+// mcpConnect spawns `node src/index.js` as a subprocess.
+// That process reads szkrabok.config.toml + szkrabok.config.local.toml —
+// so executablePath, userAgent, headless, and presets all apply as configured.
 const mcp = await mcpConnect('my-session');
+// session.open is called internally with just the session name.
+// launchOptions are not injectable here — set headless/preset/UA in local TOML.
 
 const result = await mcp.browser.run_test({
   files: ['tests/playwright/e2e/my-task.spec.js'],
-  params: { url: 'https://example.com' },
+  params: { url: 'https://example.com' },  // available as process.env.TEST_URL in spec
   grep: 'my task',        // optional: filter by test name
   project: 'e2e',         // optional: playwright project
 });
@@ -241,10 +246,10 @@ const result = await mcp.browser.run_test({
 console.log(result.passed, result.failed);
 // result.tests: [{ title, status, result }]
 
-await mcp.session.close({ save: true });
+await mcp.close();  // closes session and shuts down the MCP subprocess
 ```
 
-`mcpConnect` spawns the MCP server as a subprocess and returns a typed handle. `browser.run_test` returns `{ passed, failed, tests }` — decoded from the JSON reporter attachment.
+`browser.run_test` returns `{ passed, failed, tests }` — decoded from the JSON reporter attachment.
 
 ---
 
