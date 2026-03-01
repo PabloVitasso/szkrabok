@@ -2,6 +2,7 @@
 
 ## Contents
 
+- [Configuration for tests](#configuration-for-tests)
 - [Directory layout](#directory-layout)
 - [Node tests](#node-tests)
 - [Playwright integration tests](#playwright-integration-tests)
@@ -11,6 +12,51 @@
 - [Regenerate mcp-tools.js](#regenerate-mcp-toolsjs)
 - [Run everything](#run-everything)
 - [Troubleshooting](#troubleshooting)
+
+---
+
+## Configuration for tests
+
+Tests read `szkrabok.config.toml` (committed repo defaults) and deep-merge `szkrabok.config.local.toml` (gitignored, machine-specific) on top.
+
+**Minimum required for any browser test** — set `executablePath` in your local TOML:
+
+```toml
+# szkrabok.config.local.toml
+[default]
+executablePath = "/path/to/your/chrome"
+```
+
+Run `bash scripts/detect_browsers.sh` to find installed binaries.
+
+**Common overrides for test runs:**
+
+```toml
+[default]
+executablePath    = "/usr/bin/google-chrome"
+headless          = true                     # override per session.open launchOptions
+overrideUserAgent = true
+userAgent         = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+log_level         = "debug"
+
+[presets.mobile-iphone-15]
+viewport          = { width = 390, height = 844 }
+locale            = "en-US"
+timezone          = "America/New_York"
+userAgent         = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) ..."
+```
+
+TOML values are defaults — `session.open` `launchOptions` always override them per session:
+
+```
+session.open {
+  "sessionName": "my-session",
+  "launchOptions": {
+    "headless": false,
+    "preset": "mobile-iphone-15"
+  }
+}
+```
 
 ---
 
@@ -102,14 +148,17 @@ npm run test:playwright
 Real browser against live bot-detection sites. **Require an active MCP session.**
 
 ```
-session.open { "sessionName": "check" }
+session.open {
+  "sessionName": "check",
+  "launchOptions": { "headless": false, "preset": "default" }
+}
 browser.run_test { "sessionName": "check", "files": ["tests/playwright/e2e/rebrowser.spec.js"] }
 ```
 
-Or standalone (runtime launches its own browser):
+Or standalone (runtime reads `szkrabok.config.local.toml` for `executablePath`):
 
 ```bash
-npx playwright test --project=e2e tests/playwright/e2e/rebrowser.spec.js
+SZKRABOK_SESSION=check npx playwright test --project=e2e tests/playwright/e2e/rebrowser.spec.js
 ```
 
 | File | What it does | Mode |
@@ -127,8 +176,18 @@ Permanent failures:
 
 Always run headed:
 ```
-session.open { "sessionName": "rebrowser", "launchOptions": { "headless": false } }
-browser.run_test { "sessionName": "rebrowser", "files": ["tests/playwright/e2e/rebrowser.spec.js"] }
+session.open {
+  "sessionName": "rebrowser",
+  "launchOptions": {
+    "headless": false,
+    "preset": "default"
+  }
+}
+browser.run_test {
+  "sessionName": "rebrowser",
+  "files": ["tests/playwright/e2e/rebrowser.spec.js"],
+  "project": "e2e"
+}
 ```
 
 ---
@@ -151,9 +210,15 @@ test('my task', async ({ page }) => {
 
 Pass params from MCP:
 ```
-browser.run_test { "sessionName": "s", "params": { "url": "https://..." } }
+browser.run_test {
+  "sessionName": "s",
+  "files": ["tests/playwright/e2e/my-task.spec.js"],
+  "project": "e2e",
+  "grep": "my task",
+  "params": { "url": "https://example.com" }
+}
 ```
-Available as `process.env.TEST_URL` in the spec.
+`params` keys are available as `process.env.TEST_<KEY>` in the spec (e.g. `TEST_URL`).
 
 ---
 
