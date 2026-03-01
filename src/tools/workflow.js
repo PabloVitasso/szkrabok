@@ -1,6 +1,9 @@
 import { getSession } from '@szkrabok/runtime';
-import * as upstream from '../upstream/wrapper.js';
 import { TIMEOUT } from '../config.js';
+
+const _type = (page, selector, text) => page.fill(selector, text, { timeout: TIMEOUT });
+const _click = (page, selector) => page.click(selector, { timeout: TIMEOUT });
+const _select = (page, selector, value) => page.selectOption(selector, value, { timeout: TIMEOUT });
 
 export const login = async args => {
   const {
@@ -15,9 +18,9 @@ export const login = async args => {
   const session = getSession(sessionName);
   const page = session.page;
 
-  await upstream.type(page, usernameSelector, username);
-  await upstream.type(page, passwordSelector, password);
-  await upstream.click(page, submitSelector);
+  await _type(page, usernameSelector, username);
+  await _type(page, passwordSelector, password);
+  await _click(page, submitSelector);
 
   await page.waitForLoadState('networkidle', { timeout: TIMEOUT }).catch(() => {});
 
@@ -36,9 +39,9 @@ export const fillForm = async args => {
     const tagName = await element.evaluate(el => el.tagName.toLowerCase());
 
     if (tagName === 'select') {
-      await upstream.select(page, selector, value);
+      await _select(page, selector, value);
     } else {
-      await upstream.type(page, selector, value);
+      await _type(page, selector, value);
     }
   }
 

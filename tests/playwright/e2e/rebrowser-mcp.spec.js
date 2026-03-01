@@ -16,8 +16,7 @@
  *
  * ── Run ──────────────────────────────────────────────────────────────────────
  *
- *   npm run test:clientmcp
- *   npx playwright test --project=client
+ *   npx playwright test --project=e2e tests/playwright/e2e/rebrowser-mcp.spec.js
  *
  * ─────────────────────────────────────────────────────────────────────────────
  */
@@ -38,7 +37,7 @@ test('rebrowser-check via MCP — 8/10', async () => {
   const mcp = await mcpConnect(SESSION, undefined, { launchOptions: { headless: true } });
   try {
     // invoker already unwraps and JSON-parses the MCP text content
-    const result = await mcp.browser.run_test({ files: ['automation/rebrowser-check.spec.js'] });
+    const result = await mcp.browser.run_test({ files: ['tests/playwright/e2e/rebrowser.spec.js'] });
 
     // browser.run_test returns { passed, failed, tests: [{ result: { checks } }] }
     const checks = result?.tests?.[0]?.result?.checks;

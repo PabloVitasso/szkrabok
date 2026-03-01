@@ -23,20 +23,22 @@ test.describe('Stealth Mode', () => {
     // Wait for page to load
     await new Promise(resolve => setTimeout(resolve, 5000));
 
-    // Extract page content to verify stealth
+    // Extract page title to verify page loaded
     const extractResponse = await client.callTool({
-      name: 'extract.html',
-      arguments: { sessionName: sessionId },
+      name: 'browser.run_code',
+      arguments: {
+        sessionName: sessionId,
+        code: 'async (page) => page.title()',
+      },
     });
 
     expect(extractResponse.content).toHaveLength(1);
     const extractContent = extractResponse.content[0];
     expect(extractContent.type).toBe('text');
 
-    // Response is JSON with content field
     const responseData = JSON.parse(extractContent.text);
-    expect(responseData.content).toBeDefined();
-    expect(responseData.content.length).toBeGreaterThan(0);
+    expect(responseData.result).toBeDefined();
+    expect(responseData.result.length).toBeGreaterThan(0);
 
     // Cleanup
     await client.callTool({

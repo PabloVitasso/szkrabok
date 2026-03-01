@@ -26,7 +26,6 @@ git merge upstream/main
 | File | Why | Resolution |
 |------|-----|------------|
 | `README.md` | Upstream has its own README | Keep ours — discard upstream content |
-| `src/upstream/wrapper.js` | We stripped browser-launch code | Keep our version — launch lives in `packages/runtime/launch.js` |
 | `Dockerfile` | Upstream Docker setup; szkrabok does not use it | Handled by `.gitattributes` (`merge=ours`) |
 
 ### After resolving conflicts
@@ -95,11 +94,11 @@ TypeScript modules used only by `playwright.config.js` — not by the runtime or
 | Module | Purpose |
 |--------|---------|
 | `env.ts` | Single reader for all relevant `process.env` vars |
-| `paths.ts` | All filesystem paths (sessions dir, config file, automation dir) |
+| `paths.ts` | All filesystem paths (sessions dir, config file, test dirs) |
 | `toml.ts` | `loadToml()` — loads + deep-merges base and local TOML |
 | `preset.ts` | `resolvePreset()` — for playwright.config.js use only |
 | `session.ts` | `resolveSession()` — session paths from env + paths |
 | `browser.ts` | `resolveExecutable()` — finds bundled or system Chromium |
-| `projects.ts` | `selftest`, `mcp`, `automation` project definitions |
+| `projects.ts` | `integration`, `e2e` project definitions |
 
 Do not import these in `src/` or `packages/runtime/` — the runtime has its own `config.js`.

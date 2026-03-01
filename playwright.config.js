@@ -6,7 +6,7 @@ import { loadToml } from './config/toml.js';
 import { resolvePreset } from './config/preset.js';
 import { resolveSession } from './config/session.js';
 import { resolveExecutable } from './config/browser.js';
-import { selftest, mcp, automation } from './config/projects.js';
+import { integration, e2e } from './config/projects.js';
 
 const toml = loadToml(paths.config);
 const preset = resolvePreset(toml, env);
@@ -22,8 +22,8 @@ export default defineConfig({
 
   reporter: [['list'], ['json', { outputFile: session.lastRun }]],
 
-  projects: [selftest(paths), mcp(paths), automation({ paths, preset, session, executable, env })],
+  projects: [integration(paths), e2e({ paths, preset, session, executable, env })],
 
-  globalSetup: env.project === 'automation' ? paths.automation.setup : undefined,
-  globalTeardown: env.project === 'automation' ? paths.automation.teardown : undefined,
+  globalSetup: env.project === 'e2e' ? paths.automation.setup : undefined,
+  globalTeardown: env.project === 'e2e' ? paths.automation.teardown : undefined,
 });

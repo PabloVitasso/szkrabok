@@ -7,7 +7,6 @@
 - [docs/development.md](./docs/development.md) - fork relationship, merging upstream, adding tools
 - [docs/testing.md](./docs/testing.md) - run tests via MCP and CLI
 - [docs/mcp-client-library.md](./docs/mcp-client-library.md) - MCP client library architecture
-- [docs/separation-progress.md](./docs/separation-progress.md) - what is done and what remains for consumer portability
 - [microsoft/playwright-mcp](https://github.com/microsoft/playwright-mcp) - upstream reference
 
 ## Key Locations
@@ -23,10 +22,10 @@
 | MCP config            | `src/config.js` (TIMEOUT, LOG_LEVEL, DISABLE_WEBGL only)         |
 | Playwright config     | `playwright.config.js`                                           |
 | Config modules        | `config/` (env, paths, toml, preset, session, browser, projects) |
-| MCP client library    | `mcp-client/` — `mcpConnect()`, `spawnClient()`, codegen         |
-| Automation fixtures   | `automation/fixtures.js`                                         |
-| Automation tests      | `automation/`                                                    |
-| Selftest              | `selftest/`                                                      |
+| MCP client library    | `packages/mcp-client/` — `mcpConnect()`, `spawnClient()`, codegen |
+| Integration tests     | `tests/playwright/integration/`                                  |
+| E2E tests             | `tests/playwright/e2e/`                                          |
+| Node tests            | `tests/node/`                                                    |
 | Session storage       | `sessions/{id}/`                                                 |
 
 ## Workflow Rules
@@ -44,7 +43,7 @@
 1. Only `@szkrabok/runtime` calls `launchPersistentContext`
 2. Stealth runs only in runtime launch — never conditionally, never elsewhere
 3. MCP tools never import stealth, config internals, or storage directly
-4. `automation/fixtures.js` never imports stealth or launches a browser directly
+4. `tests/playwright/e2e/fixtures.js` never imports stealth or launches a browser directly
 5. `browser.run_test` subprocess connects via CDP — it never calls `runtime.launch()`
 
 ## Restart MCP Server

@@ -5,23 +5,24 @@
  * No browser launched. Runs fast.
  *
  * Run:
- *   node --test selftest/mcp/contract.test.js
+ *   node --test tests/node/contracts.test.js
  *
  * Invariants verified:
  * 1. No MCP tool file calls chromium.launch or chromium.launchPersistentContext
  * 2. Every session open in MCP goes through runtime.launch()
  * 3. Pool access in MCP tools comes via @szkrabok/runtime (not direct import of pool internals)
- * 4. automation/fixtures.js does not import stealth internals
+ * 4. tests/playwright/e2e/fixtures.js does not import stealth internals
  */
 
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile, readdir } from 'fs/promises';
-import { join, resolve } from 'path';
+import { join, resolve, dirname } from 'path';
+import { fileURLToPath } from 'url';
 
-const REPO_ROOT = resolve(new URL('.', import.meta.url).pathname, '..', '..');
+const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const MCP_TOOLS_DIR = join(REPO_ROOT, 'src', 'tools');
-const AUTOMATION_DIR = join(REPO_ROOT, 'automation');
+const E2E_DIR = join(REPO_ROOT, 'tests', 'playwright', 'e2e');
 
 // Read file content, return '' if missing
 const readSrc = async path => readFile(path, 'utf8').catch(() => '');
@@ -99,31 +100,31 @@ describe('Invariant 3: pool access goes through @szkrabok/runtime public API onl
   });
 });
 
-describe('Invariant 4: automation/fixtures.js has no stealth imports', () => {
+describe('Invariant 4: tests/playwright/e2e/fixtures.js has no stealth imports', () => {
   test('fixtures.js does not import stealth internals', async () => {
-    const src = await readSrc(join(AUTOMATION_DIR, 'fixtures.js'));
+    const src = await readSrc(join(E2E_DIR, 'fixtures.js'));
     const stealthPatterns = ['szkrabok_stealth', 'playwright-extra', 'puppeteer-extra-plugin-stealth'];
     for (const pattern of stealthPatterns) {
       assert.ok(
         !src.includes(pattern),
-        `automation/fixtures.js must not import "${pattern}"`
+        `e2e/fixtures.js must not import "${pattern}"`
       );
     }
   });
 
   test('fixtures.js does not call chromium.launch', async () => {
-    const raw = await readSrc(join(AUTOMATION_DIR, 'fixtures.js'));
+    const raw = await readSrc(join(E2E_DIR, 'fixtures.js'));
     assert.ok(
       !/chromium\s*\.\s*launch/.test(stripComments(raw)),
-      'automation/fixtures.js must not call chromium.launch*()'
+      'e2e/fixtures.js must not call chromium.launch*()'
     );
   });
 
   test('fixtures.js imports from @szkrabok/runtime', async () => {
-    const src = await readSrc(join(AUTOMATION_DIR, 'fixtures.js'));
+    const src = await readSrc(join(E2E_DIR, 'fixtures.js'));
     assert.ok(
       src.includes("from '@szkrabok/runtime'"),
-      "automation/fixtures.js must import from '@szkrabok/runtime'"
+      "e2e/fixtures.js must import from '@szkrabok/runtime'"
     );
   });
 });
@@ -132,8 +133,7 @@ describe('Invariant 5: packages/runtime is the only launch site', () => {
   test('only packages/runtime/launch.js contains launchPersistentContext', async () => {
     const searchDirs = [
       join(REPO_ROOT, 'src'),
-      join(REPO_ROOT, 'automation'),
-      join(REPO_ROOT, 'selftest'),
+      join(REPO_ROOT, 'tests'),
       join(REPO_ROOT, 'packages', 'mcp-client'),
     ];
 

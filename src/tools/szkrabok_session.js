@@ -88,7 +88,16 @@ export const list = async () => {
 export const endpoint = async args => {
   const { sessionName } = args;
   const session = getSession(sessionName);
-  return { sessionName, cdpEndpoint: `http://localhost:${session.cdpPort}` };
+  const cdpEndpoint = `http://localhost:${session.cdpPort}`;
+  let wsEndpoint;
+  try {
+    const res = await fetch(`${cdpEndpoint}/json/version`);
+    const data = await res.json();
+    wsEndpoint = data.webSocketDebuggerUrl;
+  } catch {
+    // wsEndpoint unavailable — CDP may not be ready yet
+  }
+  return { sessionName, cdpEndpoint, ...(wsEndpoint ? { wsEndpoint } : {}) };
 };
 
 export const deleteSession = async args => {

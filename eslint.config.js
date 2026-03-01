@@ -46,11 +46,11 @@ const noRuntimeInternalsRule = {
   ],
 };
 
-const CONSUMER_FILES = ['src/**/*.js', 'automation/**/*.js', 'selftest/**/*.js', 'mcp-client/**/*.js'];
+const CONSUMER_FILES = ['src/**/*.js', 'tests/**/*.js', 'packages/mcp-client/**/*.js'];
 
 export default [
   {
-    ignores: ['roll.js', 'node_modules/**', 'vendor/**'],
+    ignores: ['node_modules/**'],
   },
 
   // ── Base rules — all JS files ──────────────────────────────────────────

@@ -1,7 +1,7 @@
 # MCP Client Library — Architecture
 
 Reusable library for calling szkrabok MCP tools from Playwright tests.
-Provides a typed handle object (`mcp.nav.goto(...)`) generated from the live
+Provides a typed handle object (`mcp.workflow.scrape(...)`) generated from the live
 tool registry, with JSONL console output that is 1:1 copy-pasteable for LLM
 invocation.
 
@@ -10,7 +10,7 @@ invocation.
 ## File layout
 
 ```
-client/
+packages/mcp-client/
   runtime/                    generic MCP execution — any server, any session model
     transport.js              spawnClient() — stdio process lifecycle
     invoker.js                createCallInvoker() — serialization, closed guard
@@ -25,11 +25,9 @@ client/
     schema-to-jsdoc.js        pure function: (inputSchema) -> JSDoc type strings
 
   sequences/                  optional — stored JSONL call sequences for reuse
-    p4n-cookie-banner.jsonl
 
   mcp-tools.js                GENERATED — namespaced handle factory + JSDoc types
-
-  park4night.mcp.spec.js      technology demonstrator spec
+  index.js                    Public API: mcpConnect, spawnClient
 ```
 
 `runtime/` contains nothing szkrabok-specific. It could drive any MCP server.
@@ -41,9 +39,9 @@ client/
 ## Layers
 
 ```
-park4night.mcp.spec.js
+your-spec.js
   └─ mcpConnect(sessionName, adapter)      ← from mcp-tools.js (generated)
-       └─ mcp.nav.goto(args)               ← namespaced method, sessionName injected by adapter
+       └─ mcp.workflow.scrape(args)        ← namespaced method, sessionName injected by adapter
        └─ mcp.browser.run_test(args)
        └─ mcp.close()
 
@@ -80,7 +78,7 @@ adapters/szkrabok-session.js
 ## Generated file: `mcp-tools.js`
 
 Single output file. Never edited by hand. Committed to git. Lives at
-`client/mcp-tools.js` — beside the specs that consume it.
+`packages/mcp-client/mcp-tools.js`.
 
 Structure:
 
@@ -234,7 +232,7 @@ Steps:
 ### `package.json` registration
 
 ```json
-"codegen:mcp": "node client/codegen/generate-mcp-tools.mjs"
+"codegen:mcp": "node packages/mcp-client/codegen/generate-mcp-tools.mjs"
 ```
 
 Run anytime the registry changes, then commit the updated `mcp-tools.js`.
@@ -264,9 +262,10 @@ Tool names are split on the first `.`. Everything after the first dot is the
 method key — preserving nested dots:
 
 ```
-nav.goto          → ns: "nav",     method: "goto"
+session.open      → ns: "session", method: "open"
 browser.run_test  → ns: "browser", method: "run_test"
-browser.run.file  → ns: "browser", method: "run.file"
+browser.run_file  → ns: "browser", method: "run_file"
+workflow.scrape   → ns: "workflow", method: "scrape"
 ```
 
 Tools with no dot (e.g. `health`) are placed under a `_root` namespace:
@@ -312,19 +311,19 @@ Every call produces two JSONL lines.
 **Intent line** (emitted before the wire call):
 
 ```json
-{"name":"nav.goto","arguments":{"sessionName":"p4n-test","url":"https://park4night.com/en"},"_phase":"before","_seq":3}
+{"name":"workflow.scrape","arguments":{"sessionName":"my-session","selectors":{"title":"h1"}},"_phase":"before","_seq":3}
 ```
 
 **Result line** (emitted after):
 
 ```json
-{"name":"nav.goto","arguments":{"sessionName":"p4n-test","url":"https://park4night.com/en"},"_phase":"after","_ok":true,"_ms":312,"_seq":3}
+{"name":"workflow.scrape","arguments":{"sessionName":"my-session","selectors":{"title":"h1"}},"_phase":"after","_ok":true,"_ms":312,"_seq":3}
 ```
 
 **Failure**:
 
 ```json
-{"name":"nav.goto","arguments":{"sessionName":"p4n-test","url":"https://park4night.com/en"},"_phase":"after","_ok":false,"_ms":18,"_error":"net::ERR_NAME_NOT_RESOLVED","_seq":3}
+{"name":"workflow.scrape","arguments":{"sessionName":"my-session","selectors":{"title":"h1"}},"_phase":"after","_ok":false,"_ms":18,"_error":"net::ERR_NAME_NOT_RESOLVED","_seq":3}
 ```
 
 `_phase` makes replay unambiguous: filter `_phase === "before"`, strip
@@ -358,14 +357,14 @@ of the JSONL stream.
 `_result`, JSON-parsed if the text content is itself JSON:
 
 ```json
-{"name":"session.open","arguments":{"sessionName":"p4n-test"},"_phase":"after","_result":{"opened":true},"_ok":true,"_ms":84,"_seq":1}
+{"name":"session.open","arguments":{"sessionName":"my-session"},"_phase":"after","_result":{"opened":true},"_ok":true,"_ms":84,"_seq":1}
 ```
 
 **Large result** — summary inline, full content written to a sidecar file
 named by sequence number and tool name:
 
 ```json
-{"name":"browser.snapshot","arguments":{"sessionName":"p4n-test"},"_phase":"after","_result":"[text 3847 chars → .mcp-log/4-browser.snapshot.txt]","_ok":true,"_ms":201,"_seq":4}
+{"name":"browser.run_code","arguments":{"sessionName":"my-session","code":"async (page) => page.content()"},"_phase":"after","_result":"[text 3847 chars → .mcp-log/4-browser.run_code.txt]","_ok":true,"_ms":201,"_seq":4}
 ```
 
 The sidecar path includes `_seq` so call line and result file are
@@ -380,12 +379,12 @@ output directory are configurable in `runtime/logger.js`.
 ## Session lifecycle in tests
 
 ```js
-import { mcpConnect } from './mcp-tools.js';
+import { mcpConnect } from '@szkrabok/mcp-client';
 
-const mcp = await mcpConnect('p4n-test');
+const mcp = await mcpConnect('my-session');
 try {
-  await mcp.nav.goto({ url: 'https://park4night.com/en' });
-  await mcp.browser.run_test({ grep: 'acceptCookies' });
+  await mcp.workflow.scrape({ selectors: { title: 'h1' } });
+  await mcp.browser.run_test({ files: ['tests/playwright/e2e/my-task.spec.js'] });
 } finally {
   await mcp.close();
 }
@@ -398,18 +397,16 @@ block ensures Chrome is not leaked on test failure.
 Playwright `test` fixture wrapper (optional, used in the spec):
 
 ```js
-// inside park4night.mcp.spec.js
 const mcpTest = base.extend({
   mcp: async ({}, use) => {
-    const mcp = await mcpConnect('p4n-test');
+    const mcp = await mcpConnect('my-session');
     await use(mcp);
     await mcp.close();
   },
 });
 
-mcpTest('cookie banner via MCP', async ({ mcp }) => {
-  await mcp.nav.goto({ url: 'https://park4night.com/en' });
-  const result = await mcp.browser.run_test({ grep: 'acceptCookies' });
+mcpTest('my test via MCP', async ({ mcp }) => {
+  const result = await mcp.browser.run_test({ files: ['tests/playwright/e2e/my-task.spec.js'] });
   expect(result.passed).toBe(1);
 });
 ```
@@ -418,13 +415,12 @@ mcpTest('cookie banner via MCP', async ({ mcp }) => {
 
 ## Sequences (optional)
 
-Stored JSONL files in `client/sequences/` represent reusable call sequences
+Stored JSONL files in `packages/mcp-client/sequences/` represent reusable call sequences
 without a session parameter (injected at runtime by the adapter).
 
 ```jsonl
-{"name":"nav.goto","arguments":{"url":"https://park4night.com/en"}}
-{"name":"browser.snapshot","arguments":{}}
-{"name":"interact.click","arguments":{"selector":".cc-btn.cc-btn-reject"}}
+{"name":"workflow.scrape","arguments":{"selectors":{"title":"h1"}}}
+{"name":"browser.run_code","arguments":{"code":"async (page) => page.url()"}}
 ```
 
 A `runSequence(mcp, filePath)` helper reads the file, calls

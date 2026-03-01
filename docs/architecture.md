@@ -7,8 +7,7 @@ packages/runtime/    @szkrabok/runtime    — browser bootstrap, stealth, pool, 
                                             zero MCP knowledge
 packages/mcp-client/ @szkrabok/mcp-client — typed MCP client, mcpConnect(), codegen
 src/                 MCP server           — transport + tools, imports from @szkrabok/runtime
-selftest/            test suites          — runtime unit/integration, MCP contracts, playwright
-automation/          szkrabok self-tests  — stealth checks, bot-detector specs
+tests/               test suites          — node:test (unit/contracts) + Playwright (integration/e2e)
 ```
 
 ## Data flow
@@ -73,16 +72,9 @@ src/
   tools/
     registry.js           All tool definitions: name, handler, schema
     szkrabok_session.js   session.open/close/list/delete/endpoint
-    szkrabok_browser.js   browser.run_test, browser.run_file
-    navigate.js           nav.goto/back/forward
-    interact.js           interact.click/type/select
-    extract.js            extract.text/html/screenshot/evaluate
+    szkrabok_browser.js   browser.run_code/run_test/run_file
     workflow.js           workflow.login/fillForm/scrape
-    playwright_mcp.js     browser.* (snapshot, click, type, navigate, ...)
     wait.js               wait helpers
-
-  upstream/
-    wrapper.js            Page-operation helpers (navigate, getText, getHtml, ...)
 
 config/                   Playwright config modules (TypeScript, pure functions)
   env.ts                  Single process.env reader
@@ -91,7 +83,7 @@ config/                   Playwright config modules (TypeScript, pure functions)
   preset.ts               resolvePreset() — for playwright.config.js use only
   session.ts              resolveSession() — session paths from env + paths
   browser.ts              resolveExecutable() — finds bundled or system Chromium
-  projects.ts             selftest, mcp, automation project definitions
+  projects.ts             integration, e2e project definitions
 
 playwright.config.js      Root config — pure composition, no logic
 
@@ -99,35 +91,43 @@ szkrabok.config.toml          Browser identity presets — repo defaults (commit
 szkrabok.config.local.toml    Machine-specific overrides (gitignored)
 szkrabok.config.local.toml.example  Template for local overrides
 
-selftest/
-  node/               node:test specs — schema, basic, MCP protocol, scraping
-  playwright/         Playwright specs — session lifecycle, stealth, CSS tools
-    fixtures.js       spawnClient() + openSession() with headless:true default
-  runtime/
-    unit.test.js      Config, storage, stealth without MCP
-    integration.test.js  Session persistence across two launches
-  mcp/
-    contract.test.js  Invariant checks — no direct launch calls in MCP tools
+tests/
+  node/               node:test specs — no browser
+    basic.test.js     public API smoke tests
+    schema.test.js    tool schema validation
+    contracts.test.js architecture invariant checks (static analysis)
+    runtime/
+      unit.test.js           config, storage, stealth without MCP
+      integration.test.js    session persistence across two launches
 
-automation/
-  fixtures.js             Path A: connect(SZKRABOK_CDP_ENDPOINT); Path B: launch({profile:'dev'})
-  setup.js                globalSetup — prints resolved preset
-  teardown.js             globalTeardown
-  intoli-check.spec.js    bot.sannysoft.com — 10 Intoli + 20 fp-collect checks
-  rebrowser-check.spec.js bot-detector.rebrowser.net — 8/10 passing (headed only)
-  rebrowser-check.mcp.spec.js  same via MCP client
-  navigator-properties.spec.js  whatismybrowser.com navigator props
+  playwright/
+    integration/      Playwright, MCP over stdio, headless
+      fixtures.js     spawnClient() + openSession() with headless:true default
+      session.spec.js
+      stealth.spec.js
+      tools.spec.js
+      interop.spec.js
+
+    e2e/              Playwright, live external sites, headed browser
+      fixtures.js           Path A: connect(CDP); Path B: launch({profile:'dev'})
+      setup.js / teardown.js
+      rebrowser.spec.js     bot-detector.rebrowser.net — 8/10 passing (headed only)
+      rebrowser-mcp.spec.js same via MCP client
+      intoli.spec.js        bot.sannysoft.com — 10 Intoli + 20 fp-collect checks
+      navigator.spec.js     whatismybrowser.com navigator props
 
 dist/                     npm pack output — szkrabok-runtime-x.y.z.tgz etc. (gitignored)
 ```
 
 ## Tool ownership
 
-**Szkrabok** (custom, CSS-selector-based):
-`session.{open,close,list,delete,endpoint}` `nav.{goto,back,forward}` `interact.{click,type,select}` `extract.{text,html,screenshot,evaluate}` `workflow.{login,fillForm,scrape}` `browser.{run_test,run_file}`
+**Szkrabok** tools (11 total):
+`session.{open,close,list,delete,endpoint}` `workflow.{login,fillForm,scrape}` `browser.{run_code,run_test,run_file}`
 
-**Playwright-MCP** (upstream, ref-based via snapshot):
-`browser.{snapshot,click,type,navigate,navigate_back,close,drag,hover,evaluate,select_option,fill_form,press_key,take_screenshot,wait_for,resize,tabs,console_messages,network_requests,file_upload,handle_dialog,run_code,mouse_click_xy,mouse_move_xy,mouse_drag_xy,pdf_save,generate_locator,verify_element_visible,verify_text_visible,verify_list_visible,verify_value,start_tracing,stop_tracing,install}`
+**@playwright/mcp** (separate MCP server — install alongside szkrabok):
+`browser.{snapshot,click,type,navigate,navigate_back,close,drag,hover,evaluate,select_option,fill_form,press_key,take_screenshot,wait_for,resize,tabs,console_messages,network_requests,file_upload,handle_dialog,run_code,...}`
+
+The two servers share a browser via CDP. Use `session.endpoint` to get the `wsEndpoint`, then pass it to playwright-mcp via `--cdp-endpoint`.
 
 ## Runtime public API
 
@@ -165,10 +165,10 @@ Do NOT import runtime internals (`stealth`, `storage`, `pool`, `config`) directl
 2. Stealth runs only during `runtime.launch()` — never conditionally, never elsewhere
 3. Profile resolution happens only in runtime
 4. MCP tools never import stealth, config internals, or storage directly
-5. `automation/fixtures.js` never imports stealth or launches a browser directly
+5. `tests/playwright/e2e/fixtures.js` never imports stealth or launches a browser directly
 6. `browser.run_test` subprocess connects via `connectOverCDP` — it never calls `launch*()`
 
-Enforced by ESLint boundary rules in `eslint.config.js` and `selftest/mcp/contract.test.js`.
+Enforced by ESLint boundary rules in `eslint.config.js` and `tests/node/contracts.test.js`.
 
 ## Session lifecycle
 

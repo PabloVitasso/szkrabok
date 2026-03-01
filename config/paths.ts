@@ -22,13 +22,12 @@ export const paths = {
   },
 
   projects: {
-    selftest: path.join(root, 'selftest', 'playwright'),
-    mcp: path.join(root, 'automation'),
-    automation: path.join(root, 'automation'),
+    integration: path.join(root, 'tests', 'playwright', 'integration'),
+    e2e: path.join(root, 'tests', 'playwright', 'e2e'),
   },
 
   automation: {
-    setup: path.join(root, 'automation', 'setup.js'),
-    teardown: path.join(root, 'automation', 'teardown.js'),
+    setup: path.join(root, 'tests', 'playwright', 'e2e', 'setup.js'),
+    teardown: path.join(root, 'tests', 'playwright', 'e2e', 'teardown.js'),
   },
 }

@@ -14,7 +14,7 @@ Layered monorepo: `@szkrabok/runtime` owns all browser lifecycle; the MCP server
 - **Deterministic CDP port per session** — external Playwright scripts can `connectOverCDP()`
 - **`browser.run_test`** — run `.spec.js` tests against a live MCP session via CDP
 - **`browser.run_file`** — run a named export from an `.mjs` script against a live session
-- **`@szkrabok/mcp-client`** — generated typed handle (`mcp.nav.goto(...)`, `mcp.browser.run_test(...)`) for driving szkrabok from Playwright specs
+- **`@szkrabok/mcp-client`** — generated typed handle (`mcp.workflow.scrape(...)`, `mcp.browser.run_test(...)`) for driving szkrabok from Playwright specs
 
 ---
 
@@ -31,14 +31,12 @@ Both are packaged as npm tarballs via `npm run release:patch` → `dist/`.
 
 ## Install (MCP server for Claude Code)
 
-**1. Run `install.sh`**
+**1. Install**
 
 ```bash
-./install.sh --scope user        # user-wide — available in all Claude Code projects
-./install.sh --scope local       # project-local — this directory only
+npm ci
+claude mcp add szkrabok node /path/to/szkrabok/src/index.js
 ```
-
-Runs `npm ci`, scans for Chrome/Chromium, registers with Claude Code via `claude mcp add`.
 
 **2. Create `szkrabok.config.local.toml`**
 
@@ -62,16 +60,16 @@ log_level         = "debug"
 ## Quick usage (Claude Code)
 
 ```
-session.open { "sessionName": "my-session" }
-nav.goto { "sessionName": "my-session", "url": "https://example.com" }
-extract.text { "sessionName": "my-session" }
+session.open { "sessionName": "my-session", "url": "https://example.com" }
+browser.run_code { "sessionName": "my-session", "code": "async (page) => page.title()" }
+workflow.scrape { "sessionName": "my-session", "selectors": { "title": "h1" } }
 session.close { "sessionName": "my-session" }
 ```
 
 Run a Playwright spec against a live session:
 
 ```
-browser.run_test { "sessionName": "my-session", "files": ["automation/my.spec.js"] }
+browser.run_test { "sessionName": "my-session", "files": ["tests/playwright/e2e/my.spec.js"] }
 ```
 
 ---
@@ -112,5 +110,4 @@ Produces `dist/szkrabok-runtime-x.y.z.tgz` and `dist/szkrabok-mcp-client-x.y.z.t
 | [docs/development.md](./docs/development.md) | Fork relationship, merging upstream, adding tools, release workflow |
 | [docs/testing.md](./docs/testing.md) | All test categories, how to run, writing specs, troubleshooting |
 | [docs/mcp-client-library.md](./docs/mcp-client-library.md) | MCP client library architecture and codegen |
-| [docs/separation-progress.md](./docs/separation-progress.md) | Consumer portability — all phases complete |
 | [microsoft/playwright-mcp](https://github.com/microsoft/playwright-mcp) | Upstream reference |

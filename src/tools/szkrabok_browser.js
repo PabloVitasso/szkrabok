@@ -145,6 +145,16 @@ export const run_test = async args => {
   };
 };
 
+export const run_code = async args => {
+  const { sessionName, code } = args;
+  const session = getSession(sessionName);
+
+  const fn = eval(`(${code})`);
+  const result = await fn(session.page);
+
+  return { result, url: session.page.url() };
+};
+
 export const run_file = async args => {
   const { sessionName, path: scriptPath, fn = 'default', args: scriptArgs = {} } = args;
   const session = getSession(sessionName);

@@ -69,6 +69,58 @@ test.describe('Session Management', () => {
     });
   });
 
+  test('cookie survives close/reopen cycle', async ({ client, openSession }) => {
+    const sessionId = `test-${randomUUID()}`;
+
+    // Open and navigate to establish an origin
+    await openSession(client, sessionId, { url: 'https://example.com' });
+
+    // Set a cookie via browser.run_code
+    await client.callTool({
+      name: 'browser.run_code',
+      arguments: {
+        sessionName: sessionId,
+        code: `async (page) => {
+          await page.context().addCookies([{
+            name: 'szkrabok_persist',
+            value: 'ok',
+            domain: 'example.com',
+            path: '/',
+          }]);
+        }`,
+      },
+    });
+
+    // Close with save
+    await client.callTool({
+      name: 'session.close',
+      arguments: { sessionName: sessionId, save: true },
+    });
+
+    // Reopen same session
+    await openSession(client, sessionId, { url: 'https://example.com' });
+
+    // Read cookies back
+    const result = await client.callTool({
+      name: 'browser.run_code',
+      arguments: {
+        sessionName: sessionId,
+        code: `async (page) => {
+          const cookies = await page.context().cookies('https://example.com');
+          return cookies.find(c => c.name === 'szkrabok_persist') ?? null;
+        }`,
+      },
+    });
+
+    const { result: cookie } = JSON.parse(result.content[0].text);
+    expect(cookie).not.toBeNull();
+    expect(cookie.value).toBe('ok');
+
+    // Cleanup
+    await client.callTool({ name: 'session.close', arguments: { sessionName: sessionId } });
+    await client.callTool({ name: 'session.delete', arguments: { sessionName: sessionId } });
+  });
+
   test('session.delete removes session', async ({ client, openSession }) => {
     const sessionId = `test-${randomUUID()}`;
 

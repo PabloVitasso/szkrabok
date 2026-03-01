@@ -12,30 +12,21 @@ interface AutomationOptions {
   env: typeof EnvType
 }
 
-export function selftest(paths: typeof PathsType) {
+export function integration(paths: typeof PathsType) {
   return {
-    name: 'selftest',
-    testDir: paths.projects.selftest,
+    name: 'integration',
+    testDir: paths.projects.integration,
     testMatch: '**/*.spec.js',
   }
 }
 
-export function mcp(paths: typeof PathsType) {
-  return {
-    name: 'mcp',
-    testDir: paths.projects.mcp,
-    testMatch: '**/*.mcp.spec.js',
-  }
-}
-
-export function automation({ paths, preset, session, executable, env }: AutomationOptions) {
+export function e2e({ paths, preset, session, executable, env }: AutomationOptions) {
   const useLiveBrowser = !!env.cdpEndpoint
 
   return {
-    name: 'automation',
-    testDir: paths.projects.automation,
+    name: 'e2e',
+    testDir: paths.projects.e2e,
     testMatch: '**/*.spec.js',
-    testIgnore: '**/*.mcp.spec.js',
     use: {
       storageState:
         !useLiveBrowser && fs.existsSync(session.stateFile) ? session.stateFile : undefined,

@@ -8,7 +8,7 @@ import { log } from './utils/logger.js';
 export const createServer = () => {
   const server = new Server(
     {
-      name: 'szkrabok-playwright-mcp',
+      name: 'szkrabok',
       version: '2.0.0',
     },
     {

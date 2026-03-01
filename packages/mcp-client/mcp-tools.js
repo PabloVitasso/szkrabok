@@ -1,7 +1,7 @@
 // AUTO-GENERATED — do not edit manually.
 // Regenerate: npm run codegen:mcp
-// Last generated: 2026-02-25T19:34:24.776Z
-// Tools: 53  Hash: 8f33eb08edea
+// Last generated: 2026-03-01T23:35:39.257Z
+// Tools: 11  Hash: c756bb8a2d11
 
 import { createHash } from 'node:crypto';
 import { spawnClient } from './runtime/transport.js';
@@ -9,7 +9,7 @@ import { createCallInvoker } from './runtime/invoker.js';
 import { createLogger } from './runtime/logger.js';
 import * as adapter from './adapters/szkrabok-session.js';
 
-const REGISTRY_HASH = '8f33eb08edea';
+const REGISTRY_HASH = 'c756bb8a2d11';
 
 /**
  * @typedef {Object} McpHandle
@@ -20,63 +20,15 @@ const REGISTRY_HASH = '8f33eb08edea';
     delete({  }): Promise<any>
     endpoint({  }): Promise<any>
   }
- *   nav: {
-    goto({ url, wait }): Promise<any>
-    back({  }): Promise<any>
-    forward({  }): Promise<any>
-  }
- *   interact: {
-    click({ selector }): Promise<any>
-    type({ selector, text }): Promise<any>
-    select({ selector, value }): Promise<any>
-  }
- *   extract: {
-    text({ selector }): Promise<any>
-    html({ selector }): Promise<any>
-    screenshot({ path, fullPage }): Promise<any>
-    evaluate({ code, args }): Promise<any>
-  }
  *   workflow: {
     login({ username, password }): Promise<any>
     fillForm({ fields }): Promise<any>
     scrape({ selectors }): Promise<any>
   }
  *   browser: {
-    snapshot({  }): Promise<any>
-    click({ element, ref, doubleClick, button, modifiers }): Promise<any>
-    type({ element, ref, text, submit, slowly }): Promise<any>
-    navigate({ url }): Promise<any>
-    navigate_back({  }): Promise<any>
-    close({  }): Promise<any>
-    drag({ startElement, startRef, endElement, endRef }): Promise<any>
-    hover({ element, ref }): Promise<any>
-    evaluate({ function, element, ref }): Promise<any>
-    select_option({ element, ref, values }): Promise<any>
-    fill_form({ fields }): Promise<any>
-    press_key({ key }): Promise<any>
-    take_screenshot({ type, filename, element, ref, fullPage }): Promise<any>
-    wait_for({ time, text, textGone }): Promise<any>
-    resize({ width, height }): Promise<any>
-    tabs({ action, index }): Promise<any>
-    console_messages({ level }): Promise<any>
-    network_requests({ includeStatic }): Promise<any>
-    file_upload({ paths }): Promise<any>
-    handle_dialog({ accept, promptText }): Promise<any>
     run_code({ code }): Promise<any>
     run_test({ grep, params, config, project, files, keepOpen }): Promise<any>
     run_file({ path, fn, args }): Promise<any>
-    mouse_click_xy({ element, x, y }): Promise<any>
-    mouse_move_xy({ element, x, y }): Promise<any>
-    mouse_drag_xy({ element, startX, startY, endX, endY }): Promise<any>
-    pdf_save({ filename }): Promise<any>
-    generate_locator({ element, ref }): Promise<any>
-    verify_element_visible({ role, accessibleName }): Promise<any>
-    verify_text_visible({ text }): Promise<any>
-    verify_list_visible({ element, ref, items }): Promise<any>
-    verify_value({ type, element, ref, value }): Promise<any>
-    start_tracing({  }): Promise<any>
-    stop_tracing({  }): Promise<any>
-    install({  }): Promise<any>
   }
  */
 
@@ -122,30 +74,6 @@ export async function mcpConnect(sessionName, customAdapter = adapter, options =
       delete: async () => invoke('session.delete'),
       endpoint: async () => invoke('session.endpoint'),
     },
-    nav: {
-      /** @param {{ url: string, wait?: 'load'|'domcontentloaded'|'networkidle' }} [args] */
-      goto: async (args = {}) => invoke('nav.goto', args),
-      back: async () => invoke('nav.back'),
-      forward: async () => invoke('nav.forward'),
-    },
-    interact: {
-      /** @param {{ selector: string }} [args] */
-      click: async (args = {}) => invoke('interact.click', args),
-      /** @param {{ selector: string, text: string }} [args] */
-      type: async (args = {}) => invoke('interact.type', args),
-      /** @param {{ selector: string, value: string }} [args] */
-      select: async (args = {}) => invoke('interact.select', args),
-    },
-    extract: {
-      /** @param {{ selector?: string }} [args] */
-      text: async (args = {}) => invoke('extract.text', args),
-      /** @param {{ selector?: string }} [args] */
-      html: async (args = {}) => invoke('extract.html', args),
-      /** @param {{ path?: string, fullPage?: boolean }} [args] */
-      screenshot: async (args = {}) => invoke('extract.screenshot', args),
-      /** @param {{ code: string, args?: string[] }} [args] */
-      evaluate: async (args = {}) => invoke('extract.evaluate', args),
-    },
     workflow: {
       /** @param {{ username: string, password: string }} [args] */
       login: async (args = {}) => invoke('workflow.login', args),
@@ -155,70 +83,12 @@ export async function mcpConnect(sessionName, customAdapter = adapter, options =
       scrape: async (args = {}) => invoke('workflow.scrape', args),
     },
     browser: {
-      snapshot: async () => invoke('browser.snapshot'),
-      /** @param {{ element: string, ref: string, doubleClick?: boolean, button?: 'left'|'right'|'middle', modifiers?: string[] }} [args] */
-      click: async (args = {}) => invoke('browser.click', args),
-      /** @param {{ element: string, ref: string, text: string, submit?: boolean, slowly?: boolean }} [args] */
-      type: async (args = {}) => invoke('browser.type', args),
-      /** @param {{ url: string }} [args] */
-      navigate: async (args = {}) => invoke('browser.navigate', args),
-      navigate_back: async () => invoke('browser.navigate_back'),
-      close: async () => invoke('browser.close'),
-      /** @param {{ startElement: string, startRef: string, endElement: string, endRef: string }} [args] */
-      drag: async (args = {}) => invoke('browser.drag', args),
-      /** @param {{ element: string, ref: string }} [args] */
-      hover: async (args = {}) => invoke('browser.hover', args),
-      /** @param {{ function: string, element?: string, ref?: string }} [args] */
-      evaluate: async (args = {}) => invoke('browser.evaluate', args),
-      /** @param {{ element: string, ref: string, values: string[] }} [args] */
-      select_option: async (args = {}) => invoke('browser.select_option', args),
-      /** @param {{ fields: object[] }} [args] */
-      fill_form: async (args = {}) => invoke('browser.fill_form', args),
-      /** @param {{ key: string }} [args] */
-      press_key: async (args = {}) => invoke('browser.press_key', args),
-      /** @param {{ type?: 'png'|'jpeg', filename?: string, element?: string, ref?: string, fullPage?: boolean }} [args] */
-      take_screenshot: async (args = {}) => invoke('browser.take_screenshot', args),
-      /** @param {{ time?: number, text?: string, textGone?: string }} [args] */
-      wait_for: async (args = {}) => invoke('browser.wait_for', args),
-      /** @param {{ width: number, height: number }} [args] */
-      resize: async (args = {}) => invoke('browser.resize', args),
-      /** @param {{ action: 'list'|'new'|'close'|'select', index?: number }} [args] */
-      tabs: async (args = {}) => invoke('browser.tabs', args),
-      /** @param {{ level?: 'error'|'warning'|'info'|'debug' }} [args] */
-      console_messages: async (args = {}) => invoke('browser.console_messages', args),
-      /** @param {{ includeStatic?: boolean }} [args] */
-      network_requests: async (args = {}) => invoke('browser.network_requests', args),
-      /** @param {{ paths?: string[] }} [args] */
-      file_upload: async (args = {}) => invoke('browser.file_upload', args),
-      /** @param {{ accept: boolean, promptText?: string }} [args] */
-      handle_dialog: async (args = {}) => invoke('browser.handle_dialog', args),
       /** @param {{ code: string }} [args] */
       run_code: async (args = {}) => invoke('browser.run_code', args),
       /** @param {{ grep?: string, params?: object, config?: string, project?: string, files?: string[], keepOpen?: boolean }} [args] */
       run_test: async (args = {}) => invoke('browser.run_test', args),
       /** @param {{ path: string, fn?: string, args?: object }} [args] */
       run_file: async (args = {}) => invoke('browser.run_file', args),
-      /** @param {{ element: string, x: number, y: number }} [args] */
-      mouse_click_xy: async (args = {}) => invoke('browser.mouse_click_xy', args),
-      /** @param {{ element: string, x: number, y: number }} [args] */
-      mouse_move_xy: async (args = {}) => invoke('browser.mouse_move_xy', args),
-      /** @param {{ element: string, startX: number, startY: number, endX: number, endY: number }} [args] */
-      mouse_drag_xy: async (args = {}) => invoke('browser.mouse_drag_xy', args),
-      /** @param {{ filename?: string }} [args] */
-      pdf_save: async (args = {}) => invoke('browser.pdf_save', args),
-      /** @param {{ element: string, ref: string }} [args] */
-      generate_locator: async (args = {}) => invoke('browser.generate_locator', args),
-      /** @param {{ role: string, accessibleName: string }} [args] */
-      verify_element_visible: async (args = {}) => invoke('browser.verify_element_visible', args),
-      /** @param {{ text: string }} [args] */
-      verify_text_visible: async (args = {}) => invoke('browser.verify_text_visible', args),
-      /** @param {{ element: string, ref: string, items: string[] }} [args] */
-      verify_list_visible: async (args = {}) => invoke('browser.verify_list_visible', args),
-      /** @param {{ type: string, element: string, ref: string, value: string }} [args] */
-      verify_value: async (args = {}) => invoke('browser.verify_value', args),
-      start_tracing: async () => invoke('browser.start_tracing'),
-      stop_tracing: async () => invoke('browser.stop_tracing'),
-      install: async () => invoke('browser.install'),
     },
   };
 }
