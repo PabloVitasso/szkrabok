@@ -46,16 +46,25 @@ timezone          = "America/New_York"
 userAgent         = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) ..."
 ```
 
-TOML values are defaults — `session.open` `launchOptions` always override them per session:
+**Precedence** (most specific wins):
 
 ```
-session.open {
-  "sessionName": "my-session",
-  "launchOptions": {
-    "headless": false,
-    "preset": "mobile-iphone-15"
-  }
-}
+launchOptions  >  savedConfig (last used)  >  TOML preset  >  TOML defaults  >  hardcoded defaults
+```
+
+`savedConfig` is the resolved config saved in `meta.json` from the previous launch of that session — it provides "resume with same settings" behaviour when no explicit args are given. Passing an explicit `preset` bypasses `savedConfig` for preset-derived fields (userAgent, viewport, locale, timezone) and starts fresh from that preset.
+
+**`preset` is mutually exclusive with `userAgent`, `viewport`, `locale`, `timezone`** — passing both throws an error. `headless` and `stealth` are always allowed alongside either:
+
+```
+# valid — preset owns all appearance fields
+session.open { "sessionName": "s", "launchOptions": { "preset": "mobile-iphone-15", "headless": false } }
+
+# valid — explicit fields
+session.open { "sessionName": "s", "launchOptions": { "userAgent": "...", "viewport": { "width": 390, "height": 844 } } }
+
+# error — ambiguous
+session.open { "sessionName": "s", "launchOptions": { "preset": "mobile-iphone-15", "userAgent": "..." } }
 ```
 
 ---

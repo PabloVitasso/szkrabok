@@ -8,6 +8,7 @@
 - [Tool ownership](#tool-ownership)
 - [Runtime public API](#runtime-public-api)
 - [Non-negotiable invariants](#non-negotiable-invariants)
+- [launchOptions precedence](#launchoptions-precedence)
 - [Session lifecycle](#session-lifecycle)
 - [Pool scoping](#pool-scoping)
 - [Stealth hacks](#stealth-hacks-preserve-on-upstream-updates)
@@ -185,6 +186,26 @@ Do NOT import runtime internals (`stealth`, `storage`, `pool`, `config`) directl
 6. `browser.run_test` subprocess connects via `connectOverCDP` — it never calls `launch*()`
 
 Enforced by ESLint boundary rules in `eslint.config.js` and `tests/node/contracts.test.js`.
+
+## launchOptions precedence
+
+```
+launchOptions  >  savedConfig (last used)  >  TOML preset  >  TOML defaults  >  hardcoded defaults
+```
+
+- **`launchOptions`** — explicit per-call values from `session.open` or `mcpConnect`
+- **`savedConfig`** — resolved config saved to `meta.json` on previous launch; provides "resume with same settings" when no explicit args given
+- **`TOML preset`** — named preset from `szkrabok.config.toml` / `szkrabok.config.local.toml`
+- **`TOML defaults`** — `[default]` section values
+- **`hardcoded defaults`** — fallbacks in `packages/runtime/launch.js`
+
+**Rules:**
+- Passing an explicit `preset` bypasses `savedConfig` for preset-derived fields (userAgent, viewport, locale, timezone) — starts fresh from the preset
+- `preset` is mutually exclusive with `userAgent`, `viewport`, `locale`, `timezone` — passing both throws
+- `headless` and `stealth` are always allowed alongside either
+- `executablePath` is TOML-only — not accepted in `launchOptions`
+
+---
 
 ## Session lifecycle
 
