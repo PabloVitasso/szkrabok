@@ -19,7 +19,7 @@ const tools = {
         launchOptions: {
           type: 'object',
           description:
-            'Browser launch options — preset, stealth, headless, viewport, userAgent, locale, timezone, disableWebGL',
+            'Browser launch options. Use either preset OR individual fields (userAgent, viewport, locale, timezone) — not both. headless and stealth are always allowed alongside either.',
           properties: {
             preset: {
               type: 'string',

@@ -117,12 +117,15 @@ export const launch = async (options = {}) => {
   const savedMeta = await storage.loadMeta(profile);
   const savedConfig = savedMeta?.config ?? {};
 
+  // If an explicit preset is given, it resets the baseline — savedConfig is bypassed
+  // for preset-derived fields. Individual field overrides (userAgent etc.) always win.
   const resolved = resolvePreset(presetName ?? savedMeta?.preset);
+  const base = presetName ? {} : savedConfig;
 
-  const effectiveViewport = viewport || savedConfig.viewport || resolved.viewport || VIEWPORT;
-  const effectiveUserAgent = userAgent || savedConfig.userAgent || resolved.userAgent || USER_AGENT;
-  const effectiveLocale = locale || savedConfig.locale || resolved.locale || LOCALE;
-  const effectiveTimezone = timezone || savedConfig.timezone || resolved.timezone || TIMEZONE;
+  const effectiveViewport = viewport || base.viewport || resolved.viewport || VIEWPORT;
+  const effectiveUserAgent = userAgent || base.userAgent || resolved.userAgent || USER_AGENT;
+  const effectiveLocale = locale || base.locale || resolved.locale || LOCALE;
+  const effectiveTimezone = timezone || base.timezone || resolved.timezone || TIMEZONE;
   const effectiveStealth = stealth ?? savedConfig.stealth ?? STEALTH_ENABLED;
   const effectiveHeadless = headless ?? savedConfig.headless ?? HEADLESS;
 

@@ -13,8 +13,19 @@ import { TIMEOUT } from '../config.js';
 const navigate = async (page, url) =>
   page.goto(url, { waitUntil: 'domcontentloaded', timeout: TIMEOUT });
 
+const PRESET_EXCLUSIVE = ['userAgent', 'viewport', 'locale', 'timezone'];
+
 export const open = async args => {
   const { sessionName, url, launchOptions = {} } = args;
+
+  if (launchOptions.preset) {
+    const conflicts = PRESET_EXCLUSIVE.filter(k => launchOptions[k] !== undefined);
+    if (conflicts.length > 0) {
+      throw new Error(
+        `launchOptions: preset is mutually exclusive with ${conflicts.join(', ')}. Use preset OR individual fields.`
+      );
+    }
+  }
 
   // Attempt to reuse existing session (idempotency)
   try {

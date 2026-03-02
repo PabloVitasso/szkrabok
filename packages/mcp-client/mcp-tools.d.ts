@@ -1,11 +1,11 @@
 // AUTO-GENERATED — do not edit manually.
 // Regenerate: npm run codegen:mcp
-// Last generated: 2026-03-02T00:55:06.323Z
+// Last generated: 2026-03-02T01:00:34.483Z
 
 export interface SessionHandle {
   /**
    * [szkrabok] Open or resume a browser session
-   * @param args.launchOptions Browser launch options — preset, stealth, headless, viewport, userAgent, locale, timezone, disableWebGL
+   * @param args.launchOptions Browser launch options. Use either preset OR individual fields (userAgent, viewport, locale, timezone) — not both. headless and stealth are always allowed alongside either.
    */
   open(args: {
     url?: string;
