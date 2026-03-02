@@ -34,7 +34,7 @@ const KNOWN_FAILURES = new Set([
 ]);
 
 test('rebrowser-check via MCP — 8/10', async () => {
-  const mcp = await mcpConnect(SESSION, undefined, { launchOptions: { headless: true } });
+  const mcp = await mcpConnect(SESSION, { launchOptions: { headless: true } });
   try {
     // invoker already unwraps and JSON-parses the MCP text content
     const result = await mcp.browser.run_test({ files: ['tests/playwright/e2e/rebrowser.spec.js'] });

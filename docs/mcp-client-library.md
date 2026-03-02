@@ -58,7 +58,7 @@ packages/mcp-client/
 
 ```
 your-spec.js
-  └─ mcpConnect(sessionName, adapter)      ← from mcp-tools.js (generated)
+  └─ mcpConnect(sessionName, options?)     ← from mcp-tools.js (generated)
        └─ mcp.workflow.scrape(args)        ← namespaced method, sessionName injected by adapter
        └─ mcp.browser.run_test(args)
        └─ mcp.close()
@@ -106,13 +106,21 @@ Structure:
 [imports — adapters/szkrabok-session.js]
 [REGISTRY_HASH constant]
 [JSDoc @typedef McpHandle — all namespaces and methods with param types]
-[export async function mcpConnect(sessionName, adapter, options) — returns McpHandle]
+[export async function mcpConnect(sessionName, options?) — returns McpHandle]
 ```
 
-`mcpConnect` accepts an adapter as its second argument. The generated file
-imports `szkrabok-session.js` and uses it as the default, so existing call
-sites require no change. Passing a different adapter is the extension point
-for testing against a different server or session model.
+`mcpConnect` accepts an optional options object as its second argument:
+
+```js
+mcpConnect(sessionName, {
+  launchOptions,    // forwarded to session.open — headless, preset, UA, etc.
+  sidecarEnabled,   // log large results to .mcp-log/ sidecar files
+  adapter,          // custom session adapter (defaults to szkrabok-session.js)
+})
+```
+
+The generated file imports `szkrabok-session.js` and uses it as the default adapter.
+`adapter` in options is the extension point for testing against a different server or session model.
 
 `sessionName` is passed through the adapter — generic code never references
 the wire key `sessionName` directly. The adapter owns that mapping.
@@ -399,7 +407,7 @@ output directory are configurable in `runtime/logger.js`.
 ```js
 import { mcpConnect } from '@szkrabok/mcp-client';
 
-const mcp = await mcpConnect('my-session');
+const mcp = await mcpConnect('my-session', { launchOptions: { headless: false } });
 try {
   await mcp.workflow.scrape({ selectors: { title: 'h1' } });
   await mcp.browser.run_test({ files: ['tests/playwright/e2e/my-task.spec.js'] });
@@ -417,7 +425,7 @@ Playwright `test` fixture wrapper (optional, used in the spec):
 ```js
 const mcpTest = base.extend({
   mcp: async ({}, use) => {
-    const mcp = await mcpConnect('my-session');
+    const mcp = await mcpConnect('my-session', { launchOptions: { headless: false } });
     await use(mcp);
     await mcp.close();
   },

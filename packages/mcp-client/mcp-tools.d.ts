@@ -1,6 +1,6 @@
 // AUTO-GENERATED — do not edit manually.
 // Regenerate: npm run codegen:mcp
-// Last generated: 2026-03-01T23:35:39.257Z
+// Last generated: 2026-03-02T00:48:41.563Z
 
 export interface SessionHandle {
   /**
@@ -107,9 +107,9 @@ export interface McpHandle {
 
 export declare function mcpConnect(
   sessionName: string,
-  customAdapter?: object,
   options?: {
-    sidecarEnabled?: boolean;
     launchOptions?: Record<string, unknown>;
+    sidecarEnabled?: boolean;
+    adapter?: object;
   }
 ): Promise<McpHandle>;

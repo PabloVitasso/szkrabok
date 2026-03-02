@@ -107,13 +107,14 @@ import * as adapter from './adapters/szkrabok-session.js';`;
   const connectFn = `/**
  * Connect to MCP server and get a typed handle.
  * @param {string} sessionName - Session name for szkrabok
- * @param {object} [customAdapter] - Optional custom adapter
  * @param {object} [options] - Connection options
- * @param {boolean} [options.sidecarEnabled=false] - Enable sidecar file logging
  * @param {object} [options.launchOptions] - Browser launch options forwarded to session.open
+ * @param {boolean} [options.sidecarEnabled=false] - Enable sidecar file logging
+ * @param {object} [options.adapter] - Custom adapter (defaults to szkrabok-session adapter)
  * @returns {Promise<McpHandle>}
  */
-export async function mcpConnect(sessionName, customAdapter = adapter, options = {}) {
+export async function mcpConnect(sessionName, options = {}) {
+  const { launchOptions, sidecarEnabled, adapter: customAdapter = adapter } = options;
   const client = await spawnClient();
 
   // Validate registry hasn't drifted
@@ -124,7 +125,7 @@ export async function mcpConnect(sessionName, customAdapter = adapter, options =
     throw new Error('MCP registry drift detected. Run npm run codegen:mcp');
   }
 
-  const log = createLogger({ sidecarEnabled: options.sidecarEnabled });
+  const log = createLogger({ sidecarEnabled });
   const { invoke, close } = createCallInvoker({
     client,
     log,
@@ -133,7 +134,7 @@ export async function mcpConnect(sessionName, customAdapter = adapter, options =
   });
 
   // Open session — forward launchOptions if provided
-  await customAdapter.open(client, sessionName, options.launchOptions);
+  await customAdapter.open(client, sessionName, launchOptions);
 
   return {
     close,
@@ -206,7 +207,7 @@ export function renderDts({ tools, timestamp }) {
 
   const mcpHandle = `export interface McpHandle {\n  close(): Promise<void>;\n${handleProps}\n}`;
 
-  const connectFn = `export declare function mcpConnect(\n  sessionName: string,\n  customAdapter?: object,\n  options?: {\n    sidecarEnabled?: boolean;\n    launchOptions?: Record<string, unknown>;\n  }\n): Promise<McpHandle>;`;
+  const connectFn = `export declare function mcpConnect(\n  sessionName: string,\n  options?: {\n    launchOptions?: Record<string, unknown>;\n    sidecarEnabled?: boolean;\n    adapter?: object;\n  }\n): Promise<McpHandle>;`;
 
   const header = `// AUTO-GENERATED — do not edit manually.\n// Regenerate: npm run codegen:mcp\n// Last generated: ${timestamp}`;
 

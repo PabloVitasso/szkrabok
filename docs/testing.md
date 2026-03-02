@@ -232,9 +232,11 @@ import { mcpConnect } from '@szkrabok/mcp-client';
 // mcpConnect spawns `node src/index.js` as a subprocess.
 // That process reads szkrabok.config.toml + szkrabok.config.local.toml —
 // so executablePath, userAgent, headless, and presets all apply as configured.
-const mcp = await mcpConnect('my-session');
-// session.open is called internally with just the session name.
-// launchOptions are not injectable here — set headless/preset/UA in local TOML.
+const mcp = await mcpConnect('my-session', {
+  launchOptions: { headless: false, preset: 'mobile-iphone-15' },  // optional
+  sidecarEnabled: false,   // optional: log large results to .mcp-log/ files
+  // adapter: customAdapter, // optional: override session adapter
+});
 
 const result = await mcp.browser.run_test({
   files: ['tests/playwright/e2e/my-task.spec.js'],
