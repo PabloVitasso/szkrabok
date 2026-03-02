@@ -1,6 +1,6 @@
 // AUTO-GENERATED — do not edit manually.
 // Regenerate: npm run codegen:mcp
-// Last generated: 2026-03-02T00:48:41.563Z
+// Last generated: 2026-03-02T00:55:06.323Z
 // Tools: 11  Hash: c756bb8a2d11
 
 import { createHash } from 'node:crypto';

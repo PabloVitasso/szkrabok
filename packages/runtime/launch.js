@@ -79,14 +79,19 @@ const _launchPersistentContext = async (userDataDir, options = {}) => {
  * Launch a browser session.
  *
  * @param {object} [options]
- * @param {string} [options.profile]   Session name / profile dir key
- * @param {string} [options.preset]    TOML preset name (default: "default")
- * @param {boolean} [options.headless] Overrides TOML + env
- * @param {boolean} [options.reuse]    Return existing if profile already open (default: true)
+ * @param {string} [options.profile]    Session name / profile dir key
+ * @param {string} [options.preset]     TOML preset name (default: "default")
+ * @param {boolean} [options.headless]  Overrides TOML + env
+ * @param {boolean} [options.stealth]   Overrides TOML stealth setting
+ * @param {string} [options.userAgent]  Overrides TOML + preset userAgent
+ * @param {object} [options.viewport]   Overrides TOML + preset viewport { width, height }
+ * @param {string} [options.locale]     Overrides TOML + preset locale
+ * @param {string} [options.timezone]   Overrides TOML + preset timezone
+ * @param {boolean} [options.reuse]     Return existing if profile already open (default: true)
  * @returns {Promise<{ browser: import('playwright').Browser, context: import('playwright').BrowserContext, cdpEndpoint: string, close(): Promise<void> }>}
  */
 export const launch = async (options = {}) => {
-  const { profile = 'default', preset: presetName, headless, reuse = true } = options;
+  const { profile = 'default', preset: presetName, headless, stealth, userAgent, viewport, locale, timezone, reuse = true } = options;
 
   // Idempotency: return existing handle when reuse=true and profile is open
   if (reuse && pool.has(profile)) {
@@ -114,11 +119,11 @@ export const launch = async (options = {}) => {
 
   const resolved = resolvePreset(presetName ?? savedMeta?.preset);
 
-  const effectiveViewport = savedConfig.viewport || resolved.viewport || VIEWPORT;
-  const effectiveUserAgent = savedConfig.userAgent || resolved.userAgent || USER_AGENT;
-  const effectiveLocale = savedConfig.locale || resolved.locale || LOCALE;
-  const effectiveTimezone = savedConfig.timezone || resolved.timezone || TIMEZONE;
-  const effectiveStealth = savedConfig.stealth ?? STEALTH_ENABLED;
+  const effectiveViewport = viewport || savedConfig.viewport || resolved.viewport || VIEWPORT;
+  const effectiveUserAgent = userAgent || savedConfig.userAgent || resolved.userAgent || USER_AGENT;
+  const effectiveLocale = locale || savedConfig.locale || resolved.locale || LOCALE;
+  const effectiveTimezone = timezone || savedConfig.timezone || resolved.timezone || TIMEZONE;
+  const effectiveStealth = stealth ?? savedConfig.stealth ?? STEALTH_ENABLED;
   const effectiveHeadless = headless ?? savedConfig.headless ?? HEADLESS;
 
   const presetConfig = {

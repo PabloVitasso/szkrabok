@@ -37,10 +37,16 @@ export const open = async args => {
   }
 
   // Delegate to runtime.launch() — handles storage, stealth, preset resolution, pool
+  const { preset, headless, stealth, userAgent, viewport, locale, timezone } = launchOptions;
   const handle = await launch({
     profile: sessionName,
-    preset: launchOptions.preset,
-    headless: launchOptions.headless,
+    preset,
+    headless,
+    stealth,
+    userAgent,
+    viewport,
+    locale,
+    timezone,
     reuse: false,
   });
 
