@@ -6,7 +6,7 @@ Mirrors GitHub: `github.com/PabloVitasso/szkrabok`
 ## Architecture decision: single package
 
 Runtime (`packages/runtime/`) is not published separately.
-It is exposed as a subpath export of the main package:
+Exposed as subpath exports of the main package:
 
 ```json
 "exports": {
@@ -26,28 +26,50 @@ Fixtures import via subpath:
 import { launch, connect } from '@pablovitasso/szkrabok/runtime';
 ```
 
-This eliminates: separate runtime publish, GitHub release tarballs, RUNTIME_RELEASES map.
+Eliminates: separate runtime publish, GitHub release tarballs, RUNTIME_RELEASES map.
 
 ---
 
 ## Pre-publish checklist
 
-1. **Package name** — `package.json`: `"name": "@pablovitasso/szkrabok"`
-2. **Subpath exports** — add `exports` map to `package.json` (see above)
-3. **`files` array** — include runtime and mcp-client source:
+1. **Package name** — `"name": "@pablovitasso/szkrabok"` in root `package.json`
+
+2. **Subpath exports** — add `exports` map (see above)
+
+3. **`files` array** — templates live under `src/tools/templates/` so covered by `"src"`, but list explicitly for clarity:
    ```json
    "files": ["src", "packages/runtime", "packages/mcp-client", "scripts", "README.md"]
    ```
+   Verify on dry run: templates present, `packages/runtime/node_modules` absent.
    Excludes: `tests/`, `sessions/`, `dist/`, `.github/`, `docs/`, `config/`, `packages/extension/`, `packages/playwright-mcp/`
+
 4. **Shebang** — `src/index.js` must start with `#!/usr/bin/env node`
-5. **scaffold.js** — simplify `mergePackageJson`: replace tarball URL with `"^x.y.z"` semver ref, drop `RUNTIME_RELEASES` map
-6. **Templates** — update `automation/fixtures.js` and `example.mcp.spec.js` imports to use `@pablovitasso/szkrabok/runtime`
+
+5. **scaffold.js** — replace `RUNTIME_RELEASES` map with version read from own `package.json`:
+   ```js
+   // type:module — use readFileSync, not require()
+   import { readFileSync } from 'node:fs';
+   const { version } = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url)));
+   // in mergePackageJson:
+   dependencies: { '@pablovitasso/szkrabok': `^${version}` }
+   ```
+   Scaffolded project is always pinned to the CLI version that created it.
+
+6. **Templates** — update `automation/fixtures.js` and `example.mcp.spec.js` imports:
+   ```js
+   import { launch, connect } from '@pablovitasso/szkrabok/runtime';
+   import { mcpConnect }      from '@pablovitasso/szkrabok/client';
+   ```
+
 7. **Browser story** — `findChromiumPath()` already handles priority chain:
-   - TOML `executablePath` (Ungoogled Chromium or any custom binary)
+   - TOML `executablePath` (any custom binary, e.g. Ungoogled Chromium)
    - Playwright cache (`~/.cache/ms-playwright/chromium-*`)
    - System paths (`/usr/bin/chromium`, `/usr/bin/google-chrome`)
    - Falls back to Playwright default if all null
-   - Postinstall should run `playwright install chromium` as a baseline guarantee
+   - Add `szkrabok --setup` CLI flag that explicitly runs `playwright install chromium`
+     and prints a success message — non-intrusive, user-triggered, fixable without reinstall
+   - Postinstall: skip auto-install, print a one-line hint instead
+
 8. **npm login** — `npm login` (confirm username is `pablovitasso`)
 
 ---
@@ -55,18 +77,17 @@ This eliminates: separate runtime publish, GitHub release tarballs, RUNTIME_RELE
 ## Publish flow
 
 ```bash
-npm publish --dry-run          # inspect what gets uploaded
-npm publish --access public    # required for scoped packages
+npm publish --dry-run          # audit: check templates present, no stray node_modules
+npm publish --access public    # mandatory for scoped packages on first publish
 ```
 
 ---
 
-## Release flow (simplified post single-package)
+## Release flow (post single-package)
 
 ```bash
-npm run release:patch          # bump versions, pack (pack becomes optional/dev-only)
-npm publish --access public    # one command, ships everything
+npm run release:patch          # bump versions + git tag
+npm publish --access public    # ships everything
 ```
 
-`release:publish` script and GitHub release tarball workflow can be retired once on npm.
-`RUNTIME_RELEASES` in `scaffold.js` is removed — scaffold references semver instead.
+`release:publish` script and GitHub release tarball workflow retired once on npm.
