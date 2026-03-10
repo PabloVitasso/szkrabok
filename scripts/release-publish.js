@@ -3,8 +3,11 @@ import { readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const pkg = JSON.parse(readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), '../package.json'), 'utf8'));
+const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const pkg = JSON.parse(readFileSync(resolve(root, 'package.json'), 'utf8'));
 const v = pkg.version;
+
+const run = cmd => execSync(cmd, { cwd: root, stdio: 'inherit' });
 
 try {
   execSync('npm whoami', { stdio: 'pipe' });
@@ -14,5 +17,5 @@ try {
 }
 
 console.log(`Publishing @pablovitasso/szkrabok@${v} to npm...`);
-execSync('npm publish --access public', { stdio: 'inherit' });
+run('npm publish --access public');
 console.log(`\nDone. https://www.npmjs.com/package/@pablovitasso/szkrabok`);

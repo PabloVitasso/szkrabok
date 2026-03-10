@@ -44,22 +44,31 @@ CLI-only operations (no MCP equivalent, live only in `cli.js`):
 ## Release workflow
 
 ```bash
-# 1. Update all dependencies (intentional, before cutting a release)
+# 1. Update dependencies (optional, deliberate — not automatic)
 npm run deps:update
+git add -A && git commit -m "chore: update deps"
 
-# 2. Commit all changes
+# 2. Commit all feature/fix changes
 git add -A && git commit -m "..."
 
-# 3. Bump version, create git tag, pack tarball
+# 3. Bump version, commit, tag, push
 npm run release:patch    # or release:minor
 
 # 4. Publish to npm (requires npm login)
 npm run release:publish
 ```
 
+**`release:patch` / `release:minor`** does everything atomically:
+- Bumps `package.json` + workspace versions (`--no-git-tag-version` suppresses npm's auto-tag)
+- Creates a single `chore: release x.y.z` commit staging all version files
+- Tags that commit as `vx.y.z`
+- Pushes commit and tag
+
+This ensures the tag always points at the release commit — no manual tag moves needed.
+
 **`deps:update`** runs `npm-check-updates -u` across all workspaces then `npm install`. Run it deliberately before a release — not on every build. Dependency bumps are a conscious decision; CI always installs from the lockfile.
 
-The `prepack` guard prevents packing without a version tag. Raw `npm run pack` will fail if HEAD is untagged — always use `release:*`.
+The `prepack` guard prevents publishing without a version tag on HEAD.
 
 `release:publish` checks `npm whoami` and fails with a clear message if not logged in. Run `npm login` then re-run.
 
