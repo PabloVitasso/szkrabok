@@ -28,9 +28,10 @@ MCP server supplementing [microsoft/playwright-mcp](https://github.com/microsoft
 
 | Use Case | Command |
 | --- | --- |
-| **Scaffolding a new project** | `npx @pablovitasso/szkrabok init` |
-| **Claude Code** | `claude mcp add szkrabok -- npx -y @pablovitasso/szkrabok` |
+| **Claude Code — global (all projects)** | `claude mcp add --scope user szkrabok -- npx -y @pablovitasso/szkrabok` |
+| **Claude Code — this project only** | `claude mcp add szkrabok -- npx -y @pablovitasso/szkrabok` |
 | **Claude Desktop** | See config snippet below |
+| **Scaffold a new project** | `npx @pablovitasso/szkrabok init` |
 | **Development (from source)** | `npm ci && claude mcp add szkrabok node /path/to/szkrabok/src/index.js` |
 
 Claude Desktop — add to `claude_desktop_config.json`:
