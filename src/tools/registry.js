@@ -82,33 +82,6 @@ const tools = {
     },
   },
 
-  'workflow.login': {
-    handler: workflow.login,
-    description: `${SZKRABOK} Automated login`,
-    inputSchema: {
-      type: 'object',
-      properties: {
-        sessionName: { type: 'string' },
-        username: { type: 'string' },
-        password: { type: 'string' },
-      },
-      required: ['sessionName', 'username', 'password'],
-    },
-  },
-
-  'workflow.fillForm': {
-    handler: workflow.fillForm,
-    description: `${SZKRABOK} Fill form`,
-    inputSchema: {
-      type: 'object',
-      properties: {
-        sessionName: { type: 'string' },
-        fields: { type: 'object' },
-      },
-      required: ['sessionName', 'fields'],
-    },
-  },
-
   'workflow.scrape': {
     handler: workflow.scrape,
     description: `${SZKRABOK} Scrape structured data`,
