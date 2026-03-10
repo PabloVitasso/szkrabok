@@ -97,7 +97,7 @@ const tools = {
 
   'browser.run_code': {
     handler: szkrabokBrowser.run_code,
-    description: `${PLAYWRIGHT_MCP} Execute a Playwright script string against the session page`,
+    description: `${PLAYWRIGHT_MCP} Execute a Playwright JS snippet against the session page. Use for quick inline actions.`,
     inputSchema: {
       type: 'object',
       properties: {
@@ -110,7 +110,7 @@ const tools = {
 
   'browser.run_test': {
     handler: szkrabokBrowser.run_test,
-    description: `${PLAYWRIGHT_MCP} Run Playwright .spec.js tests and return JSON results. Connects to the session browser via CDP. IMPORTANT: session.open must be called first.`,
+    description: `${PLAYWRIGHT_MCP} Run Playwright .spec.js tests and return JSON results. Connects to the session browser via CDP. IMPORTANT: session.open must be called first. Requires project scaffold — call scaffold.init first if playwright.config.js is absent.`,
     inputSchema: {
       type: 'object',
       properties: {
@@ -148,7 +148,7 @@ const tools = {
 
   'browser.run_file': {
     handler: szkrabokBrowser.run_file,
-    description: `${PLAYWRIGHT_MCP} Run a named export from a Playwright ESM .mjs script against the session page. Function receives (page, args) and must return a JSON-serialisable value. IMPORTANT: session.open must be called first.`,
+    description: `${PLAYWRIGHT_MCP} Call a named export from an .mjs script with (page, args). Use for reusable automation modules on disk. IMPORTANT: session.open must be called first.`,
     inputSchema: {
       type: 'object',
       properties: {
