@@ -7,118 +7,142 @@ import {
   updateSessionMeta,
   deleteStoredSession,
 } from '@szkrabok/runtime';
+
 import { log } from '../utils/logger.js';
 import { TIMEOUT } from '../config.js';
 
-const navigate = async (page, url) =>
+const PRESET_EXCLUSIVE = new Set(['userAgent', 'viewport', 'locale', 'timezone']);
+
+const navigate = (page, url) =>
   page.goto(url, { waitUntil: 'domcontentloaded', timeout: TIMEOUT });
 
-const PRESET_EXCLUSIVE = ['userAgent', 'viewport', 'locale', 'timezone'];
+function validateLaunchOptions(opts = {}) {
+  if (!opts.preset) return;
 
-export const open = async args => {
-  const { sessionName, url, launchOptions = {} } = args;
-
-  if (launchOptions.preset) {
-    const conflicts = PRESET_EXCLUSIVE.filter(k => launchOptions[k] !== undefined);
-    if (conflicts.length > 0) {
-      throw new Error(
-        `launchOptions: preset is mutually exclusive with ${conflicts.join(', ')}. Use preset OR individual fields.`
-      );
-    }
+  const conflicts = [];
+  for (const k of PRESET_EXCLUSIVE) {
+    if (opts[k] !== undefined) conflicts.push(k);
   }
 
-  // Attempt to reuse existing session (idempotency)
+  if (conflicts.length)
+    throw new Error(
+      `launchOptions: preset is mutually exclusive with ${conflicts.join(
+        ', '
+      )}. Use preset OR individual fields.`
+    );
+}
+
+export const open = async ({ sessionName, url, launchOptions = {} }) => {
+  validateLaunchOptions(launchOptions);
+
+  let session;
+  let reused = false;
+
   try {
-    const existing = getSession(sessionName);
+    session = getSession(sessionName);
+    reused = true;
     log(`Reusing existing session: ${sessionName}`);
+  } catch {}
+
+  if (!session) {
+    const {
+      preset,
+      headless,
+      stealth,
+      userAgent,
+      viewport,
+      locale,
+      timezone,
+    } = launchOptions;
+
+    const handle = await launch({
+      profile: sessionName,
+      preset,
+      headless,
+      stealth,
+      userAgent,
+      viewport,
+      locale,
+      timezone,
+      reuse: false,
+    });
+
+    session = getSession(sessionName);
+
     if (url) {
-      await navigate(existing.page, url);
+      await navigate(session.page, url);
       await updateSessionMeta(sessionName, { lastUrl: url });
     }
+
     return {
       success: true,
       sessionName,
       url,
-      reused: true,
-      preset: existing.preset,
-      label: existing.label,
+      preset: session.preset,
+      label: session.label,
+      cdpEndpoint: handle.cdpEndpoint,
     };
-  } catch {
-    // Not in pool — launch fresh
   }
 
-  // Delegate to runtime.launch() — handles storage, stealth, preset resolution, pool
-  const { preset, headless, stealth, userAgent, viewport, locale, timezone } = launchOptions;
-  const handle = await launch({
-    profile: sessionName,
-    preset,
-    headless,
-    stealth,
-    userAgent,
-    viewport,
-    locale,
-    timezone,
-    reuse: false,
-  });
-
   if (url) {
-    const session = getSession(sessionName);
     await navigate(session.page, url);
     await updateSessionMeta(sessionName, { lastUrl: url });
   }
-
-  const session = getSession(sessionName);
 
   return {
     success: true,
     sessionName,
     url,
+    reused,
     preset: session.preset,
     label: session.label,
-    cdpEndpoint: handle.cdpEndpoint,
   };
 };
 
-export const close = async args => {
-  const { sessionName } = args;
-  const result = await closeSession(sessionName);
-  return { ...result, sessionName };
-};
+export const close = async ({ sessionName }) => ({
+  ...(await closeSession(sessionName)),
+  sessionName,
+});
 
 export const list = async () => {
-  const active = listRuntimeSessions();
+  const activeMap = new Map(
+    listRuntimeSessions().map(s => [s.id, s])
+  );
+
   const stored = await listStoredSessions();
 
-  const sessions = stored.map(id => {
-    const isActive = active.find(a => a.id === id);
-    return {
-      id,
-      active: !!isActive,
-      preset: isActive?.preset,
-      label: isActive?.label,
-    };
-  });
-
-  return { sessions };
+  return {
+    sessions: stored.map(id => {
+      const a = activeMap.get(id);
+      return {
+        id,
+        active: !!a,
+        preset: a?.preset,
+        label: a?.label,
+      };
+    }),
+  };
 };
 
-export const endpoint = async args => {
-  const { sessionName } = args;
+export const endpoint = async ({ sessionName }) => {
   const session = getSession(sessionName);
   const cdpEndpoint = `http://localhost:${session.cdpPort}`;
-  let wsEndpoint;
+
   try {
     const res = await fetch(`${cdpEndpoint}/json/version`);
-    const data = await res.json();
-    wsEndpoint = data.webSocketDebuggerUrl;
+    const { webSocketDebuggerUrl } = await res.json();
+
+    return {
+      sessionName,
+      cdpEndpoint,
+      wsEndpoint: webSocketDebuggerUrl,
+    };
   } catch {
-    // wsEndpoint unavailable — CDP may not be ready yet
+    return { sessionName, cdpEndpoint };
   }
-  return { sessionName, cdpEndpoint, ...(wsEndpoint ? { wsEndpoint } : {}) };
 };
 
-export const deleteSession = async args => {
-  const { sessionName } = args;
+export const deleteSession = async ({ sessionName }) => {
   await deleteStoredSession(sessionName);
   return { success: true, sessionName };
 };
