@@ -11,7 +11,7 @@ const setup = async () => {
     }
   }
 
-  console.log('szkrabok installed. To install the Chromium browser, run: szkrabok --setup')
+  console.log('szkrabok installed. No browser found? Run: szkrabok install-browser')
 }
 
 setup().catch(console.error)
