@@ -18,8 +18,8 @@
     "README.md"
   ],
   "bin": {
-    "szkrabok": "./src/index.js",
-    "bebok": "./src/cli.js"
+    "szkrabok": "src/index.js",
+    "bebok": "src/cli.js"
   },
   "engines": {
     "node": ">=18.0.0"
