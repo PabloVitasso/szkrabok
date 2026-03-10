@@ -6,9 +6,8 @@ const pkg = JSON.parse(readFileSync(resolve(dirname(fileURLToPath(import.meta.ur
 const v = pkg.version;
 
 console.log(`
-Pack complete: dist/szkrabok-runtime-${v}.tgz
+Version bumped to ${v}.
 
 Next steps:
-  1. npm run release:publish
-  2. Update RUNTIME_RELEASES in src/tools/scaffold.js  (add '${v}' entry, bump CURRENT_RUNTIME_VERSION)
+  npm run release:publish
 `);
