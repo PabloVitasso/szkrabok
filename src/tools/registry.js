@@ -11,7 +11,7 @@ const PLAYWRIGHT_MCP = '[playwright-mcp]';
 const tools = {
   'session.open': {
     handler: session.open,
-    description: `${SZKRABOK} Open or resume a browser session`,
+    description: `${SZKRABOK} Opens or resumes a browser session.`,
     inputSchema: {
       type: 'object',
       properties: {
@@ -46,7 +46,7 @@ const tools = {
 
   'session.close': {
     handler: session.close,
-    description: `${SZKRABOK} Close and save session`,
+    description: `${SZKRABOK} Closes and saves the current browser session.`,
     inputSchema: {
       type: 'object',
       properties: {
@@ -59,13 +59,13 @@ const tools = {
 
   'session.list': {
     handler: session.list,
-    description: `${SZKRABOK} List all sessions`,
+    description: `${SZKRABOK} Lists all stored browser sessions.`,
     inputSchema: { type: 'object', properties: {} },
   },
 
   'session.delete': {
     handler: session.deleteSession,
-    description: `${SZKRABOK} Delete session permanently`,
+    description: `${SZKRABOK} Deletes a browser session and its data.`,
     inputSchema: {
       type: 'object',
       properties: { sessionName: { type: 'string' } },
