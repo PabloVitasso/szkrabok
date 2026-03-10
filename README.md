@@ -1,99 +1,63 @@
 # Szkrabok
 
-MCP server that supplements [microsoft/playwright-mcp](https://github.com/microsoft/playwright-mcp) with persistent sessions, stealth mode, and scripted automation.
+MCP server supplementing [microsoft/playwright-mcp](https://github.com/microsoft/playwright-mcp) with persistent sessions, stealth mode, and scripted automation.
 
-Use alongside `@playwright/mcp` — szkrabok handles session lifecycle and scripting; playwright-mcp handles browser interaction (click, type, snapshot, etc.).
+**Core Enhancements:**
 
----
-
-## What it adds
-
-- **Named persistent sessions** — cookies, localStorage, Chromium profile survive restarts
-- **Stealth mode** — playwright-extra + puppeteer-extra-plugin-stealth, applied exclusively in `@szkrabok/runtime`
-- **Anti-bot patches** — suppress CDP `Runtime.enable` leak, rename `UtilityScript` class (applied via `postinstall`)
-- **Deterministic CDP port per session** — external Playwright scripts can `connectOverCDP()`
-- **`scaffold.init`** — bootstrap a new project with `playwright.config.js`, `package.json`, and config template
-- **`browser.run_code`** — run a Playwright JS snippet against a live session (inline, quick actions)
-- **`browser.run_test`** — run `.spec.js` tests against a live session via CDP (full test runner, JSON report)
-- **`browser.run_file`** — call a named export from an `.mjs` script against a live session (reusable automation modules)
-- **`@szkrabok/runtime`** — typed handle (`mcp.browser.run_test(...)`) for driving szkrabok from Playwright specs
+* **Named Sessions:** Persistent cookies, localStorage, and Chromium profiles.
+* **Stealth:** Integrated `playwright-extra` + stealth plugin and anti-bot CDP patches.
+* **Deterministic Ports:** Fixed CDP ports per session for `connectOverCDP()`.
 
 ---
 
-## Tools
+## Tools & Capabilities
 
 | Tool | Description |
-|------|-------------|
-| `session.open` | Launch or resume a named Chrome session |
-| `session.close` | Save and close a session |
-| `session.list` | List all sessions (active and stored) |
-| `session.delete` | Delete a session permanently |
-| `session.endpoint` | Get CDP/WS endpoints for external connections |
-| `workflow.scrape` | Scrape structured text data by CSS selector |
-| `browser.run_code` | Execute a Playwright JS snippet (inline, quick actions) |
-| `browser.run_test` | Run `.spec.js` tests via CDP — needs scaffold first |
-| `browser.run_file` | Call a named export from an `.mjs` script (reusable modules) |
-| `scaffold.init` | Bootstrap a new project — call before `browser.run_test` |
+| --- | --- |
+| `session.open` | Launch/resume a named Chrome session with persistent profile. |
+| `session.close` | Save and close a session. |
+| `session.list` / `delete` | Manage active and stored sessions. |
+| `session.endpoint` | Get CDP/WS endpoints for external script connection. |
+| `workflow.scrape` | Auto-scrape current page into LLM-ready text (headings, content, links, tables). Optional CSS selectors to target specific areas. |
+| `browser.run_code` | Execute inline Playwright JS snippets against a live session. |
+| `browser.run_test` | Run `.spec.js` tests via CDP (requires `scaffold.init`). |
+| `browser.run_file` | Call named exports from `.mjs` automation modules. |
+| `scaffold.init` | Bootstrap project with `playwright.config.js` and templates. |
 
 ---
 
-## Packages
+## Setup
 
-| Package | Location | Purpose |
-|---------|----------|---------|
-| `@szkrabok/runtime` | `packages/runtime/` | Browser bootstrap, stealth, session pool, MCP client (`mcpConnect()`, `spawnClient()`, codegen) |
-
-Packaged as a single npm tarball via `npm run release:patch` → `dist/`.
-
----
-
-## Install
-
-**1. Install dependencies**
+**1. Install**
 
 ```bash
 npm ci
-```
-
-**2. Register with Claude Code**
-
-```bash
 claude mcp add szkrabok node /path/to/szkrabok/src/index.js
-```
-
-Also add `@playwright/mcp` for browser interaction tools:
-
-```bash
+# Also add @playwright/mcp for standard browser interaction tools
 claude mcp add -s user playwright npx '@playwright/mcp@latest'
 ```
 
-**3. Create `szkrabok.config.local.toml`**
+**2. Configure**
 
-```bash
-bash scripts/detect_browsers.sh    # find your Chrome/Chromium binary
-```
-
-Then create at repo root (see `szkrabok.config.local.toml.example` for all options):
+Run `bash scripts/detect_browsers.sh` to find your binary, then create `szkrabok.config.local.toml`:
 
 ```toml
-# szkrabok.config.local.toml
 [default]
-executablePath    = "/path/to/your/chrome"
+executablePath = "/path/to/your/chrome"
 overrideUserAgent = true
-userAgent         = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
-log_level         = "debug"
+userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+log_level = "debug"
 ```
 
 ---
 
-## Quick usage (Claude Code)
+## Usage
 
-Open a session, scrape, close:
+### Claude Code (LLM)
 
 ```
 session.open { "sessionName": "my-session", "url": "https://example.com" }
-browser.run_code { "sessionName": "my-session", "code": "async (page) => page.title()" }
-workflow.scrape { "sessionName": "my-session", "selectors": { "title": "h1" } }
+workflow.scrape { "sessionName": "my-session" }
 session.close { "sessionName": "my-session" }
 ```
 
@@ -105,50 +69,26 @@ session.open { "sessionName": "my-session" }
 browser.run_test { "sessionName": "my-session", "files": ["automation/example.spec.js"] }
 ```
 
----
+### Bebok (CLI)
 
-## CLI (`bebok`)
-
-A human/shell operator interface that calls the same handlers as the MCP tools.
+`bebok` is the human/shell interface — calls the same handlers as MCP tools:
 
 ```bash
-bebok open <profile>                  # launch browser, print CDP endpoint, stay alive
-bebok session list                    # list all sessions (active + stored)
-bebok session inspect <id>            # dump cookies + localStorage counts
-bebok session delete <id>             # delete a session
-bebok session cleanup --days 30       # delete sessions unused for N days
-bebok endpoint <sessionName>          # print CDP + WS endpoints for a running session
-```
-
-`bebok open` is the primary human-facing entry point — useful for opening a persistent browser without going through an LLM.
-
----
-
-## Configuration
-
-| File | Committed | Purpose |
-|------|-----------|---------|
-| `szkrabok.config.toml` | Yes | Repo defaults — browser identity, presets, stealth evasions |
-| `szkrabok.config.local.toml` | No | Machine-specific overrides — executable path, UA, log level |
-
-`local.toml` is deep-merged on top of the base. See `szkrabok.config.local.toml.example` for all sections.
-
-Named presets (viewport + locale + timezone + UA):
-
-```
-session.open { "sessionName": "s", "launchOptions": { "preset": "mobile-iphone-15" } }
+bebok open <profile>              # Launch browser, print CDP endpoint, stay alive
+bebok session list                # Show all sessions (active + stored)
+bebok session inspect <id>        # Dump cookie/localStorage counts
+bebok session delete <id>         # Delete a session
+bebok session cleanup --days 30   # Delete sessions unused for N days
+bebok endpoint <sessionName>      # Print CDP + WS endpoints
 ```
 
 ---
 
-## Release
+## Project Structure
 
-```bash
-npm run release:patch    # bump patch version, git tag, pack to dist/
-npm run release:minor    # bump minor version
-```
-
-Produces `dist/szkrabok-runtime-x.y.z.tgz`.
+* **`@szkrabok/runtime`** (`packages/runtime/`): Browser bootstrap, stealth, session pool, MCP client (`mcpConnect`, `spawnClient`, codegen).
+* **Config**: `szkrabok.config.toml` (defaults) deep-merged with `szkrabok.config.local.toml` (machine-specific, gitignored).
+* **Release**: `npm run release:patch` bumps version and packs to `dist/szkrabok-runtime-x.y.z.tgz`.
 
 ---
 
@@ -156,8 +96,8 @@ Produces `dist/szkrabok-runtime-x.y.z.tgz`.
 
 | Doc | Contents |
 |-----|----------|
-| [docs/architecture.md](./docs/architecture.md) | Layer map, file layout, tool ownership, session lifecycle, invariants |
-| [docs/development.md](./docs/development.md) | Adding tools, CLI, release workflow |
-| [docs/testing.md](./docs/testing.md) | All test categories, how to run, writing specs |
-| [docs/mcp-client-library.md](./docs/mcp-client-library.md) | MCP client library architecture and codegen |
-| [docs/scaffold-init.md](./docs/scaffold-init.md) | scaffold.init design and implementation notes |
+| [docs/architecture.md](./docs/architecture.md) | Layer map, file layout, session lifecycle, invariants |
+| [docs/development.md](./docs/development.md) | Adding tools, CLI design, release workflow |
+| [docs/testing.md](./docs/testing.md) | Test categories, how to run, writing specs |
+| [docs/mcp-client-library.md](./docs/mcp-client-library.md) | MCP client library and codegen |
+| [docs/scaffold-init.md](./docs/scaffold-init.md) | scaffold.init presets and template structure |
