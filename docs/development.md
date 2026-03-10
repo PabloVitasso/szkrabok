@@ -15,7 +15,7 @@
 1. Add handler to the appropriate file in `src/tools/` (or create a new one)
 2. Register it in `src/tools/registry.js` — name, handler, schema
 3. Regenerate the client: `npm run codegen:mcp`
-4. Commit the updated `packages/mcp-client/mcp-tools.js`
+4. Commit the updated `packages/runtime/mcp-client/mcp-tools.js`
 5. Run `npm run test:contracts` and `npm run test:playwright`
 
 ---
@@ -51,7 +51,7 @@ npm run release:patch    # or release:minor
 
 # Produces:
 #   dist/szkrabok-runtime-x.y.z.tgz
-#   dist/szkrabok-mcp-client-x.y.z.tgz
+#   
 ```
 
 The `prepack` guard prevents packing without a version tag. Raw `npm run pack` will fail if HEAD is untagged — always use `release:*`.
@@ -67,7 +67,7 @@ Consumer projects update their dependency path:
 
 | Project | Location | What it uses |
 |---------|----------|-------------|
-| `szkrabok-p4n` | `../szkrabok-p4n/` | `@szkrabok/runtime`, `@szkrabok/mcp-client` |
+| `szkrabok-p4n` | `../szkrabok-p4n/` | `@szkrabok/runtime`, `@szkrabok/runtime` |
 
 When releasing, update the dependency path in each consumer project's `package.json` and run `npm install`.
 

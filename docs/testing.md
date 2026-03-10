@@ -8,7 +8,7 @@
 - [Playwright integration tests](#playwright-integration-tests)
 - [E2E — stealth health checks](#e2e--stealth-health-checks)
 - [Authoring specs that run via browser.run_test](#authoring-specs-that-run-via-browserrun_test)
-- [Calling browser.run_test from @szkrabok/mcp-client](#calling-browserrun_test-from-szkrabokмcp-client)
+- [Calling browser.run_test from @szkrabok/runtime](#calling-browserrun_test-from-szkrabokмcp-client)
 - [Regenerate mcp-tools.js](#regenerate-mcp-toolsjs)
 - [Run everything](#run-everything)
 - [Troubleshooting](#troubleshooting)
@@ -141,7 +141,7 @@ npm run test:playwright
 # npx playwright test --project=integration
 ```
 
-`tests/playwright/integration/fixtures.js` uses `spawnClient()` from `@szkrabok/mcp-client`. The `openSession()` fixture always injects `{ headless: true }`.
+`tests/playwright/integration/fixtures.js` uses `spawnClient()` from `@szkrabok/runtime`. The `openSession()` fixture always injects `{ headless: true }`.
 
 | File | Suite | What it tests |
 |------|-------|---------------|
@@ -231,12 +231,12 @@ browser.run_test {
 
 ---
 
-## Calling `browser.run_test` from `@szkrabok/mcp-client`
+## Calling `browser.run_test` from `@szkrabok/runtime`
 
 Use this when driving szkrabok programmatically from another Playwright spec or Node script:
 
 ```js
-import { mcpConnect } from '@szkrabok/mcp-client';
+import { mcpConnect } from '@szkrabok/runtime';
 
 // mcpConnect spawns `node src/index.js` as a subprocess.
 // That process reads szkrabok.config.toml + szkrabok.config.local.toml —
@@ -272,7 +272,7 @@ After any tool registry change:
 npm run codegen:mcp
 ```
 
-Commit the updated `packages/mcp-client/mcp-tools.js`.
+Commit the updated `packages/runtime/mcp-client/mcp-tools.js`.
 
 ---
 

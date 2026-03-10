@@ -405,7 +405,7 @@ output directory are configurable in `runtime/logger.js`.
 ## Session lifecycle in tests
 
 ```js
-import { mcpConnect } from '@szkrabok/mcp-client';
+import { mcpConnect } from '@szkrabok/runtime';
 
 const mcp = await mcpConnect('my-session', { launchOptions: { headless: false } });
 try {

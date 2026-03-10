@@ -1,16 +1,21 @@
 {
   "name": "@szkrabok/runtime",
   "version": "1.0.5",
-  "description": "Browser bootstrap for szkrabok — stealth, profiles, session pool. Zero MCP knowledge.",
+  "description": "szkrabok — browser bootstrap, stealth, session pool, MCP client.",
   "type": "module",
   "main": "index.js",
   "exports": {
-    ".": "./index.js"
+    ".": "./index.js",
+    "./codegen": "./mcp-client/codegen/generate-mcp-tools.mjs"
+  },
+  "bin": {
+    "szkrabok-codegen": "./mcp-client/codegen/generate-mcp-tools.mjs"
   },
   "scripts": {
     "postinstall": "node scripts/patch-playwright.js"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": ">=1.0.0",
     "playwright": "*",
     "playwright-core": "*",
     "playwright-extra": "*",

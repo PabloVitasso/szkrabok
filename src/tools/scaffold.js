@@ -57,7 +57,7 @@ function mergePackageJson(existing, name) {
     scripts: { test: 'playwright test' },
     dependencies: {
       '@szkrabok/runtime': 'latest',
-      '@szkrabok/mcp-client': 'latest',
+      
     },
     devDependencies: {
       '@playwright/test': '^1.49.1',
@@ -144,7 +144,7 @@ export async function init(args = {}) {
   if (install) {
     const warn = await npmInstall(dir);
     if (warn) warnings.push(warn);
-    else installed.push('@playwright/test', '@szkrabok/runtime', '@szkrabok/mcp-client');
+    else installed.push('@playwright/test', '@szkrabok/runtime');
   }
 
   return { created, skipped, merged, installed, warnings };

@@ -12,7 +12,7 @@
     "node": ">=18.0.0"
   },
   "workspaces": [
-    "packages/*"
+    "packages/runtime"
   ],
   "scripts": {
     "start": "node src/index.js",
@@ -22,11 +22,10 @@
     "prettier": "prettier --write \"{src,tests}/**/*.{js,json,md}\" \"*.{js,json,md}\"",
     "format": "npm run prettier",
     "format:check": "prettier --check \"{src,tests}/**/*.{js,json,md}\" \"*.{js,json,md}\"",
-    "codegen:mcp": "node packages/mcp-client/codegen/generate-mcp-tools.mjs",
+    "codegen:mcp": "node packages/runtime/mcp-client/codegen/generate-mcp-tools.mjs",
     "prepack": "git describe --exact-match --tags HEAD 2>/dev/null || (echo 'ERROR: HEAD is not tagged. Run npm run release:patch or release:minor first.' && exit 1)",
     "pack:runtime": "npm pack --workspace=packages/runtime --pack-destination=dist/",
-    "pack:mcp-client": "npm pack --workspace=packages/mcp-client --pack-destination=dist/",
-    "pack": "mkdir -p dist && npm run pack:runtime && npm run pack:mcp-client",
+    "pack": "mkdir -p dist && npm run pack:runtime",
     "release:patch": "npm version patch --workspaces --include-workspace-root --ignore-scripts && npm run pack",
     "release:minor": "npm version minor --workspaces --include-workspace-root --ignore-scripts && npm run pack",
     "test": "npm run test:self && npm run test:auto",

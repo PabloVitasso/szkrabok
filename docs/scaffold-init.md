@@ -125,7 +125,7 @@ export default defineConfig({
   },
   "dependencies": {
     "@szkrabok/runtime": "latest",
-    "@szkrabok/mcp-client": "latest"
+    "@szkrabok/runtime": "latest"
   },
   "devDependencies": {
     "@playwright/test": "^1.49.1"

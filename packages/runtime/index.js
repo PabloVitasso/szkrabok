@@ -4,3 +4,7 @@
 export { launch, connect } from './launch.js';
 export { closeSession, getSession, listSessions as listRuntimeSessions, listStoredSessions, updateSessionMeta, deleteStoredSession, updateSessionPage, closeAllSessions } from './sessions.js';
 export { resolvePreset, PRESETS } from './config.js';
+
+// MCP client
+export { mcpConnect } from './mcp-client/mcp-tools.js';
+export { spawnClient } from './mcp-client/runtime/transport.js';

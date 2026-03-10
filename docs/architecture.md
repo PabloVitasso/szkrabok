@@ -22,7 +22,6 @@
 ```
 packages/runtime/    @szkrabok/runtime    — browser bootstrap, stealth, pool, storage
                                             zero MCP knowledge
-packages/mcp-client/ @szkrabok/mcp-client — typed MCP client, mcpConnect(), codegen
 src/                 MCP server           — transport + tools, imports from @szkrabok/runtime
 tests/               test suites          — node:test (unit/contracts) + Playwright (integration/e2e)
 ```
@@ -67,19 +66,18 @@ packages/runtime/
   scripts/
     patch-playwright.js  playwright-core patches (postinstall)
 
-packages/mcp-client/
-  index.js          Public API: mcpConnect, spawnClient
-  mcp-tools.js      GENERATED — namespaced handle factory + JSDoc types
-  runtime/
-    transport.js    spawnClient() — stdio process lifecycle
-    invoker.js      createCallInvoker() — serialization, closed guard
-    logger.js       createLogger() — JSONL formatter
-  adapters/
-    szkrabok-session.js  szkrabok session adapter
-  codegen/
-    generate-mcp-tools.mjs  entry — spawns server, writes mcp-tools.js
-    render-tools.js          pure: (tools[]) -> file content string
-    schema-to-jsdoc.js       pure: (inputSchema) -> JSDoc type strings
+  mcp-client/
+    mcp-tools.js      GENERATED — mcpConnect() handle factory + JSDoc types
+    runtime/
+      transport.js    spawnClient() — stdio process lifecycle
+      invoker.js      createCallInvoker() — serialization, closed guard
+      logger.js       createLogger() — JSONL formatter
+    adapters/
+      szkrabok-session.js  szkrabok session adapter
+    codegen/
+      generate-mcp-tools.mjs  entry — spawns server, writes mcp-tools.js
+      render-tools.js          pure: (tools[]) -> file content string
+      schema-to-jsdoc.js       pure: (inputSchema) -> JSDoc type strings
 
 src/
   index.js          MCP entry point, stdio transport

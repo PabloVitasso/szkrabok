@@ -16,7 +16,7 @@ Use alongside `@playwright/mcp` — szkrabok handles session lifecycle and scrip
 - **`browser.run_code`** — run a Playwright JS snippet against a live session (inline, quick actions)
 - **`browser.run_test`** — run `.spec.js` tests against a live session via CDP (full test runner, JSON report)
 - **`browser.run_file`** — call a named export from an `.mjs` script against a live session (reusable automation modules)
-- **`@szkrabok/mcp-client`** — typed handle (`mcp.browser.run_test(...)`) for driving szkrabok from Playwright specs
+- **`@szkrabok/runtime`** — typed handle (`mcp.browser.run_test(...)`) for driving szkrabok from Playwright specs
 
 ---
 
@@ -41,10 +41,9 @@ Use alongside `@playwright/mcp` — szkrabok handles session lifecycle and scrip
 
 | Package | Location | Purpose |
 |---------|----------|---------|
-| `@szkrabok/runtime` | `packages/runtime/` | Browser bootstrap, stealth, session pool, storage |
-| `@szkrabok/mcp-client` | `packages/mcp-client/` | Typed MCP client, `mcpConnect()`, codegen |
+| `@szkrabok/runtime` | `packages/runtime/` | Browser bootstrap, stealth, session pool, MCP client (`mcpConnect()`, `spawnClient()`, codegen) |
 
-Both are packaged as npm tarballs via `npm run release:patch` → `dist/`.
+Packaged as a single npm tarball via `npm run release:patch` → `dist/`.
 
 ---
 
@@ -149,7 +148,7 @@ npm run release:patch    # bump patch version, git tag, pack to dist/
 npm run release:minor    # bump minor version
 ```
 
-Produces `dist/szkrabok-runtime-x.y.z.tgz` and `dist/szkrabok-mcp-client-x.y.z.tgz`.
+Produces `dist/szkrabok-runtime-x.y.z.tgz`.
 
 ---
 
