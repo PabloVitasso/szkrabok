@@ -8,7 +8,7 @@ const TEMPLATES_DIR = join(dirname(fileURLToPath(import.meta.url)), 'templates')
 const npmBin = process.platform === 'win32' ? 'npm.cmd' : 'npm';
 
 const { version: PKG_VERSION } = JSON.parse(
-  readFileSync(new URL('../../../package.json', import.meta.url))
+  readFileSync(new URL('../../package.json', import.meta.url))
 );
 
 const tpl = path => readFile(join(TEMPLATES_DIR, path), 'utf8');
