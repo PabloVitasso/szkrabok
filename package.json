@@ -90,6 +90,9 @@
     "prettier": "^3.4.2",
     "puppeteer-extra": "^3.3.6"
   },
+  "puppeteer": {
+    "skipDownload": true
+  },
   "eslintConfig": {
     "env": {
       "node": true,
