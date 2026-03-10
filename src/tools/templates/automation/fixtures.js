@@ -12,7 +12,7 @@
  * No direct stealth imports. No direct browser launch. No config parsing.
  */
 import { test as base } from '@playwright/test';
-import { launch, connect } from '@szkrabok/runtime';
+import { launch, connect } from '@pablovitasso/szkrabok/runtime';
 
 export { expect } from '@playwright/test';
 

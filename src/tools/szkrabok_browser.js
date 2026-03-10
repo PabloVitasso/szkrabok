@@ -1,4 +1,4 @@
-import { getSession } from '@szkrabok/runtime';
+import { getSession } from '#runtime';
 import { open as sessionOpen } from './szkrabok_session.js';
 import { resolve, dirname, join } from 'path';
 import { spawn } from 'child_process';

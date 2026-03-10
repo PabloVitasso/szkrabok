@@ -129,7 +129,7 @@ program
   .option('--preset <preset>', 'TOML preset name')
   .option('--headless', 'Run headless')
   .action(async (profile, options) => {
-    const { launch } = await import('@szkrabok/runtime');
+    const { launch } = await import('#runtime');
 
     const handle = await launch({
       profile,

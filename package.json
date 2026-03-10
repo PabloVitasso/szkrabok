@@ -1,9 +1,22 @@
 {
-  "name": "szkrabok-playwright-mcp",
+  "name": "@pablovitasso/szkrabok",
   "version": "1.0.9",
   "description": "Production-grade MCP browser automation layer with persistent sessions and stealth capabilities",
   "type": "module",
   "main": "src/index.js",
+  "exports": {
+    ".": "./src/index.js",
+    "./runtime": "./packages/runtime/index.js"
+  },
+  "imports": {
+    "#runtime": "./packages/runtime/index.js"
+  },
+  "files": [
+    "src",
+    "packages/runtime",
+    "scripts",
+    "README.md"
+  ],
   "bin": {
     "szkrabok": "./src/index.js",
     "bebok": "./src/cli.js"
@@ -36,7 +49,7 @@
     "test:contracts": "node --test tests/node/contracts.test.js",
     "test:playwright": "playwright test --project=integration",
     "prepare": "node scripts/setup.js",
-    "postinstall": "node scripts/patch-playwright.js",
+    "postinstall": "node scripts/patch-playwright.js && node scripts/postinstall.js",
     "test:self": "playwright test --project=integration && node --test tests/node/*.test.js",
     "test:auto": "PLAYWRIGHT_PROJECT=e2e playwright test --project=e2e"
   },

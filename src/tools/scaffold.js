@@ -1,5 +1,5 @@
 import { readFile, writeFile, mkdir, rename } from 'node:fs/promises';
-import { existsSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
 import { resolve, basename, join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawn } from 'node:child_process';
@@ -7,11 +7,9 @@ import { spawn } from 'node:child_process';
 const TEMPLATES_DIR = join(dirname(fileURLToPath(import.meta.url)), 'templates');
 const npmBin = process.platform === 'win32' ? 'npm.cmd' : 'npm';
 
-const RUNTIME_RELEASES = {
-  '1.0.9': 'https://github.com/PabloVitasso/szkrabok/releases/download/v1.0.9/szkrabok-runtime-1.0.9.tgz',
-};
-const CURRENT_RUNTIME_VERSION = '1.0.9';
-const RUNTIME_URL = RUNTIME_RELEASES[CURRENT_RUNTIME_VERSION];
+const { version: PKG_VERSION } = JSON.parse(
+  readFileSync(new URL('../../../package.json', import.meta.url))
+);
 
 const tpl = path => readFile(join(TEMPLATES_DIR, path), 'utf8');
 
@@ -36,7 +34,7 @@ function mergePackageJson(existing, name) {
     name,
     type: 'module',
     scripts: { test: 'playwright test' },
-    dependencies: { '@szkrabok/runtime': RUNTIME_URL },
+    dependencies: { '@pablovitasso/szkrabok': `^${PKG_VERSION}` },
     devDependencies: { '@playwright/test': '^1.49.1' },
   };
 
@@ -128,7 +126,7 @@ export async function init(args = {}) {
   if (install) {
     const warn = await npmInstall(dir);
     if (warn) warnings.push(warn);
-    else installed.push('@playwright/test', '@szkrabok/runtime');
+    else installed.push('@playwright/test', '@pablovitasso/szkrabok');
   }
 
   return { created, skipped, merged, installed, warnings };

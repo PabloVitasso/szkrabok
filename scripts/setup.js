@@ -1,6 +1,5 @@
 import { mkdir } from 'fs/promises'
 import { existsSync } from 'fs'
-import { execSync } from 'child_process'
 
 const dirs = ['sessions', 'logs']
 
@@ -12,13 +11,7 @@ const setup = async () => {
     }
   }
 
-  console.log('Installing Playwright browsers...')
-  try {
-    execSync('npx playwright install chromium', { stdio: 'inherit' })
-    console.log('Setup complete')
-  } catch {
-    console.error('Browser install failed, run manually: npx playwright install chromium')
-  }
+  console.log('szkrabok installed. To install the Chromium browser, run: szkrabok --setup')
 }
 
 setup().catch(console.error)

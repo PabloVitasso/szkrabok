@@ -29,7 +29,7 @@
  * ─────────────────────────────────────────────────────────────────────────────
  */
 import { test, expect } from '@playwright/test';
-import { mcpConnect } from '@szkrabok/runtime';
+import { mcpConnect } from '@pablovitasso/szkrabok/runtime';
 
 const SESSION = 'example-mcp-harness';
 

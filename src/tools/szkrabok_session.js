@@ -6,7 +6,7 @@ import {
   listStoredSessions,
   updateSessionMeta,
   deleteStoredSession,
-} from '@szkrabok/runtime';
+} from '#runtime';
 
 import { log } from '../utils/logger.js';
 import { TIMEOUT } from '../config.js';
@@ -55,17 +55,28 @@ export const open = async ({ sessionName, url, launchOptions = {} }) => {
       timezone,
     } = launchOptions;
 
-    const handle = await launch({
-      profile: sessionName,
-      preset,
-      headless,
-      stealth,
-      userAgent,
-      viewport,
-      locale,
-      timezone,
-      reuse: false,
-    });
+    let handle;
+    try {
+      handle = await launch({
+        profile: sessionName,
+        preset,
+        headless,
+        stealth,
+        userAgent,
+        viewport,
+        locale,
+        timezone,
+        reuse: false,
+      });
+    } catch (err) {
+      const msg = err?.message ?? '';
+      if (msg.includes('Executable') || msg.includes('executable') || msg.includes('chromium') || msg.includes('browser')) {
+        throw new Error(
+          `Chromium not found. Run "npx @pablovitasso/szkrabok --setup" in your terminal, then restart the MCP server. (Original error: ${msg})`
+        );
+      }
+      throw err;
+    }
 
     session = getSession(sessionName);
 

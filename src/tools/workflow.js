@@ -1,4 +1,4 @@
-import { getSession } from '@szkrabok/runtime';
+import { getSession } from '#runtime';
 
 export const scrape = async ({ sessionName, selectors = [] }) => {
   const { page } = getSession(sessionName);

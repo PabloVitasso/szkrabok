@@ -11,8 +11,7 @@ Exposed as subpath exports of the main package:
 ```json
 "exports": {
   ".":         "./src/index.js",
-  "./runtime": "./packages/runtime/index.js",
-  "./client":  "./packages/mcp-client/index.js"
+  "./runtime": "./packages/runtime/index.js"
 }
 ```
 
@@ -32,20 +31,20 @@ Eliminates: separate runtime publish, GitHub release tarballs, RUNTIME_RELEASES 
 
 ## Pre-publish checklist
 
-1. **Package name** — `"name": "@pablovitasso/szkrabok"` in root `package.json`
+1. ✅ **Package name** — `"name": "@pablovitasso/szkrabok"` in root `package.json`
 
-2. **Subpath exports** — add `exports` map (see above)
+2. ✅ **Subpath exports** — add `exports` map (see above)
 
-3. **`files` array** — templates live under `src/tools/templates/` so covered by `"src"`, but list explicitly for clarity:
+3. ✅ **`files` array** — templates live under `src/tools/templates/` so covered by `"src"`, but list explicitly for clarity:
    ```json
    "files": ["src", "packages/runtime", "packages/mcp-client", "scripts", "README.md"]
    ```
    Verify on dry run: templates present, `packages/runtime/node_modules` absent.
    Excludes: `tests/`, `sessions/`, `dist/`, `.github/`, `docs/`, `config/`, `packages/extension/`, `packages/playwright-mcp/`
 
-4. **Shebang** — `src/index.js` must start with `#!/usr/bin/env node`
+4. ✅ **Shebang** — `src/index.js` must start with `#!/usr/bin/env node`
 
-5. **scaffold.js** — replace `RUNTIME_RELEASES` map with version read from own `package.json`:
+5. ✅ **scaffold.js** — replace `RUNTIME_RELEASES` map with version read from own `package.json`:
    ```js
    // type:module — use readFileSync, not require()
    import { readFileSync } from 'node:fs';
@@ -55,20 +54,19 @@ Eliminates: separate runtime publish, GitHub release tarballs, RUNTIME_RELEASES 
    ```
    Scaffolded project is always pinned to the CLI version that created it.
 
-6. **Templates** — update `automation/fixtures.js` and `example.mcp.spec.js` imports:
+6. ✅ **Templates** — update `automation/fixtures.js` and `example.mcp.spec.js` imports:
    ```js
    import { launch, connect } from '@pablovitasso/szkrabok/runtime';
    import { mcpConnect }      from '@pablovitasso/szkrabok/client';
    ```
 
-7. **Browser story** — `findChromiumPath()` already handles priority chain:
+7. ✅ **Browser story** — `findChromiumPath()` already handles priority chain:
    - TOML `executablePath` (any custom binary, e.g. Ungoogled Chromium)
    - Playwright cache (`~/.cache/ms-playwright/chromium-*`)
    - System paths (`/usr/bin/chromium`, `/usr/bin/google-chrome`)
    - Falls back to Playwright default if all null
-   - Add `szkrabok --setup` CLI flag that explicitly runs `playwright install chromium`
-     and prints a success message — non-intrusive, user-triggered, fixable without reinstall
-   - Postinstall: skip auto-install, print a one-line hint instead
+   - `szkrabok --setup` CLI flag runs `playwright install chromium` and exits
+   - Postinstall (`scripts/setup.js`): creates dirs, prints hint to run `szkrabok --setup`
 
 8. **npm login** — `npm login` (confirm username is `pablovitasso`)
 

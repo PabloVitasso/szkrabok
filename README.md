@@ -26,16 +26,31 @@ MCP server supplementing [microsoft/playwright-mcp](https://github.com/microsoft
 
 **1. Install**
 
-```bash
-npm ci
-claude mcp add szkrabok node /path/to/szkrabok/src/index.js
-# Also add @playwright/mcp for standard browser interaction tools
-claude mcp add -s user playwright npx '@playwright/mcp@latest'
+| Use Case | Command |
+| --- | --- |
+| **Scaffolding a new project** | `npx @pablovitasso/szkrabok init` |
+| **Claude Code** | `claude mcp add szkrabok -- npx -y @pablovitasso/szkrabok` |
+| **Claude Desktop** | See config snippet below |
+| **Development (from source)** | `npm ci && claude mcp add szkrabok node /path/to/szkrabok/src/index.js` |
+
+Claude Desktop — add to `claude_desktop_config.json`:
+```json
+{
+  "mcpServers": {
+    "szkrabok": {
+      "command": "npx",
+      "args": ["-y", "@pablovitasso/szkrabok"]
+    }
+  }
+}
 ```
+
+> **Browser not installed?** Run `npx @pablovitasso/szkrabok --setup` once in your terminal, then restart Claude.
+> Set `CI=true` or `SZKRABOK_SKIP_BROWSER_INSTALL=1` to suppress the auto-install in CI / Docker.
 
 **2. Configure**
 
-Run `bash scripts/detect_browsers.sh` to find your binary, then create `szkrabok.config.local.toml`:
+Optionally create `szkrabok.config.local.toml` to set a custom browser binary or user agent:
 
 ```toml
 [default]
@@ -82,9 +97,9 @@ bebok endpoint <sessionName>      # Print CDP + WS endpoints
 
 ## Project Structure
 
-* **`@szkrabok/runtime`** (`packages/runtime/`): Browser bootstrap, stealth, session pool, MCP client (`mcpConnect`, `spawnClient`, codegen).
+* **`@pablovitasso/szkrabok/runtime`** (`packages/runtime/`): Browser bootstrap, stealth, session pool, MCP client (`mcpConnect`, `spawnClient`, codegen).
 * **Config**: `szkrabok.config.toml` (defaults) deep-merged with `szkrabok.config.local.toml` (machine-specific, gitignored).
-* **Release**: `npm run release:patch` bumps version and packs to `dist/szkrabok-runtime-x.y.z.tgz`.
+* **Release**: `npm run release:patch` bumps version, then `npm publish --access public`.
 
 ---
 
