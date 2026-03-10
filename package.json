@@ -18,8 +18,7 @@
     "README.md"
   ],
   "bin": {
-    "szkrabok": "src/index.js",
-    "bebok": "src/cli.js"
+    "szkrabok": "src/index.js"
   },
   "engines": {
     "node": ">=20.0.0"
@@ -39,6 +38,7 @@
     "prepack": "git describe --exact-match --tags HEAD 2>/dev/null || (echo 'ERROR: HEAD is not tagged. Run npm run release:patch or release:minor first.' && exit 1)",
     "release:patch": "npm version patch --workspaces --include-workspace-root --ignore-scripts && node scripts/release-commit.js && node scripts/release-reminder.js",
     "release:minor": "npm version minor --workspaces --include-workspace-root --ignore-scripts && node scripts/release-commit.js && node scripts/release-reminder.js",
+    "deps:update": "npx npm-check-updates -u --workspaces && npm install",
     "release:publish": "node scripts/release-publish.js",
     "test": "npm run test:self && npm run test:auto",
     "test:node": "node --test tests/node/*.test.js",
@@ -68,26 +68,26 @@
     "url": "git+https://github.com/PabloVitasso/szkrabok.git"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.0.4",
+    "@modelcontextprotocol/sdk": "^1.27.1",
     "dotenv": "^17.3.1",
-    "playwright": "^1.49.1",
+    "playwright": "^1.58.2",
     "playwright-core": "^1.58.2",
     "playwright-extra": "^4.3.6",
-    "puppeteer": "^24.34.0",
+    "puppeteer": "^24.39.0",
     "puppeteer-extra-plugin-stealth": "^2.11.2",
     "smol-toml": "^1.6.0",
-    "zod": "^3.24.1"
+    "zod": "^4.3.6"
   },
   "devDependencies": {
-    "@eslint/js": "^9.17.0",
-    "@types/puppeteer": "^5.4.7",
-    "ajv": "^8.17.1",
+    "@eslint/js": "^10.0.1",
+    "@types/puppeteer": "^7.0.4",
+    "ajv": "^8.18.0",
     "ajv-formats": "^3.0.1",
-    "eslint": "^9.17.0",
-    "eslint-config-prettier": "^9.1.0",
+    "eslint": "^10.0.3",
+    "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-node": "^11.1.0",
-    "globals": "^15.13.0",
-    "prettier": "^3.4.2",
+    "globals": "^17.4.0",
+    "prettier": "^3.8.1",
     "puppeteer-extra": "^3.3.6"
   },
   "puppeteer": {

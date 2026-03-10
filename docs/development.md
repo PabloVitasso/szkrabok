@@ -3,7 +3,7 @@
 ## Contents
 
 - [Adding a new MCP tool](#adding-a-new-mcp-tool)
-- [CLI (bebok)](#cli-bebok)
+- [CLI](#cli)
 - [Release workflow](#release-workflow)
 - [Consumer projects](#consumer-projects)
 - [Config modules](#config-modules-config)
@@ -20,24 +20,23 @@
 
 ---
 
-## CLI (`bebok`)
+## CLI
 
-`bebok` is the human/shell operator interface. It is registered as a bin entry alongside `szkrabok`:
+`szkrabok` is both the MCP server and the CLI — a single binary. Invoked with no arguments it starts the MCP server (stdio). Invoked with a subcommand it runs the CLI.
 
-```json
-"bin": {
-  "szkrabok": "./src/index.js",
-  "bebok": "./src/cli.js"
-}
+```
+szkrabok                        # MCP server (used by Claude)
+szkrabok session list           # CLI
+szkrabok open <profile>         # CLI
 ```
 
-**Design rule:** `bebok` calls the same handler functions as the MCP tools. It never re-implements session logic. When adding a new MCP tool handler that makes sense as a CLI command, import and call it from `src/cli.js`.
+**Design rule:** CLI commands call the same handler functions as the MCP tools. They never re-implement session logic. When adding a new MCP tool handler that makes sense as a CLI command, import and call it from `src/cli.js` and register it there.
 
 CLI-only operations (no MCP equivalent, live only in `cli.js`):
-- `bebok open` — human-facing browser launch
-- `bebok session inspect` — raw cookie/localStorage dump
-- `bebok endpoint` — print endpoints to stdout
-- `szkrabok detect-browser` — lists Chrome/Chromium paths via `chrome-launcher`; outputs ready-to-paste `executablePath` line
+- `szkrabok open` — human-facing browser launch
+- `szkrabok session inspect` — raw cookie/localStorage dump
+- `szkrabok endpoint` — print endpoints to stdout
+- `szkrabok detect-browser` — lists Chrome/Chromium paths; outputs ready-to-paste `executablePath` line
 - `szkrabok install-browser` — runs `npx playwright install chromium`; use when `launch()` throws "Chromium not found"
 
 ---
@@ -45,15 +44,20 @@ CLI-only operations (no MCP equivalent, live only in `cli.js`):
 ## Release workflow
 
 ```bash
-# 1. Commit all changes
+# 1. Update all dependencies (intentional, before cutting a release)
+npm run deps:update
+
+# 2. Commit all changes
 git add -A && git commit -m "..."
 
-# 2. Bump version, create git tag, pack tarball
+# 3. Bump version, create git tag, pack tarball
 npm run release:patch    # or release:minor
 
-# 3. Publish to npm (requires npm login)
+# 4. Publish to npm (requires npm login)
 npm run release:publish
 ```
+
+**`deps:update`** runs `npm-check-updates -u` across all workspaces then `npm install`. Run it deliberately before a release — not on every build. Dependency bumps are a conscious decision; CI always installs from the lockfile.
 
 The `prepack` guard prevents packing without a version tag. Raw `npm run pack` will fail if HEAD is untagged — always use `release:*`.
 

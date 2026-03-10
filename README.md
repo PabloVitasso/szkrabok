@@ -80,20 +80,19 @@ session_manage { "action": "open", "sessionName": "my-session" }
 browser.run_test { "sessionName": "my-session", "files": ["automation/example.spec.js"] }
 ```
 
-### Bebok (CLI)
+### CLI
 
-`bebok` is the human/shell interface — calls the same handlers as MCP tools:
+`szkrabok` is both the MCP server and the CLI. With no arguments it starts the MCP server; with a subcommand it runs the CLI:
 
 ```bash
-bebok open <profile>              # Launch browser, print CDP endpoint, stay alive
-bebok session list                # Show all sessions (active + stored)
-bebok session inspect <id>        # Dump cookie/localStorage counts
-bebok session delete <id>         # Delete a session
-bebok session cleanup --days 30   # Delete sessions unused for N days
-bebok endpoint <sessionName>      # Print CDP + WS endpoints
-
-szkrabok detect-browser           # List usable Chrome/Chromium installations
-szkrabok install-browser          # Install Playwright's Chromium
+szkrabok open <profile>              # Launch browser, print CDP endpoint, stay alive
+szkrabok session list                # Show all sessions (active + stored)
+szkrabok session inspect <id>        # Dump cookie/localStorage counts
+szkrabok session delete <id>         # Delete a session
+szkrabok session cleanup --days 30   # Delete sessions unused for N days
+szkrabok endpoint <sessionName>      # Print CDP + WS endpoints
+szkrabok detect-browser              # List usable Chrome/Chromium installations
+szkrabok install-browser             # Install Playwright's Chromium
 ```
 
 ---
@@ -102,7 +101,7 @@ szkrabok install-browser          # Install Playwright's Chromium
 
 * **`@pablovitasso/szkrabok/runtime`** (`packages/runtime/`): Browser bootstrap, stealth, session pool, MCP client (`mcpConnect`, `spawnClient`, codegen).
 * **Config**: `szkrabok.config.toml` (defaults) deep-merged with `szkrabok.config.local.toml` (machine-specific, gitignored).
-* **Release**: `npm run release:patch` bumps version, then `npm publish --access public`.
+* **Release**: `npm run deps:update` updates dependencies, `npm run release:patch` bumps version + tags, then `npm run release:publish`.
 
 ---
 
