@@ -3,7 +3,7 @@ import { open as sessionOpen } from './szkrabok_session.js';
 import { resolve, dirname, join } from 'path';
 import { spawn } from 'child_process';
 import { fileURLToPath } from 'url';
-import { createWriteStream } from 'fs';
+import { createWriteStream, existsSync } from 'fs';
 import { readFile, mkdir } from 'fs/promises';
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -20,6 +20,13 @@ export const run_test = async args => {
   } = args;
 
   const configPath = resolve(REPO_ROOT, config);
+
+  if (!existsSync(configPath)) {
+    return {
+      error: `playwright.config.js not found at ${configPath}`,
+      hint: 'Run scaffold.init to create the project scaffold.',
+    };
+  }
 
   const paramEnv = Object.fromEntries(
     Object.entries(params).map(([k, v]) => [`TEST_${k.toUpperCase()}`, String(v)])
