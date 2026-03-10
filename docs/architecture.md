@@ -84,14 +84,14 @@ packages/mcp-client/
 src/
   index.js          MCP entry point, stdio transport
   config.js         MCP-layer config only: TIMEOUT, LOG_LEVEL, DISABLE_WEBGL
-  cli.js            szkrabok CLI — session list/inspect/delete/cleanup + open <profile>
+  cli.js            bebok CLI — calls same handlers as MCP tools
 
   tools/
     registry.js           All tool definitions: name, handler, schema
     szkrabok_session.js   session.open/close/list/delete/endpoint
     szkrabok_browser.js   browser.run_code/run_test/run_file
-    workflow.js           workflow.login/fillForm/scrape
-    wait.js               wait helpers
+    workflow.js           workflow.scrape
+    scaffold.js           scaffold.init
 
 config/                   Playwright config modules (TypeScript, pure functions)
   env.ts                  Single process.env reader
@@ -138,8 +138,8 @@ dist/                     npm pack output — szkrabok-runtime-x.y.z.tgz etc. (g
 
 ## Tool ownership
 
-**Szkrabok** tools (11 total):
-`session.{open,close,list,delete,endpoint}` `workflow.{login,fillForm,scrape}` `browser.{run_code,run_test,run_file}`
+**Szkrabok** tools (10 total):
+`session.{open,close,list,delete,endpoint}` `workflow.scrape` `browser.{run_code,run_test,run_file}` `scaffold.init`
 
 **@playwright/mcp** (separate MCP server — install alongside szkrabok):
 `browser.{snapshot,click,type,navigate,navigate_back,close,drag,hover,evaluate,select_option,fill_form,press_key,take_screenshot,wait_for,resize,tabs,console_messages,network_requests,file_upload,handle_dialog,run_code,...}`
@@ -238,9 +238,18 @@ session.close(id)
 
 Pool is process-scoped — not global. Each process has its own pool. CDP endpoint is the cross-process identity.
 
-- CLI `szkrabok open` holds a pool entry in its own process
+- CLI `bebok open` holds a pool entry in its own process
 - MCP server holds pool entries in its process
 - A `browser.run_test` subprocess has no pool — it connects via `SZKRABOK_CDP_ENDPOINT`
+
+## CLI (`bebok`) and MCP tools — shared handlers
+
+`bebok` calls the same handler functions as the MCP tools (`szkrabok_session.js`). There is one code path for session operations — fixes and changes apply to both interfaces automatically.
+
+CLI-only operations (no MCP equivalent):
+- `bebok open` — human-facing browser launch, holds process alive
+- `bebok session inspect` — raw cookie/localStorage dump from `state.json`
+- `bebok endpoint` — prints CDP/WS endpoints to stdout
 
 ## Stealth hacks (preserve on upstream updates)
 

@@ -3,6 +3,7 @@
 ## Contents
 
 - [Adding a new MCP tool](#adding-a-new-mcp-tool)
+- [CLI (bebok)](#cli-bebok)
 - [Release workflow](#release-workflow)
 - [Consumer projects](#consumer-projects)
 - [Config modules](#config-modules-config)
@@ -16,6 +17,26 @@
 3. Regenerate the client: `npm run codegen:mcp`
 4. Commit the updated `packages/mcp-client/mcp-tools.js`
 5. Run `npm run test:contracts` and `npm run test:playwright`
+
+---
+
+## CLI (`bebok`)
+
+`bebok` is the human/shell operator interface. It is registered as a bin entry alongside `szkrabok`:
+
+```json
+"bin": {
+  "szkrabok": "./src/index.js",
+  "bebok": "./src/cli.js"
+}
+```
+
+**Design rule:** `bebok` calls the same handler functions as the MCP tools. It never re-implements session logic. When adding a new MCP tool handler that makes sense as a CLI command, import and call it from `src/cli.js`.
+
+CLI-only operations (no MCP equivalent, live only in `cli.js`):
+- `bebok open` — human-facing browser launch
+- `bebok session inspect` — raw cookie/localStorage dump
+- `bebok endpoint` — print endpoints to stdout
 
 ---
 
