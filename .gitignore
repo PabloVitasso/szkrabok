@@ -27,8 +27,6 @@ playwright-tests/test-results/
 playwright-tests/test-results.json
 
 # Build
-dist/
-build/
 *.tsbuildinfo
 
 # OS

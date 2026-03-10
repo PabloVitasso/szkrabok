@@ -131,7 +131,6 @@ tests/
       intoli.spec.js        bot.sannysoft.com — 10 Intoli + 20 fp-collect checks
       navigator.spec.js     whatismybrowser.com navigator props
 
-dist/                     local pack output (gitignored, not used in release flow)
 ```
 
 ## Tool ownership
