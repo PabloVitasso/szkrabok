@@ -52,3 +52,6 @@ vendor/
 
 # Local config overrides (machine-specific settings — not committed)
 szkrabok.config.local.toml
+
+# npm auth token
+.npmrc
