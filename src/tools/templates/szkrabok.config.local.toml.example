@@ -2,8 +2,7 @@
 # Machine-specific overrides. Copy to szkrabok.config.local.toml and edit.
 # This file is gitignored — never commit credentials or paths here.
 #
-# Run `bash node_modules/@szkrabok/runtime/scripts/detect_browsers.sh`
-# to find your Chrome/Chromium binary path.
+# Run `szkrabok detect-browser` to find Chrome/Chromium binary paths.
 
 [default]
 # executablePath = "/path/to/chrome"

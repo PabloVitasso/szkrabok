@@ -163,4 +163,34 @@ program
     }
   });
 
+/* ---------- detect-browser command ---------- */
+
+program
+  .command('detect-browser')
+  .description('Detect usable Chrome/Chromium browsers')
+  .action(async () => {
+    const { findChromiumPath } = await import('#runtime');
+    const path = await findChromiumPath();
+    if (!path) {
+      console.log('No usable Chrome/Chromium browser found.\n');
+      console.log('  szkrabok install-browser');
+      console.log('  https://www.google.com/chrome/\n');
+      process.exit(1);
+    }
+    console.log(path);
+    console.log('\nRecommended configuration:\n\n[default]');
+    console.log(`executablePath = "${path}"`);
+  });
+
+/* ---------- install-browser command ---------- */
+
+program
+  .command('install-browser')
+  .description('Install Chromium browser via Playwright')
+  .action(async () => {
+    const { spawn } = await import('node:child_process');
+    const proc = spawn('npx', ['playwright', 'install', 'chromium'], { stdio: 'inherit' });
+    proc.on('close', code => process.exit(code ?? 0));
+  });
+
 program.parse();

@@ -56,7 +56,7 @@ timezone  = "America/New_York"
 # false = headed (visible window). Set HEADLESS=true env var for CI.
 # Presets do not override headless — it is an environment decision, not an identity.
 headless        = false
-# executablePath = "..."  # set in szkrabok.config.local.toml (run: bash scripts/detect_browsers.sh)
+# executablePath = "..."  # set in szkrabok.config.local.toml (run: szkrabok detect-browser)
 # Default timeout in milliseconds for Playwright operations
 timeout     = 30000
 # Disable WebGL to reduce fingerprinting surface

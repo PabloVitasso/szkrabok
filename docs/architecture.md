@@ -59,7 +59,7 @@ packages/runtime/
   launch.js         The one true launchPersistentContext call; launch() and connect()
   sessions.js       closeSession, getSession, listSessions helpers
   pool.js           In-memory session registry { context, page, cdpPort, ... }
-  config.js         TOML loader, preset resolution, findChromiumPath
+  config.js         TOML loader, preset resolution, findChromiumPath (async)
   stealth.js        enhanceWithStealth, applyStealthToExistingPage
   storage.js        Profile dirs, state.json save/restore
   logger.js         Logging helpers
@@ -150,6 +150,7 @@ The two servers share a browser via CDP. Use `session_manage { "action": "endpoi
 import {
   launch,                 // start a new browser session
   connect,                // connect to an already-running session via CDP endpoint
+  checkBrowser,           // assert a usable browser exists; throws with install instructions if not
   closeSession,           // close and save a session
   getSession,             // get session handle from pool (throws if not open)
   listRuntimeSessions,    // list all open sessions
@@ -268,9 +269,25 @@ node packages/runtime/scripts/patch-playwright.js
 
 ## Chromium resolution
 
-Priority (runtime and MCP both follow the same order):
-1. `TOML [default].executablePath`
-2. `~/.cache/ms-playwright/chromium-*/chrome-linux/chrome` (highest version)
-3. System binaries: `/usr/bin/chromium`, `/usr/bin/google-chrome`, etc.
+`findChromiumPath()` in `packages/runtime/config.js` is async. Priority order:
 
-Use `bash scripts/detect_browsers.sh` to find installed binaries.
+1. `TOML [default].executablePath` — user-configured path (highest priority)
+2. `chrome-launcher` — `Launcher.getInstallations()` finds system Chrome, Chromium, Brave, Edge across all standard install locations on Linux/macOS/Windows
+3. Playwright bundled binary — `chromium.executablePath()` from the playwright package
+4. `null` — `checkBrowser()` throws a deterministic error with install instructions
+
+If no browser is found, `launch()` throws:
+```
+Chromium browser not found.
+
+Run:
+  npx playwright install chromium
+
+Or:
+  szkrabok install-browser
+```
+
+To inspect what is installed on your system:
+```bash
+szkrabok detect-browser
+```

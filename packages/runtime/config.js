@@ -1,6 +1,5 @@
-import { homedir } from 'os';
 import { join, resolve, dirname } from 'path';
-import { readdirSync, existsSync, readFileSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { parse } from 'smol-toml';
 
@@ -134,40 +133,38 @@ export const TIMEZONE = defaults.timezone || 'America/New_York';
 
 // ── Chromium path resolution ────────────────────────────────────────────────
 
-export const findChromiumPath = () => {
+// resolveBrowserPath — pure, injectable. Exported for testing.
+// finders: array of async () => string|null, tried in order.
+export const resolveBrowserPath = async (finders) => {
+  for (const finder of finders) {
+    try {
+      const path = await finder();
+      if (path) return path;
+    } catch {
+      // finder unavailable — try next
+    }
+  }
+  return null;
+};
+
+export const findChromiumPath = async () => {
+  // 1. User-configured path (highest priority)
   if (tomlDefault.executablePath) {
     return tomlDefault.executablePath;
   }
 
-  const playwrightCache = join(homedir(), '.cache', 'ms-playwright');
-
-  if (existsSync(playwrightCache)) {
-    const dirs = readdirSync(playwrightCache)
-      .filter(d => d.startsWith('chromium-'))
-      .sort()
-      .reverse();
-
-    for (const dir of dirs) {
-      const paths = [
-        join(playwrightCache, dir, 'chrome-linux', 'chrome'),
-        join(playwrightCache, dir, 'chrome-linux64', 'chrome'),
-      ];
-
-      for (const path of paths) {
-        if (existsSync(path)) return path;
-      }
-    }
-  }
-
-  const systemChromiums = [
-    '/usr/bin/chromium',
-    '/usr/bin/chromium-browser',
-    '/usr/bin/google-chrome',
-  ];
-
-  for (const path of systemChromiums) {
-    if (existsSync(path)) return path;
-  }
-
-  return null;
+  return resolveBrowserPath([
+    // 2. System Chrome/Chromium/Brave/Edge via chrome-launcher
+    async () => {
+      const { Launcher } = await import('chrome-launcher');
+      const installs = await Launcher.getInstallations();
+      return installs[0] ?? null;
+    },
+    // 3. Playwright bundled browser
+    async () => {
+      const { chromium } = await import('playwright');
+      const pwPath = chromium.executablePath();
+      return pwPath && existsSync(pwPath) ? pwPath : null;
+    },
+  ]);
 };

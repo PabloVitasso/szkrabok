@@ -37,6 +37,8 @@ CLI-only operations (no MCP equivalent, live only in `cli.js`):
 - `bebok open` — human-facing browser launch
 - `bebok session inspect` — raw cookie/localStorage dump
 - `bebok endpoint` — print endpoints to stdout
+- `szkrabok detect-browser` — lists Chrome/Chromium paths via `chrome-launcher`; outputs ready-to-paste `executablePath` line
+- `szkrabok install-browser` — runs `npx playwright install chromium`; use when `launch()` throws "Chromium not found"
 
 ---
 

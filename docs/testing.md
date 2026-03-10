@@ -27,7 +27,7 @@ Tests read `szkrabok.config.toml` (committed repo defaults) and deep-merge `szkr
 executablePath = "/path/to/your/chrome"
 ```
 
-Run `bash scripts/detect_browsers.sh` to find installed binaries.
+Run `szkrabok detect-browser` to find installed binaries.
 
 **Common overrides for test runs:**
 
@@ -286,4 +286,4 @@ npm run test:playwright    # Playwright integration (browser required)
 | `rebrowser` ERR_ABORTED | Site blocks headless — open session with `headless: false` |
 | intoli timeout (headed) | Intermittent — rerun |
 | `Executable doesn't exist` | `npx playwright install chromium` |
-| Wrong browser | Run `bash scripts/detect_browsers.sh`, set `executablePath` in local TOML |
+| Wrong browser | Run `szkrabok detect-browser`, set `executablePath` in local TOML |

@@ -30,7 +30,7 @@ const cdpPortForId = id => {
 const _launchPersistentContext = async (userDataDir, options = {}) => {
   const presetConfig = options.presetConfig ?? {};
   const pw = options.stealth ? enhanceWithStealth(chromium, presetConfig) : chromium;
-  const executablePath = findChromiumPath();
+  const executablePath = await findChromiumPath();
 
   if (executablePath) {
     log('Using existing Chromium for persistent context', { path: executablePath });
@@ -90,8 +90,24 @@ const _launchPersistentContext = async (userDataDir, options = {}) => {
  * @param {boolean} [options.reuse]     Return existing if profile already open (default: true)
  * @returns {Promise<{ browser: import('playwright').Browser, context: import('playwright').BrowserContext, cdpEndpoint: string, close(): Promise<void> }>}
  */
+export const checkBrowser = async () => {
+  const found = await findChromiumPath();
+  if (!found) {
+    throw new Error(
+      'Chromium browser not found.\n\n' +
+      'Run:\n' +
+      '  npx playwright install chromium\n\n' +
+      'Or:\n' +
+      '  szkrabok install-browser\n'
+    );
+  }
+  return found;
+};
+
 export const launch = async (options = {}) => {
   const { profile = 'default', preset: presetName, headless, stealth, userAgent, viewport, locale, timezone, reuse = true } = options;
+
+  await checkBrowser();
 
   // Idempotency: return existing handle when reuse=true and profile is open
   if (reuse && pool.has(profile)) {

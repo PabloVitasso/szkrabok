@@ -123,7 +123,7 @@ warn_browser() {
   echo ""
   echo "      Scanning for better options..."
   echo ""
-  bash "$SCRIPT_DIR/scripts/detect_browsers.sh" || true
+  node "$SCRIPT_DIR/scripts/detect-browser.js" || true
 }
 
 clean_all_scopes() {

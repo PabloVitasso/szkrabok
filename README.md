@@ -46,8 +46,7 @@ Claude Desktop — add to `claude_desktop_config.json`:
 }
 ```
 
-> **Browser not installed?** Run `npx @pablovitasso/szkrabok --setup` once in your terminal, then restart Claude.
-> Set `CI=true` or `SZKRABOK_SKIP_BROWSER_INSTALL=1` to suppress the auto-install in CI / Docker.
+> **Browser not found?** Run `szkrabok detect-browser` to find installed browsers, or `szkrabok install-browser` to install Playwright's Chromium. Requires **Node.js ≥ 20**.
 
 **2. Configure**
 
@@ -92,6 +91,9 @@ bebok session inspect <id>        # Dump cookie/localStorage counts
 bebok session delete <id>         # Delete a session
 bebok session cleanup --days 30   # Delete sessions unused for N days
 bebok endpoint <sessionName>      # Print CDP + WS endpoints
+
+szkrabok detect-browser           # List usable Chrome/Chromium installations
+szkrabok install-browser          # Install Playwright's Chromium
 ```
 
 ---
