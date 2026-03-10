@@ -75,7 +75,7 @@ const tools = {
 
   'session.endpoint': {
     handler: session.endpoint,
-    description: `${SZKRABOK} Get Playwright WebSocket endpoint for external script connection`,
+    description: `${SZKRABOK} Returns Playwright WebSocket endpoint for external script connections.`,
     inputSchema: {
       type: 'object',
       properties: { sessionName: { type: 'string' } },
@@ -85,7 +85,7 @@ const tools = {
 
   'workflow.scrape': {
     handler: workflow.scrape,
-    description: `${SZKRABOK} Scrape structured data`,
+    description: `${SZKRABOK} Scrapes structured data from the current page.`,
     inputSchema: {
       type: 'object',
       properties: {
@@ -119,7 +119,7 @@ const tools = {
 
   'browser.run_code': {
     handler: szkrabokBrowser.run_code,
-    description: `${PLAYWRIGHT_MCP} Execute a Playwright JS snippet against the session page. Use for quick inline actions.`,
+    description: `${PLAYWRIGHT_MCP} Executes Playwright JS snippet on the session page. Best for quick inline actions.`,
     inputSchema: {
       type: 'object',
       properties: {
@@ -132,7 +132,7 @@ const tools = {
 
   'browser.run_test': {
     handler: szkrabokBrowser.run_test,
-    description: `${PLAYWRIGHT_MCP} Run Playwright .spec.js tests and return JSON results. Connects to the session browser via CDP. IMPORTANT: session.open must be called first. Requires project scaffold — call scaffold.init first if playwright.config.js is absent.`,
+    description: `${PLAYWRIGHT_MCP} Runs .spec.js tests via CDP; returns JSON. Requires: session.open and scaffold.init (if playwright.config.js is missing).`,
     inputSchema: {
       type: 'object',
       properties: {
@@ -170,7 +170,7 @@ const tools = {
 
   'browser.run_file': {
     handler: szkrabokBrowser.run_file,
-    description: `${PLAYWRIGHT_MCP} Call a named export from an .mjs script with (page, args). Use for reusable automation modules on disk. IMPORTANT: session.open must be called first.`,
+    description: `${PLAYWRIGHT_MCP} Executes named export from .mjs file with (page, args). For reusable disk modules. Requires: session.open.`,
     inputSchema: {
       type: 'object',
       properties: {
