@@ -1,42 +1,17 @@
 import { readFile, writeFile, mkdir, rename } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
-import { resolve, basename, join } from 'node:path';
+import { resolve, basename, join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { spawn } from 'node:child_process';
 
+const TEMPLATES_DIR = join(dirname(fileURLToPath(import.meta.url)), 'templates');
 const npmBin = process.platform === 'win32' ? 'npm.cmd' : 'npm';
 
-const PLAYWRIGHT_CONFIG = `import { defineConfig } from '@playwright/test';
+const tpl = path => readFile(join(TEMPLATES_DIR, path), 'utf8');
 
-export default defineConfig({
-  testDir: './automation',
-  timeout: 60_000,
-  retries: 0,
-  workers: 1,
-  reporter: [['list']],
-  use: { headless: false },
-});
-`;
-
-const EXAMPLE_SPEC = `import { test, expect } from '@playwright/test';
-
-test('example', async ({ page }) => {
-  await page.goto('https://example.com');
-  await expect(page).toHaveTitle(/Example Domain/);
-});
-`;
-
-const TOML_EXAMPLE = `# szkrabok.config.local.toml
-# Machine-specific overrides. Copy this file to szkrabok.config.local.toml and edit.
-# This file is gitignored — never commit credentials or paths.
-
-[default]
-# executablePath = "/path/to/chrome"  # run: bash scripts/detect_browsers.sh
-# log_level = "info"
-`;
-
-async function createFileAtomic(path, content) {
+async function createFileAtomic(dest, content) {
   try {
-    await writeFile(path, content, { flag: 'wx' });
+    await writeFile(dest, content, { flag: 'wx' });
     return true;
   } catch (e) {
     if (e.code === 'EEXIST') return false;
@@ -55,13 +30,8 @@ function mergePackageJson(existing, name) {
     name,
     type: 'module',
     scripts: { test: 'playwright test' },
-    dependencies: {
-      '@szkrabok/runtime': 'latest',
-      
-    },
-    devDependencies: {
-      '@playwright/test': '^1.49.1',
-    },
+    dependencies: { '@szkrabok/runtime': 'latest' },
+    devDependencies: { '@playwright/test': '^1.49.1' },
   };
 
   if (!existing) return base;
@@ -96,12 +66,12 @@ export async function init(args = {}) {
 
   // playwright.config.js
   const configDest = join(dir, 'playwright.config.js');
-  if (await createFileAtomic(configDest, PLAYWRIGHT_CONFIG))
+  if (await createFileAtomic(configDest, await tpl('playwright.config.js')))
     created.push('playwright.config.js');
   else
     skipped.push('playwright.config.js');
 
-  // package.json
+  // package.json — merge if exists
   const pkgDest = join(dir, 'package.json');
   let existing = null;
 
@@ -120,23 +90,31 @@ export async function init(args = {}) {
     existing ? merged.push('package.json') : created.push('package.json');
   }
 
-  // toml example
+  // szkrabok.config.local.toml.example
   const tomlDest = join(dir, 'szkrabok.config.local.toml.example');
-  if (await createFileAtomic(tomlDest, TOML_EXAMPLE))
+  if (await createFileAtomic(tomlDest, await tpl('szkrabok.config.local.toml.example')))
     created.push('szkrabok.config.local.toml.example');
   else
     skipped.push('szkrabok.config.local.toml.example');
 
-  // example spec
+  // full preset — complete automation scaffold with fixtures + both spec patterns
   if (preset === 'full') {
     const automationDir = join(dir, 'automation');
     await mkdir(automationDir, { recursive: true });
 
-    const specDest = join(automationDir, 'example.spec.js');
-    if (await createFileAtomic(specDest, EXAMPLE_SPEC))
-      created.push('automation/example.spec.js');
-    else
-      skipped.push('automation/example.spec.js');
+    const automationFiles = [
+      'automation/fixtures.js',
+      'automation/example.spec.js',
+      'automation/example.mcp.spec.js',
+    ];
+
+    for (const rel of automationFiles) {
+      const dest = join(dir, rel);
+      if (await createFileAtomic(dest, await tpl(rel)))
+        created.push(rel);
+      else
+        skipped.push(rel);
+    }
   }
 
   const installed = [];

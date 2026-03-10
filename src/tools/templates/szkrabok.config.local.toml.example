@@ -1,0 +1,12 @@
+# szkrabok.config.local.toml
+# Machine-specific overrides. Copy to szkrabok.config.local.toml and edit.
+# This file is gitignored — never commit credentials or paths here.
+#
+# Run `bash node_modules/@szkrabok/runtime/scripts/detect_browsers.sh`
+# to find your Chrome/Chromium binary path.
+
+[default]
+# executablePath = "/path/to/chrome"
+# log_level = "info"
+# overrideUserAgent = true
+# userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"

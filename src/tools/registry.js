@@ -98,7 +98,7 @@ const tools = {
 
   'scaffold.init': {
     handler: scaffold.init,
-    description: `${SZKRABOK} Initialize a new szkrabok project. Creates playwright.config.js, package.json (merged), and szkrabok.config.local.toml.example. Call once before using browser.run_test or browser.run_file in a new project. Safe to re-run — skips existing files.`,
+    description: `${SZKRABOK} Initialize a new szkrabok project in a directory. Safe to re-run — skips existing files. Call before browser.run_test or browser.run_file in a new project. preset="minimal" (default): creates playwright.config.js, package.json (merged, adds @szkrabok/runtime + @playwright/test, sets type:module), and szkrabok.config.local.toml.example. preset="full": everything in minimal + automation/fixtures.js (CDP/standalone dual-mode fixture), automation/example.spec.js (direct spec, runnable via browser.run_test or npx playwright test), automation/example.mcp.spec.js (MCP harness spec that owns session lifecycle via mcpConnect — use this as the outer driver pattern for CI or multi-step flows).`,
     inputSchema: {
       type: 'object',
       properties: {
@@ -107,7 +107,7 @@ const tools = {
         preset: {
           type: 'string',
           enum: ['minimal', 'full'],
-          description: 'minimal = config files only. full = + automation/example.spec.js',
+          description: 'minimal (default): config files only. full: + automation/fixtures.js + automation/example.spec.js + automation/example.mcp.spec.js',
         },
         install: {
           type: 'boolean',

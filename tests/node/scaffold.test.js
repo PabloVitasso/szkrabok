@@ -24,19 +24,26 @@ test('scaffold.init creates expected files in empty dir (minimal)', async () => 
     assert.ok(existsSync(join(dir, 'playwright.config.js')));
     assert.ok(existsSync(join(dir, 'package.json')));
     assert.ok(existsSync(join(dir, 'szkrabok.config.local.toml.example')));
-    assert.ok(!existsSync(join(dir, 'automation/example.spec.js')));
+    assert.ok(!existsSync(join(dir, 'automation/fixtures.js')));
   } finally {
     await rm(dir, { recursive: true });
   }
 });
 
-test('scaffold.init full preset creates example spec', async () => {
+test('scaffold.init full preset creates all automation files', async () => {
   const dir = await makeTmp();
   try {
     const result = await init({ dir, preset: 'full' });
 
-    assert.ok(result.created.includes('automation/example.spec.js'));
-    assert.ok(existsSync(join(dir, 'automation', 'example.spec.js')));
+    const expected = [
+      'automation/fixtures.js',
+      'automation/example.spec.js',
+      'automation/example.mcp.spec.js',
+    ];
+    for (const f of expected) {
+      assert.ok(result.created.includes(f), `missing in created: ${f}`);
+      assert.ok(existsSync(join(dir, f)), `file not on disk: ${f}`);
+    }
   } finally {
     await rm(dir, { recursive: true });
   }
