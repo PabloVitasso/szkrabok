@@ -46,20 +46,28 @@ CLI-only operations (no MCP equivalent, live only in `cli.js`):
 # 1. Commit all changes
 git add -A && git commit -m "..."
 
-# 2. Bump version, create git tag, pack both packages
+# 2. Bump version, create git tag, pack tarball
 npm run release:patch    # or release:minor
+# Produces: dist/szkrabok-runtime-x.y.z.tgz
+# Prints reminder of next steps
 
-# Produces:
-#   dist/szkrabok-runtime-x.y.z.tgz
-#   
+# 3. Publish tarball to GitHub releases (requires gh auth)
+npm run release:publish
+
+# 4. Update scaffold.js — add new entry to RUNTIME_RELEASES, bump CURRENT_RUNTIME_VERSION
+#    src/tools/scaffold.js
 ```
 
 The `prepack` guard prevents packing without a version tag. Raw `npm run pack` will fail if HEAD is untagged — always use `release:*`.
 
-Consumer projects update their dependency path:
+`release:publish` checks `gh auth` and fails with a clear message if not authenticated. Re-authenticate with `gh auth login` then re-run.
+
+The runtime tarball is distributed via GitHub releases. Scaffolded consumer projects reference it by URL — no npm registry required:
 ```json
-"@szkrabok/runtime": "file:../szkrabok/dist/szkrabok-runtime-x.y.z.tgz"
+"@szkrabok/runtime": "https://github.com/PabloVitasso/szkrabok/releases/download/vX.Y.Z/szkrabok-runtime-X.Y.Z.tgz"
 ```
+
+`RUNTIME_RELEASES` in `src/tools/scaffold.js` is the authoritative map of version → URL. Always add the new entry before shipping.
 
 ---
 
