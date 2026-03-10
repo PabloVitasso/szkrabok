@@ -1,6 +1,6 @@
 {
   "name": "@pablovitasso/szkrabok",
-  "version": "1.0.13",
+  "version": "1.0.14",
   "description": "Production-grade MCP browser automation layer with persistent sessions and stealth capabilities",
   "type": "module",
   "main": "src/index.js",
