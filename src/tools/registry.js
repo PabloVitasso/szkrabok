@@ -11,7 +11,7 @@ const PLAYWRIGHT_MCP = '[playwright-mcp]';
 const tools = {
   'session.open': {
     handler: session.open,
-    description: `${SZKRABOK} Opens or resumes a browser session.`,
+    description: `${SZKRABOK} Open or resume a browser session`,
     inputSchema: {
       type: 'object',
       properties: {
@@ -46,7 +46,7 @@ const tools = {
 
   'session.close': {
     handler: session.close,
-    description: `${SZKRABOK} Closes and saves the current browser session.`,
+    description: `${SZKRABOK} Close and save current browser session`,
     inputSchema: {
       type: 'object',
       properties: {
@@ -59,13 +59,13 @@ const tools = {
 
   'session.list': {
     handler: session.list,
-    description: `${SZKRABOK} Lists all stored browser sessions.`,
+    description: `${SZKRABOK} List all stored browser sessions`,
     inputSchema: { type: 'object', properties: {} },
   },
 
   'session.delete': {
     handler: session.deleteSession,
-    description: `${SZKRABOK} Deletes a browser session and its data.`,
+    description: `${SZKRABOK} Delete browser session and its data`,
     inputSchema: {
       type: 'object',
       properties: { sessionName: { type: 'string' } },
@@ -75,7 +75,7 @@ const tools = {
 
   'session.endpoint': {
     handler: session.endpoint,
-    description: `${SZKRABOK} Returns Playwright WebSocket endpoint for external script connections.`,
+    description: `${SZKRABOK} Get Playwright WebSocket endpoint for external connections`,
     inputSchema: {
       type: 'object',
       properties: { sessionName: { type: 'string' } },
@@ -85,7 +85,7 @@ const tools = {
 
   'workflow.scrape': {
     handler: workflow.scrape,
-    description: `${SZKRABOK} Scrapes structured data from the current page.`,
+    description: `${SZKRABOK} Scrape structured data from current page`,
     inputSchema: {
       type: 'object',
       properties: {
@@ -98,7 +98,7 @@ const tools = {
 
   'scaffold.init': {
     handler: scaffold.init,
-    description: `${SZKRABOK} Init szkrabok project (idempotent). Required before browser runs. Presets: minimal (default) sets up playwright.config.js and dependencies; full adds automation fixtures and example Playwright specs for CI/MCP session flows.`,
+    description: `${SZKRABOK} Init szkrabok project (idempotent). Prerequisite for browser runs. minimal (default): config/deps; full: automation fixtures and Playwright specs`,
     inputSchema: {
       type: 'object',
       properties: {
@@ -119,7 +119,7 @@ const tools = {
 
   'browser.run_code': {
     handler: szkrabokBrowser.run_code,
-    description: `${PLAYWRIGHT_MCP} Executes Playwright JS snippet on the session page. Best for quick inline actions.`,
+    description: `${PLAYWRIGHT_MCP} Execute Playwright JS snippet on session page`,
     inputSchema: {
       type: 'object',
       properties: {
@@ -132,7 +132,7 @@ const tools = {
 
   'browser.run_test': {
     handler: szkrabokBrowser.run_test,
-    description: `${PLAYWRIGHT_MCP} Runs .spec.js tests via CDP; returns JSON. Requires: session.open and scaffold.init (if playwright.config.js is missing).`,
+    description: `${PLAYWRIGHT_MCP} Run .spec.js tests via CDP (returns JSON). Requires session.open and scaffold.init`,
     inputSchema: {
       type: 'object',
       properties: {
@@ -170,7 +170,7 @@ const tools = {
 
   'browser.run_file': {
     handler: szkrabokBrowser.run_file,
-    description: `${PLAYWRIGHT_MCP} Executes named export from .mjs file with (page, args). For reusable disk modules. Requires: session.open.`,
+    description: `${PLAYWRIGHT_MCP} Execute named export from .mjs file with (page, args). Requires session.open`,
     inputSchema: {
       type: 'object',
       properties: {
