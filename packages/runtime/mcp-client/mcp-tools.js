@@ -1,7 +1,7 @@
 // AUTO-GENERATED — do not edit manually.
 // Regenerate: npm run codegen:mcp
-// Last generated: 2026-03-02T01:00:34.483Z
-// Tools: 11  Hash: 226a4c8fc708
+// Last generated: 2026-03-10T13:39:22.920Z
+// Tools: 5  Hash: 75653ba8ec28
 
 import { createHash } from 'node:crypto';
 import { spawnClient } from './runtime/transport.js';
@@ -9,26 +9,22 @@ import { createCallInvoker } from './runtime/invoker.js';
 import { createLogger } from './runtime/logger.js';
 import * as adapter from './adapters/szkrabok-session.js';
 
-const REGISTRY_HASH = '226a4c8fc708';
+const REGISTRY_HASH = '75653ba8ec28';
 
 /**
  * @typedef {Object} McpHandle
- *   session: {
-    open({ url, launchOptions }): Promise<any>
-    close({ save }): Promise<any>
-    list({  }): Promise<any>
-    delete({  }): Promise<any>
-    endpoint({  }): Promise<any>
+ *   _root: {
+    session_manage({ action, url, save, launchOptions }): Promise<any>
+    browser_run({ code, path, fn, args }): Promise<any>
   }
  *   workflow: {
-    login({ username, password }): Promise<any>
-    fillForm({ fields }): Promise<any>
     scrape({ selectors }): Promise<any>
   }
+ *   scaffold: {
+    init({ dir, name, preset, install }): Promise<any>
+  }
  *   browser: {
-    run_code({ code }): Promise<any>
     run_test({ grep, params, config, project, files, keepOpen }): Promise<any>
-    run_file({ path, fn, args }): Promise<any>
   }
  */
 
@@ -66,30 +62,23 @@ export async function mcpConnect(sessionName, options = {}) {
 
   return {
     close,
-    session: {
-      /** @param {{ url?: string, launchOptions?: object }} [args] */
-      open: async (args = {}) => invoke('session.open', args),
-      /** @param {{ save?: boolean }} [args] */
-      close: async (args = {}) => invoke('session.close', args),
-      list: async () => invoke('session.list'),
-      delete: async () => invoke('session.delete'),
-      endpoint: async () => invoke('session.endpoint'),
+    _root: {
+      /** @param {{ action: 'open'|'close'|'list'|'delete'|'endpoint', url?: string, save?: boolean, launchOptions?: object }} [args] */
+      session_manage: async (args = {}) => invoke('session_manage', args),
+      /** @param {{ code?: string, path?: string, fn?: string, args?: object }} [args] */
+      browser_run: async (args = {}) => invoke('browser_run', args),
     },
     workflow: {
-      /** @param {{ username: string, password: string }} [args] */
-      login: async (args = {}) => invoke('workflow.login', args),
-      /** @param {{ fields: object }} [args] */
-      fillForm: async (args = {}) => invoke('workflow.fillForm', args),
-      /** @param {{ selectors: object }} [args] */
+      /** @param {{ selectors?: string[] }} [args] */
       scrape: async (args = {}) => invoke('workflow.scrape', args),
     },
+    scaffold: {
+      /** @param {{ dir?: string, name?: string, preset?: 'minimal'|'full', install?: boolean }} [args] */
+      init: async (args = {}) => invoke('scaffold.init', args),
+    },
     browser: {
-      /** @param {{ code: string }} [args] */
-      run_code: async (args = {}) => invoke('browser.run_code', args),
       /** @param {{ grep?: string, params?: object, config?: string, project?: string, files?: string[], keepOpen?: boolean }} [args] */
       run_test: async (args = {}) => invoke('browser.run_test', args),
-      /** @param {{ path: string, fn?: string, args?: object }} [args] */
-      run_file: async (args = {}) => invoke('browser.run_file', args),
     },
   };
 }

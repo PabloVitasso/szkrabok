@@ -6,6 +6,8 @@
 import { test, expect } from './fixtures.js';
 import { randomUUID } from 'crypto';
 
+const sm = (action, args = {}) => ({ name: 'session_manage', arguments: { action, ...args } });
+
 test.describe('Session Management', () => {
   test('session.open creates a new session', async ({ client, openSession }) => {
     const sessionId = `test-${randomUUID()}`;
@@ -19,10 +21,7 @@ test.describe('Session Management', () => {
     expect(content.text).toContain(sessionId);
 
     // Cleanup
-    await client.callTool({
-      name: 'session.close',
-      arguments: { sessionName: sessionId },
-    });
+    await client.callTool(sm('close', { sessionName: sessionId }));
   });
 
   test('session.list returns active sessions', async ({ client, openSession }) => {
@@ -30,10 +29,7 @@ test.describe('Session Management', () => {
 
     await openSession(client, sessionId, { url: 'https://example.com' });
 
-    const response = await client.callTool({
-      name: 'session.list',
-      arguments: {},
-    });
+    const response = await client.callTool(sm('list'));
 
     expect(response.content).toHaveLength(1);
     const content = response.content[0];
@@ -41,10 +37,7 @@ test.describe('Session Management', () => {
     expect(content.text).toContain(sessionId);
 
     // Cleanup
-    await client.callTool({
-      name: 'session.close',
-      arguments: { sessionName: sessionId },
-    });
+    await client.callTool(sm('close', { sessionName: sessionId }));
   });
 
   test('session.close with save persists state', async ({ client, openSession }) => {
@@ -52,10 +45,7 @@ test.describe('Session Management', () => {
 
     await openSession(client, sessionId, { url: 'https://example.com' });
 
-    const response = await client.callTool({
-      name: 'session.close',
-      arguments: { sessionName: sessionId, save: true },
-    });
+    const response = await client.callTool(sm('close', { sessionName: sessionId, save: true }));
 
     expect(response.content).toHaveLength(1);
     const content = response.content[0];
@@ -63,10 +53,7 @@ test.describe('Session Management', () => {
     expect(content.text).toContain('success');
 
     // Cleanup
-    await client.callTool({
-      name: 'session.delete',
-      arguments: { sessionName: sessionId },
-    });
+    await client.callTool(sm('delete', { sessionName: sessionId }));
   });
 
   test('cookie survives close/reopen cycle', async ({ client, openSession }) => {
@@ -77,7 +64,7 @@ test.describe('Session Management', () => {
 
     // Set a cookie via browser.run_code
     await client.callTool({
-      name: 'browser.run_code',
+      name: 'browser_run',
       arguments: {
         sessionName: sessionId,
         code: `async (page) => {
@@ -92,17 +79,14 @@ test.describe('Session Management', () => {
     });
 
     // Close with save
-    await client.callTool({
-      name: 'session.close',
-      arguments: { sessionName: sessionId, save: true },
-    });
+    await client.callTool(sm('close', { sessionName: sessionId, save: true }));
 
     // Reopen same session
     await openSession(client, sessionId, { url: 'https://example.com' });
 
     // Read cookies back
     const result = await client.callTool({
-      name: 'browser.run_code',
+      name: 'browser_run',
       arguments: {
         sessionName: sessionId,
         code: `async (page) => {
@@ -117,8 +101,8 @@ test.describe('Session Management', () => {
     expect(cookie.value).toBe('ok');
 
     // Cleanup
-    await client.callTool({ name: 'session.close', arguments: { sessionName: sessionId } });
-    await client.callTool({ name: 'session.delete', arguments: { sessionName: sessionId } });
+    await client.callTool(sm('close', { sessionName: sessionId }));
+    await client.callTool(sm('delete', { sessionName: sessionId }));
   });
 
   test('session.delete removes session', async ({ client, openSession }) => {
@@ -126,15 +110,9 @@ test.describe('Session Management', () => {
 
     await openSession(client, sessionId, { url: 'https://example.com' });
 
-    await client.callTool({
-      name: 'session.close',
-      arguments: { sessionName: sessionId, save: true },
-    });
+    await client.callTool(sm('close', { sessionName: sessionId, save: true }));
 
-    const response = await client.callTool({
-      name: 'session.delete',
-      arguments: { sessionName: sessionId },
-    });
+    const response = await client.callTool(sm('delete', { sessionName: sessionId }));
 
     expect(response.content).toHaveLength(1);
     const content = response.content[0];

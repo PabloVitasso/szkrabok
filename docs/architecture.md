@@ -86,8 +86,8 @@ src/
 
   tools/
     registry.js           All tool definitions: name, handler, schema
-    szkrabok_session.js   session.open/close/list/delete/endpoint
-    szkrabok_browser.js   browser.run_code/run_test/run_file
+    szkrabok_session.js   session_manage (open/close/list/delete/endpoint)
+    szkrabok_browser.js   browser_run (code/file), browser.run_test
     workflow.js           workflow.scrape
     scaffold.js           scaffold.init
 
@@ -136,13 +136,13 @@ dist/                     npm pack output — szkrabok-runtime-x.y.z.tgz etc. (g
 
 ## Tool ownership
 
-**Szkrabok** tools (10 total):
-`session.{open,close,list,delete,endpoint}` `workflow.scrape` `browser.{run_code,run_test,run_file}` `scaffold.init`
+**Szkrabok** tools (5 total):
+`session_manage` `workflow.scrape` `browser_run` `browser.run_test` `scaffold.init`
 
 **@playwright/mcp** (separate MCP server — install alongside szkrabok):
 `browser.{snapshot,click,type,navigate,navigate_back,close,drag,hover,evaluate,select_option,fill_form,press_key,take_screenshot,wait_for,resize,tabs,console_messages,network_requests,file_upload,handle_dialog,run_code,...}`
 
-The two servers share a browser via CDP. Use `session.endpoint` to get the `wsEndpoint`, then pass it to playwright-mcp via `--cdp-endpoint`.
+The two servers share a browser via CDP. Use `session_manage { "action": "endpoint" }` to get the `wsEndpoint`, then pass it to playwright-mcp via `--cdp-endpoint`.
 
 ## Runtime public API
 
@@ -191,7 +191,7 @@ Enforced by ESLint boundary rules in `eslint.config.js` and `tests/node/contract
 launchOptions  >  savedConfig (last used)  >  TOML preset  >  TOML defaults  >  hardcoded defaults
 ```
 
-- **`launchOptions`** — explicit per-call values from `session.open` or `mcpConnect`
+- **`launchOptions`** — explicit per-call values from `session_manage (open)` or `mcpConnect`
 - **`savedConfig`** — resolved config saved to `meta.json` on previous launch; provides "resume with same settings" when no explicit args given
 - **`TOML preset`** — named preset from `szkrabok.config.toml` / `szkrabok.config.local.toml`
 - **`TOML defaults`** — `[default]` section values
@@ -208,7 +208,7 @@ launchOptions  >  savedConfig (last used)  >  TOML preset  >  TOML defaults  >  
 ## Session lifecycle
 
 ```
-session.open(id)
+session_manage { action: open, sessionName: id }
   -> runtime.launch({ profile: id })
   -> load sessions/{id}/profile/ as userDataDir
   -> derive cdpPort from id hash
@@ -226,7 +226,7 @@ browser.run_test(id, files?, grep?, params?)
   -> parse JSON report, decode base64 result attachments
   -> return { passed, failed, tests: [{title, status, result}] }
 
-session.close(id)
+session_manage { action: close, sessionName: id }
   -> context.storageState() -> save to state.json
   -> update meta.json -> context.close() -> remove from pool
   -> profile dir persisted automatically (userDataDir)

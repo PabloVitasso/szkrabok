@@ -44,8 +44,9 @@ export const test = baseTest.extend({
   openSession: async ({}, use) => {
     await use(async (client, sessionName, extraArgs = {}) => {
       return client.callTool({
-        name: 'session.open',
+        name: 'session_manage',
         arguments: {
+          action: 'open',
           sessionName,
           ...extraArgs,
           launchOptions: { ...SESSION_DEFAULTS, ...(extraArgs.launchOptions ?? {}) },

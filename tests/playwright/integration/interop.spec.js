@@ -47,8 +47,8 @@ test.describe('CDP interoperability', () => {
 
       // 2. Get CDP endpoint from szkrabok
       const endpointResponse = await client.callTool({
-        name: 'session.endpoint',
-        arguments: { sessionName: sessionId },
+        name: 'session_manage',
+        arguments: { action: 'endpoint', sessionName: sessionId },
       });
       const { wsEndpoint } = JSON.parse(endpointResponse.content[0].text);
       expect(wsEndpoint).toMatch(/^ws:\/\//);
@@ -70,7 +70,7 @@ test.describe('CDP interoperability', () => {
 
       // 6. Verify szkrabok also sees the updated URL via browser.run_code
       const urlResponse = await client.callTool({
-        name: 'browser.run_code',
+        name: 'browser_run',
         arguments: {
           sessionName: sessionId,
           code: 'async (page) => page.url()',
@@ -80,7 +80,7 @@ test.describe('CDP interoperability', () => {
       expect(result).toContain('example.com');
     } finally {
       if (pwClient) await pwClient.close().catch(() => {});
-      await client.callTool({ name: 'session.close', arguments: { sessionName: sessionId, save: false } });
+      await client.callTool({ name: 'session_manage', arguments: { action: 'close', sessionName: sessionId, save: false } });
     }
   });
 
@@ -90,14 +90,14 @@ test.describe('CDP interoperability', () => {
     await openSession(client, sessionId);
 
     const response = await client.callTool({
-      name: 'session.endpoint',
-      arguments: { sessionName: sessionId },
+      name: 'session_manage',
+      arguments: { action: 'endpoint', sessionName: sessionId },
     });
 
     expect(response.isError).toBeFalsy();
     const data = JSON.parse(response.content[0].text);
     expect(data.wsEndpoint).toMatch(/^ws:\/\/(127\.0\.0\.1|localhost):\d+/);
 
-    await client.callTool({ name: 'session.close', arguments: { sessionName: sessionId, save: false } });
+    await client.callTool({ name: 'session_manage', arguments: { action: 'close', sessionName: sessionId, save: false } });
   });
 });

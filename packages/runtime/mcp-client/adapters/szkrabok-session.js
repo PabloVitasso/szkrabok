@@ -27,13 +27,13 @@ export function injectSession(args, sessionName) {
  * Open a session.
  * @param {object} client - MCP client
  * @param {string} sessionName - Session name
- * @param {object} [launchOptions] - Browser launch options forwarded to session.open
+ * @param {object} [launchOptions] - Browser launch options forwarded to session_manage(open)
  * @returns {Promise<object>} Open result
  */
 export async function open(client, sessionName, launchOptions) {
-  const args = launchOptions ? { sessionName, launchOptions } : { sessionName };
+  const args = launchOptions ? { action: 'open', sessionName, launchOptions } : { action: 'open', sessionName };
   const result = await client.callTool({
-    name: 'session.open',
+    name: 'session_manage',
     arguments: args,
   });
 
@@ -55,8 +55,8 @@ export async function open(client, sessionName, launchOptions) {
  */
 export async function close(client, sessionName) {
   const result = await client.callTool({
-    name: 'session.close',
-    arguments: { sessionName, save: true },
+    name: 'session_manage',
+    arguments: { action: 'close', sessionName, save: true },
   });
 
   if (result.content && Array.isArray(result.content)) {

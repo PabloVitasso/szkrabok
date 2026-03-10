@@ -34,7 +34,7 @@ Run `bash scripts/detect_browsers.sh` to find installed binaries.
 ```toml
 [default]
 executablePath    = "/usr/bin/google-chrome"
-headless          = true                     # override per session.open launchOptions
+headless          = true                     # override per session_manage launchOptions
 overrideUserAgent = true
 userAgent         = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
 log_level         = "debug"
@@ -58,13 +58,13 @@ launchOptions  >  savedConfig (last used)  >  TOML preset  >  TOML defaults  >  
 
 ```
 # valid — preset owns all appearance fields
-session.open { "sessionName": "s", "launchOptions": { "preset": "mobile-iphone-15", "headless": false } }
+session_manage { "action": "open", "sessionName": "s", "launchOptions": { "preset": "mobile-iphone-15", "headless": false } }
 
 # valid — explicit fields
-session.open { "sessionName": "s", "launchOptions": { "userAgent": "...", "viewport": { "width": 390, "height": 844 } } }
+session_manage { "action": "open", "sessionName": "s", "launchOptions": { "userAgent": "...", "viewport": { "width": 390, "height": 844 } } }
 
 # error — ambiguous
-session.open { "sessionName": "s", "launchOptions": { "preset": "mobile-iphone-15", "userAgent": "..." } }
+session_manage { "action": "open", "sessionName": "s", "launchOptions": { "preset": "mobile-iphone-15", "userAgent": "..." } }
 ```
 
 ---
@@ -145,10 +145,10 @@ npm run test:playwright
 
 | File | Suite | What it tests |
 |------|-------|---------------|
-| `session.spec.js` | Session Management | `session.open/list/close/delete`, cookie persistence across close/reopen |
-| `stealth.spec.js` | Stealth Mode | Session opens with stealth applied, `browser.run_code` reads page title |
+| `session.spec.js` | Session Management | `session_manage` open/list/close/delete, cookie persistence across close/reopen |
+| `stealth.spec.js` | Stealth Mode | Session opens with stealth applied, `browser_run` reads page title |
 | `tools.spec.js` | Workflow | `workflow.scrape` extracts structured data |
-| `interop.spec.js` | CDP Interoperability | `session.endpoint` returns `wsEndpoint`; @playwright/mcp attaches and navigates shared browser |
+| `interop.spec.js` | CDP Interoperability | `session_manage endpoint` returns `wsEndpoint`; @playwright/mcp attaches and navigates shared browser |
 
 ---
 
@@ -157,10 +157,7 @@ npm run test:playwright
 Real browser against live bot-detection sites. **Require an active MCP session.**
 
 ```
-session.open {
-  "sessionName": "check",
-  "launchOptions": { "headless": false, "preset": "default" }
-}
+session_manage { "action": "open", "sessionName": "check", "launchOptions": { "headless": false, "preset": "default" } }
 browser.run_test { "sessionName": "check", "files": ["tests/playwright/e2e/rebrowser.spec.js"] }
 ```
 
@@ -185,13 +182,7 @@ Permanent failures:
 
 Always run headed:
 ```
-session.open {
-  "sessionName": "rebrowser",
-  "launchOptions": {
-    "headless": false,
-    "preset": "default"
-  }
-}
+session_manage { "action": "open", "sessionName": "rebrowser", "launchOptions": { "headless": false, "preset": "default" } }
 browser.run_test {
   "sessionName": "rebrowser",
   "files": ["tests/playwright/e2e/rebrowser.spec.js"],
@@ -290,7 +281,7 @@ npm run test:playwright    # Playwright integration (browser required)
 
 | Symptom | Fix |
 |---------|-----|
-| `run_test` fails "Session not open" | Call `session.open` first |
+| `run_test` fails "Session not open" | Call `session_manage { "action": "open" }` first |
 | `run_test` fails "no CDP port" | Session opened before CDP support — close and reopen |
 | `rebrowser` ERR_ABORTED | Site blocks headless — open session with `headless: false` |
 | intoli timeout (headed) | Intermittent — rerun |

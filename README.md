@@ -14,14 +14,10 @@ MCP server supplementing [microsoft/playwright-mcp](https://github.com/microsoft
 
 | Tool | Description |
 | --- | --- |
-| `session.open` | Launch/resume a named Chrome session with persistent profile. |
-| `session.close` | Save and close a session. |
-| `session.list` / `delete` | Manage active and stored sessions. |
-| `session.endpoint` | Get CDP/WS endpoints for external script connection. |
+| `session_manage` | Manage sessions: `open` (launch/resume), `close`, `list`, `delete`, `endpoint` (CDP/WS URLs). |
 | `workflow.scrape` | Auto-scrape current page into LLM-ready text (headings, content, links, tables). Optional CSS selectors to target specific areas. |
-| `browser.run_code` | Execute inline Playwright JS snippets against a live session. |
+| `browser_run` | Execute Playwright JS on session page: pass `code` (inline snippet) or `path` (named export from `.mjs` file). |
 | `browser.run_test` | Run `.spec.js` tests via CDP (requires `scaffold.init`). |
-| `browser.run_file` | Call named exports from `.mjs` automation modules. |
 | `scaffold.init` | Bootstrap project with `playwright.config.js` and templates. |
 
 ---
@@ -56,16 +52,16 @@ log_level = "debug"
 ### Claude Code (LLM)
 
 ```
-session.open { "sessionName": "my-session", "url": "https://example.com" }
+session_manage { "action": "open", "sessionName": "my-session", "url": "https://example.com" }
 workflow.scrape { "sessionName": "my-session" }
-session.close { "sessionName": "my-session" }
+session_manage { "action": "close", "sessionName": "my-session" }
 ```
 
 Bootstrap a new project, then run tests:
 
 ```
 scaffold.init { "dir": "/path/to/project", "preset": "full" }
-session.open { "sessionName": "my-session" }
+session_manage { "action": "open", "sessionName": "my-session" }
 browser.run_test { "sessionName": "my-session", "files": ["automation/example.spec.js"] }
 ```
 

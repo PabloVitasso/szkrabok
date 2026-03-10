@@ -1,74 +1,62 @@
 // AUTO-GENERATED — do not edit manually.
 // Regenerate: npm run codegen:mcp
-// Last generated: 2026-03-02T01:00:34.483Z
+// Last generated: 2026-03-10T13:39:22.920Z
 
-export interface SessionHandle {
+export interface _rootHandle {
   /**
-   * [szkrabok] Open or resume a browser session
-   * @param args.launchOptions Browser launch options. Use either preset OR individual fields (userAgent, viewport, locale, timezone) — not both. headless and stealth are always allowed alongside either.
+   * [szkrabok] Manage browser sessions. action: open (launch/resume session), close (save+close), list (all stored), delete (remove data), endpoint (get CDP/WS URLs). open requires sessionName; list requires none; others require sessionName
+   * @param args.launchOptions open only. Use either preset OR individual fields (userAgent, viewport, locale, timezone). headless and stealth always allowed.
    */
-  open(args: {
+  session_manage(args: {
+    action: 'open' | 'close' | 'list' | 'delete' | 'endpoint';
     url?: string;
+    save?: boolean;
     launchOptions?: Record<string, unknown>;
   }): Promise<unknown>;
 
   /**
-   * [szkrabok] Close and save session
+   * [playwright-mcp] Execute Playwright JS on session page. Pass code (inline snippet) or path (named export from .mjs file with (page, args)). fn defaults to "default".
+   * @param args.path Absolute or relative path to an .mjs script file
+   * @param args.fn Named export to call. Defaults to "default".
+   * @param args.args Arguments passed as second parameter to the function
    */
-  close(args: {
-    save?: boolean;
+  browser_run(args: {
+    code?: string;
+    path?: string;
+    fn?: string;
+    args?: Record<string, unknown>;
   }): Promise<unknown>;
-
-  /**
-   * [szkrabok] List all sessions
-   */
-  list(): Promise<unknown>;
-
-  /**
-   * [szkrabok] Delete session permanently
-   */
-  delete(): Promise<unknown>;
-
-  /**
-   * [szkrabok] Get Playwright WebSocket endpoint for external script connection
-   */
-  endpoint(): Promise<unknown>;
 }
 
 export interface WorkflowHandle {
   /**
-   * [szkrabok] Automated login
-   */
-  login(args: {
-    username: string;
-    password: string;
-  }): Promise<unknown>;
-
-  /**
-   * [szkrabok] Fill form
-   */
-  fillForm(args: {
-    fields: Record<string, unknown>;
-  }): Promise<unknown>;
-
-  /**
-   * [szkrabok] Scrape structured data
+   * [szkrabok] Scrape current page into LLM-ready text. Returns raw blocks and llmFriendly string. selectors: optional CSS selectors to target specific areas; omit for auto (main/body)
+   * @param args.selectors CSS selectors to target. Omit for auto-mode (main or body).
    */
   scrape(args: {
-    selectors: Record<string, unknown>;
+    selectors?: string[];
+  }): Promise<unknown>;
+}
+
+export interface ScaffoldHandle {
+  /**
+   * [szkrabok] Init szkrabok project (idempotent). Prerequisite for browser runs. minimal (default): config/deps; full: automation fixtures and Playwright specs
+   * @param args.dir Target directory. Defaults to cwd.
+   * @param args.name Package name. Defaults to dirname.
+   * @param args.preset minimal (default): config files only. full: + automation/fixtures.js + automation/example.spec.js + automation/example.mcp.spec.js
+   * @param args.install Run npm install after writing files. Default false.
+   */
+  init(args: {
+    dir?: string;
+    name?: string;
+    preset?: 'minimal' | 'full';
+    install?: boolean;
   }): Promise<unknown>;
 }
 
 export interface BrowserHandle {
   /**
-   * [playwright-mcp] Execute a Playwright script string against the session page
-   */
-  run_code(args: {
-    code: string;
-  }): Promise<unknown>;
-
-  /**
-   * [playwright-mcp] Run Playwright .spec.js tests and return JSON results. Connects to the session browser via CDP. IMPORTANT: session.open must be called first.
+   * [playwright-mcp] Run .spec.js tests via CDP (returns JSON). Requires session_manage(open) and scaffold.init
    * @param args.grep Filter tests by name (regex)
    * @param args.params Key/value params passed as TEST_* env vars to the spec (e.g. {url:"https://..."} → TEST_URL)
    * @param args.config Config path relative to repo root. Defaults to playwright.config.js
@@ -84,24 +72,13 @@ export interface BrowserHandle {
     files?: string[];
     keepOpen?: boolean;
   }): Promise<unknown>;
-
-  /**
-   * [playwright-mcp] Run a named export from a Playwright ESM .mjs script against the session page. Function receives (page, args) and must return a JSON-serialisable value. IMPORTANT: session.open must be called first.
-   * @param args.path Absolute or relative path to an .mjs script file
-   * @param args.fn Named export to call. Defaults to "default".
-   * @param args.args Arguments passed as second parameter to the function
-   */
-  run_file(args: {
-    path: string;
-    fn?: string;
-    args?: Record<string, unknown>;
-  }): Promise<unknown>;
 }
 
 export interface McpHandle {
   close(): Promise<void>;
-  readonly session: SessionHandle;
+  readonly _root: _rootHandle;
   readonly workflow: WorkflowHandle;
+  readonly scaffold: ScaffoldHandle;
   readonly browser: BrowserHandle;
 }
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { spawnClient } from './transport.js';
+import { spawnClient } from '../runtime/transport.js';
 import { renderTools, renderDts } from './render-tools.js';
 import { readFile, writeFile } from 'fs/promises';
 import { createHash } from 'crypto';

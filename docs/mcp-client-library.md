@@ -49,8 +49,8 @@ packages/mcp-client/
 ```
 
 `runtime/` contains nothing szkrabok-specific. It could drive any MCP server.
-`adapters/szkrabok-session.js` is the only file that knows about `session.open`,
-`session.close`, and the wire key name `sessionName`.
+`adapters/szkrabok-session.js` is the only file that knows about `session_manage`,
+and the wire key name `sessionName`.
 
 ---
 
@@ -85,8 +85,8 @@ runtime/logger.js
   └─ afterFailure(call, err, ms, seq)
 
 adapters/szkrabok-session.js
-  └─ open(client, sessionName)             ← calls session.open { sessionName }
-  └─ close(client, sessionName)            ← calls session.close { sessionName }
+  └─ open(client, sessionName)             ← calls session_manage { action: open, sessionName }
+  └─ close(client, sessionName)            ← calls session_manage { action: close, sessionName }
   └─ injectSession(args, sessionName)      ← returns { sessionName, ...args }
   └─ hasSession(tool)                      ← true if inputSchema.properties contains sessionName
 ```
@@ -113,7 +113,7 @@ Structure:
 
 ```js
 mcpConnect(sessionName, {
-  launchOptions,    // forwarded to session.open — headless, preset, UA, etc.
+  launchOptions,    // forwarded to session_manage(open) — headless, preset, UA, etc.
   sidecarEnabled,   // log large results to .mcp-log/ sidecar files
   adapter,          // custom session adapter (defaults to szkrabok-session.js)
 })
@@ -125,7 +125,7 @@ The generated file imports `szkrabok-session.js` and uses it as the default adap
 `sessionName` is passed through the adapter — generic code never references
 the wire key `sessionName` directly. The adapter owns that mapping.
 
-`session.*` tools are not exposed as handle methods — they are lifecycle,
+`session_manage` is not exposed as a handle method — it is lifecycle,
 called internally by the adapter via `open` and `close`.
 
 ### Registry drift detection
@@ -224,8 +224,8 @@ the safe path requires no thought.
 The only file in `client/` that is szkrabok-specific. Implements four
 functions consumed by the invoker:
 
-- **`open(client, sessionName)`** — calls `session.open` with `{ sessionName }`
-- **`close(client, sessionName)`** — calls `session.close` with `{ sessionName }`
+- **`open(client, sessionName)`** — calls `session_manage` with `{ action: 'open', sessionName }`
+- **`close(client, sessionName)`** — calls `session_manage` with `{ action: 'close', sessionName }`
 - **`injectSession(args, sessionName)`** — returns `{ sessionName, ...args }`
 - **`hasSession(tool)`** — returns true if `tool.inputSchema.properties.sessionName` exists
 
@@ -288,10 +288,10 @@ Tool names are split on the first `.`. Everything after the first dot is the
 method key — preserving nested dots:
 
 ```
-session.open      → ns: "session", method: "open"
 browser.run_test  → ns: "browser", method: "run_test"
-browser.run_file  → ns: "browser", method: "run_file"
 workflow.scrape   → ns: "workflow", method: "scrape"
+session_manage    → ns: "_root",   method: "session_manage"
+browser_run       → ns: "_root",   method: "browser_run"
 ```
 
 Tools with no dot (e.g. `health`) are placed under a `_root` namespace:
@@ -383,14 +383,14 @@ of the JSONL stream.
 `_result`, JSON-parsed if the text content is itself JSON:
 
 ```json
-{"name":"session.open","arguments":{"sessionName":"my-session"},"_phase":"after","_result":{"opened":true},"_ok":true,"_ms":84,"_seq":1}
+{"name":"session_manage","arguments":{"action":"open","sessionName":"my-session"},"_phase":"after","_result":{"opened":true},"_ok":true,"_ms":84,"_seq":1}
 ```
 
 **Large result** — summary inline, full content written to a sidecar file
 named by sequence number and tool name:
 
 ```json
-{"name":"browser.run_code","arguments":{"sessionName":"my-session","code":"async (page) => page.content()"},"_phase":"after","_result":"[text 3847 chars → .mcp-log/4-browser.run_code.txt]","_ok":true,"_ms":201,"_seq":4}
+{"name":"browser_run","arguments":{"sessionName":"my-session","code":"async (page) => page.content()"},"_phase":"after","_result":"[text 3847 chars → .mcp-log/4-browser_run.txt]","_ok":true,"_ms":201,"_seq":4}
 ```
 
 The sidecar path includes `_seq` so call line and result file are
@@ -446,7 +446,7 @@ without a session parameter (injected at runtime by the adapter).
 
 ```jsonl
 {"name":"workflow.scrape","arguments":{"selectors":{"title":"h1"}}}
-{"name":"browser.run_code","arguments":{"code":"async (page) => page.url()"}}
+{"name":"browser_run","arguments":{"code":"async (page) => page.url()"}}
 ```
 
 A `runSequence(mcp, filePath)` helper reads the file, calls

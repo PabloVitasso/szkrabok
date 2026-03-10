@@ -29,8 +29,8 @@ test.describe('Workflow Tools', () => {
 
     // Cleanup
     await client.callTool({
-      name: 'session.close',
-      arguments: { sessionName: sessionId },
+      name: 'session_manage',
+      arguments: { action: 'close', sessionName: sessionId },
     });
   });
 });

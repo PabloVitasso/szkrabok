@@ -3,7 +3,7 @@
 ## Problem
 
 An LLM using szkrabok MCP tools has no way to discover that `browser.run_test`
-and `browser.run_file` require a project scaffold. The tools appear available
+and `browser_run` (path mode) require a project scaffold. The tools appear available
 but fail with confusing errors when `playwright.config.js`, `@szkrabok/runtime`,
 or `szkrabok.config.toml` are absent.
 
@@ -73,16 +73,16 @@ Additional files created:
 
 ```
                                              ┌──────────────────────┐
-  session.open ──► browser.run_test ────────►│ example.spec.js      │
+  session_manage(open) ► browser.run_test ──►│ example.spec.js      │
                                              │ (direct CDP spec)    │
                                              └──────────────────────┘
 
   npx playwright test ──────────────────────►│ example.mcp.spec.js  │
                                              │ (MCP harness)        │
                                              │  mcpConnect()        │
-                                             │  └► session.open     │
+                                             │  └► session_manage   │
                                              │  └► browser.run_test ├──► example.spec.js
-                                             │  └► session.close    │
+                                             │  └► session_manage   │
                                              └──────────────────────┘
 ```
 

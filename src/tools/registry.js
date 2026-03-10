@@ -9,24 +9,25 @@ const SZKRABOK = '[szkrabok]';
 const PLAYWRIGHT_MCP = '[playwright-mcp]';
 
 const tools = {
-  'session.open': {
-    handler: session.open,
-    description: `${SZKRABOK} Open or resume a browser session`,
+  'session_manage': {
+    handler: session.manage,
+    description: `${SZKRABOK} Manage browser sessions. action: open (launch/resume session), close (save+close), list (all stored), delete (remove data), endpoint (get CDP/WS URLs). open requires sessionName; list requires none; others require sessionName`,
     inputSchema: {
       type: 'object',
       properties: {
+        action: {
+          type: 'string',
+          enum: ['open', 'close', 'list', 'delete', 'endpoint'],
+        },
         sessionName: { type: 'string' },
         url: { type: 'string' },
+        save: { type: 'boolean', default: true },
         launchOptions: {
           type: 'object',
           description:
-            'Browser launch options. Use either preset OR individual fields (userAgent, viewport, locale, timezone) — not both. headless and stealth are always allowed alongside either.',
+            'open only. Use either preset OR individual fields (userAgent, viewport, locale, timezone). headless and stealth always allowed.',
           properties: {
-            preset: {
-              type: 'string',
-              description:
-                'Preset name from szkrabok.config.toml (e.g. "mobile-iphone-15"). Merges over [default].',
-            },
+            preset: { type: 'string', description: 'Preset name from szkrabok.config.toml' },
             stealth: { type: 'boolean', default: true },
             disableWebGL: { type: 'boolean', default: false },
             headless: { type: 'boolean' },
@@ -40,46 +41,7 @@ const tools = {
           },
         },
       },
-      required: ['sessionName'],
-    },
-  },
-
-  'session.close': {
-    handler: session.close,
-    description: `${SZKRABOK} Close and save current browser session`,
-    inputSchema: {
-      type: 'object',
-      properties: {
-        sessionName: { type: 'string' },
-        save: { type: 'boolean', default: true },
-      },
-      required: ['sessionName'],
-    },
-  },
-
-  'session.list': {
-    handler: session.list,
-    description: `${SZKRABOK} List all stored browser sessions`,
-    inputSchema: { type: 'object', properties: {} },
-  },
-
-  'session.delete': {
-    handler: session.deleteSession,
-    description: `${SZKRABOK} Delete browser session and its data`,
-    inputSchema: {
-      type: 'object',
-      properties: { sessionName: { type: 'string' } },
-      required: ['sessionName'],
-    },
-  },
-
-  'session.endpoint': {
-    handler: session.endpoint,
-    description: `${SZKRABOK} Get Playwright WebSocket endpoint for external connections`,
-    inputSchema: {
-      type: 'object',
-      properties: { sessionName: { type: 'string' } },
-      required: ['sessionName'],
+      required: ['action'],
     },
   },
 
@@ -121,22 +83,25 @@ const tools = {
     },
   },
 
-  'browser.run_code': {
-    handler: szkrabokBrowser.run_code,
-    description: `${PLAYWRIGHT_MCP} Execute Playwright JS snippet on session page`,
+  'browser_run': {
+    handler: szkrabokBrowser.run,
+    description: `${PLAYWRIGHT_MCP} Execute Playwright JS on session page. Pass code (inline snippet) or path (named export from .mjs file with (page, args)). fn defaults to "default".`,
     inputSchema: {
       type: 'object',
       properties: {
         sessionName: { type: 'string' },
         code: { type: 'string' },
+        path: { type: 'string', description: 'Absolute or relative path to an .mjs script file' },
+        fn: { type: 'string', description: 'Named export to call. Defaults to "default".' },
+        args: { type: 'object', description: 'Arguments passed as second parameter to the function' },
       },
-      required: ['sessionName', 'code'],
+      required: ['sessionName'],
     },
   },
 
   'browser.run_test': {
     handler: szkrabokBrowser.run_test,
-    description: `${PLAYWRIGHT_MCP} Run .spec.js tests via CDP (returns JSON). Requires session.open and scaffold.init`,
+    description: `${PLAYWRIGHT_MCP} Run .spec.js tests via CDP (returns JSON). Requires session_manage(open) and scaffold.init`,
     inputSchema: {
       type: 'object',
       properties: {
@@ -172,23 +137,6 @@ const tools = {
     },
   },
 
-  'browser.run_file': {
-    handler: szkrabokBrowser.run_file,
-    description: `${PLAYWRIGHT_MCP} Execute named export from .mjs file with (page, args). Requires session.open`,
-    inputSchema: {
-      type: 'object',
-      properties: {
-        sessionName: { type: 'string' },
-        path: { type: 'string', description: 'Absolute or relative path to an .mjs script file' },
-        fn: { type: 'string', description: 'Named export to call. Defaults to "default".' },
-        args: {
-          type: 'object',
-          description: 'Arguments passed as second parameter to the function',
-        },
-      },
-      required: ['sessionName', 'path'],
-    },
-  },
 };
 
 export const registerTools = () =>

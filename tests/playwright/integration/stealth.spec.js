@@ -25,7 +25,7 @@ test.describe('Stealth Mode', () => {
 
     // Extract page title to verify page loaded
     const extractResponse = await client.callTool({
-      name: 'browser.run_code',
+      name: 'browser_run',
       arguments: {
         sessionName: sessionId,
         code: 'async (page) => page.title()',
@@ -42,8 +42,8 @@ test.describe('Stealth Mode', () => {
 
     // Cleanup
     await client.callTool({
-      name: 'session.close',
-      arguments: { sessionName: sessionId, save: false },
+      name: 'session_manage',
+      arguments: { action: 'close', sessionName: sessionId, save: false },
     });
   });
 });

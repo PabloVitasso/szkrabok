@@ -146,3 +146,18 @@ export const deleteSession = async ({ sessionName }) => {
   await deleteStoredSession(sessionName);
   return { success: true, sessionName };
 };
+
+const ACTION_MAP = {
+  open: ({ action: _, ...rest }) => open(rest),
+  close: ({ action: _, ...rest }) => close(rest),
+  list: () => list(),
+  delete: ({ action: _, ...rest }) => deleteSession(rest),
+  endpoint: ({ action: _, ...rest }) => endpoint(rest),
+};
+
+export const manage = async (args) => {
+  const { action } = args;
+  const handler = ACTION_MAP[action];
+  if (!handler) throw new Error(`Unknown session action: ${action}`);
+  return handler(args);
+};

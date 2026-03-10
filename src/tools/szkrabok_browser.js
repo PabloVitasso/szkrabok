@@ -219,3 +219,9 @@ export const run_file = async args => {
     url: session.page.url(),
   };
 };
+
+export const run = async args => {
+  if (args.code !== undefined) return run_code(args);
+  if (args.path !== undefined) return run_file(args);
+  throw new Error('browser_run requires either "code" or "path"');
+};
