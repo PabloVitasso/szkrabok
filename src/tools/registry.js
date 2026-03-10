@@ -1,6 +1,7 @@
 import * as session from './szkrabok_session.js';
 import * as workflow from './workflow.js';
 import * as szkrabokBrowser from './szkrabok_browser.js';
+import * as scaffold from './scaffold.js';
 import { wrapError } from '../utils/errors.js';
 import { logError } from '../utils/logger.js';
 
@@ -92,6 +93,27 @@ const tools = {
         selectors: { type: 'object' },
       },
       required: ['sessionName', 'selectors'],
+    },
+  },
+
+  'scaffold.init': {
+    handler: scaffold.init,
+    description: `${SZKRABOK} Initialize a new szkrabok project. Creates playwright.config.js, package.json (merged), and szkrabok.config.local.toml.example. Call once before using browser.run_test or browser.run_file in a new project. Safe to re-run — skips existing files.`,
+    inputSchema: {
+      type: 'object',
+      properties: {
+        dir: { type: 'string', description: 'Target directory. Defaults to cwd.' },
+        name: { type: 'string', description: 'Package name. Defaults to dirname.' },
+        preset: {
+          type: 'string',
+          enum: ['minimal', 'full'],
+          description: 'minimal = config files only. full = + automation/example.spec.js',
+        },
+        install: {
+          type: 'boolean',
+          description: 'Run npm install after writing files. Default false.',
+        },
+      },
     },
   },
 
