@@ -85,14 +85,18 @@ const tools = {
 
   'workflow.scrape': {
     handler: workflow.scrape,
-    description: `${SZKRABOK} Scrape structured data from current page`,
+    description: `${SZKRABOK} Scrape current page into LLM-ready text. Returns raw blocks and llmFriendly string. selectors: optional CSS selectors to target specific areas; omit for auto (main/body)`,
     inputSchema: {
       type: 'object',
       properties: {
         sessionName: { type: 'string' },
-        selectors: { type: 'object' },
+        selectors: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'CSS selectors to target. Omit for auto-mode (main or body).',
+        },
       },
-      required: ['sessionName', 'selectors'],
+      required: ['sessionName'],
     },
   },
 

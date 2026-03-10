@@ -1,21 +1,45 @@
 import { getSession } from '@szkrabok/runtime';
 
-export const scrape = async args => {
-  const { sessionName, selectors } = args;
-  const session = getSession(sessionName);
-  const page = session.page;
+export const scrape = async ({ sessionName, selectors = [] }) => {
+  const { page } = getSession(sessionName);
 
-  const results = {};
+  const blocks = await page.evaluate(userSelectors => {
+    const norm = t => t.replace(/\s+/g, ' ').trim();
 
-  for (const [key, selector] of Object.entries(selectors)) {
-    try {
-      const elements = await page.$$(selector);
-      const texts = await Promise.all(elements.map(el => el.textContent()));
-      results[key] = texts.filter(Boolean);
-    } catch {
-      results[key] = [];
-    }
-  }
+    const targets = userSelectors.length > 0
+      ? [...document.querySelectorAll(userSelectors.join(','))]
+      : [document.querySelector('main') || document.body];
 
-  return { data: results };
+    const result = [];
+    const seenText = new Set();
+
+    targets.forEach(root => {
+      root.querySelectorAll('nav, footer, script, style, .ads, #cookies')
+        .forEach(n => n.remove());
+
+      root.querySelectorAll('p, li, h1, h2, h3, table').forEach(el => {
+        const text = norm(el.innerText || '');
+        if (text.length < 20 || seenText.has(text)) return;
+
+        const linkChars = [...el.querySelectorAll('a')]
+          .reduce((sum, a) => sum + a.innerText.length, 0);
+        const linkRatio = linkChars / (text.length || 1);
+
+        if (linkRatio < 0.6) {
+          result.push({ tag: el.tagName.toLowerCase(), text });
+          seenText.add(text);
+        }
+      });
+    });
+
+    return result;
+  }, selectors);
+
+  const llmFriendly = blocks.map(b => `[${b.tag}]: ${b.text}`).join('\n');
+
+  return {
+    raw: blocks,
+    llmFriendly,
+    tokenCountEstimate: Math.ceil(llmFriendly.length / 4),
+  };
 };
