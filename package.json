@@ -1,6 +1,6 @@
 {
   "name": "@pablovitasso/szkrabok",
-  "version": "1.0.19",
+  "version": "1.0.20",
   "description": "Production-grade MCP browser automation layer with persistent sessions and stealth capabilities",
   "type": "module",
   "main": "src/index.js",
@@ -75,14 +75,13 @@
     "playwright": "^1.58.2",
     "playwright-core": "^1.58.2",
     "playwright-extra": "^4.3.6",
-    "puppeteer": "^24.39.0",
+    "puppeteer-core": "^24.39.0",
     "puppeteer-extra-plugin-stealth": "^2.11.2",
     "smol-toml": "^1.6.0",
     "zod": "^4.3.6"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@types/puppeteer": "^7.0.4",
     "ajv": "^8.18.0",
     "ajv-formats": "^3.0.1",
     "eslint": "^10.0.3",
@@ -91,9 +90,6 @@
     "globals": "^17.4.0",
     "prettier": "^3.8.1",
     "puppeteer-extra": "^3.3.6"
-  },
-  "puppeteer": {
-    "skipDownload": true
   },
   "eslintConfig": {
     "env": {
