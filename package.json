@@ -1,6 +1,6 @@
 {
   "name": "@pablovitasso/szkrabok",
-  "version": "1.0.21",
+  "version": "1.0.22",
   "description": "Production-grade MCP browser automation layer with persistent sessions and stealth capabilities",
   "type": "module",
   "main": "src/index.js",
@@ -12,13 +12,14 @@
     "#runtime": "./packages/runtime/index.js"
   },
   "files": [
+    "bin",
     "src",
     "packages/runtime",
     "scripts",
     "README.md"
   ],
   "bin": {
-    "szkrabok": "src/index.js"
+    "szkrabok": "bin/szkrabok.js"
   },
   "engines": {
     "node": ">=20.0.0"
