@@ -9,23 +9,17 @@ test.describe('Workflow Tools', () => {
   test('workflow.scrape extracts structured data', async ({ client, openSession }) => {
     const sessionId = `scrape-${randomUUID()}`;
 
-    await openSession(client, sessionId, { url: 'https://example.com' });
+    await openSession(client, sessionId, { url: 'https://intoli.com' });
 
     const response = await client.callTool({
       name: 'workflow.scrape',
-      arguments: {
-        sessionName: sessionId,
-        selectors: {
-          title: 'h1',
-          paragraph: 'p',
-        },
-      },
+      arguments: { sessionName: sessionId },
     });
 
     expect(response.content).toHaveLength(1);
     const content = response.content[0];
     expect(content.type).toBe('text');
-    expect(content.text).toContain('Example Domain');
+    expect(content.text).toContain('Intoli');
 
     // Cleanup
     await client.callTool({

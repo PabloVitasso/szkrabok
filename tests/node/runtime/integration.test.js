@@ -37,7 +37,7 @@ after(async () => {
 
 describe('session persistence across launch/close cycles', () => {
   test('run 1: launch, add cookie, close', { timeout: 30_000 }, async () => {
-    const { launch } = await import('../../packages/runtime/index.js');
+    const { launch } = await import('../../../packages/runtime/index.js');
 
     const handle = await launch({ profile: PROFILE, reuse: false });
 
@@ -55,8 +55,8 @@ describe('session persistence across launch/close cycles', () => {
   });
 
   test('run 2: relaunch same profile, cookie is restored', { timeout: 30_000 }, async () => {
-    const { launch } = await import('../../packages/runtime/index.js');
-    const storage = await import('../../packages/runtime/storage.js');
+    const { launch } = await import('../../../packages/runtime/index.js');
+    const storage = await import('../../../packages/runtime/storage.js');
 
     // Verify state.json was written by run 1
     const savedState = await storage.loadState(PROFILE);
@@ -80,7 +80,7 @@ describe('session persistence across launch/close cycles', () => {
   });
 
   test('profile directory path is identical between runs', async () => {
-    const storage = await import('../../packages/runtime/storage.js');
+    const storage = await import('../../../packages/runtime/storage.js');
     const dir1 = storage.getUserDataDir(PROFILE);
     const dir2 = storage.getUserDataDir(PROFILE);
     assert.strictEqual(dir1, dir2);

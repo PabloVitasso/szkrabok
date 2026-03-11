@@ -27,6 +27,7 @@ export function e2e({ paths, preset, session, executable, env }: AutomationOptio
     name: 'e2e',
     testDir: paths.projects.e2e,
     testMatch: '**/*.spec.js',
+    workers: 1,
     use: {
       storageState:
         !useLiveBrowser && fs.existsSync(session.stateFile) ? session.stateFile : undefined,
