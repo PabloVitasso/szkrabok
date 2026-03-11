@@ -84,15 +84,18 @@ export function register(program) {
       else pass('startup log', `will be created at ${logFile}`);
 
       // 7. Dev MCP config hint (only when running from source repo)
+      // Note: Claude Code does NOT honor the `cwd` field in MCP server config.
+      // Use `bash -c "cd <testNpxDir> && npx ..."` to force npx to resolve the
+      // published package from test/npx (which has no local workspace) instead
+      // of the repo root (where local bin is not linked, causing exit 127).
       const testNpxDir = join(pkgRoot, 'test', 'npx');
       if (existsSync(testNpxDir)) {
         console.log('\n--- Dev MCP config (for developing szkrabok itself) ---');
         console.log(JSON.stringify({
           szkrabok: {
             type: 'stdio',
-            command: 'npx',
-            args: ['-y', '@pablovitasso/szkrabok'],
-            cwd: testNpxDir,
+            command: 'bash',
+            args: ['-c', `cd ${testNpxDir} && npx -y @pablovitasso/szkrabok`],
             env: {},
           }
         }, null, 2));
