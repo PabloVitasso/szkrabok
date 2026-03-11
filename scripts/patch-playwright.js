@@ -94,8 +94,11 @@ import fs from 'fs'
 import path from 'path'
 import { execSync } from 'child_process'
 import { createRequire } from 'module'
+import { fileURLToPath } from 'url'
+import { resolvePlaywrightCore } from './resolve-playwright-core.js'
 
 const require = createRequire(import.meta.url)
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 // ── locate all playwright-core installs ───────────────────────────────────────
 // npm hoists one copy to node_modules/playwright-core but playwright itself
@@ -105,22 +108,24 @@ const require = createRequire(import.meta.url)
 
 function findPkgRoots() {
   const roots = []
-  const nmDir = path.resolve('node_modules')
+  const pkgRoot = path.resolve(__dirname, '..')
 
-  // 1. top-level playwright-core
-  const top = path.join(nmDir, 'playwright-core')
-  if (fs.existsSync(path.join(top, 'package.json'))) roots.push(top)
+  const primary = resolvePlaywrightCore(pkgRoot, fs.existsSync.bind(fs), path)
+  if (primary) roots.push(primary)
 
-  // 2. any nested playwright-core inside other packages
+  // Also find playwright's own nested playwright-core copy
+  const enclosingNm = pkgRoot.includes('node_modules')
+    ? pkgRoot.slice(0, pkgRoot.lastIndexOf('node_modules') + 'node_modules'.length)
+    : path.join(pkgRoot, 'node_modules')
   try {
     const out = execSync(
-      'find node_modules -maxdepth 4 -name "package.json" -path "*/playwright-core/package.json" 2>/dev/null',
+      `find ${enclosingNm}/playwright -maxdepth 3 -name "package.json" -path "*/playwright-core/package.json" 2>/dev/null`,
       { encoding: 'utf8' }
     )
     for (const line of out.trim().split('\n')) {
       if (!line) continue
-      const dir = path.dirname(path.resolve(line))
-      if (!roots.includes(dir)) roots.push(dir)
+      const nested = path.dirname(path.resolve(line))
+      if (!roots.includes(nested)) roots.push(nested)
     }
   } catch {}
 
@@ -129,7 +134,8 @@ function findPkgRoots() {
 
 const pkgRoots = findPkgRoots()
 if (!pkgRoots.length) {
-  console.error('[patch-playwright] ERROR: playwright-core not found in node_modules.')
+  console.error('[patch-playwright] ERROR: playwright-core not found.')
+  console.error(`  Searched: ${path.resolve(__dirname, '..', 'node_modules', 'playwright-core')}`)
   console.error('  Run `npm install` first.')
   process.exit(1)
 }

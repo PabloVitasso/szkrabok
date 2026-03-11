@@ -81,8 +81,18 @@ packages/runtime/
 
 src/
   index.js          MCP entry point, stdio transport
+                    Always writes fatal startup errors to ~/.cache/szkrabok/startup.log
   config.js         MCP-layer config only: TIMEOUT, LOG_LEVEL, DISABLE_WEBGL
-  cli.js            bebok CLI — calls same handlers as MCP tools
+  cli/
+    index.js        CLI program setup, version (read from package.json), parseAsync
+    commands/
+      init.js
+      session.js
+      open.js
+      endpoint.js
+      detect-browser.js
+      install-browser.js
+      doctor.js       — szkrabok doctor: checks node, playwright-core, patch, chromium, imports
 
   tools/
     registry.js           All tool definitions: name, handler, schema
@@ -256,15 +266,19 @@ CLI-only operations (no MCP equivalent):
 - All property overrides must target **`Navigator.prototype`**, not the `navigator` instance.
 - Rebrowser score: **8/10**. Permanent failures: `mainWorldExecution` (requires [rebrowser-patches](https://github.com/rebrowser/rebrowser-patches) binary patching — see [rebrowser-patches-research.md](./rebrowser-patches-research.md)), `exposeFunctionLeak` (`page.exposeFunction` fingerprint — no fix available).
 
-## Playwright patches (`packages/runtime/scripts/patch-playwright.js`)
+## Playwright patches (`scripts/patch-playwright.js`)
 
 Pattern-based patches applied to `node_modules/playwright-core` after `npm install`. Patch #8 injects greasy brands into `calculateUserAgentMetadata`. Run after any playwright-core version bump:
 
 ```bash
 rm -rf node_modules/playwright-core
 npm install --ignore-scripts
-node packages/runtime/scripts/patch-playwright.js
+node scripts/patch-playwright.js
 ```
+
+The script resolves `node_modules` relative to its own location (`__dirname`), not cwd — safe to run from any directory.
+
+Detection sentinel: `__re__emitExecutionContext` in `lib/server/chromium/crConnection.js`. Use `szkrabok doctor` to verify patch status.
 
 ## Chromium resolution
 

@@ -18,8 +18,12 @@
 | Browser launch        | `packages/runtime/launch.js`                                     |
 | Stealth               | `packages/runtime/stealth.js`                                    |
 | MCP entry             | `src/index.js`                                                   |
+| CLI entry             | `src/cli/index.js`                                               |
+| CLI commands          | `src/cli/commands/`                                              |
 | Tool registry         | `src/tools/registry.js`                                          |
 | MCP config            | `src/config.js` (TIMEOUT, LOG_LEVEL, DISABLE_WEBGL only)         |
+| Startup error log     | `~/.cache/szkrabok/startup.log`                                  |
+| Publish smoke test    | `scripts/smoke-test.js` (runs as `prepublishOnly`)               |
 | Playwright config     | `playwright.config.js`                                           |
 | Config modules        | `config/` (env, paths, toml, preset, session, browser, projects) |
 | MCP client library    | `packages/mcp-client/` — `mcpConnect()`, `spawnClient()`, codegen |

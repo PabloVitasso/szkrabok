@@ -30,14 +30,20 @@ szkrabok session list           # CLI
 szkrabok open <profile>         # CLI
 ```
 
-**Design rule:** CLI commands call the same handler functions as the MCP tools. They never re-implement session logic. When adding a new MCP tool handler that makes sense as a CLI command, import and call it from `src/cli.js` and register it there.
+**Design rule:** CLI commands call the same handler functions as the MCP tools. They never re-implement session logic. When adding a new MCP tool handler that makes sense as a CLI command, add a file to `src/cli/commands/` and register it in `src/cli/index.js`.
 
-CLI-only operations (no MCP equivalent, live only in `cli.js`):
+CLI-only operations (no MCP equivalent):
 - `szkrabok open` — human-facing browser launch
 - `szkrabok session inspect` — raw cookie/localStorage dump
 - `szkrabok endpoint` — print endpoints to stdout
 - `szkrabok detect-browser` — lists Chrome/Chromium paths; outputs ready-to-paste `executablePath` line
 - `szkrabok install-browser` — runs `npx playwright install chromium`; use when `launch()` throws "Chromium not found"
+- `szkrabok doctor` — checks node version, playwright-core installed + patched, chromium, server imports, startup log path
+
+**Adding a new CLI command:**
+1. Create `src/cli/commands/<name>.js` — export `register(program, ctx)`
+2. Import and call `register` in `src/cli/index.js`
+3. Add the command name to `CLI_COMMANDS` in `src/index.js`
 
 ---
 
@@ -69,6 +75,8 @@ This ensures the tag always points at the release commit — no manual tag moves
 **`deps:update`** runs `npm-check-updates -u` across all workspaces then `npm install`. Run it deliberately before a release — not on every build. Dependency bumps are a conscious decision; CI always installs from the lockfile.
 
 The `prepack` guard prevents publishing without a version tag on HEAD.
+
+`prepublishOnly` runs `scripts/smoke-test.js` before every `npm publish`: packs a tarball, installs it in a fresh temp directory, runs `patch-playwright.js`, `szkrabok --version`, and `szkrabok doctor`. Publish fails loudly if any step fails — catching missing files, broken postinstall, or binary resolution issues before they reach npm.
 
 `release:publish` checks `npm whoami` and fails with a clear message if not logged in. Run `npm login` then re-run.
 
