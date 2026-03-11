@@ -83,6 +83,21 @@ export function register(program) {
       if (existsSync(logFile)) pass('startup log exists', logFile);
       else pass('startup log', `will be created at ${logFile}`);
 
+      // 7. Dev MCP config hint (only when running from source repo)
+      const testNpxDir = join(pkgRoot, 'test', 'npx');
+      if (existsSync(testNpxDir)) {
+        console.log('\n--- Dev MCP config (for developing szkrabok itself) ---');
+        console.log(JSON.stringify({
+          szkrabok: {
+            type: 'stdio',
+            command: 'npx',
+            args: ['-y', '@pablovitasso/szkrabok'],
+            cwd: testNpxDir,
+            env: {},
+          }
+        }, null, 2));
+      }
+
       console.log(`\n${failed ? 'Some checks failed.' : 'All checks passed.'}`);
       process.exit(failed ? 1 : 0);
     });

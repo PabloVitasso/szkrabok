@@ -38,12 +38,44 @@ CLI-only operations (no MCP equivalent):
 - `szkrabok endpoint` — print endpoints to stdout
 - `szkrabok detect-browser` — lists Chrome/Chromium paths; outputs ready-to-paste `executablePath` line
 - `szkrabok install-browser` — runs `npx playwright install chromium`; use when `launch()` throws "Chromium not found"
-- `szkrabok doctor` — checks node version, playwright-core installed + patched, chromium, server imports, startup log path
+- `szkrabok doctor` — checks node version, playwright-core installed + patched, chromium, server imports, startup log path; also prints the correct dev MCP config snippet (see below)
 
 **Adding a new CLI command:**
 1. Create `src/cli/commands/<name>.js` — export `register(program, ctx)`
 2. Import and call `register` in `src/cli/index.js`
 3. Add the command name to `CLI_COMMANDS` in `src/index.js`
+
+---
+
+## MCP config for developing szkrabok
+
+End users add szkrabok via `npx`:
+```json
+{
+  "szkrabok": {
+    "type": "stdio",
+    "command": "npx",
+    "args": ["-y", "@pablovitasso/szkrabok"],
+    "env": {}
+  }
+}
+```
+
+When developing szkrabok itself, `npx` run from the repo root may resolve the local workspace instead of fetching from the registry. To avoid this, set `cwd` to `test/npx/` — a stub directory with a different package name that forces npx to do a real registry install:
+
+```json
+{
+  "szkrabok": {
+    "type": "stdio",
+    "command": "npx",
+    "args": ["-y", "@pablovitasso/szkrabok"],
+    "cwd": "/absolute/path/to/szkrabok/test/npx",
+    "env": {}
+  }
+}
+```
+
+Run `szkrabok doctor` to get the correct snippet with the absolute path resolved for your machine.
 
 ---
 
