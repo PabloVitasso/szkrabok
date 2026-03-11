@@ -1,6 +1,6 @@
 {
   "name": "@szkrabok/runtime",
-  "version": "1.0.22",
+  "version": "1.0.23",
   "description": "szkrabok — browser bootstrap, stealth, session pool, MCP client.",
   "type": "module",
   "main": "index.js",
