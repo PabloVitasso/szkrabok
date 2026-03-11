@@ -1,6 +1,6 @@
 {
   "name": "@pablovitasso/szkrabok",
-  "version": "1.0.18",
+  "version": "1.0.19",
   "description": "Production-grade MCP browser automation layer with persistent sessions and stealth capabilities",
   "type": "module",
   "main": "src/index.js",
@@ -36,6 +36,7 @@
     "format:check": "prettier --check \"{src,tests}/**/*.{js,json,md}\" \"*.{js,json,md}\"",
     "codegen:mcp": "node packages/runtime/mcp-client/codegen/generate-mcp-tools.mjs",
     "prepack": "git describe --exact-match --tags HEAD 2>/dev/null || (echo 'ERROR: HEAD is not tagged. Run npm run release:patch or release:minor first.' && exit 1)",
+    "prepublishOnly": "node scripts/smoke-test.js",
     "release:patch": "npm version patch --workspaces --include-workspace-root --ignore-scripts --no-git-tag-version && node scripts/release-commit.js",
     "release:minor": "npm version minor --workspaces --include-workspace-root --ignore-scripts --no-git-tag-version && node scripts/release-commit.js",
     "deps:update": "npx npm-check-updates -u --workspaces && npm install",
