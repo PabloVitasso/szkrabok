@@ -1,15 +1,8 @@
 import { join, resolve, dirname } from 'path';
 import { existsSync, readFileSync } from 'fs';
+import { homedir } from 'os';
 import { fileURLToPath } from 'url';
 import { parse } from 'smol-toml';
-
-// TOML config resolution:
-// 1. SZKRABOK_CONFIG env var (absolute path)
-// 2. CWD/szkrabok.config.toml + CWD/szkrabok.config.local.toml
-// 3. package dir / szkrabok.config.toml (fallback for monorepo root)
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const PACKAGE_ROOT = resolve(__dirname, '..', '..');
 
 const isPlainObject = v => v !== null && typeof v === 'object' && !Array.isArray(v);
 
@@ -24,118 +17,171 @@ const deepMerge = (base, override) => {
   return result;
 };
 
-const loadToml = () => {
-  const configEnv = process.env.SZKRABOK_CONFIG;
-  if (configEnv && existsSync(configEnv)) {
-    return parse(readFileSync(configEnv, 'utf8'));
-  }
-
-  const cwdBase = join(process.cwd(), 'szkrabok.config.toml');
-  const cwdLocal = join(process.cwd(), 'szkrabok.config.local.toml');
-  const pkgBase = join(PACKAGE_ROOT, 'szkrabok.config.toml');
-  const pkgLocal = join(PACKAGE_ROOT, 'szkrabok.config.local.toml');
-
-  const basePath = existsSync(cwdBase) ? cwdBase : existsSync(pkgBase) ? pkgBase : null;
-  const localPath = existsSync(cwdLocal) ? cwdLocal : existsSync(pkgLocal) ? pkgLocal : null;
-
-  const base = basePath ? parse(readFileSync(basePath, 'utf8')) : {};
-  const local = localPath ? parse(readFileSync(localPath, 'utf8')) : {};
-  return deepMerge(base, local);
+// Load szkrabok.config.toml + szkrabok.config.local.toml from a directory.
+// Returns merged object, or null if neither file exists.
+const loadTomlFromDir = dir => {
+  const base = join(dir, 'szkrabok.config.toml');
+  const local = join(dir, 'szkrabok.config.local.toml');
+  const hasBase = existsSync(base);
+  const hasLocal = existsSync(local);
+  if (!hasBase && !hasLocal) return null;
+  const baseData = hasBase ? parse(readFileSync(base, 'utf8')) : {};
+  const localData = hasLocal ? parse(readFileSync(local, 'utf8')) : {};
+  return deepMerge(baseData, localData);
 };
 
-const toml = loadToml();
-const tomlDefault = toml.default ?? {};
-const tomlPresets = toml.preset ?? {};
+// Walk up from startDir. If rootBoundary is given, stop at that dir (inclusive).
+// Returns first toml object found, or null.
+const walkUp = (startDir, rootBoundary) => {
+  let dir = resolve(startDir);
+  const boundary = rootBoundary ? resolve(rootBoundary) : null;
+  while (true) {
+    const data = loadTomlFromDir(dir);
+    if (data) return data;
+    if (boundary && dir === boundary) return null;
+    const parent = dirname(dir);
+    if (parent === dir) return null; // filesystem root
+    dir = parent;
+  }
+};
 
-// Resolve a preset by name: merge [default] → [preset.<name>]
-export const resolvePreset = name => {
-  const base = {
-    label: tomlDefault.label ?? 'Default',
-    userAgent: tomlDefault.userAgent ?? null,
-    overrideUserAgent: tomlDefault.overrideUserAgent ?? null,
-    viewport: tomlDefault.viewport ?? null,
-    locale: tomlDefault.locale ?? null,
-    timezone: tomlDefault.timezone ?? null,
-    headless: tomlDefault.headless ?? null,
+// Build internal config object from raw toml.
+const buildConfig = toml => {
+  const d = toml.default ?? {};
+  const stealthToml = toml['puppeteer-extra-plugin-stealth'] ?? {};
+  const stealthEvasions = stealthToml.evasions ?? {};
+  const presetsMap = toml.preset ?? {};
+
+  const _resolvePreset = name => {
+    const base = {
+      label: d.label ?? 'Default',
+      userAgent: d.userAgent ?? null,
+      overrideUserAgent: d.overrideUserAgent ?? null,
+      viewport: d.viewport ?? null,
+      locale: d.locale ?? null,
+      timezone: d.timezone ?? null,
+      headless: d.headless ?? null,
+    };
+    if (!name || name === 'default') return { preset: 'chromium-honest', ...base };
+    const override = presetsMap[name];
+    if (!override) return { preset: 'chromium-honest', ...base };
+    return {
+      preset: name,
+      label: override.label ?? base.label,
+      userAgent: override.userAgent ?? base.userAgent,
+      overrideUserAgent: override.overrideUserAgent ?? base.overrideUserAgent,
+      viewport: override.viewport ?? base.viewport,
+      locale: override.locale ?? base.locale,
+      timezone: override.timezone ?? base.timezone,
+      headless: override.headless ?? base.headless,
+    };
   };
 
-  if (!name || name === 'default') {
-    return { preset: 'chromium-honest', ...base };
-  }
+  const defaults = _resolvePreset('default');
 
-  const override = tomlPresets[name];
-  if (!override) {
-    return { preset: 'chromium-honest', ...base };
-  }
+  const headless =
+    process.env.HEADLESS !== undefined
+      ? process.env.HEADLESS === 'true'
+      : process.env.DISPLAY
+        ? (defaults.headless ?? false)
+        : true;
 
   return {
-    preset: name,
-    label: override.label ?? base.label,
-    userAgent: override.userAgent ?? base.userAgent,
-    overrideUserAgent: override.overrideUserAgent ?? base.overrideUserAgent,
-    viewport: override.viewport ?? base.viewport,
-    locale: override.locale ?? base.locale,
-    timezone: override.timezone ?? base.timezone,
-    headless: override.headless ?? base.headless,
+    _presetsMap: presetsMap,
+    _resolvePreset,
+    headless,
+    userAgent:
+      defaults.userAgent ||
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    viewport: defaults.viewport ?? { width: 1280, height: 800 },
+    locale: defaults.locale || 'en-US',
+    timezone: defaults.timezone || 'America/New_York',
+    timeout: d.timeout ?? 30000,
+    logLevel: d.log_level ?? 'info',
+    disableWebgl: d.disable_webgl ?? false,
+    executablePath: d.executablePath ?? null,
+    stealthEnabled: stealthToml.enabled ?? true,
+    stealth: {
+      evasions: stealthEvasions,
+      'user-agent-override': stealthToml['user-agent-override'] ?? { enabled: true, mask_linux: true },
+      'navigator.vendor': stealthToml['navigator.vendor'] ?? { enabled: true, vendor: 'Google Inc.' },
+      'navigator.hardwareConcurrency': stealthToml['navigator.hardwareConcurrency'] ?? {
+        enabled: true,
+        hardware_concurrency: 4,
+      },
+      'navigator.languages': stealthToml['navigator.languages'] ?? { enabled: true },
+      'webgl.vendor': stealthToml['webgl.vendor'] ?? {
+        enabled: true,
+        vendor: 'Intel Inc.',
+        renderer: 'Intel Iris OpenGL Engine',
+      },
+    },
   };
 };
 
-export const PRESETS = Object.keys(tomlPresets);
+let _config = null;
 
-// ── stealth config ──────────────────────────────────────────────────────────
+// Discovery algorithm: first match wins.
+// roots: array of absolute paths from MCP handshake (may be empty).
+export const initConfig = (roots = []) => {
+  let toml = null;
 
-const tomlStealth = toml['puppeteer-extra-plugin-stealth'] ?? {};
-const tomlStealthEvasions = tomlStealth.evasions ?? {};
+  // 1. SZKRABOK_CONFIG env var (absolute path)
+  const configEnv = process.env.SZKRABOK_CONFIG;
+  if (!toml && configEnv && existsSync(configEnv)) {
+    toml = parse(readFileSync(configEnv, 'utf8'));
+  }
 
-export const STEALTH_ENABLED = tomlStealth.enabled ?? true;
+  // 2. SZKRABOK_ROOT env var — walk-up bounded by root
+  if (!toml) {
+    const rootEnv = process.env.SZKRABOK_ROOT;
+    if (rootEnv) {
+      toml = walkUp(rootEnv, rootEnv);
+    }
+  }
 
-export const STEALTH_CONFIG = {
-  evasions: tomlStealthEvasions,
-  'user-agent-override': tomlStealth['user-agent-override'] ?? { enabled: true, mask_linux: true },
-  'navigator.vendor': tomlStealth['navigator.vendor'] ?? { enabled: true, vendor: 'Google Inc.' },
-  'navigator.hardwareConcurrency': tomlStealth['navigator.hardwareConcurrency'] ?? {
-    enabled: true,
-    hardware_concurrency: 4,
-  },
-  'navigator.languages': tomlStealth['navigator.languages'] ?? { enabled: true },
-  'webgl.vendor': tomlStealth['webgl.vendor'] ?? {
-    enabled: true,
-    vendor: 'Intel Inc.',
-    renderer: 'Intel Iris OpenGL Engine',
-  },
+  // 3. MCP roots — check each independently, use first hit
+  if (!toml && roots.length > 0) {
+    for (const root of roots) {
+      const found = walkUp(root, root);
+      if (found) { toml = found; break; }
+    }
+  }
+
+  // 4. process.cwd() — unbounded walk-up (CLI / test fallback)
+  if (!toml) {
+    toml = walkUp(process.cwd(), null);
+  }
+
+  // 5. XDG fallback
+  if (!toml) {
+    const xdgPath = join(homedir(), '.config', 'szkrabok', 'config.toml');
+    if (existsSync(xdgPath)) {
+      toml = parse(readFileSync(xdgPath, 'utf8'));
+    }
+  }
+
+  // 6. Empty defaults
+  _config = buildConfig(toml ?? {});
 };
 
-// ── resolved defaults ───────────────────────────────────────────────────────
+export const getConfig = () => {
+  if (!_config) throw new Error('szkrabok: getConfig() called before initConfig()');
+  return _config;
+};
 
-const defaults = resolvePreset('default');
+// resolvePreset reads from current config, falls back to defaults if not initialized.
+export const resolvePreset = name => {
+  if (_config) return _config._resolvePreset(name);
+  return buildConfig({})._resolvePreset(name);
+};
 
-export const DEFAULT_TIMEOUT = 30000;
-export const TIMEOUT = tomlDefault.timeout ?? DEFAULT_TIMEOUT;
-
-export const HEADLESS =
-  process.env.HEADLESS !== undefined
-    ? process.env.HEADLESS === 'true'
-    : process.env.DISPLAY
-      ? (defaults.headless ?? false)
-      : true;
-
-export const DISABLE_WEBGL = tomlDefault.disable_webgl ?? false;
-export const LOG_LEVEL = tomlDefault.log_level ?? 'info';
-
-export const VIEWPORT = defaults.viewport ?? { width: 1280, height: 800 };
-
-export const USER_AGENT =
-  defaults.userAgent ||
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
-
-export const LOCALE = defaults.locale || 'en-US';
-export const TIMEZONE = defaults.timezone || 'America/New_York';
+export const getPresets = () => (_config ? Object.keys(_config._presetsMap) : []);
 
 // ── Chromium path resolution ────────────────────────────────────────────────
 
 // resolveBrowserPath — pure, injectable. Exported for testing.
-// finders: array of async () => string|null, tried in order.
-export const resolveBrowserPath = async (finders) => {
+export const resolveBrowserPath = async finders => {
   for (const finder of finders) {
     try {
       const path = await finder();
@@ -148,19 +194,15 @@ export const resolveBrowserPath = async (finders) => {
 };
 
 export const findChromiumPath = async () => {
-  // 1. User-configured path (highest priority)
-  if (tomlDefault.executablePath) {
-    return tomlDefault.executablePath;
-  }
+  const executablePath = _config?.executablePath ?? null;
+  if (executablePath) return executablePath;
 
   return resolveBrowserPath([
-    // 2. System Chrome/Chromium/Brave/Edge via chrome-launcher
     async () => {
       const { Launcher } = await import('chrome-launcher');
       const installs = await Launcher.getInstallations();
       return installs[0] ?? null;
     },
-    // 3. Playwright bundled browser
     async () => {
       const { chromium } = await import('playwright');
       const pwPath = chromium.executablePath();

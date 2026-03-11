@@ -5,12 +5,7 @@ import { chromium } from 'playwright';
 import {
   resolvePreset,
   findChromiumPath,
-  HEADLESS,
-  VIEWPORT,
-  USER_AGENT,
-  LOCALE,
-  TIMEZONE,
-  STEALTH_ENABLED,
+  getConfig,
 } from './config.js';
 import { enhanceWithStealth, applyStealthToExistingPage } from './stealth.js';
 import * as storage from './storage.js';
@@ -106,6 +101,7 @@ export const checkBrowser = async () => {
 
 export const launch = async (options = {}) => {
   const { profile = 'default', preset: presetName, headless, stealth, userAgent, viewport, locale, timezone, reuse = true } = options;
+  const cfg = getConfig();
 
   await checkBrowser();
 
@@ -138,12 +134,12 @@ export const launch = async (options = {}) => {
   const resolved = resolvePreset(presetName ?? savedMeta?.preset);
   const base = presetName ? {} : savedConfig;
 
-  const effectiveViewport = viewport || base.viewport || resolved.viewport || VIEWPORT;
-  const effectiveUserAgent = userAgent || base.userAgent || resolved.userAgent || USER_AGENT;
-  const effectiveLocale = locale || base.locale || resolved.locale || LOCALE;
-  const effectiveTimezone = timezone || base.timezone || resolved.timezone || TIMEZONE;
-  const effectiveStealth = stealth ?? savedConfig.stealth ?? STEALTH_ENABLED;
-  const effectiveHeadless = headless ?? savedConfig.headless ?? HEADLESS;
+  const effectiveViewport = viewport || base.viewport || resolved.viewport || cfg.viewport;
+  const effectiveUserAgent = userAgent || base.userAgent || resolved.userAgent || cfg.userAgent;
+  const effectiveLocale = locale || base.locale || resolved.locale || cfg.locale;
+  const effectiveTimezone = timezone || base.timezone || resolved.timezone || cfg.timezone;
+  const effectiveStealth = stealth ?? savedConfig.stealth ?? cfg.stealthEnabled;
+  const effectiveHeadless = headless ?? savedConfig.headless ?? cfg.headless;
 
   const presetConfig = {
     userAgent: effectiveUserAgent,

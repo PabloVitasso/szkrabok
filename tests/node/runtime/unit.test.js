@@ -38,14 +38,16 @@ describe('resolvePreset', () => {
     assert.ok(typeof result.label === 'string');
   });
 
-  test('HEADLESS export is boolean', async () => {
-    const { HEADLESS } = await import('../../../packages/runtime/config.js');
-    assert.strictEqual(typeof HEADLESS, 'boolean');
+  test('headless from getConfig is boolean', async () => {
+    const { initConfig, getConfig } = await import('../../../packages/runtime/config.js');
+    initConfig([]);
+    assert.strictEqual(typeof getConfig().headless, 'boolean');
   });
 
-  test('STEALTH_ENABLED export is boolean', async () => {
-    const { STEALTH_ENABLED } = await import('../../../packages/runtime/config.js');
-    assert.strictEqual(typeof STEALTH_ENABLED, 'boolean');
+  test('stealthEnabled from getConfig is boolean', async () => {
+    const { initConfig, getConfig } = await import('../../../packages/runtime/config.js');
+    initConfig([]);
+    assert.strictEqual(typeof getConfig().stealthEnabled, 'boolean');
   });
 });
 

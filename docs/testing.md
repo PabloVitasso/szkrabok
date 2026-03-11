@@ -17,7 +17,9 @@
 
 ## Configuration for tests
 
-Tests read `szkrabok.config.toml` (committed repo defaults) and deep-merge `szkrabok.config.local.toml` (gitignored, machine-specific) on top.
+Config is discovered at runtime via `initConfig()`. Priority order: `SZKRABOK_CONFIG` env var → `SZKRABOK_ROOT` env var → MCP roots → `process.cwd()` walk-up → `~/.config/szkrabok/config.toml` → empty defaults.
+
+For tests, `process.cwd()` walk-up finds `szkrabok.config.toml` (committed repo defaults) and deep-merges `szkrabok.config.local.toml` (gitignored, machine-specific) on top.
 
 **Minimum required for any browser test** — set `executablePath` in your local TOML:
 
@@ -77,6 +79,8 @@ tests/
     basic.test.js             public API smoke tests
     schema.test.js            tool schema validation
     contracts.test.js         architecture invariant checks (static analysis)
+    config-discovery.test.js  initConfig() discovery algorithm (all 6 priority steps)
+    config-values.test.js     getConfig() field defaults, TOML mapping, resolvePreset
     runtime/
       unit.test.js            config, storage, stealth evasions
       integration.test.js     cookie persistence across two launches
@@ -87,7 +91,8 @@ tests/
       session.spec.js
       stealth.spec.js
       tools.spec.js
-      interop.spec.js
+      interop.spec.js         (skipped when @playwright/mcp not installed)
+      config-mcp-roots.spec.js  MCP roots → config → UA end-to-end
     e2e/                      Playwright, live external sites, headed browser
       fixtures.js
       setup.js / teardown.js
@@ -148,7 +153,8 @@ npm run test:playwright
 | `session.spec.js` | Session Management | `session_manage` open/list/close/delete, cookie persistence across close/reopen |
 | `stealth.spec.js` | Stealth Mode | Session opens with stealth applied, `browser_run` reads page title |
 | `tools.spec.js` | Workflow | `workflow.scrape` extracts structured data |
-| `interop.spec.js` | CDP Interoperability | `session_manage endpoint` returns `wsEndpoint`; @playwright/mcp attaches and navigates shared browser |
+| `interop.spec.js` | CDP Interoperability | `session_manage endpoint` returns `wsEndpoint`; @playwright/mcp attaches and navigates shared browser. **Skipped** when `@playwright/mcp` is not installed |
+| `config-mcp-roots.spec.js` | Config Discovery | Roots sent at init load project TOML; `SZKRABOK_CONFIG` env var loads config; both verified via `navigator.userAgent` |
 
 ---
 
@@ -287,3 +293,6 @@ npm run test:playwright    # Playwright integration (browser required)
 | intoli timeout (headed) | Intermittent — rerun |
 | `Executable doesn't exist` | `npx playwright install chromium` |
 | Wrong browser | Run `szkrabok detect-browser`, set `executablePath` in local TOML |
+| Project TOML not picked up by MCP server | Server reads config from MCP roots — ensure the client sends roots pointing at the project directory |
+| `getConfig() called before initConfig()` | Call `initConfig([])` before any config read; MCP server does this automatically |
+| Custom UA ignored | UA set in `szkrabok.config.local.toml` requires the server to find that file via the discovery chain — verify with `SZKRABOK_CONFIG=/path/to/toml` env var for quick testing |

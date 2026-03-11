@@ -18,11 +18,14 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import { existsSync } from 'fs';
 
 const PLAYWRIGHT_MCP_CLI = resolve(
   dirname(fileURLToPath(import.meta.url)),
   '../../../node_modules/@playwright/mcp/cli.js'
 );
+
+const playwrightMcpAvailable = existsSync(PLAYWRIGHT_MCP_CLI);
 
 async function spawnPlaywrightMcp(cdpEndpoint) {
   const transport = new StdioClientTransport({
@@ -38,6 +41,9 @@ async function spawnPlaywrightMcp(cdpEndpoint) {
 
 test.describe('CDP interoperability', () => {
   test('playwright-mcp attaches to szkrabok session via CDP', async ({ client, openSession }) => {
+    if (!playwrightMcpAvailable) {
+      test.skip(true, '@playwright/mcp not installed — run: npm install @playwright/mcp');
+    }
     const sessionId = `interop-${randomUUID()}`;
     let pwClient;
 

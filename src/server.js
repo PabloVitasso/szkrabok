@@ -2,10 +2,13 @@ import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { registerTools, handleToolCall } from './tools/registry.js';
-import { closeAllSessions } from '#runtime';
+import { closeAllSessions, initConfig } from '#runtime';
 import { log } from './utils/logger.js';
 
 export const createServer = () => {
+  // Initialize config with cwd fallback immediately — roots will re-init after handshake.
+  initConfig([]);
+
   const server = new Server(
     {
       name: 'szkrabok',
@@ -14,6 +17,7 @@ export const createServer = () => {
     {
       capabilities: {
         tools: {},
+        roots: { listChanged: true },
       },
     }
   );
@@ -25,6 +29,20 @@ export const createServer = () => {
   server.setRequestHandler(CallToolRequestSchema, async request =>
     handleToolCall(request.params.name, request.params.arguments)
   );
+
+  // Re-initialize config when MCP client sends roots.
+  server.oninitialized = async () => {
+    try {
+      const { roots } = await server.listRoots();
+      const rootPaths = (roots ?? []).map(r => r.uri.replace(/^file:\/\//, ''));
+      if (rootPaths.length > 0) {
+        initConfig(rootPaths);
+        log('Config re-initialized with MCP roots', { roots: rootPaths });
+      }
+    } catch {
+      // Client does not support roots — cwd-based config remains active.
+    }
+  };
 
   return {
     async connect() {

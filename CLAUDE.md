@@ -21,7 +21,7 @@
 | CLI entry             | `src/cli/index.js`                                               |
 | CLI commands          | `src/cli/commands/`                                              |
 | Tool registry         | `src/tools/registry.js`                                          |
-| MCP config            | `src/config.js` (TIMEOUT, LOG_LEVEL, DISABLE_WEBGL only)         |
+| MCP config            | `src/config.js` (re-exports `initConfig`/`getConfig` from runtime) |
 | Startup error log     | `~/.cache/szkrabok/startup.log`                                  |
 | Publish smoke test    | `scripts/smoke-test.js` (runs as `prepublishOnly`)               |
 | Playwright config     | `playwright.config.js`                                           |
@@ -41,6 +41,10 @@
 
 - **No repeated string literals for dispatch.** If a string (tool name, event type, key) controls branching in more than one place, put it in a registry/map keyed by that string. The string appears once as the key; behaviour is a value. Adding a new case = adding one entry, not touching multiple `if`/`switch` blocks
 - **No ANSI codes in programmatic output.** Subprocess output piped into structured data must be clean text. Set `FORCE_COLOR=0` (or equivalent) when spawning CLI tools whose output is parsed or logged
+
+## Config discovery
+
+Config is lazy: `initConfig(roots?)` must be called before any `getConfig()` use. The MCP server calls it automatically — once at startup (cwd fallback) and again after the MCP handshake with client roots. For CLI and tests: `initConfig([])` is called at entry. Discovery order: `SZKRABOK_CONFIG` env → `SZKRABOK_ROOT` env → MCP roots → `cwd` walk-up → `~/.config/szkrabok/config.toml` → empty defaults.
 
 ## Architecture invariants — never violate
 

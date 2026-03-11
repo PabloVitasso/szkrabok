@@ -27,6 +27,8 @@ before(async () => {
   tmpSessionsDir = await mkdtemp(join(tmpdir(), 'szkrabok-integration-'));
   process.env.SZKRABOK_SESSIONS_DIR = tmpSessionsDir;
   process.env.HEADLESS = 'true';
+  const { initConfig } = await import('../../../packages/runtime/index.js');
+  initConfig([]);
 });
 
 after(async () => {

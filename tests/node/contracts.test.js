@@ -55,11 +55,11 @@ describe('Invariant 1: no chromium.launch* in MCP tools', () => {
 });
 
 describe('Invariant 2: session.open delegates to runtime.launch', () => {
-  test('szkrabok_session.js imports from @szkrabok/runtime', async () => {
+  test('szkrabok_session.js imports from @szkrabok/runtime or #runtime', async () => {
     const src = await readSrc(join(MCP_TOOLS_DIR, 'szkrabok_session.js'));
     assert.ok(
-      src.includes("from '@szkrabok/runtime'"),
-      "szkrabok_session.js must import from '@szkrabok/runtime'"
+      src.includes("from '@szkrabok/runtime'") || src.includes("from '#runtime'"),
+      "szkrabok_session.js must import from '@szkrabok/runtime' or '#runtime'"
     );
   });
 

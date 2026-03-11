@@ -5,7 +5,7 @@ import NavigatorVendor from 'puppeteer-extra-plugin-stealth/evasions/navigator.v
 import NavigatorHardwareConcurrency from 'puppeteer-extra-plugin-stealth/evasions/navigator.hardwareConcurrency/index.js';
 import NavigatorLanguages from 'puppeteer-extra-plugin-stealth/evasions/navigator.languages/index.js';
 import WebGLVendor from 'puppeteer-extra-plugin-stealth/evasions/webgl.vendor/index.js';
-import { STEALTH_CONFIG } from './config.js';
+import { getConfig } from './config.js';
 import { log, logDebug } from './logger.js';
 
 const CONFIGURABLE_EVASIONS = [
@@ -18,6 +18,7 @@ const CONFIGURABLE_EVASIONS = [
 
 export const enhanceWithStealth = (browser, presetConfig = {}) => {
   log('Initializing puppeteer-extra-plugin-stealth');
+  const STEALTH_CONFIG = getConfig().stealth;
 
   try {
     const enhanced = addExtra(browser);
@@ -85,6 +86,7 @@ export const enhanceWithStealth = (browser, presetConfig = {}) => {
 };
 
 export const applyStealthToExistingPage = async (page, presetConfig = {}) => {
+  const STEALTH_CONFIG = getConfig().stealth;
   try {
     logDebug('applyStealthToExistingPage called', { presetConfig });
     const uaConfig = STEALTH_CONFIG['user-agent-override'];

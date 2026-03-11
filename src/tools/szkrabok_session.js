@@ -9,12 +9,12 @@ import {
 } from '#runtime';
 
 import { log } from '../utils/logger.js';
-import { TIMEOUT } from '../config.js';
+import { getConfig } from '../config.js';
 
 const PRESET_EXCLUSIVE = new Set(['userAgent', 'viewport', 'locale', 'timezone']);
 
 const navigate = (page, url) =>
-  page.goto(url, { waitUntil: 'domcontentloaded', timeout: TIMEOUT });
+  page.goto(url, { waitUntil: 'domcontentloaded', timeout: getConfig().timeout });
 
 function validateLaunchOptions(opts = {}) {
   if (!opts.preset) return;

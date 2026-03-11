@@ -50,7 +50,7 @@ Claude Desktop — add to `claude_desktop_config.json`:
 
 **2. Configure**
 
-Optionally create `szkrabok.config.local.toml` to set a custom browser binary or user agent:
+Optionally create `szkrabok.config.local.toml` in your project root to set a custom browser binary or user agent:
 
 ```toml
 [default]
@@ -59,6 +59,16 @@ overrideUserAgent = true
 userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
 log_level = "debug"
 ```
+
+**Config discovery** — the server finds your TOML automatically. Priority order:
+
+1. `SZKRABOK_CONFIG` env var (absolute path to a `.toml` file)
+2. `SZKRABOK_ROOT` env var (walk-up within that dir)
+3. MCP roots sent by the client at handshake (walk-up within each root)
+4. `process.cwd()` walk-up (CLI / fallback)
+5. `~/.config/szkrabok/config.toml`
+
+Place `szkrabok.config.toml` or `szkrabok.config.local.toml` anywhere in your project tree and it will be found as long as the MCP client sends that project's directory as a root.
 
 ---
 

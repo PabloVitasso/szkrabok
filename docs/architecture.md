@@ -59,7 +59,7 @@ packages/runtime/
   launch.js         The one true launchPersistentContext call; launch() and connect()
   sessions.js       closeSession, getSession, listSessions helpers
   pool.js           In-memory session registry { context, page, cdpPort, ... }
-  config.js         TOML loader, preset resolution, findChromiumPath (async)
+  config.js         Config discovery: initConfig(roots), getConfig(), resolvePreset(), getPresets(), findChromiumPath()
   stealth.js        enhanceWithStealth, applyStealthToExistingPage
   storage.js        Profile dirs, state.json save/restore
   logger.js         Logging helpers
@@ -82,7 +82,7 @@ packages/runtime/
 src/
   index.js          MCP entry point, stdio transport
                     Always writes fatal startup errors to ~/.cache/szkrabok/startup.log
-  config.js         MCP-layer config only: TIMEOUT, LOG_LEVEL, DISABLE_WEBGL
+  config.js         Re-exports initConfig/getConfig from @szkrabok/runtime; DEFAULT_TIMEOUT constant
   cli/
     index.js        CLI program setup, version (read from package.json), parseAsync
     commands/
@@ -132,6 +132,7 @@ tests/
       stealth.spec.js
       tools.spec.js
       interop.spec.js
+      config-mcp-roots.spec.js
 
     e2e/              Playwright, live external sites, headed browser
       fixtures.js           Path A: connect(CDP); Path B: launch({profile:'dev'})
@@ -166,8 +167,10 @@ import {
   updateSessionMeta,      // update session metadata
   deleteStoredSession,    // delete persisted session storage
   closeAllSessions,       // close all open sessions
-  resolvePreset,          // resolve a named preset from TOML
-  PRESETS,                // array of available preset names
+  initConfig,             // discover and load config (call before any getConfig() use)
+  getConfig,              // returns resolved config object (throws if initConfig not called)
+  resolvePreset,          // resolve a named preset from config
+  getPresets,             // returns array of available preset names
 } from '@szkrabok/runtime';
 ```
 
@@ -280,11 +283,32 @@ The script resolves `node_modules` relative to its own location (`__dirname`), n
 
 Detection sentinel: `__re__emitExecutionContext` in `lib/server/chromium/crConnection.js`. Use `szkrabok doctor` to verify patch status.
 
+## Config discovery
+
+`initConfig(roots?)` must be called before any `getConfig()` use. It runs the discovery algorithm once and caches the result. `roots` is an array of absolute paths from the MCP handshake (may be empty).
+
+Priority order (first match wins):
+
+```
+1. SZKRABOK_CONFIG env var  → absolute path to a .toml file
+2. SZKRABOK_ROOT env var    → walk-up within that root (bounded)
+3. MCP roots                → for each root: walk-up within that root (bounded, first hit wins)
+4. process.cwd()            → unbounded walk-up (CLI / test fallback)
+5. ~/.config/szkrabok/config.toml
+6. empty defaults
+```
+
+Walk-up: at each dir load `szkrabok.config.toml` then merge `szkrabok.config.local.toml` on top. Stop when a config is found or the boundary root is reached.
+
+`src/server.js` calls `initConfig([])` on startup (cwd fallback active immediately), then re-calls `initConfig(rootPaths)` via `server.oninitialized` → `server.listRoots()` after the MCP handshake completes.
+
+---
+
 ## Chromium resolution
 
 `findChromiumPath()` in `packages/runtime/config.js` is async. Priority order:
 
-1. `TOML [default].executablePath` — user-configured path (highest priority)
+1. `getConfig().executablePath` — user-configured path (highest priority)
 2. `chrome-launcher` — `Launcher.getInstallations()` finds system Chrome, Chromium, Brave, Edge across all standard install locations on Linux/macOS/Windows
 3. Playwright bundled binary — `chromium.executablePath()` from the playwright package
 4. `null` — `checkBrowser()` throws a deterministic error with install instructions

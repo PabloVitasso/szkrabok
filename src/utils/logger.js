@@ -1,31 +1,32 @@
-import { LOG_LEVEL } from '../config.js';
+import { getConfig } from '../config.js';
 import { createWriteStream } from 'fs';
 
-const levels = {
-  error: 0,
-  warn: 1,
-  info: 2,
-  debug: 3,
+const levels = { error: 0, warn: 1, info: 2, debug: 3 };
+
+const getLogLevel = () => {
+  try { return getConfig().logLevel; } catch { return 'info'; }
 };
 
-// "none", empty string, or unset → levels[LOG_LEVEL] is undefined → always false.
-const shouldLog = level => levels[level] <= levels[LOG_LEVEL];
+// "none", empty string, or unset → levels[level] is undefined → always false.
+const shouldLog = level => levels[level] <= levels[getLogLevel()];
 
-// Only open a log file and tee console.error when logging is actually enabled.
-// Avoids creating /tmp files (privacy) when log_level is "none" or unset.
-if (shouldLog('error')) {
-  const _ts = new Date();
-  const _pad = n => String(n).padStart(2, '0');
-  const _logFile = `/tmp/${_ts.getFullYear()}${_pad(_ts.getMonth() + 1)}${_pad(_ts.getDate())}${_pad(_ts.getHours())}${_pad(_ts.getMinutes())}szkrabok-mcp.log`;
-  const _fileStream = createWriteStream(_logFile, { flags: 'a' });
-
-  const _origConsoleError = console.error.bind(console);
-  console.error = (...args) => {
-    const line = args.map(a => (typeof a === 'string' ? a : JSON.stringify(a))).join(' ');
-    _origConsoleError(...args);
-    _fileStream.write(line + '\n');
-  };
-}
+// Lazy file stream — set up on first use to avoid /tmp files when logging is off.
+let _fileStream = null;
+const getFileStream = () => {
+  if (!_fileStream) {
+    const ts = new Date();
+    const pad = n => String(n).padStart(2, '0');
+    const logFile = `/tmp/${ts.getFullYear()}${pad(ts.getMonth() + 1)}${pad(ts.getDate())}${pad(ts.getHours())}${pad(ts.getMinutes())}szkrabok-mcp.log`;
+    _fileStream = createWriteStream(logFile, { flags: 'a' });
+    const _origConsoleError = console.error.bind(console);
+    console.error = (...args) => {
+      const line = args.map(a => (typeof a === 'string' ? a : JSON.stringify(a))).join(' ');
+      _origConsoleError(...args);
+      _fileStream.write(line + '\n');
+    };
+  }
+  return _fileStream;
+};
 
 const format = (level, msg, meta) => {
   const timestamp = new Date().toISOString();
@@ -34,31 +35,18 @@ const format = (level, msg, meta) => {
 };
 
 export const log = (msg, meta) => {
-  if (shouldLog('info')) {
-    console.error(format('info', msg, meta));
-  }
+  if (shouldLog('info')) { getFileStream(); console.error(format('info', msg, meta)); }
 };
 
 export const logError = (msg, err, meta) => {
-  if (shouldLog('error')) {
-    console.error(
-      format('error', msg, {
-        error: err?.message || String(err),
-        stack: err?.stack,
-        ...meta,
-      })
-    );
-  }
+  if (shouldLog('error'))
+    console.error(format('error', msg, { error: err?.message || String(err), stack: err?.stack, ...meta }));
 };
 
 export const logDebug = (msg, meta) => {
-  if (shouldLog('debug')) {
-    console.error(format('debug', msg, meta));
-  }
+  if (shouldLog('debug')) { getFileStream(); console.error(format('debug', msg, meta)); }
 };
 
 export const logWarn = (msg, meta) => {
-  if (shouldLog('warn')) {
-    console.error(format('warn', msg, meta));
-  }
+  if (shouldLog('warn')) { getFileStream(); console.error(format('warn', msg, meta)); }
 };
