@@ -53,9 +53,10 @@ sessions/{id}/
 
 ```
 packages/runtime/
-  index.js          Public API: launch, connect, closeSession, getSession,
+  index.js          Public API: launch, connect, checkBrowser, closeSession, getSession,
                     listRuntimeSessions, updateSessionMeta, deleteStoredSession,
-                    resolvePreset, PRESETS, closeAllSessions
+                    resolvePreset, getPresets, closeAllSessions, initConfig, getConfig,
+                    mcpConnect, spawnClient
   launch.js         The one true launchPersistentContext call; launch() and connect()
   sessions.js       closeSession, getSession, listSessions helpers
   pool.js           In-memory session registry { context, page, cdpPort, ... }
@@ -180,7 +181,12 @@ import {
 launch({
   profile?:  string,   // session name / profile dir key
   preset?:   string,   // TOML preset name (default: 'default')
+  stealth?:  boolean,  // overrides TOML stealth setting
   headless?: boolean,  // overrides TOML + env
+  userAgent?: string,  // custom UA string
+  viewport?:  { width, height },
+  locale?:    string,  // BCP 47 locale
+  timezone?:  string,  // IANA timezone
   reuse?:    boolean,  // default: true — return existing if same profile already open
 }) => Promise<{ browser, context, cdpEndpoint, close() }>
 ```
@@ -193,7 +199,7 @@ Do NOT import runtime internals (`stealth`, `storage`, `pool`, `config`) directl
 2. Stealth runs only during `runtime.launch()` — never conditionally, never elsewhere
 3. Profile resolution happens only in runtime
 4. MCP tools never import stealth, config internals, or storage directly
-5. `tests/playwright/e2e/fixtures.js` never imports stealth or launches a browser directly
+5. `tests/playwright/e2e/fixtures.js` never imports stealth or uses internal modules directly — only public API
 6. `browser.run_test` subprocess connects via `connectOverCDP` — it never calls `launch*()`
 
 Enforced by ESLint boundary rules in `eslint.config.js` and `tests/node/contracts.test.js`.
@@ -249,18 +255,18 @@ session_manage { action: close, sessionName: id }
 
 Pool is process-scoped — not global. Each process has its own pool. CDP endpoint is the cross-process identity.
 
-- CLI `bebok open` holds a pool entry in its own process
+- CLI `szkrabok open` holds a pool entry in its own process
 - MCP server holds pool entries in its process
 - A `browser.run_test` subprocess has no pool — it connects via `SZKRABOK_CDP_ENDPOINT`
 
-## CLI (`bebok`) and MCP tools — shared handlers
+## CLI (`szkrabok`) and MCP tools — shared handlers
 
-`bebok` calls the same handler functions as the MCP tools (`szkrabok_session.js`). There is one code path for session operations — fixes and changes apply to both interfaces automatically.
+`szkrabok` calls the same handler functions as the MCP tools (`szkrabok_session.js`). There is one code path for session operations — fixes and changes apply to both interfaces automatically.
 
 CLI-only operations (no MCP equivalent):
-- `bebok open` — human-facing browser launch, holds process alive
-- `bebok session inspect` — raw cookie/localStorage dump from `state.json`
-- `bebok endpoint` — prints CDP/WS endpoints to stdout
+- `szkrabok open` — human-facing browser launch, holds process alive
+- `szkrabok session inspect` — raw cookie/localStorage dump from `state.json`
+- `szkrabok endpoint` — prints CDP/WS endpoints to stdout
 
 ## Stealth hacks (preserve on upstream updates)
 

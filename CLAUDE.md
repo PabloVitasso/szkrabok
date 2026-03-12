@@ -4,7 +4,7 @@
 
 - [README.md](./README.md) - what szkrabok is
 - [docs/architecture.md](./docs/architecture.md) - layer map, file layout, tool ownership, hacks
-- [docs/development.md](./docs/development.md) - fork relationship, merging upstream, adding tools
+- [docs/development.md](./docs/development.md) - fork relationship, adding tools, coding style
 - [docs/testing.md](./docs/testing.md) - run tests via MCP and CLI
 - [docs/mcp-client-library.md](./docs/mcp-client-library.md) - MCP client library architecture
 - [microsoft/playwright-mcp](https://github.com/microsoft/playwright-mcp) - upstream reference
@@ -36,23 +36,6 @@
 
 - **Always ask before committing or pushing.** Never commit or push without explicit user approval
 - **Test after every change.** Run the relevant test before considering work done. If a test cannot be run, say so explicitly and ask how to proceed
-
-## Coding Style
-
-- **No repeated string literals for dispatch.** If a string (tool name, event type, key) controls branching in more than one place, put it in a registry/map keyed by that string. The string appears once as the key; behaviour is a value. Adding a new case = adding one entry, not touching multiple `if`/`switch` blocks
-- **No ANSI codes in programmatic output.** Subprocess output piped into structured data must be clean text. Set `FORCE_COLOR=0` (or equivalent) when spawning CLI tools whose output is parsed or logged
-
-## Config discovery
-
-Config is lazy: `initConfig(roots?)` must be called before any `getConfig()` use. The MCP server calls it automatically — once at startup (cwd fallback) and again after the MCP handshake with client roots. For CLI and tests: `initConfig([])` is called at entry. Discovery order: `SZKRABOK_CONFIG` env → `SZKRABOK_ROOT` env → MCP roots → `cwd` walk-up → `~/.config/szkrabok/config.toml` → empty defaults.
-
-## Architecture invariants — never violate
-
-1. Only `@szkrabok/runtime` calls `launchPersistentContext`
-2. Stealth runs only in runtime launch — never conditionally, never elsewhere
-3. MCP tools never import stealth, config internals, or storage directly
-4. `tests/playwright/e2e/fixtures.js` never imports stealth or launches a browser directly
-5. `browser.run_test` subprocess connects via CDP — it never calls `runtime.launch()`
 
 ## Restart MCP Server
 

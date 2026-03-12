@@ -7,7 +7,7 @@
  * Path B — Dev mode (VSCode, standalone):
  *   Launches a new stealth browser via runtime.launch().
  *
- * No direct stealth imports. No direct browser launch. No config parsing.
+ * Uses public API (runtime.launch/connect), not internal modules. No stealth imports.
  */
 import { test as base } from 'playwright/test';
 import { launch, connect } from '@szkrabok/runtime';

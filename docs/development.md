@@ -129,6 +129,13 @@ When releasing, update the dependency path in each consumer project's `package.j
 
 ---
 
+## Coding Style
+
+- **No repeated string literals for dispatch.** If a string (tool name, event type, key) controls branching in more than one place, put it in a registry/map keyed by that string. The string appears once as the key; behaviour is a value. Adding a new case = adding one entry, not touching multiple `if`/`switch` blocks
+- **No ANSI codes in programmatic output.** Subprocess output piped into structured data must be clean text. Set `FORCE_COLOR=0` (or equivalent) when spawning CLI tools whose output is parsed or logged
+
+---
+
 ## Config modules (`config/`)
 
 TypeScript modules used only by `playwright.config.js` — not by the runtime or MCP server.
