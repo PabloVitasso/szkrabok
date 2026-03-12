@@ -63,6 +63,8 @@ export async function init(args = {}) {
   const dir = rawDir ? resolve(rawDir) : process.cwd();
   const pkgName = name ?? basename(dir);
 
+  await mkdir(dir, { recursive: true });
+
   const created = [];
   const skipped = [];
   const merged = [];

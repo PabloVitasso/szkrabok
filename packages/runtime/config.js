@@ -79,10 +79,14 @@ const buildConfig = toml => {
 
   const defaults = _resolvePreset('default');
 
+  // On Linux, absence of DISPLAY means no desktop. On macOS/Windows a desktop
+  // is always present, so default to non-headless on those platforms.
+  const hasDisplay =
+    process.env.DISPLAY || process.platform === 'darwin' || process.platform === 'win32';
   const headless =
     process.env.HEADLESS !== undefined
       ? process.env.HEADLESS === 'true'
-      : process.env.DISPLAY
+      : hasDisplay
         ? (defaults.headless ?? false)
         : true;
 
@@ -153,9 +157,12 @@ export const initConfig = (roots = []) => {
     toml = walkUp(process.cwd(), null);
   }
 
-  // 5. XDG fallback
+  // 5. User config dir fallback (XDG on Linux/macOS, %APPDATA% on Windows)
   if (!toml) {
-    const xdgPath = join(homedir(), '.config', 'szkrabok', 'config.toml');
+    const configDir = process.platform === 'win32'
+      ? join(process.env.APPDATA ?? join(homedir(), 'AppData', 'Roaming'), 'szkrabok')
+      : join(process.env.XDG_CONFIG_HOME ?? join(homedir(), '.config'), 'szkrabok');
+    const xdgPath = join(configDir, 'config.toml');
     if (existsSync(xdgPath)) {
       toml = parse(readFileSync(xdgPath, 'utf8'));
     }

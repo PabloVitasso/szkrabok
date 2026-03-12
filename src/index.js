@@ -2,7 +2,7 @@
 import 'dotenv/config';
 import { mkdirSync, appendFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { homedir } from 'node:os';
+import { szkrabokCacheDir } from './utils/platform.js';
 
 const CLI_COMMANDS = new Set(['session', 'open', 'endpoint', 'detect-browser', 'install-browser', 'init', 'doctor']);
 const args = process.argv.slice(2);
@@ -21,7 +21,7 @@ if (args.includes('--no-headless') || args.includes('--headful')) {
 }
 
 // Always write fatal startup errors to a fixed log so they survive MCP client restarts.
-const _logDir = join(homedir(), '.cache', 'szkrabok');
+const _logDir = szkrabokCacheDir();
 const _logFile = join(_logDir, 'startup.log');
 const _writeStartupLog = msg => {
   try {

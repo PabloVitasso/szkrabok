@@ -1,9 +1,10 @@
 import fs from 'node:fs/promises';
-import { existsSync, readdirSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 import { join, resolve, dirname } from 'node:path';
-import { homedir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { resolvePlaywrightCore } from '../../../scripts/resolve-playwright-core.js';
+import { findChromium } from '../../../scripts/find-chromium.js';
+import { szkrabokCacheDir } from '../../utils/platform.js';
 
 const pass = (label, detail = '') =>
   console.log(`  [pass] ${label}${detail ? ': ' + detail : ''}`);
@@ -31,7 +32,7 @@ export function register(program) {
 
       // 2. playwright-core installed — hoisting-aware resolution
       const pkgRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
-      const pwCorePath = resolvePlaywrightCore(pkgRoot, existsSync, { join });
+      const pwCorePath = resolvePlaywrightCore(pkgRoot);
       if (pwCorePath) {
         const { version } = JSON.parse(await fs.readFile(join(pwCorePath, 'package.json'), 'utf8'));
         pass('playwright-core installed', version);
@@ -49,24 +50,8 @@ export function register(program) {
         failed = fail('playwright-core installed', `not found near ${pkgRoot}`);
       }
 
-      // 4. Chromium available
-      const playwrightCache = join(homedir(), '.cache', 'ms-playwright');
-      let chromiumFound = null;
-      if (existsSync(playwrightCache)) {
-        const dirs = readdirSync(playwrightCache)
-          .filter(d => d.startsWith('chromium-'))
-          .sort()
-          .reverse();
-        outer: for (const dir of dirs) {
-          for (const bin of ['chrome-linux/chrome', 'chrome-linux64/chrome']) {
-            const p = join(playwrightCache, dir, bin);
-            if (existsSync(p)) { chromiumFound = p; break outer; }
-          }
-        }
-      }
-      for (const p of ['/usr/bin/chromium', '/usr/bin/chromium-browser', '/usr/bin/google-chrome']) {
-        if (!chromiumFound && existsSync(p)) chromiumFound = p;
-      }
+      // 4. Chromium available (cross-platform: playwright-managed then system Chrome)
+      const chromiumFound = await findChromium();
       if (chromiumFound) pass('chromium', chromiumFound);
       else failed = fail('chromium not found', 'run: szkrabok install-browser');
 
@@ -79,7 +64,7 @@ export function register(program) {
       }
 
       // 6. Startup log
-      const logFile = join(homedir(), '.cache', 'szkrabok', 'startup.log');
+      const logFile = join(szkrabokCacheDir(), 'startup.log');
       if (existsSync(logFile)) pass('startup log exists', logFile);
       else pass('startup log', `will be created at ${logFile}`);
 
@@ -91,11 +76,14 @@ export function register(program) {
       const testNpxDir = join(pkgRoot, 'test', 'npx');
       if (existsSync(testNpxDir)) {
         console.log('\n--- Dev MCP config (for developing szkrabok itself) ---');
+        const [command, ...args] = process.platform === 'win32'
+          ? ['cmd', '/c', `cd /d "${testNpxDir}" && npx -y @pablovitasso/szkrabok`]
+          : ['bash', '-c', `cd ${testNpxDir} && npx -y @pablovitasso/szkrabok`];
         console.log(JSON.stringify({
           szkrabok: {
             type: 'stdio',
-            command: 'bash',
-            args: ['-c', `cd ${testNpxDir} && npx -y @pablovitasso/szkrabok`],
+            command,
+            args,
             env: {},
           }
         }, null, 2));

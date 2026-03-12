@@ -92,7 +92,6 @@
 
 import fs from 'fs'
 import path from 'path'
-import { execSync } from 'child_process'
 import { createRequire } from 'module'
 import { fileURLToPath } from 'url'
 import { resolvePlaywrightCore } from './resolve-playwright-core.js'
@@ -110,23 +109,16 @@ function findPkgRoots() {
   const roots = []
   const pkgRoot = path.resolve(__dirname, '..')
 
-  const primary = resolvePlaywrightCore(pkgRoot, fs.existsSync.bind(fs), path)
+  // Primary playwright-core (hoisted or local) — Node's own resolution from pkgRoot
+  const primary = resolvePlaywrightCore(pkgRoot)
   if (primary) roots.push(primary)
 
-  // Also find playwright's own nested playwright-core copy
-  const enclosingNm = pkgRoot.includes('node_modules')
-    ? pkgRoot.slice(0, pkgRoot.lastIndexOf('node_modules') + 'node_modules'.length)
-    : path.join(pkgRoot, 'node_modules')
+  // Also find playwright's own nested playwright-core copy.
+  // Resolve playwright's package root, then re-run Node resolution from there.
   try {
-    const out = execSync(
-      `find ${enclosingNm}/playwright -maxdepth 3 -name "package.json" -path "*/playwright-core/package.json" 2>/dev/null`,
-      { encoding: 'utf8' }
-    )
-    for (const line of out.trim().split('\n')) {
-      if (!line) continue
-      const nested = path.dirname(path.resolve(line))
-      if (!roots.includes(nested)) roots.push(nested)
-    }
+    const playwrightPkg = path.dirname(require.resolve('playwright/package.json'))
+    const nested = resolvePlaywrightCore(playwrightPkg)
+    if (nested && !roots.includes(nested)) roots.push(nested)
   } catch {}
 
   return roots

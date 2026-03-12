@@ -1,5 +1,7 @@
 import { getConfig } from '../config.js';
 import { createWriteStream } from 'fs';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
 
 const levels = { error: 0, warn: 1, info: 2, debug: 3 };
 
@@ -16,7 +18,7 @@ const getFileStream = () => {
   if (!_fileStream) {
     const ts = new Date();
     const pad = n => String(n).padStart(2, '0');
-    const logFile = `/tmp/${ts.getFullYear()}${pad(ts.getMonth() + 1)}${pad(ts.getDate())}${pad(ts.getHours())}${pad(ts.getMinutes())}szkrabok-mcp.log`;
+    const logFile = join(tmpdir(), `${ts.getFullYear()}${pad(ts.getMonth() + 1)}${pad(ts.getDate())}${pad(ts.getHours())}${pad(ts.getMinutes())}szkrabok-mcp.log`);
     _fileStream = createWriteStream(logFile, { flags: 'a' });
     const _origConsoleError = console.error.bind(console);
     console.error = (...args) => {
