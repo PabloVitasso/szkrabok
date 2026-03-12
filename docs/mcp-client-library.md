@@ -28,7 +28,7 @@ invocation.
 ## File layout
 
 ```
-packages/mcp-client/
+packages/runtime/mcp-client/
   runtime/                    generic MCP execution — any server, any session model
     transport.js              spawnClient() — stdio process lifecycle
     invoker.js                createCallInvoker() — serialization, closed guard
@@ -96,7 +96,7 @@ adapters/szkrabok-session.js
 ## Generated file: `mcp-tools.js`
 
 Single output file. Never edited by hand. Committed to git. Lives at
-`packages/mcp-client/mcp-tools.js`.
+`packages/runtime/mcp-client/mcp-tools.js`.
 
 Structure:
 
@@ -258,7 +258,7 @@ Steps:
 ### `package.json` registration
 
 ```json
-"codegen:mcp": "node packages/mcp-client/codegen/generate-mcp-tools.mjs"
+"codegen:mcp": "node packages/runtime/mcp-client/codegen/generate-mcp-tools.mjs"
 ```
 
 Run anytime the registry changes, then commit the updated `mcp-tools.js`.
@@ -441,7 +441,7 @@ mcpTest('my test via MCP', async ({ mcp }) => {
 
 ## Sequences (optional)
 
-Stored JSONL files in `packages/mcp-client/sequences/` represent reusable call sequences
+Stored JSONL files in `packages/runtime/mcp-client/sequences/` represent reusable call sequences
 without a session parameter (injected at runtime by the adapter).
 
 ```jsonl

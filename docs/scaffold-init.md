@@ -1,5 +1,16 @@
 # scaffold.init
 
+## Contents
+
+- [Problem](#problem)
+- [Tool signature](#tool-signature)
+- [Presets](#presets)
+- [Two spec patterns](#two-spec-patterns)
+- [Templates](#templates)
+- [Non-goals](#non-goals)
+
+---
+
 ## Problem
 
 An LLM using szkrabok MCP tools has no way to discover that `browser.run_test`
