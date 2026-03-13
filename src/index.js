@@ -33,7 +33,7 @@ const _writeStartupLog = msg => {
 const { createServer } = await import('./server.js');
 const { log, logError } = await import('./utils/logger.js');
 
-_writeStartupLog(`starting szkrabok pid=${process.pid}`);
+_writeStartupLog(`starting szkrabok pid=${process.pid} source=${process.argv[1]}`);
 
 const server = createServer();
 

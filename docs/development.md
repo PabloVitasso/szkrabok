@@ -62,21 +62,33 @@ End users add szkrabok via `npx`:
 }
 ```
 
-When developing szkrabok itself, `npx` run from the repo root may resolve the local workspace instead of fetching from the registry. To avoid this, set `cwd` to `test/npx/` — a stub directory with a different package name that forces npx to do a real registry install:
+When developing szkrabok itself, choose between two configs:
 
-```json
-{
-  "szkrabok": {
-    "type": "stdio",
-    "command": "npx",
-    "args": ["-y", "@pablovitasso/szkrabok"],
-    "cwd": "/absolute/path/to/szkrabok/test/npx",
-    "env": {}
-  }
-}
+**Config A — local source** (source changes take effect on MCP restart, no publish needed):
+
+Add a project-local entry that overrides the user-level config for this repo only:
+
+```bash
+claude mcp add szkrabok -s local -- node /absolute/path/to/szkrabok/src/index.js
 ```
 
-Run `szkrabok doctor` to get the correct snippet with the absolute path resolved for your machine.
+**Config B — published registry** (stable, matches what consumers get):
+
+`npx` run from the repo root may resolve the local workspace instead of fetching from the registry. Claude Code does not honor the `cwd` field in MCP server config, so use `bash -c "cd ... && npx"` to force resolution from `test/npx/` — a stub directory with a different package name:
+
+```bash
+claude mcp add szkrabok -s local -- bash -c "cd /absolute/path/to/szkrabok/test/npx && npx -y @pablovitasso/szkrabok"
+```
+
+Run `szkrabok doctor` to get the correct path for your machine. Both commands write to `.mcp.json` in the repo root (project-local scope, gitignored).
+
+**Verify which server is running** — after restarting, call `session_manage { "action": "list" }`. The response includes:
+
+```json
+{ "server": { "version": "1.0.25", "source": "/path/to/src/index.js" } }
+```
+
+`source` is the entry point Node was invoked with — local repo path for Config A, npx cache path for Config B. The same info is written to `~/.cache/szkrabok/startup.log` on every start.
 
 ---
 

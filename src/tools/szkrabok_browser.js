@@ -93,7 +93,7 @@ export const run_test = async args => {
 
   env.SZKRABOK_CDP_ENDPOINT = `http://localhost:${session.cdpPort}`;
 
-  const sessionDir = join(REPO_ROOT, 'sessions', sessionName);
+  const sessionDir = join(dirname(configPath), 'sessions', sessionName);
   await mkdir(sessionDir, { recursive: true });
 
   const logFile = join(sessionDir, 'last-run.log');
@@ -108,7 +108,10 @@ export const run_test = async args => {
     '60000',
   ];
 
-  if (project) argsPW.push('--project', project);
+  if (project) {
+    env.PLAYWRIGHT_PROJECT = project;
+    argsPW.push('--project', project);
+  }
   if (grep) argsPW.push('--grep', grep);
   if (files.length) argsPW.push(...files);
 

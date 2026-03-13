@@ -1,9 +1,12 @@
+import { readFileSync } from 'node:fs';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { registerTools, handleToolCall } from './tools/registry.js';
 import { closeAllSessions, initConfig } from '#runtime';
 import { log } from './utils/logger.js';
+
+const { version } = JSON.parse(readFileSync(new URL('../package.json', import.meta.url)));
 
 export const createServer = () => {
   // Initialize config with cwd fallback immediately — roots will re-init after handshake.
@@ -12,7 +15,7 @@ export const createServer = () => {
   const server = new Server(
     {
       name: 'szkrabok',
-      version: '2.0.0',
+      version,
     },
     {
       capabilities: {

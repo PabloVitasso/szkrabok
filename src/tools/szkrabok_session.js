@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import {
   launch,
   closeSession,
@@ -7,6 +8,8 @@ import {
   updateSessionMeta,
   deleteStoredSession,
 } from '#runtime';
+
+const { version } = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url)));
 
 import { log } from '../utils/logger.js';
 import { getConfig } from '../config.js';
@@ -132,6 +135,7 @@ export const list = async () => {
         label: a?.label,
       };
     }),
+    server: { version, source: process.argv[1] },
   };
 };
 

@@ -30,7 +30,10 @@ Manage browser sessions. Actions: open (launch/resume), close (save+close), list
   - **locale**: BCP 47 locale
   - **timezone**: IANA timezone
 
-  Example: `{ preset: "desktop-chrome-win", stealth: true, disableWebGL: false, headless: false, userAgent: "...", viewport: { width: 1280, height: 800 }, locale: "en-US", timezone: "America/New_York" }`
+  Examples:
+  - With preset: `{ preset: "desktop-chrome-win", headless: false, stealth: true }`
+  - With explicit fields: `{ userAgent: "...", viewport: { width: 1280, height: 800 }, locale: "en-US", timezone: "America/New_York", headless: false }`
+  - **Note:** `preset` is mutually exclusive with `userAgent`, `viewport`, `locale`, `timezone`. `headless` and `stealth` are always allowed alongside either.
 
 Returns: `{ success, sessionName, url, reused, preset, label, cdpEndpoint }`
 

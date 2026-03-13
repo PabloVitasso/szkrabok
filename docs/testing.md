@@ -109,11 +109,12 @@ tests/
 No browser. Fast.
 
 ```bash
-npm run test:node              # basic + schema
-npm run test:contracts         # architecture invariants
+npm run test:node              # all tests/node/*.test.js (basic, schema, contracts, config-discovery, config-values, playwright-patches)
 npm run test:runtime:unit      # config, storage, stealth
 npm run test:runtime:integration  # cookie persistence (launches real browser)
 ```
+
+`npm run test:contracts` is a focused alias for `tests/node/contracts.test.js` only — useful for quick invariant checks, but it is already included in `test:node`.
 
 ### `basic.test.js`
 `getSession` throws for missing session, `listRuntimeSessions` returns empty array, `resolvePreset` returns a valid object.
@@ -160,18 +161,55 @@ npm run test:playwright
 
 ## E2E — stealth health checks
 
-Real browser against live bot-detection sites. **Require an active MCP session.**
+Real browser against live bot-detection sites. Three run paths:
+
+### Path A — MCP via `browser.run_test` (local source MCP config)
+
+Requires MCP server running from `node src/index.js` (see [development.md](./development.md#mcp-config-for-developing-szkrabok)) and an active session.
+
+With **Config A (local source)**, `REPO_ROOT` is already the szkrabok repo — the default `playwright.config.js` works without an explicit path:
 
 ```
-session_manage { "action": "open", "sessionName": "check", "launchOptions": { "headless": false, "preset": "default" } }
-browser.run_test { "sessionName": "check", "files": ["tests/playwright/e2e/rebrowser.spec.js"] }
+session_manage {
+  "action": "open",
+  "sessionName": "check",
+  "launchOptions": { "headless": false }
+}
+browser.run_test {
+  "sessionName": "check",
+  "project": "e2e"
+}
 ```
 
-Or standalone (runtime reads `szkrabok.config.local.toml` for `executablePath`):
+With **Config B (npx/published)**, the server runs from the npx cache and has no knowledge of the local repo — pass the absolute config path:
+
+```
+browser.run_test {
+  "sessionName": "check",
+  "config": "/absolute/path/to/szkrabok/playwright.config.js",
+  "project": "e2e"
+}
+```
+
+**Note:** The `files` parameter cannot be combined with `project` — Playwright CLI treats the file paths as additional project names in that case. To run a specific spec, use `grep` instead, or omit `project` and pass only `files`.
+
+### Path B — Standalone CLI, no session (direct launch)
+
+Launches its own browser via `runtime.launch()`. No active session needed.
 
 ```bash
-SZKRABOK_SESSION=check npx playwright test --project=e2e tests/playwright/e2e/rebrowser.spec.js
+PLAYWRIGHT_PROJECT=e2e npx playwright test --project=e2e tests/playwright/e2e/rebrowser.spec.js
 ```
+
+### Path C — Standalone CLI with existing session (CDP connect)
+
+Connects to an already-open session browser. Useful when you want to inspect the browser during/after the run.
+
+```bash
+SZKRABOK_CDP_ENDPOINT=http://localhost:<port> PLAYWRIGHT_PROJECT=e2e npx playwright test --project=e2e tests/playwright/e2e/rebrowser.spec.js
+```
+
+---
 
 | File | What it does | Mode |
 |------|-------------|------|
@@ -185,16 +223,6 @@ SZKRABOK_SESSION=check npx playwright test --project=e2e tests/playwright/e2e/re
 Permanent failures:
 - `mainWorldExecution` — requires rebrowser-patches binary (conflicts with dummyFn)
 - `exposeFunctionLeak` — `page.exposeFunction` fingerprint, no fix available
-
-Always run headed:
-```
-session_manage { "action": "open", "sessionName": "rebrowser", "launchOptions": { "headless": false, "preset": "default" } }
-browser.run_test {
-  "sessionName": "rebrowser",
-  "files": ["tests/playwright/e2e/rebrowser.spec.js"],
-  "project": "e2e"
-}
-```
 
 ---
 
@@ -276,10 +304,13 @@ Commit the updated `packages/runtime/mcp-client/mcp-tools.js`.
 ## Run everything
 
 ```bash
-npm run test:node          # all node:test suites
-npm run test:contracts     # architecture invariants
-npm run test:playwright    # Playwright integration (browser required)
+npm run test:node                   # all tests/node/*.test.js suites
+npm run test:runtime:unit           # runtime unit tests
+npm run test:runtime:integration    # cookie persistence (launches real browser)
+npm run test:playwright             # Playwright integration (headless, MCP over stdio)
 ```
+
+For e2e (live sites, headed browser) — open a session first, then use `browser.run_test` or the standalone CLI (see [E2E paths](#e2e--stealth-health-checks) above).
 
 ---
 

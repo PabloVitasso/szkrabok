@@ -10,7 +10,7 @@
  * Uses public API (runtime.launch/connect), not internal modules. No stealth imports.
  */
 import { test as base } from 'playwright/test';
-import { launch, connect } from '@szkrabok/runtime';
+import { initConfig, launch, connect } from '@szkrabok/runtime';
 
 export { expect } from 'playwright/test';
 
@@ -20,6 +20,7 @@ export const test = base.extend({
   // Worker-scoped: one browser connection per worker, reused across tests.
   _runtimeHandle: [
     async ({}, use) => {
+      initConfig();
       if (cdpEndpoint) {
         // Path A: connect to running MCP session
         const handle = await connect(cdpEndpoint);

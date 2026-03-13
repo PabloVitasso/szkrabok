@@ -12,7 +12,7 @@
  * No direct stealth imports. No direct browser launch. No config parsing.
  */
 import { test as base } from '@playwright/test';
-import { launch, connect } from '@pablovitasso/szkrabok/runtime';
+import { initConfig, launch, connect } from '@pablovitasso/szkrabok/runtime';
 
 export { expect } from '@playwright/test';
 
@@ -22,6 +22,7 @@ export const test = base.extend({
   // Worker-scoped: one browser connection per worker, reused across tests.
   _runtimeHandle: [
     async ({}, use) => {
+      initConfig();
       if (cdpEndpoint) {
         // Path A: connect to the MCP session browser via CDP
         const handle = await connect(cdpEndpoint);
