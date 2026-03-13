@@ -11,7 +11,7 @@
 
 import { execSync, spawnSync } from 'node:child_process';
 import { mkdtempSync, rmSync, existsSync } from 'node:fs';
-import { join, resolve, dirname } from 'node:path';
+import { join, resolve, dirname, relative } from 'node:path';
 import { tmpdir, homedir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 
@@ -53,16 +53,19 @@ try {
 
 // Now run postinstall scripts manually so we control env
 const pkgBin = join(tmpDir, 'node_modules', '.bin', 'szkrabok');
+const pkgDir = join(tmpDir, 'node_modules', '@pablovitasso', 'szkrabok');
 if (!existsSync(pkgBin)) {
   console.error(`[smoke-test] FAIL: binary not found at ${pkgBin}`);
   process.exit(1);
 }
 
-// Apply playwright-core patches via patch-package, then verify
+// Apply playwright-core patches via patch-package, then verify.
+// Run from tmpDir so patch-package resolves playwright-core at tmpDir/node_modules/playwright-core.
+// Use --patch-dir to point at the patches/ folder inside the installed package.
 console.log('[smoke-test] Running patch-package...');
 const patchResult = spawnSync(
   join(tmpDir, 'node_modules', '.bin', 'patch-package'),
-  [],
+  ['--patch-dir', relative(tmpDir, join(pkgDir, 'patches'))],
   { cwd: tmpDir, stdio: 'inherit' }
 );
 if (patchResult.status !== 0) {
@@ -73,7 +76,7 @@ if (patchResult.status !== 0) {
 console.log('[smoke-test] Verifying patches...');
 const verifyResult = spawnSync(
   'node',
-  [join(tmpDir, 'node_modules', '@pablovitasso', 'szkrabok', 'scripts', 'verify-playwright-patches.js')],
+  [join(pkgDir, 'scripts', 'verify-playwright-patches.js')],
   { cwd: tmpDir, stdio: 'inherit' }
 );
 if (verifyResult.status !== 0) {
