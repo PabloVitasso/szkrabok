@@ -128,18 +128,20 @@ Full example: [tests/playwright/e2e/rebrowser-mcp.spec.js](./tests/playwright/e2
 
 **Install**
 
-Claude Code - Global (all projects):
+Global (all projects):
 ```bash
 claude mcp add --scope user szkrabok -- npx -y @pablovitasso/szkrabok
+gemini mcp add --scope user szkrabok npx -y @pablovitasso/szkrabok
+kilo mcp add szkrabok npx -y @pablovitasso/szkrabok
 ```
-Claude Code - This project (directory) only:
+(Cursor: use UI → Features → MCP)
+
+This project only:
 ```bash
 claude mcp add szkrabok -- npx -y @pablovitasso/szkrabok
 ```
 
-Cursor: use UI → Features → MCP
-
-Claude Desktop / Gemini / Kilo Code - add to config file:
+Shared config (Claude Desktop / Gemini / Kilo / Cursor) — add to config file:
 ```json
 {
   "mcpServers": {
@@ -164,12 +166,10 @@ command = "npx"
 args = ["-y", "@pablovitasso/szkrabok"]
 ```
 
-New project - sets up .spec.js
+New project:
 ```bash
-npx @pablovitasso/szkrabok init # minimal setup : config + simple js
-npx @pablovitasso/szkrabok init --preset full  # full test automation, spec.js for playwright IDE
+npx @pablovitasso/szkrabok init
 ```
-
 
 > **Browser not found?** Run `szkrabok detect-browser` to find installed browsers, or `szkrabok install-browser` to install Playwright's Chromium. Requires **Node.js ≥ 20**.
 
