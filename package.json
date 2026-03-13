@@ -15,6 +15,7 @@
     "bin",
     "src",
     "packages/runtime",
+    "patches",
     "scripts",
     "README.md"
   ],
@@ -49,7 +50,7 @@
     "test:contracts": "node --test tests/node/contracts.test.js",
     "test:playwright": "playwright test --project=integration",
     "prepare": "node scripts/setup.js",
-    "postinstall": "node scripts/patch-playwright.js && node scripts/postinstall.js",
+    "postinstall": "patch-package && node scripts/verify-playwright-patches.js && node scripts/postinstall.js",
     "test:self": "playwright test --project=integration && node --test tests/node/*.test.js",
     "test:auto": "PLAYWRIGHT_PROJECT=e2e playwright test --project=e2e"
   },
@@ -70,11 +71,15 @@
     "url": "git+https://github.com/PabloVitasso/szkrabok.git"
   },
   "dependencies": {
+    "@babel/generator": "^7.29.1",
+    "@babel/parser": "^7.29.0",
+    "@babel/traverse": "^7.29.0",
     "@modelcontextprotocol/sdk": "^1.27.1",
+    "patch-package": "^8.0.1",
     "commander": "^14.0.3",
     "dotenv": "^17.3.1",
-    "playwright": "^1.58.2",
-    "playwright-core": "^1.58.2",
+    "playwright": "1.58.2",
+    "playwright-core": "1.58.2",
     "playwright-extra": "^4.3.6",
     "puppeteer-core": "^24.39.0",
     "puppeteer-extra-plugin-stealth": "^2.11.2",

@@ -11,9 +11,6 @@
   "bin": {
     "szkrabok-codegen": "./mcp-client/codegen/generate-mcp-tools.mjs"
   },
-  "scripts": {
-    "postinstall": "node scripts/patch-playwright.js"
-  },
   "engines": {
     "node": ">=20.0.0"
   },

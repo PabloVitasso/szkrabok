@@ -58,15 +58,26 @@ if (!existsSync(pkgBin)) {
   process.exit(1);
 }
 
-// patch-playwright (skip browser install)
-console.log('[smoke-test] Running patch-playwright...');
+// Apply playwright-core patches via patch-package, then verify
+console.log('[smoke-test] Running patch-package...');
 const patchResult = spawnSync(
-  'node',
-  [join(tmpDir, 'node_modules', '@pablovitasso', 'szkrabok', 'scripts', 'patch-playwright.js')],
+  join(tmpDir, 'node_modules', '.bin', 'patch-package'),
+  [],
   { cwd: tmpDir, stdio: 'inherit' }
 );
 if (patchResult.status !== 0) {
-  console.error('[smoke-test] FAIL: patch-playwright.js failed');
+  console.error('[smoke-test] FAIL: patch-package failed');
+  process.exit(1);
+}
+
+console.log('[smoke-test] Verifying patches...');
+const verifyResult = spawnSync(
+  'node',
+  [join(tmpDir, 'node_modules', '@pablovitasso', 'szkrabok', 'scripts', 'verify-playwright-patches.js')],
+  { cwd: tmpDir, stdio: 'inherit' }
+);
+if (verifyResult.status !== 0) {
+  console.error('[smoke-test] FAIL: verify-playwright-patches.js failed');
   process.exit(1);
 }
 

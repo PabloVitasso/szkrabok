@@ -65,7 +65,7 @@ packages/runtime/
   storage.js        Profile dirs, state.json save/restore
   logger.js         Logging helpers
   scripts/
-    patch-playwright.js  playwright-core patches (postinstall)
+    patch-playwright.js  playwright-core patch script — used to regenerate patches/ on version upgrade
 
   mcp-client/
     mcp-tools.js      GENERATED — mcpConnect() handle factory + JSDoc types
@@ -111,6 +111,13 @@ config/                   Playwright config modules (TypeScript, pure functions)
   browser.ts              resolveExecutable() — finds bundled or system Chromium
   projects.ts             integration, e2e project definitions
 
+patches/
+  playwright-core+<ver>.patch  committed diff applied by patch-package on npm install
+
+scripts/
+  patch-playwright.js          upgrade tool — generates new patch for a new pw version
+  verify-playwright-patches.js postinstall verifier — checks all 7 patch markers, exits 1 on failure
+
 playwright.config.js      Root config — pure composition, no logic
 
 szkrabok.config.toml          Browser identity presets — repo defaults (committed)
@@ -119,9 +126,10 @@ szkrabok.config.local.toml.example  Template for local overrides
 
 tests/
   node/               node:test specs — no browser
-    basic.test.js     public API smoke tests
-    schema.test.js    tool schema validation
-    contracts.test.js architecture invariant checks (static analysis)
+    basic.test.js              public API smoke tests
+    schema.test.js             tool schema validation
+    contracts.test.js          architecture invariant checks (static analysis)
+    playwright-patches.test.js verifies all 7 playwright-core patch markers are present
     runtime/
       unit.test.js           config, storage, stealth without MCP
       integration.test.js    session persistence across two launches
@@ -275,19 +283,29 @@ CLI-only operations (no MCP equivalent):
 - All property overrides must target **`Navigator.prototype`**, not the `navigator` instance.
 - Rebrowser score: **8/10**. Permanent failures: `mainWorldExecution` (requires [rebrowser-patches](https://github.com/rebrowser/rebrowser-patches) binary patching — see [rebrowser-patches-research.md](./rebrowser-patches-research.md)), `exposeFunctionLeak` (`page.exposeFunction` fingerprint — no fix available).
 
-## Playwright patches (`scripts/patch-playwright.js`)
+## Playwright patches (`patches/playwright-core+<version>.patch`)
 
-Pattern-based patches applied to `node_modules/playwright-core` after `npm install`. Patch #8 injects greasy brands into `calculateUserAgentMetadata`. Run after any playwright-core version bump:
+playwright-core is pinned to an exact version and patched via `patch-package`. The committed diff in `patches/` is applied automatically on `npm install` via the postinstall chain:
 
-```bash
-rm -rf node_modules/playwright-core
-npm install --ignore-scripts
-node scripts/patch-playwright.js
+```
+patch-package  →  scripts/verify-playwright-patches.js  →  scripts/postinstall.js
 ```
 
-The script resolves `node_modules` relative to its own location (`__dirname`), not cwd — safe to run from any directory.
+`verify-playwright-patches.js` checks all 7 patched files for their markers and exits 1 (hard failure) if any are missing — the postinstall chain screams loudly rather than silently leaving the browser unpatched.
 
-Detection sentinel: `__re__emitExecutionContext` in `lib/server/chromium/crConnection.js`. Use `szkrabok doctor` to verify patch status.
+The 7 patched files and their detection markers:
+
+| File | Marker |
+|---|---|
+| `lib/server/chromium/crConnection.js` | `__re__emitExecutionContext` |
+| `lib/server/chromium/crDevTools.js` | `REBROWSER_PATCHES_RUNTIME_FIX_MODE` |
+| `lib/server/chromium/crPage.js` | `szkrabok: greasy brands` |
+| `lib/server/chromium/crServiceWorker.js` | `REBROWSER_PATCHES_RUNTIME_FIX_MODE` |
+| `lib/server/frames.js` | `__re__emitExecutionContext` |
+| `lib/server/page.js` | `getExecutionContext` |
+| `lib/generated/utilityScriptSource.js` | `var __pwUs = class` |
+
+Use `szkrabok doctor` to verify patch status at any time. For upgrading playwright-core to a new version, see [docs/development.md — Upgrading playwright-core](./development.md#upgrading-playwright-core). The patch script used to generate a new diff lives in `packages/runtime/scripts/patch-playwright.js`.
 
 ## Config discovery
 

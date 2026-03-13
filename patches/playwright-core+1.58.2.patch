@@ -1,0 +1,1647 @@
+diff --git a/node_modules/playwright-core/.szkrabok-patched b/node_modules/playwright-core/.szkrabok-patched
+new file mode 100644
+index 0000000..4e64691
+--- /dev/null
++++ b/node_modules/playwright-core/.szkrabok-patched
+@@ -0,0 +1 @@
++szkrabok-patched playwright-core@1.58.2
+diff --git a/node_modules/playwright-core/lib/generated/utilityScriptSource.js b/node_modules/playwright-core/lib/generated/utilityScriptSource.js
+index 57c9a3d..4735690 100644
+--- a/node_modules/playwright-core/lib/generated/utilityScriptSource.js
++++ b/node_modules/playwright-core/lib/generated/utilityScriptSource.js
+@@ -21,7 +21,7 @@ __export(utilityScriptSource_exports, {
+   source: () => source
+ });
+ module.exports = __toCommonJS(utilityScriptSource_exports);
+-const source = '\nvar __commonJS = obj => {\n  let required = false;\n  let result;\n  return function __require() {\n    if (!required) {\n      required = true;\n      let fn;\n      for (const name in obj) { fn = obj[name]; break; }\n      const module = { exports: {} };\n      fn(module.exports, module);\n      result = module.exports;\n    }\n    return result;\n  }\n};\nvar __export = (target, all) => {for (var name in all) target[name] = all[name];};\nvar __toESM = mod => ({ ...mod, \'default\': mod });\nvar __toCommonJS = mod => ({ ...mod, __esModule: true });\n\n\n// packages/injected/src/utilityScript.ts\nvar utilityScript_exports = {};\n__export(utilityScript_exports, {\n  UtilityScript: () => UtilityScript\n});\nmodule.exports = __toCommonJS(utilityScript_exports);\n\n// packages/playwright-core/src/utils/isomorphic/utilityScriptSerializers.ts\nfunction isRegExp(obj) {\n  try {\n    return obj instanceof RegExp || Object.prototype.toString.call(obj) === "[object RegExp]";\n  } catch (error) {\n    return false;\n  }\n}\nfunction isDate(obj) {\n  try {\n    return obj instanceof Date || Object.prototype.toString.call(obj) === "[object Date]";\n  } catch (error) {\n    return false;\n  }\n}\nfunction isURL(obj) {\n  try {\n    return obj instanceof URL || Object.prototype.toString.call(obj) === "[object URL]";\n  } catch (error) {\n    return false;\n  }\n}\nfunction isError(obj) {\n  var _a;\n  try {\n    return obj instanceof Error || obj && ((_a = Object.getPrototypeOf(obj)) == null ? void 0 : _a.name) === "Error";\n  } catch (error) {\n    return false;\n  }\n}\nfunction isTypedArray(obj, constructor) {\n  try {\n    return obj instanceof constructor || Object.prototype.toString.call(obj) === `[object ${constructor.name}]`;\n  } catch (error) {\n    return false;\n  }\n}\nvar typedArrayConstructors = {\n  i8: Int8Array,\n  ui8: Uint8Array,\n  ui8c: Uint8ClampedArray,\n  i16: Int16Array,\n  ui16: Uint16Array,\n  i32: Int32Array,\n  ui32: Uint32Array,\n  // TODO: add Float16Array once it\'s in baseline\n  f32: Float32Array,\n  f64: Float64Array,\n  bi64: BigInt64Array,\n  bui64: BigUint64Array\n};\nfunction typedArrayToBase64(array) {\n  if ("toBase64" in array)\n    return array.toBase64();\n  const binary = Array.from(new Uint8Array(array.buffer, array.byteOffset, array.byteLength)).map((b) => String.fromCharCode(b)).join("");\n  return btoa(binary);\n}\nfunction base64ToTypedArray(base64, TypedArrayConstructor) {\n  const binary = atob(base64);\n  const bytes = new Uint8Array(binary.length);\n  for (let i = 0; i < binary.length; i++)\n    bytes[i] = binary.charCodeAt(i);\n  return new TypedArrayConstructor(bytes.buffer);\n}\nfunction parseEvaluationResultValue(value, handles = [], refs = /* @__PURE__ */ new Map()) {\n  if (Object.is(value, void 0))\n    return void 0;\n  if (typeof value === "object" && value) {\n    if ("ref" in value)\n      return refs.get(value.ref);\n    if ("v" in value) {\n      if (value.v === "undefined")\n        return void 0;\n      if (value.v === "null")\n        return null;\n      if (value.v === "NaN")\n        return NaN;\n      if (value.v === "Infinity")\n        return Infinity;\n      if (value.v === "-Infinity")\n        return -Infinity;\n      if (value.v === "-0")\n        return -0;\n      return void 0;\n    }\n    if ("d" in value) {\n      return new Date(value.d);\n    }\n    if ("u" in value)\n      return new URL(value.u);\n    if ("bi" in value)\n      return BigInt(value.bi);\n    if ("e" in value) {\n      const error = new Error(value.e.m);\n      error.name = value.e.n;\n      error.stack = value.e.s;\n      return error;\n    }\n    if ("r" in value)\n      return new RegExp(value.r.p, value.r.f);\n    if ("a" in value) {\n      const result = [];\n      refs.set(value.id, result);\n      for (const a of value.a)\n        result.push(parseEvaluationResultValue(a, handles, refs));\n      return result;\n    }\n    if ("o" in value) {\n      const result = {};\n      refs.set(value.id, result);\n      for (const { k, v } of value.o) {\n        if (k === "__proto__")\n          continue;\n        result[k] = parseEvaluationResultValue(v, handles, refs);\n      }\n      return result;\n    }\n    if ("h" in value)\n      return handles[value.h];\n    if ("ta" in value)\n      return base64ToTypedArray(value.ta.b, typedArrayConstructors[value.ta.k]);\n  }\n  return value;\n}\nfunction serializeAsCallArgument(value, handleSerializer) {\n  return serialize(value, handleSerializer, { visited: /* @__PURE__ */ new Map(), lastId: 0 });\n}\nfunction serialize(value, handleSerializer, visitorInfo) {\n  if (value && typeof value === "object") {\n    if (typeof globalThis.Window === "function" && value instanceof globalThis.Window)\n      return "ref: <Window>";\n    if (typeof globalThis.Document === "function" && value instanceof globalThis.Document)\n      return "ref: <Document>";\n    if (typeof globalThis.Node === "function" && value instanceof globalThis.Node)\n      return "ref: <Node>";\n  }\n  return innerSerialize(value, handleSerializer, visitorInfo);\n}\nfunction innerSerialize(value, handleSerializer, visitorInfo) {\n  var _a;\n  const result = handleSerializer(value);\n  if ("fallThrough" in result)\n    value = result.fallThrough;\n  else\n    return result;\n  if (typeof value === "symbol")\n    return { v: "undefined" };\n  if (Object.is(value, void 0))\n    return { v: "undefined" };\n  if (Object.is(value, null))\n    return { v: "null" };\n  if (Object.is(value, NaN))\n    return { v: "NaN" };\n  if (Object.is(value, Infinity))\n    return { v: "Infinity" };\n  if (Object.is(value, -Infinity))\n    return { v: "-Infinity" };\n  if (Object.is(value, -0))\n    return { v: "-0" };\n  if (typeof value === "boolean")\n    return value;\n  if (typeof value === "number")\n    return value;\n  if (typeof value === "string")\n    return value;\n  if (typeof value === "bigint")\n    return { bi: value.toString() };\n  if (isError(value)) {\n    let stack;\n    if ((_a = value.stack) == null ? void 0 : _a.startsWith(value.name + ": " + value.message)) {\n      stack = value.stack;\n    } else {\n      stack = `${value.name}: ${value.message}\n${value.stack}`;\n    }\n    return { e: { n: value.name, m: value.message, s: stack } };\n  }\n  if (isDate(value))\n    return { d: value.toJSON() };\n  if (isURL(value))\n    return { u: value.toJSON() };\n  if (isRegExp(value))\n    return { r: { p: value.source, f: value.flags } };\n  for (const [k, ctor] of Object.entries(typedArrayConstructors)) {\n    if (isTypedArray(value, ctor))\n      return { ta: { b: typedArrayToBase64(value), k } };\n  }\n  const id = visitorInfo.visited.get(value);\n  if (id)\n    return { ref: id };\n  if (Array.isArray(value)) {\n    const a = [];\n    const id2 = ++visitorInfo.lastId;\n    visitorInfo.visited.set(value, id2);\n    for (let i = 0; i < value.length; ++i)\n      a.push(serialize(value[i], handleSerializer, visitorInfo));\n    return { a, id: id2 };\n  }\n  if (typeof value === "object") {\n    const o = [];\n    const id2 = ++visitorInfo.lastId;\n    visitorInfo.visited.set(value, id2);\n    for (const name of Object.keys(value)) {\n      let item;\n      try {\n        item = value[name];\n      } catch (e) {\n        continue;\n      }\n      if (name === "toJSON" && typeof item === "function")\n        o.push({ k: name, v: { o: [], id: 0 } });\n      else\n        o.push({ k: name, v: serialize(item, handleSerializer, visitorInfo) });\n    }\n    let jsonWrapper;\n    try {\n      if (o.length === 0 && value.toJSON && typeof value.toJSON === "function")\n        jsonWrapper = { value: value.toJSON() };\n    } catch (e) {\n    }\n    if (jsonWrapper)\n      return innerSerialize(jsonWrapper.value, handleSerializer, visitorInfo);\n    return { o, id: id2 };\n  }\n}\n\n// packages/injected/src/utilityScript.ts\nvar UtilityScript = class {\n  constructor(global, isUnderTest) {\n    var _a, _b, _c, _d, _e, _f, _g, _h;\n    this.global = global;\n    this.isUnderTest = isUnderTest;\n    if (global.__pwClock) {\n      this.builtins = global.__pwClock.builtins;\n    } else {\n      this.builtins = {\n        setTimeout: (_a = global.setTimeout) == null ? void 0 : _a.bind(global),\n        clearTimeout: (_b = global.clearTimeout) == null ? void 0 : _b.bind(global),\n        setInterval: (_c = global.setInterval) == null ? void 0 : _c.bind(global),\n        clearInterval: (_d = global.clearInterval) == null ? void 0 : _d.bind(global),\n        requestAnimationFrame: (_e = global.requestAnimationFrame) == null ? void 0 : _e.bind(global),\n        cancelAnimationFrame: (_f = global.cancelAnimationFrame) == null ? void 0 : _f.bind(global),\n        requestIdleCallback: (_g = global.requestIdleCallback) == null ? void 0 : _g.bind(global),\n        cancelIdleCallback: (_h = global.cancelIdleCallback) == null ? void 0 : _h.bind(global),\n        performance: global.performance,\n        Intl: global.Intl,\n        Date: global.Date\n      };\n    }\n    if (this.isUnderTest)\n      global.builtins = this.builtins;\n  }\n  evaluate(isFunction, returnByValue, expression, argCount, ...argsAndHandles) {\n    const args = argsAndHandles.slice(0, argCount);\n    const handles = argsAndHandles.slice(argCount);\n    const parameters = [];\n    for (let i = 0; i < args.length; i++)\n      parameters[i] = parseEvaluationResultValue(args[i], handles);\n    let result = this.global.eval(expression);\n    if (isFunction === true) {\n      result = result(...parameters);\n    } else if (isFunction === false) {\n      result = result;\n    } else {\n      if (typeof result === "function")\n        result = result(...parameters);\n    }\n    return returnByValue ? this._promiseAwareJsonValueNoThrow(result) : result;\n  }\n  jsonValue(returnByValue, value) {\n    if (value === void 0)\n      return void 0;\n    return serializeAsCallArgument(value, (value2) => ({ fallThrough: value2 }));\n  }\n  _promiseAwareJsonValueNoThrow(value) {\n    const safeJson = (value2) => {\n      try {\n        return this.jsonValue(true, value2);\n      } catch (e) {\n        return void 0;\n      }\n    };\n    if (value && typeof value === "object" && typeof value.then === "function") {\n      return (async () => {\n        const promiseValue = await value;\n        return safeJson(promiseValue);\n      })();\n    }\n    return safeJson(value);\n  }\n};\n';
++const source = '\nvar __commonJS = obj => {\n  let required = false;\n  let result;\n  return function __require() {\n    if (!required) {\n      required = true;\n      let fn;\n      for (const name in obj) { fn = obj[name]; break; }\n      const module = { exports: {} };\n      fn(module.exports, module);\n      result = module.exports;\n    }\n    return result;\n  }\n};\nvar __export = (target, all) => {for (var name in all) target[name] = all[name];};\nvar __toESM = mod => ({ ...mod, \'default\': mod });\nvar __toCommonJS = mod => ({ ...mod, __esModule: true });\n\n\n// packages/injected/src/utilityScript.ts\nvar utilityScript_exports = {};\n__export(utilityScript_exports, {\n  UtilityScript: () => __pwUs\n});\nmodule.exports = __toCommonJS(utilityScript_exports);\n\n// packages/playwright-core/src/utils/isomorphic/utilityScriptSerializers.ts\nfunction isRegExp(obj) {\n  try {\n    return obj instanceof RegExp || Object.prototype.toString.call(obj) === "[object RegExp]";\n  } catch (error) {\n    return false;\n  }\n}\nfunction isDate(obj) {\n  try {\n    return obj instanceof Date || Object.prototype.toString.call(obj) === "[object Date]";\n  } catch (error) {\n    return false;\n  }\n}\nfunction isURL(obj) {\n  try {\n    return obj instanceof URL || Object.prototype.toString.call(obj) === "[object URL]";\n  } catch (error) {\n    return false;\n  }\n}\nfunction isError(obj) {\n  var _a;\n  try {\n    return obj instanceof Error || obj && ((_a = Object.getPrototypeOf(obj)) == null ? void 0 : _a.name) === "Error";\n  } catch (error) {\n    return false;\n  }\n}\nfunction isTypedArray(obj, constructor) {\n  try {\n    return obj instanceof constructor || Object.prototype.toString.call(obj) === `[object ${constructor.name}]`;\n  } catch (error) {\n    return false;\n  }\n}\nvar typedArrayConstructors = {\n  i8: Int8Array,\n  ui8: Uint8Array,\n  ui8c: Uint8ClampedArray,\n  i16: Int16Array,\n  ui16: Uint16Array,\n  i32: Int32Array,\n  ui32: Uint32Array,\n  // TODO: add Float16Array once it\'s in baseline\n  f32: Float32Array,\n  f64: Float64Array,\n  bi64: BigInt64Array,\n  bui64: BigUint64Array\n};\nfunction typedArrayToBase64(array) {\n  if ("toBase64" in array)\n    return array.toBase64();\n  const binary = Array.from(new Uint8Array(array.buffer, array.byteOffset, array.byteLength)).map((b) => String.fromCharCode(b)).join("");\n  return btoa(binary);\n}\nfunction base64ToTypedArray(base64, TypedArrayConstructor) {\n  const binary = atob(base64);\n  const bytes = new Uint8Array(binary.length);\n  for (let i = 0; i < binary.length; i++)\n    bytes[i] = binary.charCodeAt(i);\n  return new TypedArrayConstructor(bytes.buffer);\n}\nfunction parseEvaluationResultValue(value, handles = [], refs = /* @__PURE__ */ new Map()) {\n  if (Object.is(value, void 0))\n    return void 0;\n  if (typeof value === "object" && value) {\n    if ("ref" in value)\n      return refs.get(value.ref);\n    if ("v" in value) {\n      if (value.v === "undefined")\n        return void 0;\n      if (value.v === "null")\n        return null;\n      if (value.v === "NaN")\n        return NaN;\n      if (value.v === "Infinity")\n        return Infinity;\n      if (value.v === "-Infinity")\n        return -Infinity;\n      if (value.v === "-0")\n        return -0;\n      return void 0;\n    }\n    if ("d" in value) {\n      return new Date(value.d);\n    }\n    if ("u" in value)\n      return new URL(value.u);\n    if ("bi" in value)\n      return BigInt(value.bi);\n    if ("e" in value) {\n      const error = new Error(value.e.m);\n      error.name = value.e.n;\n      error.stack = value.e.s;\n      return error;\n    }\n    if ("r" in value)\n      return new RegExp(value.r.p, value.r.f);\n    if ("a" in value) {\n      const result = [];\n      refs.set(value.id, result);\n      for (const a of value.a)\n        result.push(parseEvaluationResultValue(a, handles, refs));\n      return result;\n    }\n    if ("o" in value) {\n      const result = {};\n      refs.set(value.id, result);\n      for (const { k, v } of value.o) {\n        if (k === "__proto__")\n          continue;\n        result[k] = parseEvaluationResultValue(v, handles, refs);\n      }\n      return result;\n    }\n    if ("h" in value)\n      return handles[value.h];\n    if ("ta" in value)\n      return base64ToTypedArray(value.ta.b, typedArrayConstructors[value.ta.k]);\n  }\n  return value;\n}\nfunction serializeAsCallArgument(value, handleSerializer) {\n  return serialize(value, handleSerializer, { visited: /* @__PURE__ */ new Map(), lastId: 0 });\n}\nfunction serialize(value, handleSerializer, visitorInfo) {\n  if (value && typeof value === "object") {\n    if (typeof globalThis.Window === "function" && value instanceof globalThis.Window)\n      return "ref: <Window>";\n    if (typeof globalThis.Document === "function" && value instanceof globalThis.Document)\n      return "ref: <Document>";\n    if (typeof globalThis.Node === "function" && value instanceof globalThis.Node)\n      return "ref: <Node>";\n  }\n  return innerSerialize(value, handleSerializer, visitorInfo);\n}\nfunction innerSerialize(value, handleSerializer, visitorInfo) {\n  var _a;\n  const result = handleSerializer(value);\n  if ("fallThrough" in result)\n    value = result.fallThrough;\n  else\n    return result;\n  if (typeof value === "symbol")\n    return { v: "undefined" };\n  if (Object.is(value, void 0))\n    return { v: "undefined" };\n  if (Object.is(value, null))\n    return { v: "null" };\n  if (Object.is(value, NaN))\n    return { v: "NaN" };\n  if (Object.is(value, Infinity))\n    return { v: "Infinity" };\n  if (Object.is(value, -Infinity))\n    return { v: "-Infinity" };\n  if (Object.is(value, -0))\n    return { v: "-0" };\n  if (typeof value === "boolean")\n    return value;\n  if (typeof value === "number")\n    return value;\n  if (typeof value === "string")\n    return value;\n  if (typeof value === "bigint")\n    return { bi: value.toString() };\n  if (isError(value)) {\n    let stack;\n    if ((_a = value.stack) == null ? void 0 : _a.startsWith(value.name + ": " + value.message)) {\n      stack = value.stack;\n    } else {\n      stack = `${value.name}: ${value.message}\n${value.stack}`;\n    }\n    return { e: { n: value.name, m: value.message, s: stack } };\n  }\n  if (isDate(value))\n    return { d: value.toJSON() };\n  if (isURL(value))\n    return { u: value.toJSON() };\n  if (isRegExp(value))\n    return { r: { p: value.source, f: value.flags } };\n  for (const [k, ctor] of Object.entries(typedArrayConstructors)) {\n    if (isTypedArray(value, ctor))\n      return { ta: { b: typedArrayToBase64(value), k } };\n  }\n  const id = visitorInfo.visited.get(value);\n  if (id)\n    return { ref: id };\n  if (Array.isArray(value)) {\n    const a = [];\n    const id2 = ++visitorInfo.lastId;\n    visitorInfo.visited.set(value, id2);\n    for (let i = 0; i < value.length; ++i)\n      a.push(serialize(value[i], handleSerializer, visitorInfo));\n    return { a, id: id2 };\n  }\n  if (typeof value === "object") {\n    const o = [];\n    const id2 = ++visitorInfo.lastId;\n    visitorInfo.visited.set(value, id2);\n    for (const name of Object.keys(value)) {\n      let item;\n      try {\n        item = value[name];\n      } catch (e) {\n        continue;\n      }\n      if (name === "toJSON" && typeof item === "function")\n        o.push({ k: name, v: { o: [], id: 0 } });\n      else\n        o.push({ k: name, v: serialize(item, handleSerializer, visitorInfo) });\n    }\n    let jsonWrapper;\n    try {\n      if (o.length === 0 && value.toJSON && typeof value.toJSON === "function")\n        jsonWrapper = { value: value.toJSON() };\n    } catch (e) {\n    }\n    if (jsonWrapper)\n      return innerSerialize(jsonWrapper.value, handleSerializer, visitorInfo);\n    return { o, id: id2 };\n  }\n}\n\n// packages/injected/src/utilityScript.ts\nvar __pwUs = class {\n  constructor(global, isUnderTest) {\n    var _a, _b, _c, _d, _e, _f, _g, _h;\n    this.global = global;\n    this.isUnderTest = isUnderTest;\n    if (global.__pwClock) {\n      this.builtins = global.__pwClock.builtins;\n    } else {\n      this.builtins = {\n        setTimeout: (_a = global.setTimeout) == null ? void 0 : _a.bind(global),\n        clearTimeout: (_b = global.clearTimeout) == null ? void 0 : _b.bind(global),\n        setInterval: (_c = global.setInterval) == null ? void 0 : _c.bind(global),\n        clearInterval: (_d = global.clearInterval) == null ? void 0 : _d.bind(global),\n        requestAnimationFrame: (_e = global.requestAnimationFrame) == null ? void 0 : _e.bind(global),\n        cancelAnimationFrame: (_f = global.cancelAnimationFrame) == null ? void 0 : _f.bind(global),\n        requestIdleCallback: (_g = global.requestIdleCallback) == null ? void 0 : _g.bind(global),\n        cancelIdleCallback: (_h = global.cancelIdleCallback) == null ? void 0 : _h.bind(global),\n        performance: global.performance,\n        Intl: global.Intl,\n        Date: global.Date\n      };\n    }\n    if (this.isUnderTest)\n      global.builtins = this.builtins;\n  }\n  evaluate(isFunction, returnByValue, expression, argCount, ...argsAndHandles) {\n    const args = argsAndHandles.slice(0, argCount);\n    const handles = argsAndHandles.slice(argCount);\n    const parameters = [];\n    for (let i = 0; i < args.length; i++)\n      parameters[i] = parseEvaluationResultValue(args[i], handles);\n    let result = this.global.eval(expression);\n    if (isFunction === true) {\n      result = result(...parameters);\n    } else if (isFunction === false) {\n      result = result;\n    } else {\n      if (typeof result === "function")\n        result = result(...parameters);\n    }\n    return returnByValue ? this._promiseAwareJsonValueNoThrow(result) : result;\n  }\n  jsonValue(returnByValue, value) {\n    if (value === void 0)\n      return void 0;\n    return serializeAsCallArgument(value, (value2) => ({ fallThrough: value2 }));\n  }\n  _promiseAwareJsonValueNoThrow(value) {\n    const safeJson = (value2) => {\n      try {\n        return this.jsonValue(true, value2);\n      } catch (e) {\n        return void 0;\n      }\n    };\n    if (value && typeof value === "object" && typeof value.then === "function") {\n      return (async () => {\n        const promiseValue = await value;\n        return safeJson(promiseValue);\n      })();\n    }\n    return safeJson(value);\n  }\n};\n';
+ // Annotate the CommonJS export names for ESM import in node:
+ 0 && (module.exports = {
+   source
+diff --git a/node_modules/playwright-core/lib/server/chromium/crConnection.js b/node_modules/playwright-core/lib/server/chromium/crConnection.js
+index 02d1378..8780496 100644
+--- a/node_modules/playwright-core/lib/server/chromium/crConnection.js
++++ b/node_modules/playwright-core/lib/server/chromium/crConnection.js
+@@ -154,6 +154,76 @@ class CRSession extends import_instrumentation.SdkObject {
+     }
+     this._callbacks.clear();
+   }
++
++  // ── rebrowser Runtime.enable fix ──────────────────────────────────────────
++  async __re__emitExecutionContext({ world, targetId, frame = null, utilityWorldName: callerUtilityWorldName }) {
++    const fixMode = process.env['REBROWSER_PATCHES_RUNTIME_FIX_MODE'] || 'addBinding'
++    const utilityWorldName =
++      process.env['REBROWSER_PATCHES_UTILITY_WORLD_NAME'] !== '0'
++        ? (process.env['REBROWSER_PATCHES_UTILITY_WORLD_NAME'] || 'util')
++        : '__playwright_utility_world__'
++    if (process.env['REBROWSER_PATCHES_DEBUG'])
++      console.log(`[rebrowser-patches][crSession] targetId=${targetId} world=${world} frame=${frame ? 'Y' : 'N'} fixMode=${fixMode}`)
++
++    let getWorldPromise
++    if (fixMode === 'addBinding') {
++      if (world === 'utility') {
++        getWorldPromise = this.__re__getIsolatedWorld({ client: this, frameId: targetId, worldName: utilityWorldName })
++          .then(contextId => ({ id: contextId, name: callerUtilityWorldName || '__playwright_utility_world__', auxData: { frameId: targetId, isDefault: false } }))
++      } else if (world === 'main') {
++        getWorldPromise = this.__re__getMainWorld({ client: this, frameId: targetId, isWorker: frame === null })
++          .then(contextId => ({ id: contextId, name: '', auxData: { frameId: targetId, isDefault: true } }))
++      }
++    } else if (fixMode === 'alwaysIsolated') {
++      getWorldPromise = this.__re__getIsolatedWorld({ client: this, frameId: targetId, worldName: utilityWorldName })
++        .then(contextId => ({ id: contextId, name: '', auxData: { frameId: targetId, isDefault: true } }))
++    }
++
++    const contextPayload = await getWorldPromise
++    this.emit('Runtime.executionContextCreated', { context: contextPayload })
++  }
++
++  async __re__getMainWorld({ client, frameId, isWorker = false }) {
++    let contextId
++    const randomName = [...Array(Math.floor(Math.random() * 11) + 10)]
++      .map(() => Math.random().toString(36)[2]).join('')
++    if (process.env['REBROWSER_PATCHES_DEBUG'])
++      console.log(`[rebrowser-patches][getMainWorld] binding=${randomName}`)
++
++    await client.send('Runtime.addBinding', { name: randomName })
++
++    const bindingCalledHandler = ({ name, payload, executionContextId }) => {
++      if (contextId > 0 || name !== randomName || payload !== frameId) return
++      contextId = executionContextId
++      client.off('Runtime.bindingCalled', bindingCalledHandler)
++    }
++    client.on('Runtime.bindingCalled', bindingCalledHandler)
++
++    if (isWorker) {
++      await client.send('Runtime.evaluate', { expression: `this['${randomName}']('${frameId}')` })
++    } else {
++      await client.send('Page.addScriptToEvaluateOnNewDocument', {
++        source: `document.addEventListener('${randomName}', (e) => self['${randomName}'](e.detail.frameId))`,
++        runImmediately: true,
++      })
++      const isolated = await client.send('Page.createIsolatedWorld', { frameId, worldName: randomName, grantUniveralAccess: true })
++      await client.send('Runtime.evaluate', {
++        expression: `document.dispatchEvent(new CustomEvent('${randomName}', { detail: { frameId: '${frameId}' } }))`,
++        contextId: isolated.executionContextId,
++      })
++    }
++    if (process.env['REBROWSER_PATCHES_DEBUG'])
++      console.log(`[rebrowser-patches][getMainWorld] contextId=${contextId}`)
++    return contextId
++  }
++
++  async __re__getIsolatedWorld({ client, frameId, worldName }) {
++    const result = await client.send('Page.createIsolatedWorld', { frameId, worldName, grantUniveralAccess: true })
++    if (process.env['REBROWSER_PATCHES_DEBUG'])
++      console.log('[rebrowser-patches][getIsolatedWorld]', result)
++    return result.executionContextId
++  }
++  // ── end rebrowser fix ──────────────────────────────────────────────────────
+ }
+ class CDPSession extends import_instrumentation.SdkObject {
+   constructor(parentSession, sessionId) {
+diff --git a/node_modules/playwright-core/lib/server/chromium/crDevTools.js b/node_modules/playwright-core/lib/server/chromium/crDevTools.js
+index 05b22d9..c739219 100644
+--- a/node_modules/playwright-core/lib/server/chromium/crDevTools.js
++++ b/node_modules/playwright-core/lib/server/chromium/crDevTools.js
+@@ -1,4 +1,5 @@
+ "use strict";
++
+ var __create = Object.create;
+ var __defProp = Object.defineProperty;
+ var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
+@@ -6,26 +7,32 @@ var __getOwnPropNames = Object.getOwnPropertyNames;
+ var __getProtoOf = Object.getPrototypeOf;
+ var __hasOwnProp = Object.prototype.hasOwnProperty;
+ var __export = (target, all) => {
+-  for (var name in all)
+-    __defProp(target, name, { get: all[name], enumerable: true });
++  for (var name in all) __defProp(target, name, {
++    get: all[name],
++    enumerable: true
++  });
+ };
+ var __copyProps = (to, from, except, desc) => {
+   if (from && typeof from === "object" || typeof from === "function") {
+-    for (let key of __getOwnPropNames(from))
+-      if (!__hasOwnProp.call(to, key) && key !== except)
+-        __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
++    for (let key of __getOwnPropNames(from)) if (!__hasOwnProp.call(to, key) && key !== except) __defProp(to, key, {
++      get: () => from[key],
++      enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable
++    });
+   }
+   return to;
+ };
+ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__getProtoOf(mod)) : {}, __copyProps(
+-  // If the importer is in node compatibility mode or this is not an ESM
+-  // file that has been converted to a CommonJS file using a Babel-
+-  // compatible transform (i.e. "__esModule" has not been set), then set
+-  // "default" to the CommonJS "module.exports" for node compatibility.
+-  isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target,
+-  mod
+-));
+-var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
++// If the importer is in node compatibility mode or this is not an ESM
++// file that has been converted to a CommonJS file using a Babel-
++// compatible transform (i.e. "__esModule" has not been set), then set
++// "default" to the CommonJS "module.exports" for node compatibility.
++isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", {
++  value: mod,
++  enumerable: true
++}) : target, mod));
++var __toCommonJS = mod => __copyProps(__defProp({}, "__esModule", {
++  value: true
++}), mod);
+ var crDevTools_exports = {};
+ __export(crDevTools_exports, {
+   CRDevTools: () => CRDevTools
+@@ -39,9 +46,8 @@ class CRDevTools {
+     this._savePromise = Promise.resolve();
+   }
+   install(session) {
+-    session.on("Runtime.bindingCalled", async (event) => {
+-      if (event.name !== kBindingName)
+-        return;
++    session.on("Runtime.bindingCalled", async event => {
++      if (event.name !== kBindingName) return;
+       const parsed = JSON.parse(event.payload);
+       let result = void 0;
+       if (parsed.method === "getPreferences") {
+@@ -67,13 +73,12 @@ class CRDevTools {
+       session.send("Runtime.evaluate", {
+         expression: `window.DevToolsAPI.embedderMessageAck(${parsed.id}, ${JSON.stringify(result)})`,
+         contextId: event.executionContextId
+-      }).catch((e) => null);
++      }).catch(e => null);
+     });
+-    Promise.all([
+-      session.send("Runtime.enable"),
+-      session.send("Runtime.addBinding", { name: kBindingName }),
+-      session.send("Page.enable"),
+-      session.send("Page.addScriptToEvaluateOnNewDocument", { source: `
++    Promise.all([process.env["REBROWSER_PATCHES_RUNTIME_FIX_MODE"] === "0" ? session.send("Runtime.enable") : (() => {})(), session.send("Runtime.addBinding", {
++      name: kBindingName
++    }), session.send("Page.enable"), session.send("Page.addScriptToEvaluateOnNewDocument", {
++      source: `
+         (() => {
+           const init = () => {
+             // Lazy init happens when InspectorFrontendHost is initialized.
+@@ -95,13 +100,12 @@ class CRDevTools {
+             set(v) { value = v; init(); },
+           });
+         })()
+-      ` }),
+-      session.send("Runtime.runIfWaitingForDebugger")
+-    ]).catch((e) => null);
++      `
++    }), session.send("Runtime.runIfWaitingForDebugger")]).catch(e => null);
+   }
+   _save() {
+     this._savePromise = this._savePromise.then(async () => {
+-      await import_fs.default.promises.writeFile(this._preferencesPath, JSON.stringify(this._prefs)).catch((e) => null);
++      await import_fs.default.promises.writeFile(this._preferencesPath, JSON.stringify(this._prefs)).catch(e => null);
+     });
+   }
+ }
+diff --git a/node_modules/playwright-core/lib/server/chromium/crPage.js b/node_modules/playwright-core/lib/server/chromium/crPage.js
+index 422b2f0..0021f0a 100644
+--- a/node_modules/playwright-core/lib/server/chromium/crPage.js
++++ b/node_modules/playwright-core/lib/server/chromium/crPage.js
+@@ -1,4 +1,5 @@
+ "use strict";
++
+ var __create = Object.create;
+ var __defProp = Object.defineProperty;
+ var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
+@@ -6,26 +7,32 @@ var __getOwnPropNames = Object.getOwnPropertyNames;
+ var __getProtoOf = Object.getPrototypeOf;
+ var __hasOwnProp = Object.prototype.hasOwnProperty;
+ var __export = (target, all) => {
+-  for (var name in all)
+-    __defProp(target, name, { get: all[name], enumerable: true });
++  for (var name in all) __defProp(target, name, {
++    get: all[name],
++    enumerable: true
++  });
+ };
+ var __copyProps = (to, from, except, desc) => {
+   if (from && typeof from === "object" || typeof from === "function") {
+-    for (let key of __getOwnPropNames(from))
+-      if (!__hasOwnProp.call(to, key) && key !== except)
+-        __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
++    for (let key of __getOwnPropNames(from)) if (!__hasOwnProp.call(to, key) && key !== except) __defProp(to, key, {
++      get: () => from[key],
++      enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable
++    });
+   }
+   return to;
+ };
+ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__getProtoOf(mod)) : {}, __copyProps(
+-  // If the importer is in node compatibility mode or this is not an ESM
+-  // file that has been converted to a CommonJS file using a Babel-
+-  // compatible transform (i.e. "__esModule" has not been set), then set
+-  // "default" to the CommonJS "module.exports" for node compatibility.
+-  isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target,
+-  mod
+-));
+-var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
++// If the importer is in node compatibility mode or this is not an ESM
++// file that has been converted to a CommonJS file using a Babel-
++// compatible transform (i.e. "__esModule" has not been set), then set
++// "default" to the CommonJS "module.exports" for node compatibility.
++isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", {
++  value: mod,
++  enumerable: true
++}) : target, mod));
++var __toCommonJS = mod => __copyProps(__defProp({}, "__esModule", {
++  value: true
++}), mod);
+ var crPage_exports = {};
+ __export(crPage_exports, {
+   CRPage: () => CRPage
+@@ -52,7 +59,7 @@ var import_errors = require("../errors");
+ var import_protocolError = require("../protocolError");
+ class CRPage {
+   constructor(client, targetId, browserContext, opener, bits) {
+-    this._sessions = /* @__PURE__ */ new Map();
++    this._sessions = /* @__PURE__ */new Map();
+     // Holds window features for the next popup being opened via window.open,
+     // until the popup target arrives. This could be racy if two oopifs
+     // simultaneously call window.open with window features: the order
+@@ -80,13 +87,12 @@ class CRPage {
+     if (opener && !browserContext._options.noDefaultViewport) {
+       const features = opener._nextWindowOpenPopupFeatures.shift() || [];
+       const viewportSize = import_helper.helper.getViewportSizeFromWindowFeatures(features);
+-      if (viewportSize)
+-        this._page.setEmulatedSizeFromWindowOpen({ viewport: viewportSize, screen: viewportSize });
++      if (viewportSize) this._page.setEmulatedSizeFromWindowOpen({
++        viewport: viewportSize,
++        screen: viewportSize
++      });
+     }
+-    this._mainFrameSession._initialize(bits.hasUIWindow).then(
+-      () => this._page.reportAsNew(this._opener?._page, void 0),
+-      (error) => this._page.reportAsNew(this._opener?._page, error)
+-    );
++    this._mainFrameSession._initialize(bits.hasUIWindow).then(() => this._page.reportAsNew(this._opener?._page, void 0), error => this._page.reportAsNew(this._opener?._page, error));
+   }
+   static mainFrameSession(page) {
+     const crPage = page.delegate;
+@@ -94,12 +100,10 @@ class CRPage {
+   }
+   async _forAllFrameSessions(cb) {
+     const frameSessions = Array.from(this._sessions.values());
+-    await Promise.all(frameSessions.map((frameSession) => {
+-      if (frameSession._isMainFrame())
+-        return cb(frameSession);
+-      return cb(frameSession).catch((e) => {
+-        if ((0, import_protocolError.isSessionClosedError)(e))
+-          return;
++    await Promise.all(frameSessions.map(frameSession => {
++      if (frameSession._isMainFrame()) return cb(frameSession);
++      return cb(frameSession).catch(e => {
++        if ((0, import_protocolError.isSessionClosedError)(e)) return;
+         throw e;
+       });
+     }));
+@@ -107,8 +111,7 @@ class CRPage {
+   _sessionForFrame(frame) {
+     while (!this._sessions.has(frame._id)) {
+       const parent = frame.parentFrame();
+-      if (!parent)
+-        throw new Error(`Frame has been detached.`);
++      if (!parent) throw new Error(`Frame has been detached.`);
+       frame = parent;
+     }
+     return this._sessions.get(frame._id);
+@@ -121,22 +124,18 @@ class CRPage {
+     this._mainFrameSession._willBeginDownload();
+   }
+   didClose() {
+-    for (const session of this._sessions.values())
+-      session.dispose();
++    for (const session of this._sessions.values()) session.dispose();
+     this._page._didClose();
+   }
+   async navigateFrame(frame, url, referrer) {
+     return this._sessionForFrame(frame)._navigate(frame, url, referrer);
+   }
+   async updateExtraHTTPHeaders() {
+-    const headers = network.mergeHeaders([
+-      this._browserContext._options.extraHTTPHeaders,
+-      this._page.extraHTTPHeaders()
+-    ]);
++    const headers = network.mergeHeaders([this._browserContext._options.extraHTTPHeaders, this._page.extraHTTPHeaders()]);
+     await this._networkManager.setExtraHTTPHeaders(headers);
+   }
+   async updateGeolocation() {
+-    await this._forAllFrameSessions((frame) => frame._updateGeolocation(false));
++    await this._forAllFrameSessions(frame => frame._updateGeolocation(false));
+   }
+   async updateOffline() {
+     await this._networkManager.setOffline(!!this._browserContext._options.offline);
+@@ -151,16 +150,16 @@ class CRPage {
+     await this._mainFrameSession._client.send("Page.bringToFront");
+   }
+   async updateEmulateMedia() {
+-    await this._forAllFrameSessions((frame) => frame._updateEmulateMedia());
++    await this._forAllFrameSessions(frame => frame._updateEmulateMedia());
+   }
+   async updateUserAgent() {
+-    await this._forAllFrameSessions((frame) => frame._updateUserAgent());
++    await this._forAllFrameSessions(frame => frame._updateUserAgent());
+   }
+   async updateRequestInterception() {
+     await this._networkManager.setRequestInterception(this._page.needsRequestInterception());
+   }
+   async updateFileChooserInterception() {
+-    await this._forAllFrameSessions((frame) => frame._updateFileChooserInterception(false));
++    await this._forAllFrameSessions(frame => frame._updateFileChooserInterception(false));
+   }
+   async reload() {
+     await this._mainFrameSession._client.send("Page.reload");
+@@ -168,9 +167,10 @@ class CRPage {
+   async _go(delta) {
+     const history = await this._mainFrameSession._client.send("Page.getNavigationHistory");
+     const entry = history.entries[history.currentIndex + delta];
+-    if (!entry)
+-      return false;
+-    await this._mainFrameSession._client.send("Page.navigateToHistoryEntry", { entryId: entry.id });
++    if (!entry) return false;
++    await this._mainFrameSession._client.send("Page.navigateToHistoryEntry", {
++      entryId: entry.id
++    });
+     return true;
+   }
+   goBack() {
+@@ -183,25 +183,26 @@ class CRPage {
+     await this._mainFrameSession._client.send("HeapProfiler.collectGarbage");
+   }
+   async addInitScript(initScript, world = "main") {
+-    await this._forAllFrameSessions((frame) => frame._evaluateOnNewDocument(initScript, world));
++    await this._forAllFrameSessions(frame => frame._evaluateOnNewDocument(initScript, world));
+   }
+   async exposePlaywrightBinding() {
+-    await this._forAllFrameSessions((frame) => frame.exposePlaywrightBinding());
++    await this._forAllFrameSessions(frame => frame.exposePlaywrightBinding());
+   }
+   async removeInitScripts(initScripts) {
+-    await this._forAllFrameSessions((frame) => frame._removeEvaluatesOnNewDocument(initScripts));
++    await this._forAllFrameSessions(frame => frame._removeEvaluatesOnNewDocument(initScripts));
+   }
+   async closePage(runBeforeUnload) {
+-    if (runBeforeUnload)
+-      await this._mainFrameSession._client.send("Page.close");
+-    else
+-      await this._browserContext._browser._closePage(this);
++    if (runBeforeUnload) await this._mainFrameSession._client.send("Page.close");else await this._browserContext._browser._closePage(this);
+   }
+   async setBackgroundColor(color) {
+-    await this._mainFrameSession._client.send("Emulation.setDefaultBackgroundColorOverride", { color });
++    await this._mainFrameSession._client.send("Emulation.setDefaultBackgroundColorOverride", {
++      color
++    });
+   }
+   async takeScreenshot(progress, format, documentRect, viewportRect, quality, fitsViewport, scale) {
+-    const { visualViewport } = await progress.race(this._mainFrameSession._client.send("Page.getLayoutMetrics"));
++    const {
++      visualViewport
++    } = await progress.race(this._mainFrameSession._client.send("Page.getLayoutMetrics"));
+     if (!documentRect) {
+       documentRect = {
+         x: visualViewport.pageX + viewportRect.x,
+@@ -212,12 +213,20 @@ class CRPage {
+         })
+       };
+     }
+-    const clip = { ...documentRect, scale: viewportRect ? visualViewport.scale : 1 };
++    const clip = {
++      ...documentRect,
++      scale: viewportRect ? visualViewport.scale : 1
++    };
+     if (scale === "css") {
+       const deviceScaleFactor = this._browserContext._options.deviceScaleFactor || 1;
+       clip.scale /= deviceScaleFactor;
+     }
+-    const result = await progress.race(this._mainFrameSession._client.send("Page.captureScreenshot", { format, quality, clip, captureBeyondViewport: !fitsViewport }));
++    const result = await progress.race(this._mainFrameSession._client.send("Page.captureScreenshot", {
++      format,
++      quality,
++      clip,
++      captureBeyondViewport: !fitsViewport
++    }));
+     return Buffer.from(result.data, "base64");
+   }
+   async getContentFrame(handle) {
+@@ -251,8 +260,7 @@ class CRPage {
+   }
+   async setInputFilePaths(handle, files) {
+     const frame = await handle.ownerFrame();
+-    if (!frame)
+-      throw new Error("Cannot set input files to detached input element");
++    if (!frame) throw new Error("Cannot set input files to detached input element");
+     const parentSession = this._sessionForFrame(frame);
+     await parentSession._client.send("DOM.setFileInputFiles", {
+       objectId: handle._objectId,
+@@ -263,11 +271,10 @@ class CRPage {
+     return this._sessionForHandle(handle)._adoptElementHandle(handle, to);
+   }
+   async inputActionEpilogue() {
+-    await this._mainFrameSession._client.send("Page.enable").catch((e) => {
+-    });
++    await this._mainFrameSession._client.send("Page.enable").catch(e => {});
+   }
+   async resetForReuse(progress) {
+-    await this.rawMouse.move(progress, -1, -1, "none", /* @__PURE__ */ new Set(), /* @__PURE__ */ new Set(), true);
++    await this.rawMouse.move(progress, -1, -1, "none", /* @__PURE__ */new Set(), /* @__PURE__ */new Set(), true);
+   }
+   async pdf(options) {
+     return this._pdf.generate(options);
+@@ -277,17 +284,18 @@ class CRPage {
+   }
+   async getFrameElement(frame) {
+     let parent = frame.parentFrame();
+-    if (!parent)
+-      throw new Error("Frame has been detached.");
++    if (!parent) throw new Error("Frame has been detached.");
+     const parentSession = this._sessionForFrame(parent);
+-    const { backendNodeId } = await parentSession._client.send("DOM.getFrameOwner", { frameId: frame._id }).catch((e) => {
+-      if (e instanceof Error && e.message.includes("Frame with the given id was not found."))
+-        (0, import_stackTrace.rewriteErrorMessage)(e, "Frame has been detached.");
++    const {
++      backendNodeId
++    } = await parentSession._client.send("DOM.getFrameOwner", {
++      frameId: frame._id
++    }).catch(e => {
++      if (e instanceof Error && e.message.includes("Frame with the given id was not found.")) (0, import_stackTrace.rewriteErrorMessage)(e, "Frame has been detached.");
+       throw e;
+     });
+     parent = frame.parentFrame();
+-    if (!parent)
+-      throw new Error("Frame has been detached.");
++    if (!parent) throw new Error("Frame has been detached.");
+     return parentSession._adoptBackendNodeId(backendNodeId, await parent._mainContext());
+   }
+   shouldToggleStyleSheetToSyncAnimations() {
+@@ -296,151 +304,116 @@ class CRPage {
+ }
+ class FrameSession {
+   constructor(crPage, client, targetId, parentSession) {
+-    this._childSessions = /* @__PURE__ */ new Set();
+-    this._contextIdToContext = /* @__PURE__ */ new Map();
++    this._childSessions = /* @__PURE__ */new Set();
++    this._contextIdToContext = /* @__PURE__ */new Map();
+     this._eventListeners = [];
+-    this._firstNonInitialNavigationCommittedFulfill = () => {
+-    };
+-    this._firstNonInitialNavigationCommittedReject = (e) => {
+-    };
++    this._firstNonInitialNavigationCommittedFulfill = () => {};
++    this._firstNonInitialNavigationCommittedReject = e => {};
+     // Marks the oopif session that remote -> local transition has happened in the parent.
+     // See Target.detachedFromTarget handler for details.
+     this._swappedIn = false;
+-    this._workerSessions = /* @__PURE__ */ new Map();
+-    this._initScriptIds = /* @__PURE__ */ new Map();
++    this._workerSessions = /* @__PURE__ */new Map();
++    this._initScriptIds = /* @__PURE__ */new Map();
+     this._client = client;
+     this._crPage = crPage;
+     this._page = crPage._page;
+     this._targetId = targetId;
+     this._parentSession = parentSession;
+-    if (parentSession)
+-      parentSession._childSessions.add(this);
++    if (parentSession) parentSession._childSessions.add(this);
+     this._firstNonInitialNavigationCommittedPromise = new Promise((f, r) => {
+       this._firstNonInitialNavigationCommittedFulfill = f;
+       this._firstNonInitialNavigationCommittedReject = r;
+     });
+-    this._firstNonInitialNavigationCommittedPromise.catch(() => {
+-    });
++    this._firstNonInitialNavigationCommittedPromise.catch(() => {});
+   }
+   _isMainFrame() {
+     return this._targetId === this._crPage._targetId;
+   }
+   _addRendererListeners() {
+-    this._eventListeners.push(...[
+-      import_eventsHelper.eventsHelper.addEventListener(this._client, "Log.entryAdded", (event) => this._onLogEntryAdded(event)),
+-      import_eventsHelper.eventsHelper.addEventListener(this._client, "Page.fileChooserOpened", (event) => this._onFileChooserOpened(event)),
+-      import_eventsHelper.eventsHelper.addEventListener(this._client, "Page.frameAttached", (event) => this._onFrameAttached(event.frameId, event.parentFrameId)),
+-      import_eventsHelper.eventsHelper.addEventListener(this._client, "Page.frameDetached", (event) => this._onFrameDetached(event.frameId, event.reason)),
+-      import_eventsHelper.eventsHelper.addEventListener(this._client, "Page.frameNavigated", (event) => this._onFrameNavigated(event.frame, false)),
+-      import_eventsHelper.eventsHelper.addEventListener(this._client, "Page.frameRequestedNavigation", (event) => this._onFrameRequestedNavigation(event)),
+-      import_eventsHelper.eventsHelper.addEventListener(this._client, "Page.javascriptDialogOpening", (event) => this._onDialog(event)),
+-      import_eventsHelper.eventsHelper.addEventListener(this._client, "Page.navigatedWithinDocument", (event) => this._onFrameNavigatedWithinDocument(event.frameId, event.url)),
+-      import_eventsHelper.eventsHelper.addEventListener(this._client, "Runtime.bindingCalled", (event) => this._onBindingCalled(event)),
+-      import_eventsHelper.eventsHelper.addEventListener(this._client, "Runtime.consoleAPICalled", (event) => this._onConsoleAPI(event)),
+-      import_eventsHelper.eventsHelper.addEventListener(this._client, "Runtime.exceptionThrown", (exception) => this._handleException(exception.exceptionDetails)),
+-      import_eventsHelper.eventsHelper.addEventListener(this._client, "Runtime.executionContextCreated", (event) => this._onExecutionContextCreated(event.context)),
+-      import_eventsHelper.eventsHelper.addEventListener(this._client, "Runtime.executionContextDestroyed", (event) => this._onExecutionContextDestroyed(event.executionContextId)),
+-      import_eventsHelper.eventsHelper.addEventListener(this._client, "Runtime.executionContextsCleared", (event) => this._onExecutionContextsCleared())
+-    ]);
++    this._eventListeners.push(...[import_eventsHelper.eventsHelper.addEventListener(this._client, "Log.entryAdded", event => this._onLogEntryAdded(event)), import_eventsHelper.eventsHelper.addEventListener(this._client, "Page.fileChooserOpened", event => this._onFileChooserOpened(event)), import_eventsHelper.eventsHelper.addEventListener(this._client, "Page.frameAttached", event => this._onFrameAttached(event.frameId, event.parentFrameId)), import_eventsHelper.eventsHelper.addEventListener(this._client, "Page.frameDetached", event => this._onFrameDetached(event.frameId, event.reason)), import_eventsHelper.eventsHelper.addEventListener(this._client, "Page.frameNavigated", event => this._onFrameNavigated(event.frame, false)), import_eventsHelper.eventsHelper.addEventListener(this._client, "Page.frameRequestedNavigation", event => this._onFrameRequestedNavigation(event)), import_eventsHelper.eventsHelper.addEventListener(this._client, "Page.javascriptDialogOpening", event => this._onDialog(event)), import_eventsHelper.eventsHelper.addEventListener(this._client, "Page.navigatedWithinDocument", event => this._onFrameNavigatedWithinDocument(event.frameId, event.url)), import_eventsHelper.eventsHelper.addEventListener(this._client, "Runtime.bindingCalled", event => this._onBindingCalled(event)), import_eventsHelper.eventsHelper.addEventListener(this._client, "Runtime.consoleAPICalled", event => this._onConsoleAPI(event)), import_eventsHelper.eventsHelper.addEventListener(this._client, "Runtime.exceptionThrown", exception => this._handleException(exception.exceptionDetails)), import_eventsHelper.eventsHelper.addEventListener(this._client, "Runtime.executionContextCreated", event => this._onExecutionContextCreated(event.context)), import_eventsHelper.eventsHelper.addEventListener(this._client, "Runtime.executionContextDestroyed", event => this._onExecutionContextDestroyed(event.executionContextId)), import_eventsHelper.eventsHelper.addEventListener(this._client, "Runtime.executionContextsCleared", event => this._onExecutionContextsCleared())]);
+   }
+   _addBrowserListeners() {
+-    this._eventListeners.push(...[
+-      import_eventsHelper.eventsHelper.addEventListener(this._client, "Target.attachedToTarget", (event) => this._onAttachedToTarget(event)),
+-      import_eventsHelper.eventsHelper.addEventListener(this._client, "Target.detachedFromTarget", (event) => this._onDetachedFromTarget(event)),
+-      import_eventsHelper.eventsHelper.addEventListener(this._client, "Inspector.targetCrashed", (event) => this._onTargetCrashed()),
+-      import_eventsHelper.eventsHelper.addEventListener(this._client, "Page.screencastFrame", (event) => this._onScreencastFrame(event)),
+-      import_eventsHelper.eventsHelper.addEventListener(this._client, "Page.windowOpen", (event) => this._onWindowOpen(event))
+-    ]);
++    this._eventListeners.push(...[import_eventsHelper.eventsHelper.addEventListener(this._client, "Target.attachedToTarget", event => this._onAttachedToTarget(event)), import_eventsHelper.eventsHelper.addEventListener(this._client, "Target.detachedFromTarget", event => this._onDetachedFromTarget(event)), import_eventsHelper.eventsHelper.addEventListener(this._client, "Inspector.targetCrashed", event => this._onTargetCrashed()), import_eventsHelper.eventsHelper.addEventListener(this._client, "Page.screencastFrame", event => this._onScreencastFrame(event)), import_eventsHelper.eventsHelper.addEventListener(this._client, "Page.windowOpen", event => this._onWindowOpen(event))]);
+   }
+   async _initialize(hasUIWindow) {
+     if (!this._page.isStorageStatePage && hasUIWindow && !this._crPage._browserContext._browser.isClank() && !this._crPage._browserContext._options.noDefaultViewport) {
+-      const { windowId } = await this._client.send("Browser.getWindowForTarget");
++      const {
++        windowId
++      } = await this._client.send("Browser.getWindowForTarget");
+       this._windowId = windowId;
+     }
+     let videoOptions;
+-    if (!this._page.isStorageStatePage && this._isMainFrame() && hasUIWindow)
+-      videoOptions = this._crPage._page.screencast.launchVideoRecorder();
++    if (!this._page.isStorageStatePage && this._isMainFrame() && hasUIWindow) videoOptions = this._crPage._page.screencast.launchVideoRecorder();
+     let lifecycleEventsEnabled;
+-    if (!this._isMainFrame())
+-      this._addRendererListeners();
++    if (!this._isMainFrame()) this._addRendererListeners();
+     this._addBrowserListeners();
+     this._bufferedAttachedToTargetEvents = [];
+-    const promises = [
+-      this._client.send("Page.enable"),
+-      this._client.send("Page.getFrameTree").then(({ frameTree }) => {
+-        if (this._isMainFrame()) {
+-          this._handleFrameTree(frameTree);
+-          this._addRendererListeners();
+-        }
+-        const attachedToTargetEvents = this._bufferedAttachedToTargetEvents || [];
+-        this._bufferedAttachedToTargetEvents = void 0;
+-        for (const event of attachedToTargetEvents)
+-          this._onAttachedToTarget(event);
+-        const localFrames = this._isMainFrame() ? this._page.frames() : [this._page.frameManager.frame(this._targetId)];
+-        for (const frame of localFrames) {
+-          this._client._sendMayFail("Page.createIsolatedWorld", {
+-            frameId: frame._id,
+-            grantUniveralAccess: true,
+-            worldName: this._crPage.utilityWorldName
+-          });
+-        }
+-        const isInitialEmptyPage = this._isMainFrame() && this._page.mainFrame().url() === ":";
+-        if (isInitialEmptyPage) {
+-          lifecycleEventsEnabled.catch((e) => {
+-          }).then(() => {
+-            this._eventListeners.push(import_eventsHelper.eventsHelper.addEventListener(this._client, "Page.lifecycleEvent", (event) => this._onLifecycleEvent(event)));
+-          });
+-        } else {
+-          this._firstNonInitialNavigationCommittedFulfill();
+-          this._eventListeners.push(import_eventsHelper.eventsHelper.addEventListener(this._client, "Page.lifecycleEvent", (event) => this._onLifecycleEvent(event)));
+-        }
+-      }),
+-      this._client.send("Log.enable", {}),
+-      lifecycleEventsEnabled = this._client.send("Page.setLifecycleEventsEnabled", { enabled: true }),
+-      this._client.send("Runtime.enable", {}),
+-      this._client.send("Page.addScriptToEvaluateOnNewDocument", {
+-        source: "",
+-        worldName: this._crPage.utilityWorldName
+-      }),
+-      this._crPage._networkManager.addSession(this._client, void 0, this._isMainFrame()),
+-      this._client.send("Target.setAutoAttach", { autoAttach: true, waitForDebuggerOnStart: true, flatten: true })
+-    ];
++    const promises = [this._client.send("Page.enable"), this._client.send("Page.getFrameTree").then(({
++      frameTree
++    }) => {
++      if (this._isMainFrame()) {
++        this._handleFrameTree(frameTree);
++        this._addRendererListeners();
++      }
++      const attachedToTargetEvents = this._bufferedAttachedToTargetEvents || [];
++      this._bufferedAttachedToTargetEvents = void 0;
++      for (const event of attachedToTargetEvents) this._onAttachedToTarget(event);
++      const localFrames = this._isMainFrame() ? this._page.frames() : [this._page.frameManager.frame(this._targetId)];
++      for (const frame of localFrames) {
++        this._client._sendMayFail("Page.createIsolatedWorld", {
++          frameId: frame._id,
++          grantUniveralAccess: true,
++          worldName: this._crPage.utilityWorldName
++        });
++      }
++      const isInitialEmptyPage = this._isMainFrame() && this._page.mainFrame().url() === ":";
++      if (isInitialEmptyPage) {
++        lifecycleEventsEnabled.catch(e => {}).then(() => {
++          this._eventListeners.push(import_eventsHelper.eventsHelper.addEventListener(this._client, "Page.lifecycleEvent", event => this._onLifecycleEvent(event)));
++        });
++      } else {
++        this._firstNonInitialNavigationCommittedFulfill();
++        this._eventListeners.push(import_eventsHelper.eventsHelper.addEventListener(this._client, "Page.lifecycleEvent", event => this._onLifecycleEvent(event)));
++      }
++    }), this._client.send("Log.enable", {}), lifecycleEventsEnabled = this._client.send("Page.setLifecycleEventsEnabled", {
++      enabled: true
++    }), process.env["REBROWSER_PATCHES_RUNTIME_FIX_MODE"] === "0" ? this._client.send("Runtime.enable", {}) : (() => {})(), this._client.send("Page.addScriptToEvaluateOnNewDocument", {
++      source: "",
++      worldName: this._crPage.utilityWorldName
++    }), this._crPage._networkManager.addSession(this._client, void 0, this._isMainFrame()), this._client.send("Target.setAutoAttach", {
++      autoAttach: true,
++      waitForDebuggerOnStart: true,
++      flatten: true
++    })];
+     if (!this._page.isStorageStatePage) {
+-      if (this._crPage._browserContext.needsPlaywrightBinding())
+-        promises.push(this.exposePlaywrightBinding());
+-      if (this._isMainFrame())
+-        promises.push(this._client.send("Emulation.setFocusEmulationEnabled", { enabled: true }));
++      if (this._crPage._browserContext.needsPlaywrightBinding()) promises.push(this.exposePlaywrightBinding());
++      if (this._isMainFrame()) promises.push(this._client.send("Emulation.setFocusEmulationEnabled", {
++        enabled: true
++      }));
+       const options = this._crPage._browserContext._options;
+-      if (options.bypassCSP)
+-        promises.push(this._client.send("Page.setBypassCSP", { enabled: true }));
+-      if (options.ignoreHTTPSErrors || options.internalIgnoreHTTPSErrors)
+-        promises.push(this._client.send("Security.setIgnoreCertificateErrors", { ignore: true }));
+-      if (this._isMainFrame())
+-        promises.push(this._updateViewport());
+-      if (options.hasTouch)
+-        promises.push(this._client.send("Emulation.setTouchEmulationEnabled", { enabled: true }));
+-      if (options.javaScriptEnabled === false)
+-        promises.push(this._client.send("Emulation.setScriptExecutionDisabled", { value: true }));
+-      if (options.userAgent || options.locale)
+-        promises.push(this._updateUserAgent());
+-      if (options.locale)
+-        promises.push(emulateLocale(this._client, options.locale));
+-      if (options.timezoneId)
+-        promises.push(emulateTimezone(this._client, options.timezoneId));
+-      if (!this._crPage._browserContext._browser.options.headful)
+-        promises.push(this._setDefaultFontFamilies(this._client));
++      if (options.bypassCSP) promises.push(this._client.send("Page.setBypassCSP", {
++        enabled: true
++      }));
++      if (options.ignoreHTTPSErrors || options.internalIgnoreHTTPSErrors) promises.push(this._client.send("Security.setIgnoreCertificateErrors", {
++        ignore: true
++      }));
++      if (this._isMainFrame()) promises.push(this._updateViewport());
++      if (options.hasTouch) promises.push(this._client.send("Emulation.setTouchEmulationEnabled", {
++        enabled: true
++      }));
++      if (options.javaScriptEnabled === false) promises.push(this._client.send("Emulation.setScriptExecutionDisabled", {
++        value: true
++      }));
++      if (options.userAgent || options.locale) promises.push(this._updateUserAgent());
++      if (options.locale) promises.push(emulateLocale(this._client, options.locale));
++      if (options.timezoneId) promises.push(emulateTimezone(this._client, options.timezoneId));
++      if (!this._crPage._browserContext._browser.options.headful) promises.push(this._setDefaultFontFamilies(this._client));
+       promises.push(this._updateGeolocation(true));
+       promises.push(this._updateEmulateMedia());
+       promises.push(this._updateFileChooserInterception(true));
+-      for (const initScript of this._crPage._page.allInitScripts())
+-        promises.push(this._evaluateOnNewDocument(
+-          initScript,
+-          "main",
+-          true
+-          /* runImmediately */
+-        ));
+-      if (videoOptions)
+-        promises.push(this._crPage._page.screencast.startVideoRecording(videoOptions));
++      for (const initScript of this._crPage._page.allInitScripts()) promises.push(this._evaluateOnNewDocument(initScript, "main", true
++      /* runImmediately */));
++      if (videoOptions) promises.push(this._crPage._page.screencast.startVideoRecording(videoOptions));
+     }
+     promises.push(this._client.send("Runtime.runIfWaitingForDebugger"));
+     promises.push(this._firstNonInitialNavigationCommittedPromise);
+@@ -448,43 +421,39 @@ class FrameSession {
+   }
+   dispose() {
+     this._firstNonInitialNavigationCommittedReject(new import_errors.TargetClosedError(this._page.closeReason()));
+-    for (const childSession of this._childSessions)
+-      childSession.dispose();
+-    if (this._parentSession)
+-      this._parentSession._childSessions.delete(this);
++    for (const childSession of this._childSessions) childSession.dispose();
++    if (this._parentSession) this._parentSession._childSessions.delete(this);
+     import_eventsHelper.eventsHelper.removeEventListeners(this._eventListeners);
+     this._crPage._networkManager.removeSession(this._client);
+     this._crPage._sessions.delete(this._targetId);
+     this._client.dispose();
+   }
+   async _navigate(frame, url, referrer) {
+-    const response = await this._client.send("Page.navigate", { url, referrer, frameId: frame._id, referrerPolicy: "unsafeUrl" });
+-    if (response.isDownload)
+-      throw new frames.NavigationAbortedError(response.loaderId, "Download is starting");
+-    if (response.errorText)
+-      throw new frames.NavigationAbortedError(response.loaderId, `${response.errorText} at ${url}`);
+-    return { newDocumentId: response.loaderId };
++    const response = await this._client.send("Page.navigate", {
++      url,
++      referrer,
++      frameId: frame._id,
++      referrerPolicy: "unsafeUrl"
++    });
++    if (response.isDownload) throw new frames.NavigationAbortedError(response.loaderId, "Download is starting");
++    if (response.errorText) throw new frames.NavigationAbortedError(response.loaderId, `${response.errorText} at ${url}`);
++    return {
++      newDocumentId: response.loaderId
++    };
+   }
+   _onLifecycleEvent(event) {
+-    if (this._eventBelongsToStaleFrame(event.frameId))
+-      return;
+-    if (event.name === "load")
+-      this._page.frameManager.frameLifecycleEvent(event.frameId, "load");
+-    else if (event.name === "DOMContentLoaded")
+-      this._page.frameManager.frameLifecycleEvent(event.frameId, "domcontentloaded");
++    if (this._eventBelongsToStaleFrame(event.frameId)) return;
++    if (event.name === "load") this._page.frameManager.frameLifecycleEvent(event.frameId, "load");else if (event.name === "DOMContentLoaded") this._page.frameManager.frameLifecycleEvent(event.frameId, "domcontentloaded");
+   }
+   _handleFrameTree(frameTree) {
+     this._onFrameAttached(frameTree.frame.id, frameTree.frame.parentId || null);
+     this._onFrameNavigated(frameTree.frame, true);
+-    if (!frameTree.childFrames)
+-      return;
+-    for (const child of frameTree.childFrames)
+-      this._handleFrameTree(child);
++    if (!frameTree.childFrames) return;
++    for (const child of frameTree.childFrames) this._handleFrameTree(child);
+   }
+   _eventBelongsToStaleFrame(frameId) {
+     const frame = this._page.frameManager.frame(frameId);
+-    if (!frame)
+-      return true;
++    if (!frame) return true;
+     const session = this._crPage._sessionForFrame(frame);
+     return session && session !== this && !session._swappedIn;
+   }
+@@ -493,8 +462,7 @@ class FrameSession {
+     if (frameSession && frameId !== this._targetId) {
+       frameSession._swappedIn = true;
+       const frame = this._page.frameManager.frame(frameId);
+-      if (frame)
+-        this._page.frameManager.removeChildFramesRecursively(frame);
++      if (frame) this._page.frameManager.removeChildFramesRecursively(frame);
+       return;
+     }
+     if (parentFrameId && !this._page.frameManager.frame(parentFrameId)) {
+@@ -503,21 +471,16 @@ class FrameSession {
+     this._page.frameManager.frameAttached(frameId, parentFrameId);
+   }
+   _onFrameNavigated(framePayload, initial) {
+-    if (this._eventBelongsToStaleFrame(framePayload.id))
+-      return;
++    if (this._eventBelongsToStaleFrame(framePayload.id)) return;
+     this._page.frameManager.frameCommittedNewDocumentNavigation(framePayload.id, framePayload.url + (framePayload.urlFragment || ""), framePayload.name || "", framePayload.loaderId, initial);
+-    if (!initial)
+-      this._firstNonInitialNavigationCommittedFulfill();
++    if (!initial) this._firstNonInitialNavigationCommittedFulfill();
+   }
+   _onFrameRequestedNavigation(payload) {
+-    if (this._eventBelongsToStaleFrame(payload.frameId))
+-      return;
+-    if (payload.disposition === "currentTab")
+-      this._page.frameManager.frameRequestedNavigation(payload.frameId);
++    if (this._eventBelongsToStaleFrame(payload.frameId)) return;
++    if (payload.disposition === "currentTab") this._page.frameManager.frameRequestedNavigation(payload.frameId);
+   }
+   _onFrameNavigatedWithinDocument(frameId, url) {
+-    if (this._eventBelongsToStaleFrame(frameId))
+-      return;
++    if (this._eventBelongsToStaleFrame(frameId)) return;
+     this._page.frameManager.frameCommittedSameDocumentNavigation(frameId, url);
+   }
+   _onFrameDetached(frameId, reason) {
+@@ -526,37 +489,29 @@ class FrameSession {
+     }
+     if (reason === "swap") {
+       const frame = this._page.frameManager.frame(frameId);
+-      if (frame)
+-        this._page.frameManager.removeChildFramesRecursively(frame);
++      if (frame) this._page.frameManager.removeChildFramesRecursively(frame);
+       return;
+     }
+     this._page.frameManager.frameDetached(frameId);
+   }
+   _onExecutionContextCreated(contextPayload) {
+     const frame = contextPayload.auxData ? this._page.frameManager.frame(contextPayload.auxData.frameId) : null;
+-    if (!frame || this._eventBelongsToStaleFrame(frame._id))
+-      return;
++    if (!frame || this._eventBelongsToStaleFrame(frame._id)) return;
+     const delegate = new import_crExecutionContext.CRExecutionContext(this._client, contextPayload);
+     let worldName = null;
+-    if (contextPayload.auxData && !!contextPayload.auxData.isDefault)
+-      worldName = "main";
+-    else if (contextPayload.name === this._crPage.utilityWorldName)
+-      worldName = "utility";
++    if (contextPayload.auxData && !!contextPayload.auxData.isDefault) worldName = "main";else if (contextPayload.name === this._crPage.utilityWorldName) worldName = "utility";
+     const context = new dom.FrameExecutionContext(delegate, frame, worldName);
+-    if (worldName)
+-      frame._contextCreated(worldName, context);
++    if (worldName) frame._contextCreated(worldName, context);
+     this._contextIdToContext.set(contextPayload.id, context);
+   }
+   _onExecutionContextDestroyed(executionContextId) {
+     const context = this._contextIdToContext.get(executionContextId);
+-    if (!context)
+-      return;
++    if (!context) return;
+     this._contextIdToContext.delete(executionContextId);
+     context.frame._contextDestroyed(context);
+   }
+   _onExecutionContextsCleared() {
+-    for (const contextId of Array.from(this._contextIdToContext.keys()))
+-      this._onExecutionContextDestroyed(contextId);
++    for (const contextId of Array.from(this._contextIdToContext.keys())) this._onExecutionContextDestroyed(contextId);
+   }
+   _onAttachedToTarget(event) {
+     if (this._bufferedAttachedToTargetEvents) {
+@@ -570,46 +525,45 @@ class FrameSession {
+       if (!frame && event.targetInfo.parentFrameId) {
+         frame = this._page.frameManager.frameAttached(targetId, event.targetInfo.parentFrameId);
+       }
+-      if (!frame)
+-        return;
++      if (!frame) return;
+       this._page.frameManager.removeChildFramesRecursively(frame);
+       for (const [contextId, context] of this._contextIdToContext) {
+-        if (context.frame === frame)
+-          this._onExecutionContextDestroyed(contextId);
++        if (context.frame === frame) this._onExecutionContextDestroyed(contextId);
+       }
+       const frameSession = new FrameSession(this._crPage, session, targetId, this);
+       this._crPage._sessions.set(targetId, frameSession);
+-      frameSession._initialize(false).catch((e) => e);
++      frameSession._initialize(false).catch(e => e);
+       return;
+     }
+     if (event.targetInfo.type !== "worker") {
+-      session.detach().catch(() => {
+-      });
++      session.detach().catch(() => {});
+       return;
+     }
+     const url = event.targetInfo.url;
+-    const worker = new import_page.Worker(this._page, url);
++    const worker = new import_page.Worker(this._page, url, event.targetInfo.targetId, session);
+     this._page.addWorker(event.sessionId, worker);
+     this._workerSessions.set(event.sessionId, session);
+-    session.once("Runtime.executionContextCreated", async (event2) => {
++    session.once("Runtime.executionContextCreated", async event2 => {
+       worker.createExecutionContext(new import_crExecutionContext.CRExecutionContext(session, event2.context));
+     });
+-    if (this._crPage._browserContext._browser.majorVersion() >= 143)
+-      session.on("Inspector.workerScriptLoaded", () => worker.workerScriptLoaded());
+-    else
+-      worker.workerScriptLoaded();
+-    session._sendMayFail("Runtime.enable");
+-    this._crPage._networkManager.addSession(session, this._page.frameManager.frame(this._targetId) ?? void 0).catch(() => {
+-    });
++    if (this._crPage._browserContext._browser.majorVersion() >= 143) session.on("Inspector.workerScriptLoaded", () => worker.workerScriptLoaded());else worker.workerScriptLoaded();
++    if (process.env["REBROWSER_PATCHES_RUNTIME_FIX_MODE"] === "0") {
++      session._sendMayFail("Runtime.enable");
++    }
++    this._crPage._networkManager.addSession(session, this._page.frameManager.frame(this._targetId) ?? void 0).catch(() => {});
+     session._sendMayFail("Runtime.runIfWaitingForDebugger");
+-    session._sendMayFail("Target.setAutoAttach", { autoAttach: true, waitForDebuggerOnStart: true, flatten: true });
+-    session.on("Target.attachedToTarget", (event2) => this._onAttachedToTarget(event2));
+-    session.on("Target.detachedFromTarget", (event2) => this._onDetachedFromTarget(event2));
+-    session.on("Runtime.consoleAPICalled", (event2) => {
+-      const args = event2.args.map((o) => (0, import_crExecutionContext.createHandle)(worker.existingExecutionContext, o));
++    session._sendMayFail("Target.setAutoAttach", {
++      autoAttach: true,
++      waitForDebuggerOnStart: true,
++      flatten: true
++    });
++    session.on("Target.attachedToTarget", event2 => this._onAttachedToTarget(event2));
++    session.on("Target.detachedFromTarget", event2 => this._onDetachedFromTarget(event2));
++    session.on("Runtime.consoleAPICalled", event2 => {
++      const args = event2.args.map(o => (0, import_crExecutionContext.createHandle)(worker.existingExecutionContext, o));
+       this._page.addConsoleMessage(worker, event2.type, args, (0, import_crProtocolHelper.toConsoleMessageLocation)(event2.stackTrace));
+     });
+-    session.on("Runtime.exceptionThrown", (exception) => this._page.addPageError((0, import_crProtocolHelper.exceptionToError)(exception.exceptionDetails)));
++    session.on("Runtime.exceptionThrown", exception => this._page.addPageError((0, import_crProtocolHelper.exceptionToError)(exception.exceptionDetails)));
+   }
+   _onDetachedFromTarget(event) {
+     const workerSession = this._workerSessions.get(event.sessionId);
+@@ -619,15 +573,13 @@ class FrameSession {
+       return;
+     }
+     const childFrameSession = this._crPage._sessions.get(event.targetId);
+-    if (!childFrameSession)
+-      return;
++    if (!childFrameSession) return;
+     if (childFrameSession._swappedIn) {
+       childFrameSession.dispose();
+       return;
+     }
+-    this._client.send("Page.enable").catch((e) => null).then(() => {
+-      if (!childFrameSession._swappedIn)
+-        this._page.frameManager.frameDetached(event.targetId);
++    this._client.send("Page.enable").catch(e => null).then(() => {
++      if (!childFrameSession._swappedIn) this._page.frameManager.frameDetached(event.targetId);
+       childFrameSession.dispose();
+     });
+   }
+@@ -639,33 +591,26 @@ class FrameSession {
+       return;
+     }
+     const context = this._contextIdToContext.get(event.executionContextId);
+-    if (!context)
+-      return;
+-    const values = event.args.map((arg) => (0, import_crExecutionContext.createHandle)(context, arg));
++    if (!context) return;
++    const values = event.args.map(arg => (0, import_crExecutionContext.createHandle)(context, arg));
+     this._page.addConsoleMessage(null, event.type, values, (0, import_crProtocolHelper.toConsoleMessageLocation)(event.stackTrace));
+   }
+   async _onBindingCalled(event) {
+     const pageOrError = await this._crPage._page.waitForInitializedOrError();
+     if (!(pageOrError instanceof Error)) {
+       const context = this._contextIdToContext.get(event.executionContextId);
+-      if (context)
+-        await this._page.onBindingCalled(event.payload, context);
++      if (context) await this._page.onBindingCalled(event.payload, context);
+     }
+   }
+   _onDialog(event) {
+-    if (!this._page.frameManager.frame(this._targetId))
+-      return;
+-    this._page.browserContext.dialogManager.dialogDidOpen(new dialog.Dialog(
+-      this._page,
+-      event.type,
+-      event.message,
+-      async (accept, promptText) => {
+-        if (this._isMainFrame() && event.type === "beforeunload" && !accept)
+-          this._page.frameManager.frameAbortedNavigation(this._page.mainFrame()._id, "navigation cancelled by beforeunload dialog");
+-        await this._client.send("Page.handleJavaScriptDialog", { accept, promptText });
+-      },
+-      event.defaultPrompt
+-    ));
++    if (!this._page.frameManager.frame(this._targetId)) return;
++    this._page.browserContext.dialogManager.dialogDidOpen(new dialog.Dialog(this._page, event.type, event.message, async (accept, promptText) => {
++      if (this._isMainFrame() && event.type === "beforeunload" && !accept) this._page.frameManager.frameAbortedNavigation(this._page.mainFrame()._id, "navigation cancelled by beforeunload dialog");
++      await this._client.send("Page.handleJavaScriptDialog", {
++        accept,
++        promptText
++      });
++    }, event.defaultPrompt));
+   }
+   _handleException(exceptionDetails) {
+     this._page.addPageError((0, import_crProtocolHelper.exceptionToError)(exceptionDetails));
+@@ -675,9 +620,15 @@ class FrameSession {
+     this._page._didCrash();
+   }
+   _onLogEntryAdded(event) {
+-    const { level, text, args, source, url, lineNumber } = event.entry;
+-    if (args)
+-      args.map((arg) => (0, import_crProtocolHelper.releaseObject)(this._client, arg.objectId));
++    const {
++      level,
++      text,
++      args,
++      source,
++      url,
++      lineNumber
++    } = event.entry;
++    if (args) args.map(arg => (0, import_crProtocolHelper.releaseObject)(this._client, arg.objectId));
+     if (source !== "worker") {
+       const location = {
+         url: url || "",
+@@ -688,11 +639,9 @@ class FrameSession {
+     }
+   }
+   async _onFileChooserOpened(event) {
+-    if (!event.backendNodeId)
+-      return;
++    if (!event.backendNodeId) return;
+     const frame = this._page.frameManager.frame(event.frameId);
+-    if (!frame)
+-      return;
++    if (!frame) return;
+     let handle;
+     try {
+       const utilityContext = await frame._utilityContext();
+@@ -709,7 +658,9 @@ class FrameSession {
+   }
+   _onScreencastFrame(payload) {
+     this._page.screencast.throttleFrameAck(() => {
+-      this._client._sendMayFail("Page.screencastFrameAck", { sessionId: payload.sessionId });
++      this._client._sendMayFail("Page.screencastFrameAck", {
++        sessionId: payload.sessionId
++      });
+     });
+     const buffer = Buffer.from(payload.data, "base64");
+     this._page.emit(import_page.Page.Events.ScreencastFrame, {
+@@ -721,17 +672,14 @@ class FrameSession {
+   }
+   async _updateGeolocation(initial) {
+     const geolocation = this._crPage._browserContext._options.geolocation;
+-    if (!initial || geolocation)
+-      await this._client.send("Emulation.setGeolocationOverride", geolocation || {});
++    if (!initial || geolocation) await this._client.send("Emulation.setGeolocationOverride", geolocation || {});
+   }
+   async _updateViewport(preserveWindowBoundaries) {
+-    if (this._crPage._browserContext._browser.isClank())
+-      return;
++    if (this._crPage._browserContext._browser.isClank()) return;
+     (0, import_assert.assert)(this._isMainFrame());
+     const options = this._crPage._browserContext._options;
+     const emulatedSize = this._page.emulatedSize();
+-    if (!emulatedSize)
+-      return;
++    if (!emulatedSize) return;
+     const viewportSize = emulatedSize.viewport;
+     const screenSize = emulatedSize.screen;
+     const isLandscape = screenSize.width > screenSize.height;
+@@ -742,22 +690,40 @@ class FrameSession {
+       screenWidth: screenSize.width,
+       screenHeight: screenSize.height,
+       deviceScaleFactor: options.deviceScaleFactor || 1,
+-      screenOrientation: !!options.isMobile ? isLandscape ? { angle: 90, type: "landscapePrimary" } : { angle: 0, type: "portraitPrimary" } : { angle: 0, type: "landscapePrimary" },
++      screenOrientation: !!options.isMobile ? isLandscape ? {
++        angle: 90,
++        type: "landscapePrimary"
++      } : {
++        angle: 0,
++        type: "portraitPrimary"
++      } : {
++        angle: 0,
++        type: "landscapePrimary"
++      },
+       dontSetVisibleSize: preserveWindowBoundaries
+     };
+-    if (JSON.stringify(this._metricsOverride) === JSON.stringify(metricsOverride))
+-      return;
++    if (JSON.stringify(this._metricsOverride) === JSON.stringify(metricsOverride)) return;
+     const promises = [];
+     if (!preserveWindowBoundaries && this._windowId) {
+-      let insets = { width: 0, height: 0 };
++      let insets = {
++        width: 0,
++        height: 0
++      };
+       if (this._crPage._browserContext._browser.options.headful) {
+-        insets = { width: 24, height: 88 };
+-        if (process.platform === "win32")
+-          insets = { width: 16, height: 88 };
+-        else if (process.platform === "linux")
+-          insets = { width: 8, height: 85 };
+-        else if (process.platform === "darwin")
+-          insets = { width: 2, height: 80 };
++        insets = {
++          width: 24,
++          height: 88
++        };
++        if (process.platform === "win32") insets = {
++          width: 16,
++          height: 88
++        };else if (process.platform === "linux") insets = {
++          width: 8,
++          height: 85
++        };else if (process.platform === "darwin") insets = {
++          width: 2,
++          height: 80
++        };
+         if (this._crPage._browserContext.isPersistentContext()) {
+           insets.height += 46;
+         }
+@@ -772,7 +738,9 @@ class FrameSession {
+     this._metricsOverride = metricsOverride;
+   }
+   async windowBounds() {
+-    const { bounds } = await this._client.send("Browser.getWindowBounds", {
++    const {
++      bounds
++    } = await this._client.send("Browser.getWindowBounds", {
+       windowId: this._windowId
+     });
+     return bounds;
+@@ -790,13 +758,23 @@ class FrameSession {
+     const reducedMotion = emulatedMedia.reducedMotion === "no-override" ? "" : emulatedMedia.reducedMotion;
+     const forcedColors = emulatedMedia.forcedColors === "no-override" ? "" : emulatedMedia.forcedColors;
+     const contrast = emulatedMedia.contrast === "no-override" ? "" : emulatedMedia.contrast;
+-    const features = [
+-      { name: "prefers-color-scheme", value: colorScheme },
+-      { name: "prefers-reduced-motion", value: reducedMotion },
+-      { name: "forced-colors", value: forcedColors },
+-      { name: "prefers-contrast", value: contrast }
+-    ];
+-    await this._client.send("Emulation.setEmulatedMedia", { media, features });
++    const features = [{
++      name: "prefers-color-scheme",
++      value: colorScheme
++    }, {
++      name: "prefers-reduced-motion",
++      value: reducedMotion
++    }, {
++      name: "forced-colors",
++      value: forcedColors
++    }, {
++      name: "prefers-contrast",
++      value: contrast
++    }];
++    await this._client.send("Emulation.setEmulatedMedia", {
++      media,
++      features
++    });
+   }
+   async _updateUserAgent() {
+     const options = this._crPage._browserContext._options;
+@@ -812,49 +790,53 @@ class FrameSession {
+   }
+   async _updateFileChooserInterception(initial) {
+     const enabled = this._page.fileChooserIntercepted();
+-    if (initial && !enabled)
+-      return;
+-    await this._client.send("Page.setInterceptFileChooserDialog", { enabled }).catch(() => {
+-    });
++    if (initial && !enabled) return;
++    await this._client.send("Page.setInterceptFileChooserDialog", {
++      enabled
++    }).catch(() => {});
+   }
+   async _evaluateOnNewDocument(initScript, world, runImmediately) {
+     const worldName = world === "utility" ? this._crPage.utilityWorldName : void 0;
+-    const { identifier } = await this._client.send("Page.addScriptToEvaluateOnNewDocument", { source: initScript.source, worldName, runImmediately });
++    const {
++      identifier
++    } = await this._client.send("Page.addScriptToEvaluateOnNewDocument", {
++      source: initScript.source,
++      worldName,
++      runImmediately
++    });
+     this._initScriptIds.set(initScript, identifier);
+   }
+   async _removeEvaluatesOnNewDocument(initScripts) {
+     const ids = [];
+     for (const script of initScripts) {
+       const id = this._initScriptIds.get(script);
+-      if (id)
+-        ids.push(id);
++      if (id) ids.push(id);
+       this._initScriptIds.delete(script);
+     }
+-    await Promise.all(ids.map((identifier) => this._client.send("Page.removeScriptToEvaluateOnNewDocument", { identifier }).catch(() => {
+-    })));
++    await Promise.all(ids.map(identifier => this._client.send("Page.removeScriptToEvaluateOnNewDocument", {
++      identifier
++    }).catch(() => {})));
+   }
+   async exposePlaywrightBinding() {
+-    await this._client.send("Runtime.addBinding", { name: import_page.PageBinding.kBindingName });
++    await this._client.send("Runtime.addBinding", {
++      name: import_page.PageBinding.kBindingName
++    });
+   }
+   async _getContentFrame(handle) {
+     const nodeInfo = await this._client.send("DOM.describeNode", {
+       objectId: handle._objectId
+     });
+-    if (!nodeInfo || typeof nodeInfo.node.frameId !== "string")
+-      return null;
++    if (!nodeInfo || typeof nodeInfo.node.frameId !== "string") return null;
+     return this._page.frameManager.frame(nodeInfo.node.frameId);
+   }
+   async _getOwnerFrame(handle) {
+-    const documentElement = await handle.evaluateHandle((node) => {
++    const documentElement = await handle.evaluateHandle(node => {
+       const doc = node;
+-      if (doc.documentElement && doc.documentElement.ownerDocument === doc)
+-        return doc.documentElement;
++      if (doc.documentElement && doc.documentElement.ownerDocument === doc) return doc.documentElement;
+       return node.ownerDocument ? node.ownerDocument.documentElement : null;
+     });
+-    if (!documentElement)
+-      return null;
+-    if (!documentElement._objectId)
+-      return null;
++    if (!documentElement) return null;
++    if (!documentElement._objectId) return null;
+     const nodeInfo = await this._client.send("DOM.describeNode", {
+       objectId: documentElement._objectId
+     });
+@@ -866,24 +848,28 @@ class FrameSession {
+     const result = await this._client._sendMayFail("DOM.getBoxModel", {
+       objectId: handle._objectId
+     });
+-    if (!result)
+-      return null;
++    if (!result) return null;
+     const quad = result.model.border;
+     const x = Math.min(quad[0], quad[2], quad[4], quad[6]);
+     const y = Math.min(quad[1], quad[3], quad[5], quad[7]);
+     const width = Math.max(quad[0], quad[2], quad[4], quad[6]) - x;
+     const height = Math.max(quad[1], quad[3], quad[5], quad[7]) - y;
+     const position = await this._framePosition();
+-    if (!position)
+-      return null;
+-    return { x: x + position.x, y: y + position.y, width, height };
++    if (!position) return null;
++    return {
++      x: x + position.x,
++      y: y + position.y,
++      width,
++      height
++    };
+   }
+   async _framePosition() {
+     const frame = this._page.frameManager.frame(this._targetId);
+-    if (!frame)
+-      return null;
+-    if (frame === this._page.mainFrame())
+-      return { x: 0, y: 0 };
++    if (!frame) return null;
++    if (frame === this._page.mainFrame()) return {
++      x: 0,
++      y: 0
++    };
+     const element = await frame.frameElement();
+     const box = await element.boundingBox();
+     return box;
+@@ -892,11 +878,9 @@ class FrameSession {
+     return await this._client.send("DOM.scrollIntoViewIfNeeded", {
+       objectId: handle._objectId,
+       rect
+-    }).then(() => "done").catch((e) => {
+-      if (e instanceof Error && e.message.includes("Node does not have a layout object"))
+-        return "error:notvisible";
+-      if (e instanceof Error && e.message.includes("Node is detached from document"))
+-        return "error:notconnected";
++    }).then(() => "done").catch(e => {
++      if (e instanceof Error && e.message.includes("Node does not have a layout object")) return "error:notvisible";
++      if (e instanceof Error && e.message.includes("Node is detached from document")) return "error:notconnected";
+       throw e;
+     });
+   }
+@@ -904,17 +888,22 @@ class FrameSession {
+     const result = await this._client._sendMayFail("DOM.getContentQuads", {
+       objectId: handle._objectId
+     });
+-    if (!result)
+-      return null;
++    if (!result) return null;
+     const position = await this._framePosition();
+-    if (!position)
+-      return null;
+-    return result.quads.map((quad) => [
+-      { x: quad[0] + position.x, y: quad[1] + position.y },
+-      { x: quad[2] + position.x, y: quad[3] + position.y },
+-      { x: quad[4] + position.x, y: quad[5] + position.y },
+-      { x: quad[6] + position.x, y: quad[7] + position.y }
+-    ]);
++    if (!position) return null;
++    return result.quads.map(quad => [{
++      x: quad[0] + position.x,
++      y: quad[1] + position.y
++    }, {
++      x: quad[2] + position.x,
++      y: quad[3] + position.y
++    }, {
++      x: quad[4] + position.x,
++      y: quad[5] + position.y
++    }, {
++      x: quad[6] + position.x,
++      y: quad[7] + position.y
++    }]);
+   }
+   async _adoptElementHandle(handle, to) {
+     const nodeInfo = await this._client.send("DOM.describeNode", {
+@@ -927,35 +916,34 @@ class FrameSession {
+       backendNodeId,
+       executionContextId: to.delegate._contextId
+     });
+-    if (!result || result.object.subtype === "null")
+-      throw new Error(dom.kUnableToAdoptErrorMessage);
++    if (!result || result.object.subtype === "null") throw new Error(dom.kUnableToAdoptErrorMessage);
+     return (0, import_crExecutionContext.createHandle)(to, result.object).asElement();
+   }
+ }
+ async function emulateLocale(session, locale) {
+   try {
+-    await session.send("Emulation.setLocaleOverride", { locale });
++    await session.send("Emulation.setLocaleOverride", {
++      locale
++    });
+   } catch (exception) {
+-    if (exception.message.includes("Another locale override is already in effect"))
+-      return;
++    if (exception.message.includes("Another locale override is already in effect")) return;
+     throw exception;
+   }
+ }
+ async function emulateTimezone(session, timezoneId) {
+   try {
+-    await session.send("Emulation.setTimezoneOverride", { timezoneId });
++    await session.send("Emulation.setTimezoneOverride", {
++      timezoneId
++    });
+   } catch (exception) {
+-    if (exception.message.includes("Timezone override is already in effect"))
+-      return;
+-    if (exception.message.includes("Invalid timezone"))
+-      throw new Error(`Invalid timezone ID: ${timezoneId}`);
++    if (exception.message.includes("Timezone override is already in effect")) return;
++    if (exception.message.includes("Invalid timezone")) throw new Error(`Invalid timezone ID: ${timezoneId}`);
+     throw exception;
+   }
+ }
+ function calculateUserAgentMetadata(options) {
+   const ua = options.userAgent;
+-  if (!ua)
+-    return void 0;
++  if (!ua) return void 0;
+   const metadata = {
+     mobile: !!options.isMobile,
+     model: "",
+@@ -983,16 +971,37 @@ function calculateUserAgentMetadata(options) {
+   } else if (macOSMatch) {
+     metadata.platform = "macOS";
+     metadata.platformVersion = macOSMatch[1];
+-    if (!ua.includes("Intel"))
+-      metadata.architecture = "arm";
++    if (!ua.includes("Intel")) metadata.architecture = "arm";
+   } else if (windowsMatch) {
+     metadata.platform = "Windows";
+     metadata.platformVersion = windowsMatch[1];
+   } else if (ua.toLowerCase().includes("linux")) {
+     metadata.platform = "Linux";
+   }
+-  if (ua.includes("ARM"))
+-    metadata.architecture = "arm";
++  if (ua.includes("ARM")) metadata.architecture = "arm";
++  // ── szkrabok: greasy brands ───────────────────────────────────────────────
++  const chromeMatch = ua.match(/Chrome\/(\d+)/);
++  if (chromeMatch) {
++    const seed = parseInt(chromeMatch[1], 10);
++    const order = [[0, 1, 2], [0, 2, 1], [1, 0, 2], [1, 2, 0], [2, 0, 1], [2, 1, 0]][seed % 6];
++    const esc = [' ', ' ', ';'];
++    const grease = `${esc[order[0]]}Not${esc[order[1]]}A${esc[order[2]]}Brand`;
++    const brands = [];
++    brands[order[0]] = {
++      brand: grease,
++      version: '99'
++    };
++    brands[order[1]] = {
++      brand: 'Chromium',
++      version: String(seed)
++    };
++    brands[order[2]] = {
++      brand: 'Google Chrome',
++      version: String(seed)
++    };
++    metadata.brands = brands;
++  }
++  // ── end szkrabok greasy brands ────────────────────────────────────────────
+   return metadata;
+ }
+ // Annotate the CommonJS export names for ESM import in node:
+diff --git a/node_modules/playwright-core/lib/server/chromium/crServiceWorker.js b/node_modules/playwright-core/lib/server/chromium/crServiceWorker.js
+index e12f77c..e8c9156 100644
+--- a/node_modules/playwright-core/lib/server/chromium/crServiceWorker.js
++++ b/node_modules/playwright-core/lib/server/chromium/crServiceWorker.js
+@@ -1,4 +1,5 @@
+ "use strict";
++
+ var __create = Object.create;
+ var __defProp = Object.defineProperty;
+ var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
+@@ -6,26 +7,32 @@ var __getOwnPropNames = Object.getOwnPropertyNames;
+ var __getProtoOf = Object.getPrototypeOf;
+ var __hasOwnProp = Object.prototype.hasOwnProperty;
+ var __export = (target, all) => {
+-  for (var name in all)
+-    __defProp(target, name, { get: all[name], enumerable: true });
++  for (var name in all) __defProp(target, name, {
++    get: all[name],
++    enumerable: true
++  });
+ };
+ var __copyProps = (to, from, except, desc) => {
+   if (from && typeof from === "object" || typeof from === "function") {
+-    for (let key of __getOwnPropNames(from))
+-      if (!__hasOwnProp.call(to, key) && key !== except)
+-        __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
++    for (let key of __getOwnPropNames(from)) if (!__hasOwnProp.call(to, key) && key !== except) __defProp(to, key, {
++      get: () => from[key],
++      enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable
++    });
+   }
+   return to;
+ };
+ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__getProtoOf(mod)) : {}, __copyProps(
+-  // If the importer is in node compatibility mode or this is not an ESM
+-  // file that has been converted to a CommonJS file using a Babel-
+-  // compatible transform (i.e. "__esModule" has not been set), then set
+-  // "default" to the CommonJS "module.exports" for node compatibility.
+-  isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target,
+-  mod
+-));
+-var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
++// If the importer is in node compatibility mode or this is not an ESM
++// file that has been converted to a CommonJS file using a Babel-
++// compatible transform (i.e. "__esModule" has not been set), then set
++// "default" to the CommonJS "module.exports" for node compatibility.
++isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", {
++  value: mod,
++  enumerable: true
++}) : target, mod));
++var __toCommonJS = mod => __copyProps(__defProp({}, "__esModule", {
++  value: true
++}), mod);
+ var crServiceWorker_exports = {};
+ __export(crServiceWorker_exports, {
+   CRServiceWorker: () => CRServiceWorker
+@@ -43,39 +50,29 @@ class CRServiceWorker extends import_page.Worker {
+     super(browserContext, url);
+     this._session = session;
+     this.browserContext = browserContext;
+-    if (!process.env.PLAYWRIGHT_DISABLE_SERVICE_WORKER_NETWORK)
+-      this._networkManager = new import_crNetworkManager.CRNetworkManager(null, this);
+-    session.once("Runtime.executionContextCreated", (event) => {
++    if (!process.env.PLAYWRIGHT_DISABLE_SERVICE_WORKER_NETWORK) this._networkManager = new import_crNetworkManager.CRNetworkManager(null, this);
++    session.once("Runtime.executionContextCreated", event => {
+       this.createExecutionContext(new import_crExecutionContext.CRExecutionContext(session, event.context));
+     });
+-    if (this.browserContext._browser.majorVersion() >= 143)
+-      session.on("Inspector.workerScriptLoaded", () => this.workerScriptLoaded());
+-    else
+-      this.workerScriptLoaded();
++    if (this.browserContext._browser.majorVersion() >= 143) session.on("Inspector.workerScriptLoaded", () => this.workerScriptLoaded());else this.workerScriptLoaded();
+     if (this._networkManager && this._isNetworkInspectionEnabled()) {
+       this.updateRequestInterception();
+       this.updateExtraHTTPHeaders();
+       this.updateHttpCredentials();
+       this.updateOffline();
+-      this._networkManager.addSession(
+-        session,
+-        void 0,
+-        true
+-        /* isMain */
+-      ).catch(() => {
+-      });
++      this._networkManager.addSession(session, void 0, true
++      /* isMain */).catch(() => {});
+     }
+-    session.on("Runtime.consoleAPICalled", (event) => {
+-      if (!this.existingExecutionContext || process.env.PLAYWRIGHT_DISABLE_SERVICE_WORKER_CONSOLE)
+-        return;
+-      const args = event.args.map((o) => (0, import_crExecutionContext.createHandle)(this.existingExecutionContext, o));
++    session.on("Runtime.consoleAPICalled", event => {
++      if (!this.existingExecutionContext || process.env.PLAYWRIGHT_DISABLE_SERVICE_WORKER_CONSOLE) return;
++      const args = event.args.map(o => (0, import_crExecutionContext.createHandle)(this.existingExecutionContext, o));
+       const message = new import_console.ConsoleMessage(null, this, event.type, void 0, args, (0, import_crProtocolHelper.toConsoleMessageLocation)(event.stackTrace));
+       this.browserContext.emit(import_browserContext.BrowserContext.Events.Console, message);
+     });
+-    session.send("Runtime.enable", {}).catch((e) => {
+-    });
+-    session.send("Runtime.runIfWaitingForDebugger").catch((e) => {
+-    });
++    if (process.env["REBROWSER_PATCHES_RUNTIME_FIX_MODE"] === "0") {
++      session.send("Runtime.enable", {}).catch(e => {});
++    }
++    session.send("Runtime.runIfWaitingForDebugger").catch(e => {});
+     session.on("Inspector.targetReloadedAfterCrash", () => {
+       session._sendMayFail("Runtime.runIfWaitingForDebugger", {});
+     });
+@@ -86,34 +83,29 @@ class CRServiceWorker extends import_page.Worker {
+     super.didClose();
+   }
+   async updateOffline() {
+-    if (!this._isNetworkInspectionEnabled())
+-      return;
+-    await this._networkManager?.setOffline(!!this.browserContext._options.offline).catch(() => {
+-    });
++    if (!this._isNetworkInspectionEnabled()) return;
++    await this._networkManager?.setOffline(!!this.browserContext._options.offline).catch(() => {});
+   }
+   async updateHttpCredentials() {
+-    if (!this._isNetworkInspectionEnabled())
+-      return;
+-    await this._networkManager?.authenticate(this.browserContext._options.httpCredentials || null).catch(() => {
+-    });
++    if (!this._isNetworkInspectionEnabled()) return;
++    await this._networkManager?.authenticate(this.browserContext._options.httpCredentials || null).catch(() => {});
+   }
+   async updateExtraHTTPHeaders() {
+-    if (!this._isNetworkInspectionEnabled())
+-      return;
+-    await this._networkManager?.setExtraHTTPHeaders(this.browserContext._options.extraHTTPHeaders || []).catch(() => {
+-    });
++    if (!this._isNetworkInspectionEnabled()) return;
++    await this._networkManager?.setExtraHTTPHeaders(this.browserContext._options.extraHTTPHeaders || []).catch(() => {});
+   }
+   async updateRequestInterception() {
+-    if (!this._isNetworkInspectionEnabled())
+-      return;
+-    await this._networkManager?.setRequestInterception(this.needsRequestInterception()).catch(() => {
+-    });
++    if (!this._isNetworkInspectionEnabled()) return;
++    await this._networkManager?.setRequestInterception(this.needsRequestInterception()).catch(() => {});
+   }
+   needsRequestInterception() {
+     return this._isNetworkInspectionEnabled() && this.browserContext.requestInterceptors.length > 0;
+   }
+   reportRequestFinished(request, response) {
+-    this.browserContext.emit(import_browserContext.BrowserContext.Events.RequestFinished, { request, response });
++    this.browserContext.emit(import_browserContext.BrowserContext.Events.RequestFinished, {
++      request,
++      response
++    });
+   }
+   requestFailed(request, _canceled) {
+     this.browserContext.emit(import_browserContext.BrowserContext.Events.RequestFailed, request);
+@@ -123,8 +115,7 @@ class CRServiceWorker extends import_page.Worker {
+   }
+   requestStarted(request, route) {
+     this.browserContext.emit(import_browserContext.BrowserContext.Events.Request, request);
+-    if (route)
+-      new network.Route(request, route).handle(this.browserContext.requestInterceptors);
++    if (route) new network.Route(request, route).handle(this.browserContext.requestInterceptors);
+   }
+   _isNetworkInspectionEnabled() {
+     return this.browserContext._options.serviceWorkers !== "block";
+diff --git a/node_modules/playwright-core/lib/server/frames.js b/node_modules/playwright-core/lib/server/frames.js
+index cf5e6c0..136124e 100644
+--- a/node_modules/playwright-core/lib/server/frames.js
++++ b/node_modules/playwright-core/lib/server/frames.js
+@@ -411,6 +411,8 @@ class Frame extends import_instrumentation.SdkObject {
+       this._startNetworkIdleTimer();
+     this._page.mainFrame()._recalculateNetworkIdle(this);
+     this._onLifecycleEvent("commit");
++    const crSession = (this._page.delegate._sessions?.get(this._id) || this._page.delegate._mainFrameSession)?._client
++    if (crSession) crSession.emit('Runtime.executionContextsCleared')
+   }
+   setPendingDocument(documentInfo) {
+     this._pendingDocument = documentInfo;
+@@ -578,12 +580,22 @@ class Frame extends import_instrumentation.SdkObject {
+   async frameElement() {
+     return this._page.delegate.getFrameElement(this);
+   }
+-  _context(world) {
+-    return this._contextData.get(world).contextPromise.then((contextOrDestroyedReason) => {
+-      if (contextOrDestroyedReason instanceof js.ExecutionContext)
+-        return contextOrDestroyedReason;
+-      throw new Error(contextOrDestroyedReason.destroyedReason);
+-    });
++  _context(world, useContextPromise = false) {
++    if (process.env['REBROWSER_PATCHES_RUNTIME_FIX_MODE'] === '0' || this._contextData.get(world).context || useContextPromise) {
++      return this._contextData.get(world).contextPromise.then((contextOrDestroyedReason) => {
++        if (contextOrDestroyedReason instanceof js.ExecutionContext)
++          return contextOrDestroyedReason;
++        throw new Error(contextOrDestroyedReason.destroyedReason);
++      });
++    }
++    const crSession = (this._page.delegate._sessions?.get(this._id) || this._page.delegate._mainFrameSession)?._client
++    return crSession.__re__emitExecutionContext({ world, targetId: this._id, frame: this, utilityWorldName: this._page.delegate?.utilityWorldName })
++      .then(() => this._context(world, true))
++      .catch(error => {
++        if (error.message.includes('No frame for given id found'))
++          return { destroyedReason: 'Frame was detached' }
++        console.error('[rebrowser-patches][frames._context] error:', error)
++      })
+   }
+   _mainContext() {
+     return this._context("main");
+diff --git a/node_modules/playwright-core/lib/server/page.js b/node_modules/playwright-core/lib/server/page.js
+index 3568d12..ec95b66 100644
+--- a/node_modules/playwright-core/lib/server/page.js
++++ b/node_modules/playwright-core/lib/server/page.js
+@@ -665,9 +665,11 @@ const WorkerEvent = {
+   Close: "close"
+ };
+ class Worker extends import_instrumentation.SdkObject {
+-  constructor(parent, url) {
++  constructor(parent, url, targetId, session) {
+     super(parent, "worker");
+     this._executionContextPromise = new import_manualPromise.ManualPromise();
++    this._targetId = targetId
++    this._session = session
+     this._workerScriptLoaded = false;
+     this.existingExecutionContext = null;
+     this.openScope = new import_utils.LongStandingScope();
+@@ -693,11 +695,17 @@ class Worker extends import_instrumentation.SdkObject {
+     this.emit(Worker.Events.Close, this);
+     this.openScope.close(new Error("Worker closed"));
+   }
++  async getExecutionContext() {
++    if (process.env['REBROWSER_PATCHES_RUNTIME_FIX_MODE'] !== '0' && !this.existingExecutionContext) {
++      await this._session.__re__emitExecutionContext({ world: 'main', targetId: this._targetId })
++    }
++    return this._executionContextPromise
++  }
+   async evaluateExpression(expression, isFunction, arg) {
+-    return js.evaluateExpression(await this._executionContextPromise, expression, { returnByValue: true, isFunction }, arg);
++    return js.evaluateExpression(await this.getExecutionContext(), expression, { returnByValue: true, isFunction }, arg);
+   }
+   async evaluateExpressionHandle(expression, isFunction, arg) {
+-    return js.evaluateExpression(await this._executionContextPromise, expression, { returnByValue: false, isFunction }, arg);
++    return js.evaluateExpression(await this.getExecutionContext(), expression, { returnByValue: false, isFunction }, arg);
+   }
+ }
+ class PageBinding {
+@@ -726,6 +734,7 @@ class PageBinding {
+     this.cleanupScript = `globalThis['${PageBinding.kController}'].removeBinding(${JSON.stringify(name)})`;
+   }
+   static async dispatch(page, payload, context) {
++    if (process.env['REBROWSER_PATCHES_RUNTIME_FIX_MODE'] !== '0' && !payload.includes('{')) return;
+     const { name, seq, serializedArgs } = JSON.parse(payload);
+     try {
+       (0, import_utils.assert)(context.world);

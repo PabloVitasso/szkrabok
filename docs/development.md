@@ -5,6 +5,7 @@
 - [Adding a new MCP tool](#adding-a-new-mcp-tool)
 - [CLI](#cli)
 - [Release workflow](#release-workflow)
+- [Upgrading playwright-core](#upgrading-playwright-core)
 - [Consumer projects](#consumer-projects)
 - [Config modules](#config-modules-config)
 
@@ -116,6 +117,58 @@ Scaffolded consumer projects reference the published package from npm:
 ```json
 "@pablovitasso/szkrabok": "^x.y.z"
 ```
+
+---
+
+## Upgrading playwright-core
+
+playwright-core is pinned to an exact version and patched via `patch-package`. The patch file lives in `patches/playwright-core+<version>.patch` and is committed to the repo. When upgrading:
+
+1. Bump the version in `package.json` (both `playwright` and `playwright-core`):
+   ```json
+   "playwright": "1.59.0",
+   "playwright-core": "1.59.0"
+   ```
+
+2. Install fresh files without running postinstall:
+   ```bash
+   npm install --ignore-scripts
+   ```
+
+3. Apply patches to the new version using the patch script:
+   ```bash
+   node packages/runtime/scripts/patch-playwright.js
+   ```
+   All 7 entries must report `patched`. If any fail, the script rolls back and exits 1 — the anchor string changed upstream and the patch script needs updating first.
+
+4. Regenerate the patch file for the new version:
+   ```bash
+   npx patch-package playwright-core
+   ```
+   This diffs the patched files against the clean npm tarball and writes `patches/playwright-core+1.59.0.patch`.
+
+5. Verify the full postinstall chain works on a clean install:
+   ```bash
+   rm -rf node_modules/playwright-core
+   npm install playwright-core
+   ```
+   Expected output: `patch-package` reports ✔, verify script reports all PASS.
+
+6. Run the patch tests:
+   ```bash
+   node --test tests/node/playwright-patches.test.js
+   ```
+
+7. Commit:
+   ```bash
+   git add package.json package-lock.json patches/
+   git commit -m "chore: upgrade playwright-core to 1.59.0"
+   ```
+
+   Delete the old patch file if it is still present:
+   ```bash
+   git rm patches/playwright-core+1.58.2.patch
+   ```
 
 ---
 

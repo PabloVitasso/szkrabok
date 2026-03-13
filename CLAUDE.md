@@ -4,7 +4,7 @@
 
 - [README.md](./README.md) - what szkrabok is
 - [docs/architecture.md](./docs/architecture.md) - layer map, file layout, tool ownership, hacks
-- [docs/development.md](./docs/development.md) - fork relationship, adding tools, coding style
+- [docs/development.md](./docs/development.md) - fork relationship, adding tools, coding style, [upgrading playwright-core](./docs/development.md#upgrading-playwright-core)
 - [docs/testing.md](./docs/testing.md) - run tests via MCP and CLI
 - [docs/mcp-client-library.md](./docs/mcp-client-library.md) - MCP client library architecture
 - [microsoft/playwright-mcp](https://github.com/microsoft/playwright-mcp) - upstream reference
