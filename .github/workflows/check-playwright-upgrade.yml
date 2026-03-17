@@ -1,0 +1,72 @@
+name: Check playwright-core upgrade
+
+on:
+  schedule:
+    - cron: '0 9 * * 1'
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install semver
+        run: npm install semver@7 --no-save
+
+      - name: Check playwright-core drift
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+
+          fail() {
+            echo "FAIL[$1]: $2"
+            exit "$1"
+          }
+
+          PINNED_RAW=$(node -p "require('./package.json').dependencies?.['playwright-core'] || ''")
+
+          [ -z "$PINNED_RAW" ] && fail 10 "playwright-core not declared in dependencies"
+
+          PINNED=$(node -e "
+            const semver = require('semver');
+            const v = semver.minVersion(process.argv[1]);
+            if (!v) process.exit(2);
+            process.stdout.write(v.version);
+          " "$PINNED_RAW") || fail 11 "cannot normalize semver range: $PINNED_RAW"
+
+          LATEST=$(npm view playwright-core version 2>/dev/null || true)
+          [ -z "$LATEST" ] && fail 12 "cannot fetch latest version from npm registry"
+
+          echo "Pinned-range : $PINNED_RAW"
+          echo "Pinned-floor : $PINNED"
+          echo "Latest       : $LATEST"
+
+          PATCH_FILE="patches/playwright-core+${PINNED}.patch"
+          [ -f "$PATCH_FILE" ] || fail 13 "missing patch file $PATCH_FILE"
+
+          node -e "
+            const semver = require('semver');
+            const pinned = process.argv[1];
+            const latest = process.argv[2];
+
+            if (semver.lt(pinned, latest)) {
+              console.error('UPGRADE_REQUIRED');
+              process.exit(42);
+            }
+          " "$PINNED" "$LATEST" || rc=$?
+
+          if [ "${rc:-0}" = 42 ]; then
+            echo "UPGRADE NEEDED: $PINNED → $LATEST"
+            echo "See docs/development.md#upgrading-playwright-core"
+            exit 1
+          fi
+
+          echo "OK: playwright-core@$PINNED is up to date"
