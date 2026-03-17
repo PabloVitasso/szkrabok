@@ -50,7 +50,7 @@
     "test:contracts": "node --test tests/node/contracts.test.js",
     "test:playwright": "playwright test --project=integration",
     "prepare": "node scripts/setup.js",
-    "postinstall": "patch-package && node scripts/verify-playwright-patches.js && node scripts/postinstall.js",
+    "postinstall": "node scripts/apply-patches.js && node scripts/verify-playwright-patches.js && node scripts/postinstall.js",
     "test:self": "playwright test --project=integration && node --test tests/node/*.test.js",
     "test:auto": "PLAYWRIGHT_PROJECT=e2e playwright test --project=e2e"
   },

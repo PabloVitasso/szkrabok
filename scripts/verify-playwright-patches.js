@@ -47,6 +47,6 @@ if (allOk) {
 } else {
   console.error('[verify-patches] FAILED — one or more patches are missing.')
   console.error('  patch-package did not apply cleanly for playwright-core@' + pwVersion)
-  console.error('  To update the patch for a new playwright version, see: docs/upgrading-playwright.md\n')
+  console.error('  To update the patch for a new playwright version, see: docs/development.md#upgrading-playwright-core\n')
   process.exit(1)
 }

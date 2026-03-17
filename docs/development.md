@@ -121,7 +121,7 @@ This ensures the tag always points at the release commit — no manual tag moves
 
 The `prepack` guard prevents publishing without a version tag on HEAD.
 
-`prepublishOnly` runs `scripts/smoke-test.js` before every `npm publish`: packs a tarball, installs it in a fresh temp directory, runs `patch-playwright.js`, `szkrabok --version`, and `szkrabok doctor`. Publish fails loudly if any step fails — catching missing files, broken postinstall, or binary resolution issues before they reach npm.
+`prepublishOnly` runs `scripts/smoke-test.js` before every `npm publish`: packs a tarball, installs it in a fresh temp directory, runs `apply-patches.js` + `verify-playwright-patches.js`, `szkrabok --version`, and `szkrabok doctor`. Publish fails loudly if any step fails — catching missing files, broken postinstall, or binary resolution issues before they reach npm.
 
 `release:publish` checks `npm whoami` and fails with a clear message if not logged in. Run `npm login` then re-run.
 
