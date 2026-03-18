@@ -67,9 +67,10 @@ Then compare `INIT_CWD`, `NODE_PATH`, `npm_config_prefix` between npx and `npm i
 |-----------|------------|
 | `playwright-core not found within the npm install tree` | Resolution escaped `npmRoot` bound — check step 1 |
 | `Patch file found ... not present at node_modules/playwright-core` | Correct root computed but playwright-core not hoisted there; npx hoisting differs from regular install |
+| `no package.json found for this project` (from patch-package) | Fixed in 1.0.31 — `apply-patches.js` now writes a minimal temp stub before invoking patch-package when `targetRoot` has no `package.json` (bare temp dirs, npx). Should not appear on current releases. |
 | All 7 FAIL in verify | Patches applied to wrong tree or not applied at all |
 | Only `utilityScriptSource.js` FAIL | Pre-1.0.28 bug — `patch-package` called without `--patch-dir` |
-| Exit 1, zero postinstall output in log | npm lifecycle buffering; use `--loglevel verbose` + `tee` (step above) |
+| Exit 1, zero postinstall output in log | npm lifecycle buffering; rerun with `--foreground-scripts` to surface stdout in real time |
 | ETIMEDOUT | Network drop; retry — but also check for partial tarball corruption in `~/.npm/_cacache` |
 
 ---

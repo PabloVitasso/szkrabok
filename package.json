@@ -38,7 +38,7 @@
     "format:check": "prettier --check \"{src,tests}/**/*.{js,json,md}\" \"*.{js,json,md}\"",
     "codegen:mcp": "node packages/runtime/mcp-client/codegen/generate-mcp-tools.mjs",
     "prepack": "git describe --exact-match --tags HEAD 2>/dev/null || (echo 'ERROR: HEAD is not tagged. Run npm run release:patch or release:minor first.' && exit 1)",
-    "prepublishOnly": "node scripts/smoke-test.js",
+    "prepublishOnly": "npm run lint && node scripts/smoke-test.js",
     "release:patch": "npm version patch --workspaces --include-workspace-root --ignore-scripts --no-git-tag-version && node scripts/release-commit.js",
     "release:minor": "npm version minor --workspaces --include-workspace-root --ignore-scripts --no-git-tag-version && node scripts/release-commit.js",
     "deps:update": "npx npm-check-updates -u --workspaces && npm install",
@@ -51,7 +51,7 @@
     "test:playwright": "playwright test --project=integration",
     "prepare": "node scripts/setup.js",
     "postinstall": "node scripts/apply-patches.js && node scripts/verify-playwright-patches.js && node scripts/postinstall.js",
-    "test:self": "playwright test --project=integration && node --test tests/node/*.test.js",
+    "test:self": "npm run lint && playwright test --project=integration && node --test tests/node/*.test.js",
     "test:auto": "PLAYWRIGHT_PROJECT=e2e playwright test --project=e2e"
   },
   "keywords": [
@@ -98,32 +98,6 @@
     "puppeteer-extra": "^3.3.6"
   },
   "eslintConfig": {
-    "env": {
-      "node": true,
-      "es2022": true
-    },
-    "extends": [
-      "eslint:recommended",
-      "prettier"
-    ],
-    "parserOptions": {
-      "ecmaVersion": "latest",
-      "sourceType": "module"
-    },
-    "rules": {
-      "no-unused-vars": [
-        "warn",
-        {
-          "argsIgnorePattern": "^_",
-          "varsIgnorePattern": "^_"
-        }
-      ],
-      "no-console": "off",
-      "prefer-const": "error",
-      "no-var": "error",
-      "object-shorthand": "error",
-      "prefer-template": "error",
-      "prefer-arrow-callback": "error"
-    }
+    "_comment": "Ignored by ESLint 9+ — rules live in eslint.config.js"
   }
 }

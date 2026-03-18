@@ -119,6 +119,7 @@ function findPkgRoots() {
     const playwrightPkg = path.dirname(require.resolve('playwright/package.json'))
     const nested = resolvePlaywrightCore(playwrightPkg)
     if (nested && !roots.includes(nested)) roots.push(nested)
+  // eslint-disable-next-line no-empty -- playwright may not be installed; optional resolution
   } catch {}
 
   return roots
@@ -668,7 +669,7 @@ for (const pkgRoot of pkgRoots) {
     for (const rel of backedUp) {
       try {
         fs.unlinkSync(bakPath(rel))
-      } catch {}
+      } catch {} // eslint-disable-line no-empty -- best-effort .bak removal after patching; stale .bak is benign
     }
   }
 

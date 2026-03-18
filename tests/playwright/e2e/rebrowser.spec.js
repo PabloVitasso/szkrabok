@@ -103,7 +103,9 @@ test('rebrowser-check', async ({ page }, testInfo) => {
   if (detectionsJson) {
     try {
       detections = JSON.parse(detectionsJson);
-    } catch {}
+    } catch (e) {
+      console.warn('[rebrowser] Failed to parse detections JSON:', e.message);
+    }
   }
 
   if (detections) {

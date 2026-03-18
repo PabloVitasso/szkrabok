@@ -33,7 +33,7 @@ const _launchPersistentContext = async (userDataDir, options = {}) => {
 
   const launchOptions = {
     ...options,
-    headless: options.headless ?? HEADLESS,
+    headless: options.headless ?? getConfig().headless,
     executablePath,
     viewport: options.viewport,
     locale: options.locale,
@@ -179,6 +179,7 @@ export const launch = async (options = {}) => {
         const entry = savedOrigins.find(o => o.origin === origin);
         if (!entry?.localStorage?.length) return;
         for (const { name, value } of entry.localStorage) {
+          // eslint-disable-next-line no-empty -- runs in browser init script; cross-origin setItem throws, no Node logging available
           try { localStorage.setItem(name, value); } catch {}
         }
       }, origins);

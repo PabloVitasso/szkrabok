@@ -1,3 +1,5 @@
+import js from '@eslint/js';
+import globals from 'globals';
 import prettierConfig from 'eslint-config-prettier';
 
 // ── Boundary rules ──────────────────────────────────────────────────────────
@@ -53,17 +55,43 @@ export default [
     ignores: ['node_modules/**'],
   },
 
-  // ── Base rules — all JS files ──────────────────────────────────────────
+  // ── Base rules — all JS/MJS files ─────────────────────────────────────
+  js.configs.recommended,
   {
-    files: ['**/*.js'],
+    files: ['**/*.{js,mjs}'],
     languageOptions: {
       ecmaVersion: 'latest',
       sourceType: 'module',
+      globals: { ...globals.node },
     },
     rules: {
       ...prettierConfig.rules,
-      'no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
-      'no-console': ['off'],
+      'no-unused-vars': ['error', {
+        argsIgnorePattern: '^_',
+        varsIgnorePattern: '^_',
+        caughtErrorsIgnorePattern: '^_',
+      }],
+      'no-console': 'off',
+      'eqeqeq': ['error', 'always', { null: 'ignore' }],
+      'no-throw-literal': 'error',
+      'prefer-const': 'error',
+      'no-var': 'error',
+    },
+  },
+
+  // ── Browser-context globals ────────────────────────────────────────────
+  // Files that pass callbacks to page.evaluate() / addInitScript(), or are
+  // pure browser scripts. ESLint can't tell those closures run in the page —
+  // add browser globals so document/window/location don't trigger no-undef.
+  {
+    files: [
+      'packages/runtime/launch.js',
+      'src/tools/workflow.js',
+      'tests/playwright/**/*.js',
+      'tests/playwright/**/*.mjs',
+    ],
+    languageOptions: {
+      globals: { ...globals.browser },
     },
   },
 

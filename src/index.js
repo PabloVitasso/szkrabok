@@ -27,6 +27,7 @@ const _writeStartupLog = msg => {
   try {
     mkdirSync(_logDir, { recursive: true });
     appendFileSync(_logFile, `[${new Date().toISOString()}] ${msg}\n`);
+  // eslint-disable-next-line no-empty -- startup log; no logging facility available yet if this fails
   } catch {}
 };
 

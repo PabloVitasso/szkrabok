@@ -41,7 +41,7 @@ function writeToml(dir, content) {
 
 test.afterAll(() => {
   for (const d of tmpDirs) {
-    try { rmSync(d, { recursive: true, force: true }); } catch {}
+    try { rmSync(d, { recursive: true, force: true }); } catch (e) { console.warn('[cleanup] rmSync failed:', e.message); }
   }
 });
 

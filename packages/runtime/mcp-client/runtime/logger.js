@@ -42,10 +42,8 @@ export function createLogger({ sidecarDir = DEFAULT_SIDECAR_DIR, sidecarEnabled 
   // Either key is optional — omit to fall back to the default JSON log.
   const formatters = {
     'browser.run_test': {
-      success(call, result, ms) {
+      success(call, result, _ms) {
         const r = unwrap(result);
-        const { files = [], grep, sessionName } = call.arguments ?? {};
-        const target = files.length ? files.join(', ') : grep ?? sessionName;
         for (const line of r.log ?? []) console.log(`  ${line}`);
       },
       failure(call, err, ms) {

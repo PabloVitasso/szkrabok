@@ -32,7 +32,7 @@ console.log(`\n[verify-patches] Checking playwright-core@${pwVersion} patches ..
 
 let allOk = true
 for (const { file, marker } of PATCHES) {
-  let ok = false
+  let ok
   try {
     ok = readFileSync(join(pwRoot, file), 'utf8').includes(marker)
   } catch {

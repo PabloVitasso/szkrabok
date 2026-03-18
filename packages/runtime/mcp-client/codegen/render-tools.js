@@ -177,7 +177,7 @@ export function renderDts({ tools, timestamp }) {
       const params = Object.keys(props).filter(k => k !== 'sessionName');
 
       const jsdocLines = [];
-      if (t.description) jsdocLines.push(`   * ${t.description.replace(/\*\//g, '*\/')}`);
+      if (t.description) jsdocLines.push(`   * ${t.description.replace(/\*\//g, '*/')}`);
       for (const p of params) {
         if (props[p].description) jsdocLines.push(`   * @param args.${p} ${props[p].description}`);
       }

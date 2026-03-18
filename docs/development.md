@@ -121,7 +121,7 @@ This ensures the tag always points at the release commit — no manual tag moves
 
 The `prepack` guard prevents publishing without a version tag on HEAD.
 
-`prepublishOnly` runs `scripts/smoke-test.js` before every `npm publish`: packs a tarball, installs it in a fresh temp directory, runs `apply-patches.js` + `verify-playwright-patches.js`, `szkrabok --version`, and `szkrabok doctor`. Publish fails loudly if any step fails — catching missing files, broken postinstall, or binary resolution issues before they reach npm.
+`prepublishOnly` runs `npm run lint` then `scripts/smoke-test.js` before every `npm publish`. The smoke-test packs a tarball, installs it in a fresh bare temp directory using `--foreground-scripts` (exercising the real postinstall pipeline: `apply-patches.js` → `verify-playwright-patches.js` → `postinstall.js`), then runs `szkrabok --version` and `szkrabok doctor`. Publish fails loudly if any step fails — catching lint errors, missing files, broken postinstall, or binary resolution issues before they reach npm.
 
 `release:publish` checks `npm whoami` and fails with a clear message if not logged in. Run `npm login` then re-run.
 
@@ -191,6 +191,19 @@ playwright-core is pinned to an exact version and patched via `patch-package`. T
 | `szkrabok-p4n` | `../szkrabok-p4n/` | `@szkrabok/runtime`, `@szkrabok/runtime` |
 
 When releasing, update the dependency path in each consumer project's `package.json` and run `npm install`.
+
+---
+
+## ESLint
+
+Config lives in `eslint.config.js` (flat config, ESLint v9+). Rules: `eslint:recommended` base, `no-unused-vars` as error (unused args/vars/caught errors may be prefixed `_`), `eqeqeq`, `no-throw-literal`, `prefer-const`, `no-var`. Browser globals are added for files that pass callbacks to `page.evaluate()` / `addInitScript()`. Architectural boundary rules (no direct `chromium.launch*`, no stealth imports, no runtime subpath imports outside `packages/runtime/`) are enforced via additional file-scoped config blocks.
+
+```bash
+npm run lint        # runs standalone
+npm run test:self   # lint runs as the first step before Playwright + node tests
+```
+
+Empty `catch {}` blocks require an `// eslint-disable-next-line no-empty -- <reason>` comment. Use `catch (e) { log/console.warn }` everywhere else.
 
 ---
 

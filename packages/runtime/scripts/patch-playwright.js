@@ -62,6 +62,7 @@ function findPkgRoots() {
     const playwrightPkg = path.dirname(require.resolve('playwright/package.json', { paths: [pkgRoot] }))
     const nested = resolvePlaywrightCoreRoot(playwrightPkg)
     if (nested && !roots.includes(nested)) roots.push(nested)
+  // eslint-disable-next-line no-empty -- playwright may not be installed; optional resolution
   } catch {}
 
   return roots
@@ -186,7 +187,7 @@ function astSuppressRuntimeEnable(src, filename) {
  * Renames the variable declaration and all non-key Identifier references,
  * leaving the "UtilityScript" object property key (export) untouched.
  */
-function astRenameUtilityScript(src, filename) {
+function _astRenameUtilityScript(src, filename) {
   const ast = parseAst(src)
   let count = 0
 
@@ -561,6 +562,7 @@ for (const pkgRoot of pkgRoots) {
 
   function removeBaks() {
     for (const rel of backedUp) {
+      // eslint-disable-next-line no-empty -- best-effort .bak removal after patching; stale .bak is benign
       try { fs.unlinkSync(bakPath(rel)) } catch {}
     }
   }

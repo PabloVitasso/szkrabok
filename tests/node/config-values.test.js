@@ -1,6 +1,6 @@
 import { test, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdirSync, mkdtempSync, writeFileSync, rmSync } from 'fs';
+import { mkdtempSync, writeFileSync, rmSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
 import { initConfig, getConfig, resolvePreset, getPresets } from '../../packages/runtime/config.js';
@@ -26,7 +26,7 @@ afterEach(() => {
     else process.env[k] = v;
   }
   for (const d of tmpDirs) {
-    try { rmSync(d, { recursive: true, force: true }); } catch {}
+    try { rmSync(d, { recursive: true, force: true }); } catch (e) { console.warn('[cleanup] rmSync failed:', e.message); }
   }
   tmpDirs = [];
 });

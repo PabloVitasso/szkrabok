@@ -1,7 +1,6 @@
 import { join, resolve, dirname } from 'path';
 import { existsSync, readFileSync } from 'fs';
 import { homedir } from 'os';
-import { fileURLToPath } from 'url';
 import { parse } from 'smol-toml';
 
 const isPlainObject = v => v !== null && typeof v === 'object' && !Array.isArray(v);

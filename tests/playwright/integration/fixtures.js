@@ -14,7 +14,8 @@ const SESSION_DEFAULTS = {
 };
 
 export const test = baseTest.extend({
-  startClient: async ({}, use) => {
+  startClient: // eslint-disable-next-line no-empty-pattern -- Playwright fixture API requires destructuring even when no fixtures are used
+async ({}, use) => {
     const clients = [];
 
     await use(async () => {
@@ -27,8 +28,8 @@ export const test = baseTest.extend({
     for (const client of clients) {
       try {
         await client.close();
-      } catch {
-        // Ignore cleanup errors
+      } catch (e) {
+        console.warn('[cleanup] client.close() failed:', e.message);
       }
     }
   },
@@ -41,7 +42,8 @@ export const test = baseTest.extend({
   // openSession(client, id, extraArgs) — wraps session.open with SESSION_DEFAULTS.
   // Use this in all selftests instead of calling session.open directly, so tests
   // are independent of the server's TOML config.
-  openSession: async ({}, use) => {
+  openSession: // eslint-disable-next-line no-empty-pattern -- Playwright fixture API requires destructuring even when no fixtures are used
+async ({}, use) => {
     await use(async (client, sessionName, extraArgs = {}) => {
       return client.callTool({
         name: 'session_manage',

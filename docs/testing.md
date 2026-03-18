@@ -304,10 +304,12 @@ Commit the updated `packages/runtime/mcp-client/mcp-tools.js`.
 ## Run everything
 
 ```bash
+npm run lint                        # static analysis (also runs as first step of test:self)
 npm run test:node                   # all tests/node/*.test.js suites
 npm run test:runtime:unit           # runtime unit tests
 npm run test:runtime:integration    # cookie persistence (launches real browser)
 npm run test:playwright             # Playwright integration (headless, MCP over stdio)
+npm run test:self                   # lint + integration + node tests (pre-publish gate)
 ```
 
 For e2e (live sites, headed browser) — open a session first, then use `browser.run_test` or the standalone CLI (see [E2E paths](#e2e--stealth-health-checks) above).

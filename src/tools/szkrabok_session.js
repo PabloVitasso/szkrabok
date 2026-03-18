@@ -45,7 +45,9 @@ export const open = async ({ sessionName, url, launchOptions = {} }) => {
     session = getSession(sessionName);
     reused = true;
     log(`Reusing existing session: ${sessionName}`);
-  } catch {}
+  } catch (e) {
+    log(`Session '${sessionName}' not found, will create: ${e.message}`);
+  }
 
   if (!session) {
     const {
@@ -75,7 +77,8 @@ export const open = async ({ sessionName, url, launchOptions = {} }) => {
       const msg = err?.message ?? '';
       if (msg.includes('Executable') || msg.includes('executable') || msg.includes('chromium') || msg.includes('browser')) {
         throw new Error(
-          `Chromium not found. Run "npx @pablovitasso/szkrabok --setup" in your terminal, then restart the MCP server. (Original error: ${msg})`
+          `Chromium not found. Run "npx @pablovitasso/szkrabok --setup" in your terminal, then restart the MCP server. (Original error: ${msg})`,
+          { cause: err }
         );
       }
       throw err;

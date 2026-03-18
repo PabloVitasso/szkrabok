@@ -26,11 +26,22 @@ import { spawnSync } from 'node:child_process';
 import { join, relative, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync, unlinkSync } from 'node:fs';
 
 const pkgDir = join(dirname(fileURLToPath(import.meta.url)), '..');
 const patchesDir = join(pkgDir, 'patches');
 const require = createRequire(join(pkgDir, 'package.json'));
+
+// Emit a diagnostic hint whenever we exit with an error — npm surfaces stderr
+// on postinstall failure even without --foreground-scripts.
+process.on('exit', code => {
+  if (code !== 0) {
+    process.stderr.write(
+      '\n[apply-patches] To see full output during install, rerun with:\n' +
+      '  npm install --foreground-scripts\n\n'
+    );
+  }
+});
 
 // ── Determine npm install root ────────────────────────────────────────────────
 // Walk up from pkgDir until we leave node_modules. The directory just above the
@@ -126,9 +137,30 @@ console.log('[apply-patches] targetRoot     :', targetRoot);
 console.log('[apply-patches] patchDir       :', patchDir);
 console.log('[apply-patches] patch-package  :', ppIndex);
 
+// patch-package's getAppRootPath walks up from cwd looking for a package.json.
+// In an npx temp dir targetRoot has no package.json — write a minimal stub so
+// it doesn't throw, then remove it afterwards.
+const targetPkgJson = join(targetRoot, 'package.json');
+const wroteTempPkg = !existsSync(targetPkgJson);
+if (wroteTempPkg) {
+  console.log('[apply-patches] targetRoot has no package.json — writing temp stub so patch-package can find its app root');
+  writeFileSync(targetPkgJson, '{"name":"__patch-package-tmp__","version":"0.0.0","private":true}\n');
+} else {
+  console.log('[apply-patches] targetRoot package.json exists — no stub needed');
+}
+
 const result = spawnSync(process.execPath, [ppIndex, '--patch-dir', patchDir], {
   cwd: targetRoot,
   stdio: 'inherit',
 });
+
+if (wroteTempPkg) {
+  try {
+    unlinkSync(targetPkgJson);
+    console.log('[apply-patches] temp stub removed');
+  } catch (e) {
+    console.log('[apply-patches] WARNING: could not remove temp stub:', e.message);
+  }
+}
 
 process.exit(result.status ?? 1);

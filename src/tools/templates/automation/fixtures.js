@@ -21,7 +21,8 @@ const cdpEndpoint = process.env.SZKRABOK_CDP_ENDPOINT || '';
 export const test = base.extend({
   // Worker-scoped: one browser connection per worker, reused across tests.
   _runtimeHandle: [
-    async ({}, use) => {
+    // eslint-disable-next-line no-empty-pattern -- Playwright fixture API requires destructuring even when no fixtures are used
+async ({}, use) => {
       initConfig();
       if (cdpEndpoint) {
         // Path A: connect to the MCP session browser via CDP

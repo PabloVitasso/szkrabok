@@ -11,19 +11,20 @@
 
 import { execSync, spawnSync } from 'node:child_process';
 import { mkdtempSync, rmSync, existsSync } from 'node:fs';
-import { join, resolve, dirname, relative } from 'node:path';
-import { tmpdir, homedir } from 'node:os';
+import { join, resolve, dirname } from 'node:path';
+import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const run = (cmd, opts = {}) => execSync(cmd, { cwd: root, stdio: 'inherit', ...opts });
 const runCapture = (cmd, opts = {}) =>
   execSync(cmd, { cwd: root, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'], ...opts });
 
+// eslint-disable-next-line prefer-const -- initialized after process.on handlers that close over it
 let tmpDir;
 
 const cleanup = () => {
   if (tmpDir && existsSync(tmpDir)) {
+    // eslint-disable-next-line no-empty -- exit-handler cleanup; surfacing here would obscure the real exit cause
     try { rmSync(tmpDir, { recursive: true, force: true }); } catch {}
   }
 };
@@ -40,47 +41,23 @@ console.log(`[smoke-test] Packed: ${tarball}`);
 tmpDir = mkdtempSync(join(tmpdir(), 'szkrabok-smoke-'));
 console.log(`[smoke-test] Installing into ${tmpDir}...`);
 
+// --foreground-scripts ensures postinstall runs visibly and exercises apply-patches.js
+// in a bare temp dir (no package.json) — the exact scenario that previously failed.
+// SZKRABOK_SKIP_BROWSER_INSTALL suppresses the Chromium download step.
 try {
-  execSync(`npm install --ignore-scripts ${tarball}`, {
+  execSync(`npm install --foreground-scripts ${tarball}`, {
     cwd: tmpDir,
     stdio: 'inherit',
     env: { ...process.env, SZKRABOK_SKIP_BROWSER_INSTALL: '1' },
   });
-} catch (err) {
+} catch {
   console.error('[smoke-test] FAIL: npm install failed');
   process.exit(1);
 }
 
-// Now run postinstall scripts manually so we control env
 const pkgBin = join(tmpDir, 'node_modules', '.bin', 'szkrabok');
-const pkgDir = join(tmpDir, 'node_modules', '@pablovitasso', 'szkrabok');
 if (!existsSync(pkgBin)) {
   console.error(`[smoke-test] FAIL: binary not found at ${pkgBin}`);
-  process.exit(1);
-}
-
-// Apply playwright-core patches via patch-package, then verify.
-// Run from tmpDir so patch-package resolves playwright-core at tmpDir/node_modules/playwright-core.
-// Use --patch-dir to point at the patches/ folder inside the installed package.
-console.log('[smoke-test] Running patch-package...');
-const patchResult = spawnSync(
-  join(tmpDir, 'node_modules', '.bin', 'patch-package'),
-  ['--patch-dir', relative(tmpDir, join(pkgDir, 'patches'))],
-  { cwd: tmpDir, stdio: 'inherit' }
-);
-if (patchResult.status !== 0) {
-  console.error('[smoke-test] FAIL: patch-package failed');
-  process.exit(1);
-}
-
-console.log('[smoke-test] Verifying patches...');
-const verifyResult = spawnSync(
-  'node',
-  [join(pkgDir, 'scripts', 'verify-playwright-patches.js')],
-  { cwd: tmpDir, stdio: 'inherit' }
-);
-if (verifyResult.status !== 0) {
-  console.error('[smoke-test] FAIL: verify-playwright-patches.js failed');
   process.exit(1);
 }
 
@@ -111,6 +88,7 @@ if (doctorResult.status !== 0) {
 }
 
 // remove the tarball
+// eslint-disable-next-line no-empty -- best-effort cleanup; tarball may already be gone
 try { rmSync(tarball); } catch {}
 
 console.log('\n[smoke-test] PASS: package installs and starts correctly.');

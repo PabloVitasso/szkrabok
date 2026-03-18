@@ -288,8 +288,10 @@ CLI-only operations (no MCP equivalent):
 playwright-core is pinned to an exact version and patched via `patch-package`. The committed diff in `patches/` is applied automatically on `npm install` via the postinstall chain:
 
 ```
-patch-package  →  scripts/verify-playwright-patches.js  →  scripts/postinstall.js
+scripts/apply-patches.js  →  scripts/verify-playwright-patches.js  →  scripts/postinstall.js
 ```
+
+`apply-patches.js` locates `playwright-core` and `patch-package` via Node's module resolution (works for hoisted, nested, and npx installs), then invokes `patch-package --patch-dir <path>`. It writes a minimal temporary `package.json` to `targetRoot` before invoking patch-package when none exists (bare temp dirs, npx), and removes it afterwards — patch-package requires a `package.json` to locate its app root.
 
 `verify-playwright-patches.js` checks all 7 patched files for their markers and exits 1 (hard failure) if any are missing — the postinstall chain screams loudly rather than silently leaving the browser unpatched.
 
