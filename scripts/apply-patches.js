@@ -14,8 +14,12 @@
  * Fix: use Node's module resolution (createRequire from pkgDir) to find the
  * playwright-core that will actually be used at runtime, derive targetRoot from
  * its location, and run patch-package from there with --patch-dir pointing at
- * this package's own patches/. INIT_CWD (set by npm/yarn/pnpm) bounds the
- * search so a global install above the consumer project is never used.
+ * this package's own patches/.
+ *
+ * Bound: walk up from pkgDir to find the npm install root (the directory that
+ * contains the outermost node_modules holding this package). Playwright-core
+ * must be within that same root — prevents accidentally patching an unrelated
+ * global install. Works for npx, regular installs, and local dev.
  */
 
 import { spawnSync } from 'node:child_process';
@@ -28,43 +32,62 @@ const pkgDir = join(dirname(fileURLToPath(import.meta.url)), '..');
 const patchesDir = join(pkgDir, 'patches');
 const require = createRequire(join(pkgDir, 'package.json'));
 
-// INIT_CWD is set by npm, yarn, and pnpm to the directory where `install` was
-// invoked (the consumer project root). Use it to bound the resolution so we
-// never accidentally patch a global install above the consumer project.
-const consumerRoot = process.env.INIT_CWD
-  ?? process.env.npm_config_local_prefix
-  ?? null;
+// ── Determine npm install root ────────────────────────────────────────────────
+// Walk up from pkgDir until we leave node_modules. The directory just above the
+// outermost node_modules is the root of the npm tree that contains this package.
+//   npx:        /home/user/.npm/_npx/<hash>/node_modules/... → /home/user/.npm/_npx/<hash>
+//   dependency: sk-skills/node_modules/...                  → sk-skills
+//   local dev:  szkrabok/ (not inside node_modules)         → szkrabok
 
-console.log('[apply-patches] pkgDir     :', pkgDir);
-console.log('[apply-patches] consumerRoot:', consumerRoot ?? '(not set — using require.resolve without bounds)');
+function findNpmRoot(dir) {
+  let current = resolve(dir);
+  let lastNodeModules = null;
+  while (true) {
+    if (current.endsWith('/node_modules') || current.includes('/node_modules/')) {
+      lastNodeModules = current;
+    }
+    const parent = dirname(current);
+    if (parent === current) break; // filesystem root
+    // Once we step out of node_modules territory, stop
+    if (lastNodeModules !== null &&
+        !parent.includes('/node_modules') &&
+        !parent.endsWith('/node_modules')) {
+      return parent;
+    }
+    current = parent;
+  }
+  return resolve(dir); // not inside node_modules — direct/local install
+}
+
+const npmRoot = findNpmRoot(pkgDir);
+
+console.log('[apply-patches] pkgDir  :', pkgDir);
+console.log('[apply-patches] npmRoot :', npmRoot);
 
 // ── Find playwright-core ──────────────────────────────────────────────────────
 
 function resolvePlaywrightCore() {
-  // Primary: let Node resolve it from this package's perspective.
   let pwPkg;
   try {
     pwPkg = require.resolve('playwright-core/package.json');
     console.log('[apply-patches] require.resolve found:', pwPkg);
   } catch {
-    console.log('[apply-patches] require.resolve: not found from pkgDir');
+    console.log('[apply-patches] require.resolve: playwright-core not found from pkgDir');
     return null;
   }
 
-  // If we have a consumer root, verify the resolved path is within it.
-  if (consumerRoot) {
-    const bound = resolve(consumerRoot) + '/';
-    if (!resolve(pwPkg).startsWith(bound)) {
-      console.log(`[apply-patches] WARNING: resolved path is outside consumer root (${consumerRoot})`);
-      console.log('[apply-patches] Trying nested fallback:', join(pkgDir, 'node_modules', 'playwright-core'));
-      const nested = join(pkgDir, 'node_modules', 'playwright-core', 'package.json');
-      if (existsSync(nested)) {
-        console.log('[apply-patches] Using nested fallback:', nested);
-        return nested;
-      }
-      console.log('[apply-patches] Nested fallback not found either');
-      return null;
+  // Verify the resolved playwright-core is within this npm tree, not some
+  // unrelated global install above it.
+  if (!resolve(pwPkg).startsWith(npmRoot + '/')) {
+    console.log(`[apply-patches] WARNING: ${pwPkg} is outside npm root (${npmRoot})`);
+    console.log('[apply-patches] Trying nested fallback:', join(pkgDir, 'node_modules', 'playwright-core'));
+    const nested = join(pkgDir, 'node_modules', 'playwright-core', 'package.json');
+    if (existsSync(nested)) {
+      console.log('[apply-patches] Using nested fallback:', nested);
+      return nested;
     }
+    console.log('[apply-patches] Nested fallback not found either');
+    return null;
   }
 
   return pwPkg;
@@ -72,7 +95,7 @@ function resolvePlaywrightCore() {
 
 const pwCorePkg = resolvePlaywrightCore();
 if (!pwCorePkg) {
-  console.error('[apply-patches] FAIL: playwright-core not found in the current project');
+  console.error('[apply-patches] FAIL: playwright-core not found within the npm install tree');
   process.exit(1);
 }
 
@@ -88,14 +111,12 @@ try {
 
 // ── Run patch-package ─────────────────────────────────────────────────────────
 
-// targetRoot = directory that directly contains the node_modules that holds
-// playwright-core. patch-package must run from here.
 const pwCoreDir = dirname(pwCorePkg);      // .../node_modules/playwright-core
 const pwNodeModules = dirname(pwCoreDir);  // .../node_modules
 const targetRoot = dirname(pwNodeModules); // root for patch-package
 
 const ppDir = dirname(ppPkg);
-const ppIndex = join(ppDir, 'index.js');   // patch-package CLI entry point
+const ppIndex = join(ppDir, 'index.js');
 
 const pwVersion = JSON.parse(readFileSync(pwCorePkg, 'utf8')).version;
 const patchDir = relative(targetRoot, patchesDir);
