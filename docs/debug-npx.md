@@ -1,5 +1,9 @@
 # Debugging npx postinstall failures
 
+## Prerequisites
+
+Run `npx` from **outside** the szkrabok repo tree. If run from inside (e.g. `test/npx/`), Node's module resolution walks up and finds the repo's own playwright-core, which fails the `npmRoot` bounds check in `apply-patches.js`. The canonical stub is `~/szkrabok-npx/` — see `docs/development.md`.
+
 ## One-shot deterministic probe
 
 ```bash

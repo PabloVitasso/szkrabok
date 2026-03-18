@@ -74,10 +74,10 @@ claude mcp add szkrabok -s local -- node /absolute/path/to/szkrabok/src/index.js
 
 **Config B — published registry** (stable, matches what consumers get):
 
-`npx` run from the repo root may resolve the local workspace instead of fetching from the registry. Claude Code does not honor the `cwd` field in MCP server config, so use `bash -c "cd ... && npx"` to force resolution from `test/npx/` — a stub directory with a different package name:
+`npx` must run from a directory **outside** the szkrabok repo tree. If run from inside, Node's module resolution walks up past `node_modules` in the repo and finds the repo's own copies of playwright-core and other packages — corrupting the patching logic. Use the stub at `~/szkrabok-npx/` (a single `package.json` with a different package name, located outside the repo):
 
 ```bash
-claude mcp add szkrabok -s local -- bash -c "cd /absolute/path/to/szkrabok/test/npx && npx -y @pablovitasso/szkrabok"
+claude mcp add szkrabok -s local -- bash -c "cd ~/szkrabok-npx && npx -y @pablovitasso/szkrabok"
 ```
 
 Run `szkrabok doctor` to get the correct path for your machine. Both commands write to `.mcp.json` in the repo root (project-local scope, gitignored).
