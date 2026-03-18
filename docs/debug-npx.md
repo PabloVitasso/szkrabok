@@ -1,57 +1,78 @@
 # Debugging npx postinstall failures
 
-## The problem
+## One-shot deterministic probe
 
-`npx @pablovitasso/szkrabok` exits 1. npm suppresses lifecycle script output by default, so nothing useful is printed — just deprecation warnings.
-
-## Fast determination
-
-### 1. Check what actually failed
 ```bash
-ls -t ~/.npm/_logs/*.log | head -1 | xargs grep "postinstall.*code\|error command"
+npx --yes --loglevel verbose @pablovitasso/szkrabok 2>&1 | tee /tmp/sz.log
+grep -E "postinstall|patch-package|ERR|code:" /tmp/sz.log
 ```
-Look for `{ code: 1 }` on the postinstall line.
 
-### 2. See the postinstall output (suppressed by default)
-Install to a temp dir with `--foreground-scripts`:
+Preserves lifecycle stdout, Arborist resolver decisions, and hoisting graph in a single run. Check this before anything else.
+
+---
+
+## Root-cause-first diagnostics
+
+### 1. Is resolution correct?
+
+The patching model is only valid if `playwright-core` resolves *within* the ephemeral npx tree, not from a global prefix or `NODE_PATH` escape:
+
 ```bash
-TMPDIR=$(mktemp -d)
-npm install @pablovitasso/szkrabok --prefix $TMPDIR --foreground-scripts 2>&1 | tail -30
+npx --yes node -e "console.log(require.resolve('playwright-core'))"
 ```
-This shows what `apply-patches.js` and `verify-playwright-patches.js` print.
 
-### 3. Run apply-patches directly (fastest)
+- Path inside `~/.npm/_npx/<hash>/` → resolution is correct, proceed to step 2
+- Path outside (e.g. global prefix, home `node_modules`) → **patching model is invalid by design**; `apply-patches.js` `npmRoot` bound will reject it
+
+### 2. Is `playwright-core` actually present at patch time?
+
+npx uses Arborist reification, which differs from `npm install --prefix` hoisting. Optional dependencies may be pruned, and the write-flush timing differs. Verify the tree is complete before assuming lifecycle ordering:
+
 ```bash
-# --ignore-scripts to get the files without running postinstall
 TMPDIR=$(mktemp -d)
 npm install --ignore-scripts @pablovitasso/szkrabok --prefix $TMPDIR 2>/dev/null
+ls $TMPDIR/node_modules/playwright-core 2>/dev/null || \
+  ls $TMPDIR/node_modules/@pablovitasso/szkrabok/node_modules/playwright-core 2>/dev/null || \
+  echo "NOT FOUND — tree incomplete or pruned"
+```
+
+### 3. Run apply-patches.js in isolation
+
+```bash
 node $TMPDIR/node_modules/@pablovitasso/szkrabok/scripts/apply-patches.js
 ```
-apply-patches.js prints all path resolution decisions:
-- `pkgDir` — where the package landed
-- `npmRoot` — computed install root (used as bound for playwright-core resolution)
-- `require.resolve found` — which playwright-core will be patched
-- `targetRoot` / `patchDir` — what patch-package sees
 
-### 4. Check the npx cache
+Prints every resolution decision (`pkgDir`, `npmRoot`, `require.resolve` result, `targetRoot`, `patchDir`). **Caveat:** this does not replicate lifecycle env-vars (`INIT_CWD`, `npm_lifecycle_*`, etc.), so it rules out code bugs but not env-var-dependent branches.
+
+### 4. Reproduce lifecycle env exactly
+
+If step 3 passes but npx still fails, the divergence is in the lifecycle environment. Capture it:
+
 ```bash
-ls ~/.npm/_npx/
-# empty or sparse = install is being rolled back (postinstall failed)
-# has node_modules = install succeeded
+# Add to postinstall temporarily:
+# env > /tmp/postinstall-env.txt
 ```
 
-## Known failure modes
+Then compare `INIT_CWD`, `NODE_PATH`, `npm_config_prefix` between npx and `npm install --prefix`.
 
-| Symptom | Cause |
-|---------|-------|
-| `playwright-core not found within the npm install tree` | `require.resolve` escaped the install root (e.g. global install visible above); or install was incomplete |
-| `patch-package finished with 1 error(s)` + all FAIL | Patches applied to wrong playwright-core (version mismatch) |
-| `FAIL lib/generated/utilityScriptSource.js` only | patch-package applied to the correct root but patches/ not found (pre-1.0.28 bug: `patch-package` called without `--patch-dir`) |
-| Exit 1, no output, npx cache stays empty | Postinstall fails before any console output; run step 2 or 3 above |
-| ETIMEDOUT during install | Network drop mid-install; retry |
+---
 
-## Key files
+## Known failure signatures
 
-- `scripts/apply-patches.js` — resolves playwright-core and runs patch-package
-- `scripts/verify-playwright-patches.js` — checks 7 marker strings post-patch
-- `scripts/postinstall.js` — runs after patching (browser setup etc.)
+| Log signal | Root cause |
+|-----------|------------|
+| `playwright-core not found within the npm install tree` | Resolution escaped `npmRoot` bound — check step 1 |
+| `Patch file found ... not present at node_modules/playwright-core` | Correct root computed but playwright-core not hoisted there; npx hoisting differs from regular install |
+| All 7 FAIL in verify | Patches applied to wrong tree or not applied at all |
+| Only `utilityScriptSource.js` FAIL | Pre-1.0.28 bug — `patch-package` called without `--patch-dir` |
+| Exit 1, zero postinstall output in log | npm lifecycle buffering; use `--loglevel verbose` + `tee` (step above) |
+| ETIMEDOUT | Network drop; retry — but also check for partial tarball corruption in `~/.npm/_cacache` |
+
+---
+
+## Structural notes
+
+- `--foreground-scripts` does **not** reproduce Arborist's ephemeral reification topology; use it only to surface stdout, not to validate patching paths
+- `~/.npm/_logs` newest file is not guaranteed to be the failing npx run when concurrent npm operations exist
+- `_npx` cache emptiness after failure is expected (Arborist rolls back); absence of cache entry is not itself diagnostic
+- Patch marker staleness (upstream Playwright regenerating files mid-version) is detectable by diffing `patches/playwright-core+<ver>.patch` against a clean install of the same tarball hash
