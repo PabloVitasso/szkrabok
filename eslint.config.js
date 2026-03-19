@@ -94,6 +94,22 @@ export default [
     },
   },
 
+  // ── Test globals — node:test ────────────────────────────────────────────
+  {
+    files: ['tests/node/**/*.test.js', 'tests/node/**/*.spec.js'],
+    languageOptions: {
+      globals: {
+        ...globals.node,
+        describe: 'readonly',
+        test: 'readonly',
+        before: 'readonly',
+        after: 'readonly',
+        beforeEach: 'readonly',
+        afterEach: 'readonly',
+      },
+    },
+  },
+
   // ── Boundary rules — no exceptions ─────────────────────────────────────
   {
     files: CONSUMER_FILES,

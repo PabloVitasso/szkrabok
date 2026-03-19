@@ -47,7 +47,7 @@ export const open = async ({ sessionName, url, launchOptions = {} }) => {
     log(`open(): launching clone of template "${sessionName}"`);
     // Guard: template session must not be open — concurrent access corrupts the profile copy.
     let templateOpen = false;
-    try { getSession(sessionName); templateOpen = true; } catch {}
+    try { getSession(sessionName); templateOpen = true; } catch { /* not open */ }
     if (templateOpen) {
       throw new Error(`open(): cannot clone "${sessionName}" while it is open — close the session first`);
     }
@@ -151,7 +151,7 @@ export const close = async ({ sessionName }) => {
   try {
     const s = getSession(sessionName);
     isClone = !!s.isClone;
-  } catch {}
+  } catch { /* session does not exist yet */ }
 
   if (isClone) {
     log(`close(): routing to destroyClone for clone "${sessionName}"`);

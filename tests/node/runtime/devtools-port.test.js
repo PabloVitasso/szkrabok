@@ -27,7 +27,7 @@ import net from 'net';
 const waitForFile = async (filePath, timeoutMs = 10_000) => {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
-    try { await access(filePath); return; } catch {}
+    try { await access(filePath); return; } catch { /* file not ready yet */ }
     await new Promise(r => setTimeout(r, 100));
   }
   throw new Error(`Timed out waiting for: ${filePath}`);
@@ -64,7 +64,7 @@ const launchHeadlessBrowser = async executablePath => {
   ], { stdio: 'ignore', detached: false });
 
   const cleanup = async () => {
-    try { proc.kill('SIGKILL'); } catch {}
+    try { proc.kill('SIGKILL'); } catch { /* process already gone */ }
     await rm(userDataDir, { recursive: true, force: true });
   };
 
@@ -102,7 +102,7 @@ const detectBrowsers = async () => {
  */
 const runPortTests = executablePath => {
   test('Chromium writes DevToolsActivePort after launch', { timeout: 15_000 }, async () => {
-    const { proc, userDataDir, cleanup } = await launchHeadlessBrowser(executablePath);
+    const { userDataDir, cleanup } = await launchHeadlessBrowser(executablePath);
 
     try {
       await waitForFile(join(userDataDir, 'DevToolsActivePort'));
@@ -113,7 +113,7 @@ const runPortTests = executablePath => {
 
   test('readDevToolsPort parses port from file', { timeout: 15_000 }, async () => {
     const { readDevToolsPort } = await import('../../../packages/runtime/storage.js');
-    const { proc, userDataDir, cleanup } = await launchHeadlessBrowser(executablePath);
+    const { userDataDir, cleanup } = await launchHeadlessBrowser(executablePath);
 
     try {
       await waitForFile(join(userDataDir, 'DevToolsActivePort'));
@@ -128,7 +128,7 @@ const runPortTests = executablePath => {
 
   test('port from DevToolsActivePort is actually listening', { timeout: 15_000 }, async () => {
     const { readDevToolsPort } = await import('../../../packages/runtime/storage.js');
-    const { proc, userDataDir, cleanup } = await launchHeadlessBrowser(executablePath);
+    const { userDataDir, cleanup } = await launchHeadlessBrowser(executablePath);
 
     try {
       await waitForFile(join(userDataDir, 'DevToolsActivePort'));
@@ -143,7 +143,7 @@ const runPortTests = executablePath => {
 
   test('CDP /json responds with valid JSON array', { timeout: 15_000 }, async () => {
     const { readDevToolsPort } = await import('../../../packages/runtime/storage.js');
-    const { proc, userDataDir, cleanup } = await launchHeadlessBrowser(executablePath);
+    const { userDataDir, cleanup } = await launchHeadlessBrowser(executablePath);
 
     try {
       await waitForFile(join(userDataDir, 'DevToolsActivePort'));
@@ -219,7 +219,7 @@ if (!browsers.chrome && !browsers.chromium) {
       const p = chromium.executablePath();
       const { existsSync } = await import('fs');
       if (p && existsSync(p)) playwrightPath = p;
-    } catch {}
+    } catch { /* executablePath check failed — use default */ }
 
     test('at least one browser must be found to run port tests', {
       skip: !!playwrightPath,

@@ -1,5 +1,5 @@
 import { readFile, writeFile, mkdir, rm, readdir, copyFile, lstat, readlink, symlink, access, rename, open, cp } from 'fs/promises';
-import { join, basename } from 'path';
+import { join } from 'path';
 import { existsSync } from 'fs';
 import { tmpdir } from 'os';
 import crypto from 'crypto';
@@ -76,7 +76,7 @@ export const readDevToolsPort = async (userDataDir, { timeoutMs = DEVTOOLS_PORT_
   const deadline = Date.now() + timeoutMs;
 
   while (Date.now() < deadline) {
-    try { await access(file); break; } catch {}
+    try { await access(file); break; } catch { /* file not ready yet */ }
     await new Promise(r => setTimeout(r, DEVTOOLS_PORT_POLL_MS));
   }
 
@@ -173,26 +173,12 @@ export const leaseFree = async dir => {
   }
 };
 
-// ── atomicMove — cross-device safe ────────────────────────────────────────────
-// rename() is atomic on same filesystem. Falls back to cp+rm for EXDEV.
-
-const atomicMove = async (src, dst) => {
-  try {
-    await rename(src, dst);
-  } catch (e) {
-    if (e.code !== 'EXDEV') throw e;
-    await mkdir(dst, { recursive: true });
-    await cp(src, dst, { recursive: true });
-    await rm(src, { recursive: true, force: true });
-  }
-};
-
 // ── cloneProfileAtomic ────────────────────────────────────────────────────────
 //
 // Staging pattern:
 //   1. All work happens under STAGING_PREFIX — never scanned by cleanupClones.
 //   2. Lease acquired in staging dir immediately after mkdir.
-//   3. atomicMove(staging → final) — POSIX rename or EXDEV copy+rm fallback.
+//   3. rename(staging → final) — POSIX rename or EXDEV copy+rm fallback.
 //   4. After rename, .lease inode is at finalDir (handle still valid).
 //   5. Returns lease handle — caller must hold it open until close().
 //
@@ -310,7 +296,7 @@ export const cleanupClones = async () => {
     try {
       const meta = JSON.parse(await readFile(join(dir, '.clone'), 'utf8'));
       created = meta.created ?? null;
-    } catch {}
+    } catch { /* .clone missing or corrupt — treat as no creation time */ }
 
     const free = await leaseFree(dir);
 

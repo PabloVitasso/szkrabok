@@ -41,7 +41,7 @@ const tryBrowserPid = browser => {
       const p = browser.process;
       if (typeof p === 'function') return p()?.pid ?? null;
     }
-  } catch {}
+  } catch { /* not a browser.process() instance */ }
   try {
     return browser.osProcess()?._process?.pid ?? null;
   } catch {

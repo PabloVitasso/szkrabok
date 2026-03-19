@@ -11,7 +11,7 @@
 
 import { test, describe, before, after, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, rm, mkdir, writeFile } from 'fs/promises';
+import { mkdtemp, rm, mkdir } from 'fs/promises';
 import { existsSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
@@ -42,12 +42,11 @@ const uid = prefix => `${prefix}-pc3-${++_seq}`;
 
 // Build a minimal pool entry that pool.get() accepts (checks _closed / isClosed).
 const makeEntry = (overrides = {}) => {
-  let closed = false;
   const closedFns = [];
   return {
     context: {
       _closed: false,
-      close:        async () => { closed = true; },
+      close:        async () => { /* noop */ },
       storageState: async () => ({ cookies: [], origins: [] }),
       browser:      () => ({}),
       pages:        () => [],

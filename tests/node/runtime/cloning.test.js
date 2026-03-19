@@ -12,7 +12,7 @@
 import { test, describe, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtemp, rm, mkdir, writeFile, readFile } from 'fs/promises';
-import { join, basename } from 'path';
+import { join } from 'path';
 import { tmpdir } from 'os';
 import { spawnSync } from 'child_process';
 

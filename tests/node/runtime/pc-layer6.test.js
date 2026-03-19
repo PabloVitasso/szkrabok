@@ -27,7 +27,7 @@ import http from 'node:http';
 const waitForFile = async (filePath, timeoutMs = 10_000) => {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
-    try { await access(filePath); return; } catch {}
+    try { await access(filePath); return; } catch { /* file not ready yet */ }
     await new Promise(r => setTimeout(r, 100));
   }
   throw new Error(`Timed out waiting for: ${filePath}`);
@@ -56,7 +56,7 @@ const launchHeadlessBrowser = async executablePath => {
   ], { stdio: 'ignore', detached: false });
 
   const cleanup = async () => {
-    try { proc.kill('SIGKILL'); } catch {}
+    try { proc.kill('SIGKILL'); } catch { /* process already gone */ }
     // Retry rm — Chrome may still be releasing file locks after SIGKILL.
     for (let attempt = 0; attempt < 5; attempt++) {
       try {
@@ -97,7 +97,7 @@ const detectBrowsers = async () => {
 const runPortTests = executablePath => {
   test('PC-6.1: Chromium writes DevToolsActivePort after launch', { timeout: 15_000 }, async () => {
     console.log('PC-6.1 step 1: launchHeadlessBrowser');
-    const { proc, userDataDir, cleanup } = await launchHeadlessBrowser(executablePath);
+    const { userDataDir, cleanup } = await launchHeadlessBrowser(executablePath);
     const filePath = join(userDataDir, 'DevToolsActivePort');
     console.log('PC-6.1 step 2: waitForFile("' + filePath + '")');
     try {
@@ -111,7 +111,7 @@ const runPortTests = executablePath => {
   test('PC-6.2: readDevToolsPort parses port from live DevToolsActivePort', { timeout: 15_000 }, async () => {
     const { readDevToolsPort } = await import('../../../packages/runtime/storage.js');
     console.log('PC-6.2 step 1: launchHeadlessBrowser');
-    const { proc, userDataDir, cleanup } = await launchHeadlessBrowser(executablePath);
+    const { userDataDir, cleanup } = await launchHeadlessBrowser(executablePath);
     try {
       const filePath = join(userDataDir, 'DevToolsActivePort');
       console.log('PC-6.2 step 2: waitForFile("' + filePath + '")');
@@ -129,7 +129,7 @@ const runPortTests = executablePath => {
   test('PC-6.3: port from DevToolsActivePort accepts TCP connections', { timeout: 15_000 }, async () => {
     const { readDevToolsPort } = await import('../../../packages/runtime/storage.js');
     console.log('PC-6.3 step 1: launchHeadlessBrowser');
-    const { proc, userDataDir, cleanup } = await launchHeadlessBrowser(executablePath);
+    const { userDataDir, cleanup } = await launchHeadlessBrowser(executablePath);
     try {
       const filePath = join(userDataDir, 'DevToolsActivePort');
       console.log('PC-6.3 step 2: waitForFile');
@@ -149,7 +149,7 @@ const runPortTests = executablePath => {
   test('PC-6.4: GET /json on CDP port returns a valid JSON array', { timeout: 15_000 }, async () => {
     const { readDevToolsPort } = await import('../../../packages/runtime/storage.js');
     console.log('PC-6.4 step 1: launchHeadlessBrowser');
-    const { proc, userDataDir, cleanup } = await launchHeadlessBrowser(executablePath);
+    const { userDataDir, cleanup } = await launchHeadlessBrowser(executablePath);
     try {
       const filePath = join(userDataDir, 'DevToolsActivePort');
       console.log('PC-6.4 step 2: waitForFile');
