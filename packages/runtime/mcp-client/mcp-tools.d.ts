@@ -63,6 +63,7 @@ export interface BrowserHandle {
    * @param args.project Playwright project name to run (e.g. "automation"). Runs all projects if omitted.
    * @param args.files File or directory paths passed as positional args to playwright test (e.g. ["automation/rebrowser-check.spec.js"] or ["automation/"]). Relative to repo root.
    * @param args.keepOpen After the test run, reconnect the session if the test subprocess invalidated the MCP context. Chrome stays alive; this restores the Playwright connection to it. Default false.
+   * @param args.reportFile Custom path for the JSON report file, relative to repo root (e.g. "test-results/my-run.json"). Defaults to sessions/<sessionName>/last-run.json. Resolved path returned as reportFile in result.
    */
   run_test(args: {
     grep?: string;
@@ -71,6 +72,7 @@ export interface BrowserHandle {
     project?: string;
     files?: string[];
     keepOpen?: boolean;
+    reportFile?: string;
   }): Promise<unknown>;
 }
 

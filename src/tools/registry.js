@@ -144,6 +144,11 @@ const tools = {
           description:
             'After the test run, reconnect the session if the test subprocess invalidated the MCP context. Chrome stays alive; this restores the Playwright connection to it. Default false.',
         },
+        reportFile: {
+          type: 'string',
+          description:
+            'Custom path for the JSON report file, relative to repo root (e.g. "test-results/my-run.json"). Defaults to sessions/<sessionName>/last-run.json. The resolved path is returned as reportFile in the result.',
+        },
       },
       required: ['sessionName'],
     },

@@ -5,6 +5,6 @@ export default defineConfig({
   timeout: 60_000,
   retries: 0,
   workers: 1,
-  reporter: [['list']],
+  reporter: [['list'], ['json']],
   use: { headless: false },
 });

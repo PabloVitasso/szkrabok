@@ -93,6 +93,7 @@ export const run_test = async args => {
     project,
     files = [],
     keepOpen = false,
+    reportFile,
   } = args;
 
   const configPath = resolve(REPO_ROOT, config);
@@ -104,10 +105,21 @@ export const run_test = async args => {
     };
   }
 
+  const sessionDir = join(dirname(configPath), 'sessions', sessionName);
+  await mkdir(sessionDir, { recursive: true });
+
+  let jsonFile;
+  if (reportFile) {
+    jsonFile = resolve(REPO_ROOT, reportFile);
+  } else {
+    jsonFile = join(sessionDir, 'last-run.json');
+  }
+
   const env = {
     ...process.env,
     FORCE_COLOR: '0',
     SZKRABOK_SESSION: sessionName,
+    PLAYWRIGHT_JSON_OUTPUT_NAME: jsonFile,
     ...Object.fromEntries(
       Object.entries(params).map(([k, v]) => [k.toUpperCase(), String(v)])
     ),
@@ -126,17 +138,15 @@ export const run_test = async args => {
 
   env.SZKRABOK_CDP_ENDPOINT = `http://localhost:${session.cdpPort}`;
 
-  const sessionDir = join(dirname(configPath), 'sessions', sessionName);
-  await mkdir(sessionDir, { recursive: true });
-
   const logFile = join(sessionDir, 'last-run.log');
-  const jsonFile = join(sessionDir, 'last-run.json');
 
   const argsPW = [
     'playwright',
     'test',
     '--config',
     configPath,
+    '--reporter',
+    'list,json',
     '--timeout',
     '60000',
     ...(project ? ['--project', project] : []),
@@ -235,6 +245,7 @@ export const run_test = async args => {
     failed,
     skipped,
     tests: flattenTests(report),
+    reportFile: jsonFile,
     ...(keepOpen && { sessionReconnected }),
   };
 };
