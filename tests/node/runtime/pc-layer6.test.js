@@ -20,6 +20,7 @@ import { join } from 'path';
 import { tmpdir } from 'os';
 import { spawn } from 'child_process';
 import net from 'net';
+import http from 'node:http';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -56,6 +57,19 @@ const launchHeadlessBrowser = async executablePath => {
 
   const cleanup = async () => {
     try { proc.kill('SIGKILL'); } catch {}
+    // Retry rm — Chrome may still be releasing file locks after SIGKILL.
+    for (let attempt = 0; attempt < 5; attempt++) {
+      try {
+        await rm(userDataDir, { recursive: true, force: true });
+        console.log('PC-6 cleanup step ' + (attempt + 1) + ': rm succeeded');
+        return;
+      } catch (e) {
+        if (e.code !== 'ENOTEMPTY') throw e;
+        console.log('PC-6 cleanup step ' + (attempt + 1) + ': ENOTEMPTY, retrying in 200ms...');
+        await new Promise(r => setTimeout(r, 200));
+      }
+    }
+    // Last attempt — let it throw if still locked.
     await rm(userDataDir, { recursive: true, force: true });
   };
 
@@ -64,16 +78,17 @@ const launchHeadlessBrowser = async executablePath => {
 
 // ── Browser discovery ─────────────────────────────────────────────────────────
 
+// Use Playwright's bundled Chromium — same binary as e2e tests, guaranteed real.
+// chrome-launcher is NOT used here: on Ubuntu it detects /usr/bin/chromium-browser
+// which is a snap stub that exits immediately (see docs/bugs/bug1-chrome-launcher-problem.md).
 const detectBrowsers = async () => {
   try {
-    const { Launcher } = await import('chrome-launcher');
-    const all = await Launcher.getInstallations();
-    return {
-      chrome:   all.find(p => /google.chrome|google\/chrome/i.test(p)) ?? null,
-      chromium: all.find(p => /chromium/i.test(p)) ?? null,
-    };
+    const { chromium } = await import('playwright');
+    const { existsSync } = await import('fs');
+    const pwPath = chromium.executablePath();
+    return { playwright: pwPath && existsSync(pwPath) ? pwPath : null };
   } catch {
-    return { chrome: null, chromium: null };
+    return { playwright: null };
   }
 };
 
@@ -81,9 +96,13 @@ const detectBrowsers = async () => {
 
 const runPortTests = executablePath => {
   test('PC-6.1: Chromium writes DevToolsActivePort after launch', { timeout: 15_000 }, async () => {
+    console.log('PC-6.1 step 1: launchHeadlessBrowser');
     const { proc, userDataDir, cleanup } = await launchHeadlessBrowser(executablePath);
+    const filePath = join(userDataDir, 'DevToolsActivePort');
+    console.log('PC-6.1 step 2: waitForFile("' + filePath + '")');
     try {
-      await waitForFile(join(userDataDir, 'DevToolsActivePort'));
+      await waitForFile(filePath);
+      console.log('PC-6.1 step 2: DevToolsActivePort file found');
     } finally {
       await cleanup();
     }
@@ -91,10 +110,15 @@ const runPortTests = executablePath => {
 
   test('PC-6.2: readDevToolsPort parses port from live DevToolsActivePort', { timeout: 15_000 }, async () => {
     const { readDevToolsPort } = await import('../../../packages/runtime/storage.js');
+    console.log('PC-6.2 step 1: launchHeadlessBrowser');
     const { proc, userDataDir, cleanup } = await launchHeadlessBrowser(executablePath);
     try {
-      await waitForFile(join(userDataDir, 'DevToolsActivePort'));
+      const filePath = join(userDataDir, 'DevToolsActivePort');
+      console.log('PC-6.2 step 2: waitForFile("' + filePath + '")');
+      await waitForFile(filePath);
+      console.log('PC-6.2 step 3: readDevToolsPort("' + userDataDir + '")');
       const port = await readDevToolsPort(userDataDir);
+      console.log('PC-6.2 step 3 returned port:', port, 'typeof:', typeof port);
       assert.strictEqual(typeof port, 'number');
       assert.ok(port > 0 && port < 65536, `port out of range: ${port}`);
     } finally {
@@ -104,11 +128,19 @@ const runPortTests = executablePath => {
 
   test('PC-6.3: port from DevToolsActivePort accepts TCP connections', { timeout: 15_000 }, async () => {
     const { readDevToolsPort } = await import('../../../packages/runtime/storage.js');
+    console.log('PC-6.3 step 1: launchHeadlessBrowser');
     const { proc, userDataDir, cleanup } = await launchHeadlessBrowser(executablePath);
     try {
-      await waitForFile(join(userDataDir, 'DevToolsActivePort'));
+      const filePath = join(userDataDir, 'DevToolsActivePort');
+      console.log('PC-6.3 step 2: waitForFile');
+      await waitForFile(filePath);
+      console.log('PC-6.3 step 3: readDevToolsPort');
       const port = await readDevToolsPort(userDataDir);
-      assert.ok(await isPortOpen(port), `CDP port ${port} is not accepting connections`);
+      console.log('PC-6.3 step 3 returned port:', port);
+      console.log('PC-6.3 step 4: isPortOpen(' + port + ')');
+      const open = await isPortOpen(port);
+      console.log('PC-6.3 step 4 returned:', open);
+      assert.ok(open, `CDP port ${port} is not accepting connections`);
     } finally {
       await cleanup();
     }
@@ -116,25 +148,48 @@ const runPortTests = executablePath => {
 
   test('PC-6.4: GET /json on CDP port returns a valid JSON array', { timeout: 15_000 }, async () => {
     const { readDevToolsPort } = await import('../../../packages/runtime/storage.js');
+    console.log('PC-6.4 step 1: launchHeadlessBrowser');
     const { proc, userDataDir, cleanup } = await launchHeadlessBrowser(executablePath);
     try {
-      await waitForFile(join(userDataDir, 'DevToolsActivePort'));
+      const filePath = join(userDataDir, 'DevToolsActivePort');
+      console.log('PC-6.4 step 2: waitForFile');
+      await waitForFile(filePath);
+      console.log('PC-6.4 step 3: readDevToolsPort');
       const port = await readDevToolsPort(userDataDir);
+      console.log('PC-6.4 step 3 returned port:', port);
 
-      const body = await new Promise((resolve, reject) => {
-        const req = net.createConnection({ port, host: '127.0.0.1' });
-        let buf = '';
-        req.once('connect', () => req.write('GET /json HTTP/1.0\r\nHost: localhost\r\n\r\n'));
-        req.on('data', d => { buf += d; });
-        req.once('end', () => resolve(buf));
-        req.once('error', reject);
-        req.setTimeout(5000, () => reject(new Error('timeout')));
+      console.log('PC-6.4 step 4: http.get http://127.0.0.1:' + port + '/json');
+      const parsed = await new Promise((resolve, reject) => {
+        http.get({ hostname: '127.0.0.1', port, path: '/json' }, res => {
+          console.log('PC-6.4 step 4: HTTP statusCode:', res.statusCode);
+          console.log('PC-6.4 step 4: Content-Type:', res.headers['content-type']);
+          // Accumulate chunks — handles both Content-Length and chunked Transfer-Encoding.
+          let body = '';
+          res.on('data', chunk => { body += chunk; });
+          res.on('end', () => {
+            console.log('PC-6.4 step 4: body received, length =', body.length);
+            console.log('PC-6.4 step 4: body preview =', body.slice(0, 200));
+            try { resolve(JSON.parse(body)); }
+            catch (e) { reject(new Error(`Invalid JSON from /json: ${e.message}\n${body}`)); }
+          });
+        }).on('error', reject);
       });
 
-      const bodyStart = body.indexOf('\r\n\r\n');
-      assert.ok(bodyStart !== -1, 'HTTP response missing header/body separator');
-      const parsed = JSON.parse(body.slice(bodyStart + 4).trim());
+      console.log('PC-6.4 step 5: assert Array.isArray(parsed), got:', Array.isArray(parsed), 'length:', parsed.length);
       assert.ok(Array.isArray(parsed), '/json must return an array');
+      console.log('PC-6.4 step 6: assert parsed.length > 0');
+      assert.ok(parsed.length > 0, '/json must return at least one target (the about:blank page)');
+      for (const target of parsed) {
+        console.log('PC-6.4 step 7: checking target id:', target.id, 'type:', target.type, 'ws:', target.webSocketDebuggerUrl);
+        assert.ok(typeof target.id === 'string' && target.id.length > 0, 'each target needs a non-empty id');
+        assert.ok(typeof target.type === 'string' && target.type.length > 0, 'each target needs a non-empty type');
+        assert.ok(
+          typeof target.webSocketDebuggerUrl === 'string' &&
+          target.webSocketDebuggerUrl.startsWith('ws://'),
+          'each target needs a ws:// webSocketDebuggerUrl'
+        );
+      }
+      console.log('PC-6.4 step 7: all targets valid');
     } finally {
       await cleanup();
     }
@@ -142,17 +197,22 @@ const runPortTests = executablePath => {
 
   test('PC-6.5: two simultaneous launches get different ports', { timeout: 20_000 }, async () => {
     const { readDevToolsPort } = await import('../../../packages/runtime/storage.js');
+    console.log('PC-6.5 step 1: launch two browsers concurrently');
     const [a, b] = await Promise.all([
       launchHeadlessBrowser(executablePath),
       launchHeadlessBrowser(executablePath),
     ]);
     try {
+      console.log('PC-6.5 step 2: wait for both DevToolsActivePort files');
       await Promise.all([
         waitForFile(join(a.userDataDir, 'DevToolsActivePort')),
         waitForFile(join(b.userDataDir, 'DevToolsActivePort')),
       ]);
+      console.log('PC-6.5 step 3: readDevToolsPort for both');
       const portA = await readDevToolsPort(a.userDataDir);
       const portB = await readDevToolsPort(b.userDataDir);
+      console.log('PC-6.5 step 3: portA =', portA, 'portB =', portB);
+      console.log('PC-6.5 step 4: assert portA !== portB');
       assert.notStrictEqual(portA, portB, 'concurrent launches must receive distinct ports');
     } finally {
       await Promise.allSettled([a.cleanup(), b.cleanup()]);
@@ -164,30 +224,14 @@ const runPortTests = executablePath => {
 
 const browsers = await detectBrowsers();
 
-describe('PC-6 DevToolsActivePort — standard Chrome', { skip: !browsers.chrome }, () => {
-  runPortTests(browsers.chrome);
+describe('PC-6 DevToolsActivePort — Playwright bundled Chromium', { skip: !browsers.playwright }, () => {
+  if (browsers.playwright) runPortTests(browsers.playwright);
 });
 
-describe('PC-6 DevToolsActivePort — Chromium / ungoogled', { skip: !browsers.chromium }, () => {
-  runPortTests(browsers.chromium);
-});
-
-if (!browsers.chrome && !browsers.chromium) {
-  describe('PC-6 DevToolsActivePort — Playwright bundled Chromium', async () => {
-    let playwrightPath = null;
-    try {
-      const { chromium } = await import('playwright');
-      const p = chromium.executablePath();
-      const { existsSync } = await import('fs');
-      if (p && existsSync(p)) playwrightPath = p;
-    } catch {}
-
-    test('PC-6.0: at least one browser must be found', {
-      skip: !!playwrightPath,
-    }, () => {
-      assert.fail('No Chromium-family browser found. Install one to run PC-6 tests.');
+if (!browsers.playwright) {
+  describe('PC-6 DevToolsActivePort — no browser found', () => {
+    test('PC-6.0: at least one browser must be found', () => {
+      assert.fail('No Playwright Chromium found. Run: npx playwright install chromium');
     });
-
-    if (playwrightPath) runPortTests(playwrightPath);
   });
 }

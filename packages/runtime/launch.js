@@ -22,6 +22,61 @@ const ensureGcOnExit = () => {
   process.once('beforeExit', () => storage.cleanupClones().catch(() => {}));
 };
 
+// ── waitForExit ───────────────────────────────────────────────────────────────
+//
+// Wait for a Chromium PID to fully exit and release its file locks.
+// Chromium is multi-process — the browser process exits when Playwright calls
+// context.close(), but the actual Chrome process may linger briefly while
+// releasing locks on the user data dir. Without this wait, rm() of the
+// user data dir can race with a straggling Chrome process and get ENOTEMPTY.
+//
+// Retries every 100 ms up to timeoutMs. Logs each attempt so the failure
+// mode is diagnostic rather than silent.
+//
+const CHROME_EXIT_POLL_MS  = 100;
+const CHROME_EXIT_TIMEOUT_MS = 15_000;
+
+const isPidAlive = pid => {
+  try { process.kill(pid, 0); return true; }
+  catch { return false; }
+};
+
+const waitForExit = async (pid, { timeoutMs = CHROME_EXIT_TIMEOUT_MS } = {}) => {
+  if (!pid) return;
+  if (!isPidAlive(pid)) {
+    log(`waitForExit: PID ${pid} already dead`);
+    return;
+  }
+
+  const deadline = Date.now() + timeoutMs;
+  let attempt = 0;
+  while (Date.now() < deadline) {
+    attempt++;
+    await new Promise(r => setTimeout(r, CHROME_EXIT_POLL_MS));
+
+    if (!isPidAlive(pid)) {
+      log(`waitForExit: PID ${pid} exited after ${attempt} attempt(s)`);
+      return;
+    }
+
+    const remaining = Math.max(0, deadline - Date.now());
+    if (remaining < CHROME_EXIT_POLL_MS * 2) {
+      log(`waitForExit: PID ${pid} still alive — ${remaining}ms remaining, continuing to poll`);
+    }
+  }
+
+  // Timed out. Chrome is either hung or taking unusually long.
+  log(`waitForExit: PID ${pid} still alive after ${timeoutMs}ms (${attempt} attempts) — proceeding anyway`);
+};
+
+// ── _resetGcForTesting ────────────────────────────────────────────────────────
+//
+// Resets the _gcRegistered guard so that ensureGcOnExit re-registers the
+// beforeExit handler. Required for tests that call launchClone() multiple
+// times across describe blocks in the same module instance.
+//
+export const _resetGcForTesting = () => { _gcRegistered = false; };
+
 // _launchPersistentContext — internal, not exported.
 // Only called by launch() below.
 const _launchPersistentContext = async (userDataDir, options = {}) => {
@@ -122,7 +177,9 @@ export const launch = async (options = {}) => {
         const state = await existing.context.storageState();
         await storage.saveState(profile, state);
         await storage.updateMeta(profile, { lastUsed: Date.now() });
+        const pid = existing.context.browser().osProcess()?._process?.pid ?? null;
         await existing.context.close();
+        if (pid) await waitForExit(pid);
         pool.remove(profile);
       },
     };
@@ -240,7 +297,9 @@ export const launch = async (options = {}) => {
       const state = await context.storageState();
       await storage.saveState(profile, state);
       await storage.updateMeta(profile, { lastUsed: Date.now() });
+      const pid = context.browser().osProcess()?._process?.pid ?? null;
       await context.close();
+      if (pid) await waitForExit(pid);
       pool.remove(profile);
     },
   };
@@ -283,7 +342,9 @@ export const launchClone = async (options = {}) => {
     cdpEndpoint,
     cloneId,
     close: async () => {
+      const pid = context.browser().osProcess()?._process?.pid ?? null;
       await context.close();
+      if (pid) await waitForExit(pid);
       pool.remove(cloneId);
       await lease.close().catch(() => {});
       await rm(cloneDir, { recursive: true, force: true });

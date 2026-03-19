@@ -32,34 +32,34 @@ Status values: `not started` | `in progress` | `done`
 
 | Function | File | Status | Tests |
 |----------|------|--------|-------|
-| `readDevToolsPort` | `packages/runtime/storage.js` | not started | PC-1.1–PC-1.7, PC-6.2 |
-| `newCloneId` | `packages/runtime/storage.js` | not started | PC-1.8–PC-1.11 |
-| `cloneProfileAtomic` | `packages/runtime/storage.js` | not started | PC-1.12–PC-1.18 |
-| `cleanupClones` | `packages/runtime/storage.js` | not started | PC-1.19–PC-1.24, PC-4.10 |
-| `pool.add` — `isClone`, `cloneDir`, `templateName` | `packages/runtime/pool.js` | not started | PC-2.1–PC-2.5 |
-| `pool.list` — expose `isClone`, `cloneDir` | `packages/runtime/pool.js` | not started | PC-2.4–PC-2.5 |
-| `destroyClone` | `packages/runtime/sessions.js` | not started | PC-3.1–PC-3.7 |
-| `launchClone` | `packages/runtime/launch.js` | not started | PC-4.1–PC-4.7, PC-4.10 |
-| `launch` — remove `cdpPortForId`, use `readDevToolsPort` | `packages/runtime/launch.js` | not started | PC-4.8 |
+| `readDevToolsPort` | `packages/runtime/storage.js` | **done** | PC-1.1–PC-1.7 ✓, PC-6.2 |
+| `newCloneId` | `packages/runtime/storage.js` | **done** | PC-1.8–PC-1.11 ✓ |
+| `cloneProfileAtomic` | `packages/runtime/storage.js` | **done** | PC-1.12–PC-1.18 ✓ |
+| `cleanupClones` | `packages/runtime/storage.js` | **done** | PC-1.19–PC-1.24 ✓, PC-4.10 ✓ |
+| `pool.add` — `isClone`, `cloneDir`, `templateName` | `packages/runtime/pool.js` | **done** | PC-2.1–PC-2.5 ✓ |
+| `pool.list` — expose `isClone`, `cloneDir` | `packages/runtime/pool.js` | **done** | PC-2.4–PC-2.5 ✓ |
+| `destroyClone` | `packages/runtime/sessions.js` | **done** | PC-3.1–PC-3.7 ✓ |
+| `launchClone` | `packages/runtime/launch.js` | **done** | PC-4.1–PC-4.7 ✓, PC-4.10 ✓ |
+| `launch` — remove `cdpPortForId`, use `readDevToolsPort` | `packages/runtime/launch.js` | **done** | PC-4.8 ✓ |
 | `cdpPortForId` — deleted | `packages/runtime/launch.js` | **done** | PC-4.4 ✓ |
-| `ensureGcOnExit` | `packages/runtime/launch.js` | not started | PC-4.9 |
-| `session_manage open` — `isClone` option | `src/tools/szkrabok_session.js` | not started | PC-5.1–PC-5.6 |
-| `session_manage close` — auto-route | `src/tools/szkrabok_session.js` | not started | PC-5.7–PC-5.8 |
-| `session_manage list` — include clones | `src/tools/szkrabok_session.js` | not started | PC-5.9–PC-5.11 |
-| `session_manage deleteSession` — clone guard | `src/tools/szkrabok_session.js` | not started | PC-5.12 |
-| `session_manage` schema — `isClone` in `launchOptions` | `src/tools/registry.js` | not started | — |
-| `index.js` — export `launchClone`, `destroyClone` | `packages/runtime/index.js` | not started | — |
+| `ensureGcOnExit` | `packages/runtime/launch.js` | **done** | PC-4.9 ✓ |
+| `session_manage open` — `isClone` option | `src/tools/szkrabok_session.js` | **done** | PC-5.1–PC-5.6 ✓ |
+| `session_manage close` — auto-route | `src/tools/szkrabok_session.js` | **done** | PC-5.7–PC-5.8 ✓ |
+| `session_manage list` — include clones | `src/tools/szkrabok_session.js` | **done** | PC-5.9–PC-5.11 ✓ |
+| `session_manage deleteSession` — clone guard | `src/tools/szkrabok_session.js` | **done** | PC-5.12 ✓ |
+| `session_manage` schema — `isClone` in `launchOptions` | `src/tools/registry.js` | **done** | — |
+| `index.js` — export `launchClone`, `destroyClone` | `packages/runtime/index.js` | **done** | — |
 
 ### Test files
 
 | File | Tests | Status |
 |------|-------|--------|
-| `tests/node/runtime/pc-layer1.test.js` | PC-1.1–PC-1.24 (24 tests) | written, failing |
-| `tests/node/runtime/pc-layer2.test.js` | PC-2.1–PC-2.5 (5 tests) | written, failing |
-| `tests/node/runtime/pc-layer3.test.js` | PC-3.1–PC-3.8 (8 tests) | written, 1 passing (PC-3.8) |
-| `tests/node/runtime/pc-layer4.test.js` | PC-4.1–PC-4.10 (10 tests) | written, 1 passing (PC-4.4) |
-| `tests/node/runtime/pc-layer5.test.js` | PC-5.1–PC-5.12 (12 tests) | written, failing |
-| `tests/node/runtime/pc-layer6.test.js` | PC-6.1–PC-6.5 (5 tests) | written, failing |
+| `tests/node/runtime/pc-layer1.test.js` | PC-1.1–PC-1.24 (24 tests) | **24/24 passing** |
+| `tests/node/runtime/pc-layer2.test.js` | PC-2.1–PC-2.5 (5 tests) | **5/5 passing** |
+| `tests/node/runtime/pc-layer3.test.js` | PC-3.1–PC-3.8 (8 tests) | **8/8 passing** |
+| `tests/node/runtime/pc-layer4.test.js` | PC-4.1–PC-4.10 (10 tests) | **10/10 passing** |
+| `tests/node/runtime/pc-layer5.test.js` | PC-5.1–PC-5.12 (12 tests) | **12/12 passing** |
+| `tests/node/runtime/pc-layer6.test.js` | PC-6.1–PC-6.5 (5 tests) | **5/5 passing** ✓ |
 | `tests/node/runtime/cloning.test.js` | (scaffolded, old naming) | delete — superseded by pc-layer1 |
 | `tests/node/runtime/devtools-port.test.js` | (scaffolded, old naming) | delete — superseded by pc-layer6 |
 
