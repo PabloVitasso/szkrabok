@@ -11,7 +11,7 @@ const PLAYWRIGHT_MCP = '[playwright-mcp]';
 const tools = {
   'session_manage': {
     handler: session.manage,
-    description: `${SZKRABOK} Manage browser sessions. action: open (launch/resume session), close (save+close), list (all stored), delete (remove data), endpoint (get CDP/WS URLs). open requires sessionName; list requires none; others require sessionName`,
+    description: `${SZKRABOK} Manage browser sessions. action: open (launch/resume), close (save+close for templates; destroy+delete cloneDir for clones), list (stored templates + active clones), delete (templates only), endpoint (returns cdpEndpoint+wsEndpoint for playwright-mcp --cdp-endpoint). open requires sessionName; list requires none; others require sessionName. open with launchOptions.isClone:true clones the template - returned sessionName is the clone id, use it for all subsequent calls`,
     inputSchema: {
       type: 'object',
       properties: {
@@ -19,13 +19,16 @@ const tools = {
           type: 'string',
           enum: ['open', 'close', 'list', 'delete', 'endpoint'],
         },
-        sessionName: { type: 'string' },
-        url: { type: 'string' },
-        save: { type: 'boolean', default: true },
+        sessionName: {
+          type: 'string',
+          description:
+            'Session name. For clones: use the generated id returned by open with isClone:true - not the template name',
+        },
+        url: { type: 'string', description: 'URL to navigate after opening. open only' },
         launchOptions: {
           type: 'object',
           description:
-            'open only. Use either preset OR individual fields (userAgent, viewport, locale, timezone). headless and stealth always allowed.',
+            'open only. Use preset OR individual fields (userAgent, viewport, locale, timezone). isClone creates an ephemeral clone. headless and stealth always allowed',
           properties: {
             preset: { type: 'string', description: 'Preset name from szkrabok.config.toml' },
             stealth: { type: 'boolean', default: true },
@@ -38,6 +41,15 @@ const tools = {
             },
             locale: { type: 'string' },
             timezone: { type: 'string' },
+            isClone: {
+              type: 'boolean',
+              default: false,
+              description:
+                'Clone the template session into an ephemeral copy. ' +
+                'Returns a generated sessionName - use it for all subsequent calls. ' +
+                'On close: browser stops, clone dir deleted, no state saved. ' +
+                'Template session must be closed before cloning',
+            },
           },
         },
       },

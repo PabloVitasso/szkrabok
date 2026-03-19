@@ -20,7 +20,6 @@ Manage browser sessions. Actions: open (launch/resume), close (save+close), list
 - **action** (required): `open` | `close` | `list` | `delete` | `endpoint`
 - **sessionName**: Session identifier. Required for open/close/delete/endpoint, not for list
 - **url**: URL to navigate after opening (open only)
-- **save**: Persist session on close, default `true`
 - **launchOptions** (open only):
   - **preset**: Preset name. Mutually exclusive with userAgent/viewport/locale/timezone. See [Presets](#presets)
   - **stealth**: Enable stealth mode, default `true`
@@ -221,6 +220,7 @@ session_manage { "action": "close", "sessionName": "my-session" }
 
 ```bash
 szkrabok open <profile>              # Launch browser, print CDP endpoint, stay alive
+szkrabok open <profile> --clone      # Clone template into ephemeral copy; clone destroyed on exit
 szkrabok session list                # Show all sessions (active + stored)
 szkrabok session inspect <id>        # Dump cookie/localStorage counts
 szkrabok session delete <id>         # Delete a session

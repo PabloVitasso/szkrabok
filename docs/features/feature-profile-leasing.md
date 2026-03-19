@@ -51,7 +51,7 @@ Status values: `not started` | `in progress` | `done`
 | `session_manage close` — auto-route | `src/tools/szkrabok_session.js` | **done** | PC-5.7–PC-5.8 ✓ |
 | `session_manage list` — include clones | `src/tools/szkrabok_session.js` | **done** | PC-5.9–PC-5.11 ✓ |
 | `session_manage deleteSession` — clone guard | `src/tools/szkrabok_session.js` | **done** | PC-5.12 ✓ |
-| `session_manage` schema — `isClone` in `launchOptions` | `src/tools/registry.js` | **done** | — |
+| `session_manage` schema — `isClone` in `launchOptions`, updated description | `src/tools/registry.js` | **done** | — |
 | `index.js` — export `launchClone`, `destroyClone` | `packages/runtime/index.js` | **done** | — |
 
 ### Test files

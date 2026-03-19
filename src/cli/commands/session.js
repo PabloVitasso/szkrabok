@@ -18,10 +18,12 @@ export function register(program, { safe }) {
         const { sessions } = await list();
         console.table(
           sessions.map(s => ({
-            ID: s.id,
-            Active: (() => { if (s.active) return 'yes'; return 'no'; })(),
-            Preset: (s.preset !== null && s.preset !== undefined) ? s.preset : 'N/A',
-            Label: (s.label !== null && s.label !== undefined) ? s.label : 'N/A',
+            ID:       s.id,
+            Active:   s.active ? 'yes' : 'no',
+            Clone:    s.isClone ? 'yes' : 'no',
+            Template: (s.templateSession !== null && s.templateSession !== undefined) ? s.templateSession : 'N/A',
+            Preset:   (s.preset !== null && s.preset !== undefined) ? s.preset : 'N/A',
+            Label:    (s.label !== null && s.label !== undefined) ? s.label : 'N/A',
           }))
         );
       })
