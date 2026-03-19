@@ -58,7 +58,7 @@ export interface BrowserHandle {
   /**
    * [playwright-mcp] Run .spec.js tests via CDP (returns JSON). Requires session_manage(open) and scaffold.init
    * @param args.grep Filter tests by name (regex)
-   * @param args.params Key/value params passed as TEST_* env vars to the spec (e.g. {url:"https://..."} → TEST_URL)
+   * @param args.params Key/value params passed as uppercased env vars to the spec (e.g. {url:"https://..."} → URL)
    * @param args.config Config path relative to repo root. Defaults to playwright.config.js
    * @param args.project Playwright project name to run (e.g. "automation"). Runs all projects if omitted.
    * @param args.files File or directory paths passed as positional args to playwright test (e.g. ["automation/rebrowser-check.spec.js"] or ["automation/"]). Relative to repo root.

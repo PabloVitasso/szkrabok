@@ -259,7 +259,7 @@ browser.run_test {
   "params": { "url": "https://example.com" }
 }
 ```
-`params` keys are available as `process.env.TEST_<KEY>` in the spec (e.g. `TEST_URL`).
+`params` keys are available as uppercased env vars in the spec (e.g. `{url:...}` → `process.env.URL`).
 
 ---
 
@@ -281,7 +281,7 @@ const mcp = await mcpConnect('my-session', {
 
 const result = await mcp.browser.run_test({
   files: ['tests/playwright/e2e/my-task.spec.js'],
-  params: { url: 'https://example.com' },  // available as process.env.TEST_URL in spec
+  params: { url: 'https://example.com' },  // available as process.env.URL in spec
   grep: 'my task',        // optional: filter by test name
   project: 'e2e',         // optional: playwright project
 });

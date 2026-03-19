@@ -122,7 +122,7 @@ const tools = {
         params: {
           type: 'object',
           description:
-            'Key/value params passed as TEST_* env vars to the spec (e.g. {url:"https://..."} → TEST_URL)',
+            'Key/value params passed as uppercased env vars to the spec (e.g. {url:"https://..."} → URL)',
         },
         config: {
           type: 'string',

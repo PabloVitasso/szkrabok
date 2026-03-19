@@ -109,7 +109,7 @@ export const run_test = async args => {
     FORCE_COLOR: '0',
     SZKRABOK_SESSION: sessionName,
     ...Object.fromEntries(
-      Object.entries(params).map(([k, v]) => [`TEST_${k.toUpperCase()}`, String(v)])
+      Object.entries(params).map(([k, v]) => [k.toUpperCase(), String(v)])
     ),
   };
 
