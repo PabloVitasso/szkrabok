@@ -107,6 +107,9 @@ export const newCloneId = templateName => {
 
 const IO_CONCURRENCY = parseInt(process.env.SZKRABOK_IO || '16', 10);
 
+// pLimit is a private concurrency limiter.  shift/push on the internal queue
+// array is the only correct way to implement a task queue in synchronous JS.
+ 
 const pLimit = n => {
   const q = [];
   let active = 0;
@@ -131,6 +134,8 @@ const CLONE_SKIP = new Set([
   'GPUCache', 'Code Cache', 'ShaderCache', 'GrShaderCache', 'Crashpad',
 ]);
 
+// cloneDir mutates its own local `queue` variable for the BFS walker.
+ 
 export const cloneDir = async (src, dst, skip = CLONE_SKIP) => {
   const queue = [{ s: src, d: dst }];
 

@@ -24,10 +24,7 @@ const navigate = (page, url) =>
 function validateLaunchOptions(opts = {}) {
   if (!opts.preset) return;
 
-  const conflicts = [];
-  for (const k of PRESET_EXCLUSIVE) {
-    if (opts[k] !== undefined) conflicts.push(k);
-  }
+  const conflicts = [...PRESET_EXCLUSIVE].filter(k => opts[k] !== undefined);
 
   if (conflicts.length)
     throw new Error(

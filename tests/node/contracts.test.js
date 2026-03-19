@@ -36,15 +36,13 @@ const jsFiles = async dir => {
 describe('Invariant 1: no chromium.launch* in MCP tools', () => {
   test('no direct chromium.launch calls', async () => {
     const files = await jsFiles(MCP_TOOLS_DIR);
-    const violations = [];
-
-    for (const file of files) {
-      const raw = await readSrc(file);
-      // Match chromium.launch( or chromium.launchPersistentContext( — excluding comments
-      if (/chromium\s*\.\s*launch/i.test(stripComments(raw))) {
-        violations.push(file);
-      }
-    }
+    const violations = await Promise.all(
+      files.map(async file => {
+        const raw = await readSrc(file);
+        // Match chromium.launch( or chromium.launchPersistentContext( — excluding comments
+        return /chromium\s*\.\s*launch/i.test(stripComments(raw)) ? file : null;
+      })
+    ).then(results => results.filter(Boolean));
 
     assert.deepEqual(
       violations,
@@ -83,14 +81,12 @@ describe('Invariant 3: pool access goes through @szkrabok/runtime public API onl
 
   test('MCP tools do not import any @szkrabok/runtime subpaths', async () => {
     const files = await jsFiles(MCP_TOOLS_DIR);
-    const violations = [];
-
-    for (const file of files) {
-      const src = await readSrc(file);
-      if (/@szkrabok\/runtime\//.test(src)) {
-        violations.push(file);
-      }
-    }
+    const violations = await Promise.all(
+      files.map(async file => {
+        const src = await readSrc(file);
+        return /@szkrabok\/runtime\//.test(src) ? file : null;
+      })
+    ).then(results => results.filter(Boolean));
 
     assert.deepEqual(
       violations,

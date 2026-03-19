@@ -6,12 +6,10 @@ import { schemaToJSDoc, schemaToTs } from './schema-to-jsdoc.js';
  * @returns {Map<string, Array>} Map of namespace -> tools
  */
 export function groupByNamespace(tools) {
-  const groups = new Map();
-
-  for (const tool of tools) {
+  return tools.reduce((groups, tool) => {
     const dotIndex = tool.name.indexOf('.');
-    let ns, method;
-
+    let ns;
+    let method;
     if (dotIndex === -1) {
       ns = '_root';
       method = tool.name;
@@ -19,14 +17,14 @@ export function groupByNamespace(tools) {
       ns = tool.name.slice(0, dotIndex);
       method = tool.name.slice(dotIndex + 1);
     }
-
-    if (!groups.has(ns)) {
-      groups.set(ns, []);
+    const existing = groups.get(ns);
+    if (existing) {
+      groups.set(ns, [...existing, { ...tool, method }]);
+    } else {
+      groups.set(ns, [{ ...tool, method }]);
     }
-    groups.get(ns).push({ ...tool, method });
-  }
-
-  return groups;
+    return groups;
+  }, new Map());
 }
 
 /**
@@ -42,82 +40,40 @@ export function renderTools({ tools, hash, timestamp }) {
   const groups = groupByNamespace(tools);
 
   // Build JSDoc typedef
-  const typedefParts = [];
-  for (const [ns, nsTools] of groups) {
+  const typedefParts = [...groups.entries()].map(([ns, nsTools]) => {
     const methods = nsTools.map(t => {
-      const params = [];
-      for (const [propName, propDef] of Object.entries(t.inputSchema.properties || {})) {
-        if (propName === 'sessionName') continue; // Injected by adapter
-        let isRequiredArr;
-        if (t.inputSchema.required !== null && t.inputSchema.required !== undefined) {
-          isRequiredArr = t.inputSchema.required;
-        } else {
-          isRequiredArr = [];
-        }
-        const isOptional = !isRequiredArr.includes(propName);
-        const type = schemaToJSDoc(propDef);
-        let optMarker;
-        if (isOptional) {
-          optMarker = '?';
-        } else {
-          optMarker = '';
-        }
-        params.push(`  ${propName}${optMarker}: ${type}`);
-      }
       return `    ${t.method}({ ${Object.keys(t.inputSchema.properties || {}).filter(k => k !== 'sessionName').join(', ')} }): Promise<any>`;
     }).join('\n');
-
-    typedefParts.push(`  ${ns}: {\n${methods}\n  }`);
-  }
+    return `  ${ns}: {\n${methods}\n  }`;
+  });
 
   const typedef = `/**\n * @typedef {Object} McpHandle\n${typedefParts.map(p => ` * ${p}`).join('\n')}\n */`;
 
   // Build namespace handle factories
-  const nsFactories = [];
-  for (const [ns, nsTools] of groups) {
+  const nsFactories = [...groups.entries()].map(([ns, nsTools]) => {
     const methodDefs = nsTools.map(t => {
       const props = t.inputSchema.properties || {};
       const params = Object.keys(props).filter(k => k !== 'sessionName');
-      let invokeArgs;
-      if (params.length > 0) {
-        invokeArgs = ', args';
-      } else {
-        invokeArgs = '';
-      }
-      let paramDecl;
-      if (params.length > 0) {
-        paramDecl = 'args = {}';
-      } else {
-        paramDecl = '';
+      const invokeArgs = params.length > 0 ? ', args' : '';
+      const paramDecl = params.length > 0 ? 'args = {}' : '';
+
+      if (params.length === 0) {
+        return `      ${t.method}: async (${paramDecl}) => invoke('${t.name}'${invokeArgs}),`;
       }
 
-      let jsdoc = '';
-      if (params.length > 0) {
-        const fields = params.map(p => {
-          let isRequiredArr2;
-          if (t.inputSchema.required !== null && t.inputSchema.required !== undefined) {
-            isRequiredArr2 = t.inputSchema.required;
-          } else {
-            isRequiredArr2 = [];
-          }
-          const isOptional = !isRequiredArr2.includes(p);
-          const type = schemaToJSDoc(props[p]);
-          let optMarker;
-          if (isOptional) {
-            optMarker = '?';
-          } else {
-            optMarker = '';
-          }
-          return `${p}${optMarker}: ${type}`;
-        }).join(', ');
-        jsdoc = `      /** @param {{ ${fields} }} [args] */\n`;
-      }
-
+      const isRequiredArr = t.inputSchema.required !== null && t.inputSchema.required !== undefined
+        ? t.inputSchema.required
+        : [];
+      const fields = params.map(p => {
+        const isOptional = !isRequiredArr.includes(p);
+        const type = schemaToJSDoc(props[p]);
+        return `${p}${isOptional ? '?' : ''}: ${type}`;
+      }).join(', ');
+      const jsdoc = `      /** @param {{ ${fields} }} [args] */\n`;
       return `${jsdoc}      ${t.method}: async (${paramDecl}) => invoke('${t.name}'${invokeArgs}),`;
     }).join('\n');
-
-    nsFactories.push(`    ${ns}: {\n${methodDefs}\n    },`);
-  }
+    return `    ${ns}: {\n${methodDefs}\n    },`;
+  });
 
   const handles = nsFactories.join('\n');
 
@@ -204,17 +160,17 @@ function registryHash(tools) {
 export function renderDts({ tools, timestamp }) {
   const groups = groupByNamespace(tools);
 
-  const interfaces = [];
-  for (const [ns, nsTools] of groups) {
+  const interfaces = [...groups.entries()].map(([ns, nsTools]) => {
     const methods = nsTools.map(t => {
       const props = t.inputSchema.properties || {};
       const params = Object.keys(props).filter(k => k !== 'sessionName');
 
-      const jsdocLines = [];
-      if (t.description) jsdocLines.push(`   * ${t.description.replace(/\*\//g, '*/')}`);
-      for (const p of params) {
-        if (props[p].description) jsdocLines.push(`   * @param args.${p} ${props[p].description}`);
-      }
+      // Build JSDoc lines immutably — description followed by each param description
+      const jsdocLines = [
+        t.description ? `   * ${t.description.replace(/\*\//g, '*/')}` : null,
+        ...params.map(p => props[p].description ? `   * @param args.${p} ${props[p].description}` : null),
+      ].filter(Boolean);
+
       const jsdoc = jsdocLines.length
         ? `  /**\n${jsdocLines.join('\n')}\n   */\n`
         : '';
@@ -223,39 +179,42 @@ export function renderDts({ tools, timestamp }) {
         return `${jsdoc}  ${t.method}(): Promise<unknown>;`;
       }
 
+      const isRequiredArr = t.inputSchema.required !== null && t.inputSchema.required !== undefined
+        ? t.inputSchema.required
+        : [];
       const fields = params.map(p => {
-        let isRequiredArr3;
-        if (t.inputSchema.required !== null && t.inputSchema.required !== undefined) {
-          isRequiredArr3 = t.inputSchema.required;
-        } else {
-          isRequiredArr3 = [];
-        }
-        const isOptional = !isRequiredArr3.includes(p);
+        const isOptional = !isRequiredArr.includes(p);
         const type = schemaToTs(props[p]);
-        let optMarker;
-        if (isOptional) {
-          optMarker = '?';
-        } else {
-          optMarker = '';
-        }
-        return `    ${p}${optMarker}: ${type};`;
+        return `    ${p}${isOptional ? '?' : ''}: ${type};`;
       }).join('\n');
 
       return `${jsdoc}  ${t.method}(args: {\n${fields}\n  }): Promise<unknown>;`;
     }).join('\n\n');
 
-    interfaces.push(`export interface ${capitalize(ns)}Handle {\n${methods}\n}`);
-  }
+    return `export interface ${capitalize(ns)}Handle {\n${methods}\n}`;
+  });
 
   const handleProps = [...groups.keys()]
     .map(ns => `  readonly ${ns}: ${capitalize(ns)}Handle;`)
     .join('\n');
 
-  const mcpHandle = `export interface McpHandle {\n  close(): Promise<void>;\n${handleProps}\n}`;
+  const mcpHandle = `export interface McpHandle {
+  close(): Promise<void>;
+${handleProps}
+}`;
 
-  const connectFn = `export declare function mcpConnect(\n  sessionName: string,\n  options?: {\n    launchOptions?: Record<string, unknown>;\n    sidecarEnabled?: boolean;\n    adapter?: object;\n  }\n): Promise<McpHandle>;`;
+  const connectFn = `export declare function mcpConnect(
+  sessionName: string,
+  options?: {
+    launchOptions?: Record<string, unknown>;
+    sidecarEnabled?: boolean;
+    adapter?: object;
+  }
+): Promise<McpHandle>;`;
 
-  const header = `// AUTO-GENERATED — do not edit manually.\n// Regenerate: npm run codegen:mcp\n// Last generated: ${timestamp}`;
+  const header = `// AUTO-GENERATED — do not edit manually.
+// Regenerate: npm run codegen:mcp
+// Last generated: ${timestamp}`;
 
   return [header, ...interfaces, mcpHandle, connectFn].join('\n\n') + '\n';
 }

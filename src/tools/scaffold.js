@@ -68,6 +68,12 @@ function npmInstall(dir) {
   });
 }
 
+// ── init ──────────────────────────────────────────────────────────────────────
+// Returns which files were created / skipped / merged and which packages were
+// installed.  Uses let+push for collecting result arrays — this is a script
+// (not a library module) so imperative accumulation is appropriate here.
+// The immutability rule is disabled for this file in eslint.config.js.
+
 export async function init(args = {}) {
   const { dir: rawDir, name, preset = 'minimal', install = false } = args;
 
@@ -93,10 +99,11 @@ export async function init(args = {}) {
 
   // playwright.config.js
   const configDest = join(dir, 'playwright.config.js');
-  if (await createFileAtomic(configDest, await tpl('playwright.config.js')))
+  if (await createFileAtomic(configDest, await tpl('playwright.config.js'))) {
     created.push('playwright.config.js');
-  else
+  } else {
     skipped.push('playwright.config.js');
+  }
 
   // package.json — merge if exists
   const pkgDest = join(dir, 'package.json');
@@ -123,12 +130,13 @@ export async function init(args = {}) {
 
   // szkrabok.config.local.toml.example
   const tomlDest = join(dir, 'szkrabok.config.local.toml.example');
-  if (await createFileAtomic(tomlDest, await tpl('szkrabok.config.local.toml.example')))
+  if (await createFileAtomic(tomlDest, await tpl('szkrabok.config.local.toml.example'))) {
     created.push('szkrabok.config.local.toml.example');
-  else
+  } else {
     skipped.push('szkrabok.config.local.toml.example');
+  }
 
-  // full preset — complete automation scaffold with fixtures + both spec patterns
+  // full preset — automation scaffold
   if (preset === 'full') {
     const automationDir = join(dir, 'automation');
     await mkdir(automationDir, { recursive: true });
@@ -141,10 +149,11 @@ export async function init(args = {}) {
 
     for (const rel of automationFiles) {
       const dest = join(dir, rel);
-      if (await createFileAtomic(dest, await tpl(rel)))
+      if (await createFileAtomic(dest, await tpl(rel))) {
         created.push(rel);
-      else
+      } else {
         skipped.push(rel);
+      }
     }
   }
 
@@ -157,4 +166,5 @@ export async function init(args = {}) {
   }
 
   return { created, skipped, merged, installed, warnings };
+   
 }

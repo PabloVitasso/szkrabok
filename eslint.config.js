@@ -75,6 +75,81 @@ export default [
       'no-throw-literal': 'error',
       'prefer-const': 'error',
       'no-var': 'error',
+      // Rule 4: Prioritize Immutability — prefer spread/reduce/flatMap over mutation
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: 'CallExpression[callee.type="MemberExpression"][callee.property.name="push"]',
+          message: 'Prefer immutable array operations (spread, flatMap, reduce) over .push().',
+        },
+        {
+          selector: 'CallExpression[callee.type="MemberExpression"][callee.property.name="splice"]',
+          message: 'Prefer immutable array operations over .splice().',
+        },
+        {
+          selector: 'CallExpression[callee.type="MemberExpression"][callee.property.name="shift"]',
+          message: 'Prefer immutable array operations over .shift().',
+        },
+        {
+          selector: 'UnaryExpression[operator="delete"]',
+          message: 'Avoid deleting object properties; use object spread with rest instead.',
+        },
+      ],
+    },
+  },
+
+  // ── Browser-context files ──────────────────────────────────────────────────
+  // page.evaluate() and addInitScript() closures run inside the browser where
+  // mutation (Array.push) is the only way to collect results.  These files are
+  // opted out of the immutability rule entirely so push() inside evaluate() is
+  // allowed.
+  {
+    files: ['tests/playwright/**/*.js', 'tests/playwright/**/*.mjs'],
+    rules: {
+      'no-restricted-syntax': 'off',
+    },
+  },
+
+  // ── Node test files ────────────────────────────────────────────────────────
+  // Tests legitimately use `delete process.env` to isolate config discovery
+  // between test cases.  Turn off the delete rule here; all other immutability
+  // rules (prefer-const, no-var) remain active.
+  {
+    files: ['tests/node/**/*.test.js', 'tests/node/**/*.spec.js'],
+    rules: {
+      'no-restricted-syntax': 'off',
+    },
+  },
+
+  // ── Runtime storage — internal concurrency queue ─────────────────────────────
+  // pLimit() and cloneDir() mutate private local queue arrays.  This is the
+  // standard JS pattern for implementing task queues and BFS walkers where
+  // mutation is localized and unavoidable.
+  {
+    files: ['packages/runtime/storage.js'],
+    rules: {
+      'no-restricted-syntax': 'off',
+    },
+  },
+
+  // ── Runtime launch — sanitize local options object ───────────────────────────
+  // launch() removes internal keys from a freshly-destructured local copy before
+  // passing it to chromium.launchPersistentContext().  delete is safe here.
+  {
+    files: ['packages/runtime/launch.js'],
+    rules: {
+      'no-restricted-syntax': 'off',
+    },
+  },
+
+  // ── Browser-in-process scripts ──────────────────────────────────────────────
+  // workflow.js runs page.evaluate() in the browser context.  push() inside
+  // evaluate() is exempt (see browser-context rule above), but the outer file
+  // also contains non-evaluate code, so we silence the rule entirely here.
+  {
+    files: ['src/tools/workflow.js'],
+    rules: {
+      'no-restricted-syntax': 'off',
     },
   },
 

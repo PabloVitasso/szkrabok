@@ -19,115 +19,69 @@ const decodeAttachment = att => {
 };
 
 const flattenTests = report => {
-  const out = [];
-
   if (report === null || report === undefined) {
-    return out;
+    return [];
   }
 
-  let suites;
-  if (report.suites !== null && report.suites !== undefined) {
-    suites = report.suites;
-  } else {
-    suites = [];
-  }
+  const suites = report.suites !== null && report.suites !== undefined ? report.suites : [];
 
-  for (const suite of suites) {
-    if (suite === null || suite === undefined) {
-      continue;
-    }
+  return suites
+    .filter(s => s !== null && s !== undefined)
+    .flatMap(suite => {
+      const specs = suite.specs !== null && suite.specs !== undefined ? suite.specs : [];
+      return specs
+        .filter(s => s !== null && s !== undefined)
+        .flatMap(spec => {
+          const tests = spec.tests !== null && spec.tests !== undefined ? spec.tests : [];
+          return tests
+            .filter(t => t !== null && t !== undefined)
+            .map(t => {
+              const result = t.results !== null && t.results !== undefined && t.results.length > 0
+                ? t.results[0]
+                : {};
 
-    let specs;
-    if (suite.specs !== null && suite.specs !== undefined) {
-      specs = suite.specs;
-    } else {
-      specs = [];
-    }
+              const resultAttachments = result.attachments !== null && result.attachments !== undefined
+                ? result.attachments
+                : [];
 
-    for (const spec of specs) {
-      if (spec === null || spec === undefined) {
-        continue;
-      }
+              const attachments = resultAttachments
+                .filter(a => a !== null && a !== undefined && a.name === 'result')
+                .map(a => decodeAttachment(a))
+                .filter(decoded => decoded !== null && decoded !== undefined);
 
-      let tests;
-      if (spec.tests !== null && spec.tests !== undefined) {
-        tests = spec.tests;
-      } else {
-        tests = [];
-      }
+              let status;
+              if (result.status !== null && result.status !== undefined) {
+                status = result.status;
+              } else {
+                status = 'unknown';
+              }
 
-      for (const t of tests) {
-        if (t === null || t === undefined) {
-          continue;
-        }
+              let error;
+              if (result.error !== null && result.error !== undefined) {
+                if (result.error.message !== null && result.error.message !== undefined) {
+                  error = result.error.message;
+                } else {
+                  error = null;
+                }
+              } else {
+                error = null;
+              }
 
-        let result;
-        if (t.results !== null && t.results !== undefined && t.results.length > 0) {
-          result = t.results[0];
-        } else {
-          result = {};
-        }
+              const testResult = attachments.length === 1
+                ? attachments[0]
+                : attachments.length > 1
+                  ? attachments
+                  : undefined;
 
-        const attachments = [];
-
-        let resultAttachments;
-        if (result.attachments !== null && result.attachments !== undefined) {
-          resultAttachments = result.attachments;
-        } else {
-          resultAttachments = [];
-        }
-
-        for (const a of resultAttachments) {
-          if (a === null || a === undefined) {
-            continue;
-          }
-          if (a.name !== 'result') {
-            continue;
-          }
-          const decoded = decodeAttachment(a);
-          if (decoded !== null && decoded !== undefined) {
-            attachments.push(decoded);
-          }
-        }
-
-        let status;
-        if (result.status !== null && result.status !== undefined) {
-          status = result.status;
-        } else {
-          status = 'unknown';
-        }
-
-        let error;
-        if (result.error !== null && result.error !== undefined) {
-          if (result.error.message !== null && result.error.message !== undefined) {
-            error = result.error.message;
-          } else {
-            error = null;
-          }
-        } else {
-          error = null;
-        }
-
-        let testResult;
-        if (attachments.length === 1) {
-          testResult = attachments[0];
-        } else if (attachments.length > 1) {
-          testResult = attachments;
-        } else {
-          testResult = undefined;
-        }
-
-        out.push({
-          title: spec.title,
-          status,
-          error,
-          result: testResult,
+              return {
+                title: spec.title,
+                status,
+                error,
+                result: testResult,
+              };
+            });
         });
-      }
-    }
-  }
-
-  return out;
+    });
 };
 
 export const run_test = async args => {
@@ -185,12 +139,10 @@ export const run_test = async args => {
     configPath,
     '--timeout',
     '60000',
+    ...(project ? ['--project', project] : []),
   ];
 
-  if (project) {
-    env.PLAYWRIGHT_PROJECT = project;
-    argsPW.push('--project', project);
-  }
+  if (project) env.PLAYWRIGHT_PROJECT = project;
   if (grep) argsPW.push('--grep', grep);
   if (files.length) argsPW.push(...files);
 

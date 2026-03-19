@@ -52,20 +52,22 @@ function resolvePlaywrightCoreRoot(fromDir) {
 }
 
 function findPkgRoots() {
-  const roots = []
   const pkgRoot = path.resolve(__dirname, '..')
 
   const primary = resolvePlaywrightCoreRoot(pkgRoot)
-  if (primary) roots.push(primary)
+
+  const roots = primary ? [primary] : [];
 
   try {
     const playwrightPkg = path.dirname(require.resolve('playwright/package.json', { paths: [pkgRoot] }))
     const nested = resolvePlaywrightCoreRoot(playwrightPkg)
-    if (nested && !roots.includes(nested)) roots.push(nested)
+    if (nested && !roots.includes(nested)) {
+      return [...roots, nested];
+    }
   // eslint-disable-next-line no-empty -- playwright may not be installed; optional resolution
   } catch {}
 
-  return roots
+  return roots;
 }
 
 const pkgRoots = findPkgRoots()
