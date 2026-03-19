@@ -7,7 +7,12 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // Saves storageState (cookies + localStorage) to the szkrabok session dir after test run.
 // szkrabok can then load this state via session.open() + storageState import.
 export default async function globalTeardown(_config) {
-  const sessionId = process.env.SZKRABOK_SESSION ?? 'playwright-default';
+  let sessionId;
+  if (process.env.SZKRABOK_SESSION) {
+    sessionId = process.env.SZKRABOK_SESSION;
+  } else {
+    sessionId = 'playwright-default';
+  }
   const stateFile = path.resolve(__dirname, '..', '..', '..', 'sessions', sessionId, 'storageState.json');
 
   // Teardown gets no page - we launch a fresh browser just to export context state.

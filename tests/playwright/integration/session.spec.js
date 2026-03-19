@@ -91,7 +91,14 @@ test.describe('Session Management', () => {
         sessionName: sessionId,
         code: `async (page) => {
           const cookies = await page.context().cookies('https://example.com');
-          return cookies.find(c => c.name === 'szkrabok_persist') ?? null;
+          let cookie = null;
+          for (const c of cookies) {
+            if (c.name === 'szkrabok_persist') {
+              cookie = c;
+              break;
+            }
+          }
+          return cookie;
         }`,
       },
     });

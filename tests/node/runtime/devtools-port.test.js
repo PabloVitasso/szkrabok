@@ -85,10 +85,21 @@ const detectBrowsers = async () => {
     const { Launcher } = await import('chrome-launcher');
     const all = await Launcher.getInstallations();
 
-    return {
-      chrome: all.find(p => /google.chrome|google\/chrome/i.test(p)) ?? null,
-      chromium: all.find(p => /chromium/i.test(p)) ?? null,
-    };
+    let chrome;
+    const chromeMatch = all.find(p => /google.chrome|google\/chrome/i.test(p));
+    if (chromeMatch) {
+      chrome = chromeMatch;
+    } else {
+      chrome = null;
+    }
+    let chromium;
+    const chromiumMatch = all.find(p => /chromium/i.test(p));
+    if (chromiumMatch) {
+      chromium = chromiumMatch;
+    } else {
+      chromium = null;
+    }
+    return { chrome: chrome, chromium: chromium };
   } catch {
     return { chrome: null, chromium: null };
   }

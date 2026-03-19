@@ -58,19 +58,39 @@ export default async (page, args = {}) => {
 
   const opts = {
     minCols, nameCol, valueCol, statusCol,
-    filterCls: filterCls ?? null, filterText: filterText ?? null,
+    filterCls: (() => { if (filterCls != null) return filterCls; return null; })(),
+    filterText: (() => { if (filterText != null) return filterText; return null; })(),
   };
 
   const extractRows = (opts) => {
-    const pick = (arr, idx) => arr[idx < 0 ? arr.length + idx : idx];
-    const reCls  = opts.filterCls  ? new RegExp(opts.filterCls)  : null;
-    const reText = opts.filterText ? new RegExp(opts.filterText) : null;
+    const pick = (arr, idx) => {
+      let actualIdx;
+      if (idx < 0) {
+        actualIdx = arr.length + idx;
+      } else {
+        actualIdx = idx;
+      }
+      return arr[actualIdx];
+    };
+    let reCls;
+    if (opts.filterCls) {
+      reCls = new RegExp(opts.filterCls);
+    } else {
+      reCls = null;
+    }
+    let reText;
+    if (opts.filterText) {
+      reText = new RegExp(opts.filterText);
+    } else {
+      reText = null;
+    }
     return [...document.querySelectorAll('tr')].flatMap(tr => {
       const tds = [...tr.querySelectorAll('td')];
       if (tds.length < opts.minCols) return [];
       const nameTd   = pick(tds, opts.nameCol);
       const valueTd  = pick(tds, opts.valueCol);
-      const statusTd = pick(tds, opts.statusCol) ?? valueTd;
+      let statusTd = pick(tds, opts.statusCol);
+      if (!statusTd) statusTd = valueTd;
       if (!nameTd || !valueTd) return [];
       const cls = statusTd.className.trim();
       const val = valueTd.textContent.trim();

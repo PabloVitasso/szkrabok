@@ -60,7 +60,13 @@ test('navigator-properties', async ({ page }, testInfo) => {
   console.log('step 3. evaluate navigator.userAgentData.brands directly');
   const brands = await page.evaluate(() => {
     try {
-      return JSON.parse(JSON.stringify(navigator.userAgentData?.brands ?? null));
+      let brands;
+      if (navigator.userAgentData) {
+        brands = navigator.userAgentData.brands;
+      } else {
+        brands = null;
+      }
+      return JSON.parse(JSON.stringify(brands));
     } catch {
       return null;
     }
@@ -69,7 +75,10 @@ test('navigator-properties', async ({ page }, testInfo) => {
   console.log('step 4. evaluate userAgentData high-entropy values');
   const highEntropy = await page.evaluate(async () => {
     try {
-      return await navigator.userAgentData?.getHighEntropyValues([
+      if (!navigator.userAgentData) {
+        throw new Error('userAgentData not available');
+      }
+      return await navigator.userAgentData.getHighEntropyValues([
         'brands',
         'mobile',
         'platform',

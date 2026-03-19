@@ -104,10 +104,21 @@ test('intoli-check', async ({ page }, testInfo) => {
     document.querySelectorAll('tr').forEach(tr => {
       const tds = tr.querySelectorAll('td');
       if (tds.length < 2) return;
-      const name = tds[0].textContent?.trim() ?? '';
+      let name;
+      if (tds[0].textContent) {
+        name = tds[0].textContent.trim();
+      } else {
+        name = '';
+      }
       if (!checks.some(c => name.startsWith(c))) return;
       const r = tds[tds.length - 1];
-      results.push({ name, cls: r.className.trim(), value: r.textContent?.trim() ?? '' });
+      let value;
+      if (r.textContent) {
+        value = r.textContent.trim();
+      } else {
+        value = '';
+      }
+      results.push({ name: name, cls: r.className.trim(), value: value });
     });
     return results;
   }, INTOLI_CHECKS);
@@ -118,7 +129,14 @@ test('intoli-check', async ({ page }, testInfo) => {
 
   console.log(`step 4. Intoli (${intoliPassed.length}/${intoliResults.length} passed)`);
   for (const r of intoliResults) {
-    const status = r.cls.includes('failed') ? 'FAIL' : r.cls.includes('warn') ? 'WARN' : 'pass';
+    let status;
+    if (r.cls.includes('failed')) {
+      status = 'FAIL';
+    } else if (r.cls.includes('warn')) {
+      status = 'WARN';
+    } else {
+      status = 'pass';
+    }
     console.log(`  [${status}] ${r.name}: ${r.value.replace(/\s+/g, ' ').slice(0, 80)}`);
   }
 
@@ -129,14 +147,25 @@ test('intoli-check', async ({ page }, testInfo) => {
     document.querySelectorAll('tr').forEach(tr => {
       const tds = tr.querySelectorAll('td');
       if (tds.length < 2) return;
-      const name = tds[0].textContent?.trim() ?? '';
+      let name;
+      if (tds[0].textContent) {
+        name = tds[0].textContent.trim();
+      } else {
+        name = '';
+      }
       if (!checks.includes(name)) return;
       // status is the 2nd td (index 1)
       const statusTd = tds[1];
+      let value;
+      if (statusTd.textContent) {
+        value = statusTd.textContent.trim();
+      } else {
+        value = '';
+      }
       results.push({
-        name,
+        name: name,
         cls: statusTd.className.trim(),
-        value: statusTd.textContent?.trim() ?? '',
+        value: value,
       });
     });
     return results;
@@ -147,7 +176,12 @@ test('intoli-check', async ({ page }, testInfo) => {
 
   console.log(`step 6. fp-collect (${fpPassed.length}/${fpResults.length} passed)`);
   for (const r of fpResults) {
-    const status = r.cls.includes('passed') ? 'pass' : 'FAIL';
+    let status;
+    if (r.cls.includes('passed')) {
+      status = 'pass';
+    } else {
+      status = 'FAIL';
+    }
     console.log(`  [${status}] ${r.name}: ${r.value}`);
   }
 

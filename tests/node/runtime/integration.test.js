@@ -63,7 +63,12 @@ describe('session persistence across launch/close cycles', () => {
     // Verify state.json was written by run 1
     const savedState = await storage.loadState(PROFILE);
     assert.ok(savedState, 'state.json written after run 1 close');
-    const savedCookie = savedState.cookies?.find(c => c.name === TEST_COOKIE.name);
+    let savedCookie;
+    if (savedState.cookies) {
+      savedCookie = savedState.cookies.find(c => c.name === TEST_COOKIE.name);
+    } else {
+      savedCookie = undefined;
+    }
     assert.ok(savedCookie, 'Cookie present in state.json');
 
     const handle = await launch({ profile: PROFILE, reuse: false });

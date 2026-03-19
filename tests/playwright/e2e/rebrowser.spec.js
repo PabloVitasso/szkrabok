@@ -96,7 +96,10 @@ test('rebrowser-check', async ({ page }, testInfo) => {
   console.log('step 5. read detections JSON from page');
   const detectionsJson = await page.evaluate(() => {
     const el = document.getElementById('detections-json');
-    return el ? el.textContent : null;
+    if (el) {
+      return el.textContent;
+    }
+    return null;
   });
 
   let detections = null;
@@ -124,7 +127,12 @@ test('rebrowser-check', async ({ page }, testInfo) => {
     document
       .querySelectorAll('tr, [class*="test"], [class*="row"], [class*="detection"]')
       .forEach(el => {
-        const text = el.textContent ?? '';
+        let text;
+        if (el.textContent) {
+          text = el.textContent;
+        } else {
+          text = '';
+        }
         for (const name of checks) {
           if (text.includes(name)) {
             // Green circle emoji or "passed"/"safe" text = pass
@@ -146,11 +154,24 @@ test('rebrowser-check', async ({ page }, testInfo) => {
 
   // Deduplicate by name (keep first match)
   const seen = new Set();
-  const deduped = results.filter(r => (seen.has(r.name) ? false : (seen.add(r.name), true)));
+  const deduped = results.filter(r => {
+    if (seen.has(r.name)) {
+      return false;
+    }
+    seen.add(r.name);
+    return true;
+  });
 
   console.log(`step 7. results (${deduped.filter(r => r.passed).length}/${deduped.length} passed)`);
   for (const r of deduped) {
-    const status = r.failed ? 'FAIL' : r.passed ? 'pass' : 'unknown';
+    let status;
+    if (r.failed) {
+      status = 'FAIL';
+    } else if (r.passed) {
+      status = 'pass';
+    } else {
+      status = 'unknown';
+    }
     console.log(`  [${status}] ${r.name}: ${r.snippet}`);
   }
 

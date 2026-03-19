@@ -102,7 +102,13 @@ async function readUA(client, sessionName) {
   });
 
   if (runRes.isError) {
-    throw new Error(`browser_run failed: ${runRes.content[0]?.text}`);
+    let msg;
+    if (runRes.content) {
+      if (runRes.content[0]) {
+        msg = runRes.content[0].text;
+      }
+    }
+    throw new Error(`browser_run failed: ${msg}`);
   }
 
   const parsed = JSON.parse(runRes.content[0].text);

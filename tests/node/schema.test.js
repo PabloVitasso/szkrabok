@@ -40,7 +40,12 @@ function checkArrayItemsRecursively(obj, toolName, path = '') {
     }
 
     for (const [key, value] of Object.entries(obj)) {
-      const newPath = path ? `${path}.${key}` : key;
+      let newPath;
+      if (path) {
+        newPath = `${path}.${key}`;
+      } else {
+        newPath = key;
+      }
       checkArrayItemsRecursively(value, toolName, newPath);
     }
   }

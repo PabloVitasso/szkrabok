@@ -7,7 +7,12 @@ export default async function globalSetup() {
   const resolved = resolvePreset(presetName);
 
   const vp = resolved.viewport;
-  const vpStr = vp ? `${vp.width}×${vp.height}` : 'default';
+  let vpStr;
+  if (vp) {
+    vpStr = `${vp.width}×${vp.height}`;
+  } else {
+    vpStr = 'default';
+  }
 
   console.log(`[szkrabok] preset : ${resolved.preset} — ${resolved.label}`);
   console.log(

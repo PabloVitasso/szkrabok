@@ -52,7 +52,12 @@ async ({}, use) => {
   page: async ({ _runtimeHandle }, use) => {
     const ctx = _runtimeHandle.context;
     const pages = ctx.pages();
-    const pg = pages[0] ?? (await ctx.newPage());
+    let pg;
+    if (pages[0]) {
+      pg = pages[0];
+    } else {
+      pg = await ctx.newPage();
+    }
     await use(pg);
     // Do NOT close — MCP session or handle lifecycle manages it
   },

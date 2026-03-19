@@ -86,7 +86,13 @@ const detectBrowsers = async () => {
     const { chromium } = await import('playwright');
     const { existsSync } = await import('fs');
     const pwPath = chromium.executablePath();
-    return { playwright: pwPath && existsSync(pwPath) ? pwPath : null };
+    let playwright;
+    if (pwPath && existsSync(pwPath)) {
+      playwright = pwPath;
+    } else {
+      playwright = null;
+    }
+    return { playwright: playwright };
   } catch {
     return { playwright: null };
   }

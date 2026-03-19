@@ -51,7 +51,7 @@ async ({}, use) => {
           action: 'open',
           sessionName,
           ...extraArgs,
-          launchOptions: { ...SESSION_DEFAULTS, ...(extraArgs.launchOptions ?? {}) },
+          launchOptions: { ...SESSION_DEFAULTS, ...(extraArgs.launchOptions != null ? extraArgs.launchOptions : {}) },
         },
       });
     });

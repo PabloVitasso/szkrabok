@@ -40,7 +40,16 @@ test('rebrowser-check via MCP — 8/10', async () => {
     const result = await mcp.browser.run_test({ files: ['tests/playwright/e2e/rebrowser.spec.js'] });
 
     // browser.run_test returns { passed, failed, tests: [{ result: { checks } }] }
-    const checks = result?.tests?.[0]?.result?.checks;
+    let checks;
+    if (result) {
+      if (result.tests) {
+        if (result.tests[0]) {
+          if (result.tests[0].result) {
+            checks = result.tests[0].result.checks;
+          }
+        }
+      }
+    }
     expect(Array.isArray(checks), `expected checks array, got: ${JSON.stringify(result)}`).toBe(
       true
     );
@@ -50,7 +59,14 @@ test('rebrowser-check via MCP — 8/10', async () => {
     const passed = checks.filter(c => c.passed).length;
     console.log(`rebrowser score: ${passed}/${checks.length}`);
     for (const c of checks) {
-      const status = c.passed ? 'pass' : KNOWN_FAILURES.has(c.name) ? 'known-fail' : 'FAIL';
+      let status;
+      if (c.passed) {
+        status = 'pass';
+      } else if (KNOWN_FAILURES.has(c.name)) {
+        status = 'known-fail';
+      } else {
+        status = 'FAIL';
+      }
       console.log(`  [${status}] ${c.name}`);
     }
 
