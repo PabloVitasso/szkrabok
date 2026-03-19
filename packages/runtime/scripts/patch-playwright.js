@@ -181,47 +181,6 @@ function astSuppressRuntimeEnable(src, filename) {
   return emit(ast)
 }
 
-/**
- * AST-based UtilityScript class rename: UtilityScript → __pwUs.
- *
- * Renames the variable declaration and all non-key Identifier references,
- * leaving the "UtilityScript" object property key (export) untouched.
- */
-function _astRenameUtilityScript(src, filename) {
-  const ast = parseAst(src)
-  let count = 0
-
-  traverse(ast, {
-    VariableDeclarator(p) {
-      if (t.isIdentifier(p.node.id, { name: 'UtilityScript' })) {
-        p.node.id.name = '__pwUs'
-        count++
-      }
-    },
-    Identifier(p) {
-      if (p.node.name !== 'UtilityScript') return
-      const parent = p.parent
-      // Skip export key and import/export specifier positions
-      if (
-        (parent.type === 'ObjectProperty' && parent.key === p.node && !parent.computed) ||
-        parent.type === 'ExportSpecifier' ||
-        parent.type === 'ImportSpecifier'
-      ) return
-      p.node.name = '__pwUs'
-      count++
-    },
-  })
-
-  if (count === 0) {
-    throw new Error(
-      `[patch-playwright] AST found no UtilityScript identifier in ${filename}.\n` +
-      `  Update astRenameUtilityScript if the class was renamed upstream.`
-    )
-  }
-
-  return emit(ast)
-}
-
 // ── patch definitions ─────────────────────────────────────────────────────────
 
 const patches = [

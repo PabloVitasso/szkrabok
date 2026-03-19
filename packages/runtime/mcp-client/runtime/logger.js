@@ -1,8 +1,5 @@
 import { createWriteStream, mkdirSync, existsSync } from 'fs';
-import { join, dirname } from 'path';
-import { fileURLToPath } from 'url';
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
+import { join } from 'path';
 
 const DEFAULT_SIDECAR_DIR = '.mcp-log';
 const SIZE_THRESHOLD = 200; // chars

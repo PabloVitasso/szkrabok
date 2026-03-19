@@ -1,7 +1,9 @@
 import { readFileSync } from 'node:fs';
 import {
   launch,
+  launchClone,
   closeSession,
+  destroyClone,
   getSession,
   listRuntimeSessions,
   listStoredSessions,
@@ -38,15 +40,39 @@ function validateLaunchOptions(opts = {}) {
 export const open = async ({ sessionName, url, launchOptions = {} }) => {
   validateLaunchOptions(launchOptions);
 
+  const { isClone, _launchImpl } = launchOptions;
+
+  // ── Clone branch ──────────────────────────────────────────────────────────
+  if (isClone) {
+    log(`open(): launching clone of template "${sessionName}"`);
+    // Guard: template session must not be open — concurrent access corrupts the profile copy.
+    let templateOpen = false;
+    try { getSession(sessionName); templateOpen = true; } catch {}
+    if (templateOpen) {
+      throw new Error(`open(): cannot clone "${sessionName}" while it is open — close the session first`);
+    }
+
+    const handle = await launchClone({ profile: sessionName, _launchImpl });
+    log(`open(): clone launched: ${handle.cloneId}`);
+    return {
+      success:         true,
+      sessionName:     handle.cloneId,
+      templateSession: sessionName,
+      isClone:         true,
+      cdpEndpoint:     handle.cdpEndpoint,
+    };
+  }
+
+  // ── Template branch ───────────────────────────────────────────────────────
   let session;
   let reused = false;
 
   try {
     session = getSession(sessionName);
     reused = true;
-    log(`Reusing existing session: ${sessionName}`);
+    log(`open(): reusing existing session: ${sessionName}`);
   } catch (e) {
-    log(`Session '${sessionName}' not found, will create: ${e.message}`);
+    log(`open(): session '${sessionName}' not found, will create: ${e.message}`);
   }
 
   if (!session) {
@@ -72,6 +98,7 @@ export const open = async ({ sessionName, url, launchOptions = {} }) => {
         locale,
         timezone,
         reuse: false,
+        _launchImpl,
       });
     } catch (err) {
       const msg = err?.message ?? '';
@@ -92,11 +119,12 @@ export const open = async ({ sessionName, url, launchOptions = {} }) => {
     }
 
     return {
-      success: true,
+      success:     true,
       sessionName,
       url,
-      preset: session.preset,
-      label: session.label,
+      isClone:     false,
+      preset:      session.preset,
+      label:       session.label,
       cdpEndpoint: handle.cdpEndpoint,
     };
   }
@@ -107,38 +135,71 @@ export const open = async ({ sessionName, url, launchOptions = {} }) => {
   }
 
   return {
-    success: true,
+    success:     true,
     sessionName,
     url,
+    isClone:     false,
     reused,
-    preset: session.preset,
-    label: session.label,
+    preset:      session.preset,
+    label:       session.label,
   };
 };
 
-export const close = async ({ sessionName }) => ({
-  ...(await closeSession(sessionName)),
-  sessionName,
-});
+export const close = async ({ sessionName }) => {
+  log(`close(): closing session "${sessionName}"`);
+  let isClone = false;
+  try {
+    const s = getSession(sessionName);
+    isClone = !!s.isClone;
+  } catch {}
+
+  if (isClone) {
+    log(`close(): routing to destroyClone for clone "${sessionName}"`);
+    const result = await destroyClone(sessionName);
+    return { ...result, sessionName };
+  }
+
+  log(`close(): routing to closeSession for template "${sessionName}"`);
+  return { ...(await closeSession(sessionName)), sessionName };
+};
 
 export const list = async () => {
+  log('list(): building session list');
   const activeMap = new Map(
     listRuntimeSessions().map(s => [s.id, s])
   );
 
   const stored = await listStoredSessions();
+  const storedSet = new Set(stored);
 
+  // Template sessions from disk (active or inactive).
+  const templateSessions = stored.map(id => {
+    const a = activeMap.get(id);
+    return {
+      id,
+      active:  !!a,
+      isClone: false,
+      preset:  a?.preset,
+      label:   a?.label,
+    };
+  });
+
+  // Active clone sessions — live in pool only, no disk entry.
+  const cloneSessions = listRuntimeSessions()
+    .filter(s => s.isClone && !storedSet.has(s.id))
+    .map(s => ({
+      id:              s.id,
+      active:          true,
+      isClone:         true,
+      templateSession: s.templateName,
+      preset:          s.preset,
+      label:           s.label,
+    }));
+
+  log(`list(): ${templateSessions.length} templates, ${cloneSessions.length} clones`);
   return {
-    sessions: stored.map(id => {
-      const a = activeMap.get(id);
-      return {
-        id,
-        active: !!a,
-        preset: a?.preset,
-        label: a?.label,
-      };
-    }),
-    server: { version, source: process.argv[1] },
+    sessions: [...templateSessions, ...cloneSessions],
+    server:   { version, source: process.argv[1] },
   };
 };
 
@@ -161,6 +222,18 @@ export const endpoint = async ({ sessionName }) => {
 };
 
 export const deleteSession = async ({ sessionName }) => {
+  log(`deleteSession(): deleting session "${sessionName}"`);
+  // Guard: clones live only in the pool and have no disk entry to delete.
+  // Caller must use close() to destroy a clone and reclaim its clone dir.
+  try {
+    const s = getSession(sessionName);
+    if (s.isClone) {
+      throw new Error(`deleteSession(): "${sessionName}" is a clone session — use close() instead`);
+    }
+  } catch (err) {
+    if (err.code !== 'SESSION_NOT_FOUND') throw err;
+    // Not in pool → ordinary stored session, proceed.
+  }
   await deleteStoredSession(sessionName);
   return { success: true, sessionName };
 };

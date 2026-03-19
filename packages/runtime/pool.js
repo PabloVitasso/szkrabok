@@ -4,8 +4,8 @@
 
 const sessions = new Map();
 
-export const add = (id, context, page, cdpPort, preset, label) => {
-  sessions.set(id, { context, page, cdpPort, preset, label, createdAt: Date.now() });
+export const add = (id, context, page, cdpPort, preset, label, isClone = false, cloneDir = null, templateName = null, leaseHandle = null, pid = null) => {
+  sessions.set(id, { context, page, cdpPort, preset, label, createdAt: Date.now(), isClone, cloneDir, templateName, leaseHandle, pid });
 };
 
 export const get = id => {
@@ -36,11 +36,15 @@ export const remove = id => {
 };
 
 export const list = () =>
-  Array.from(sessions.entries()).map(([id, session]) => ({
+  Array.from(sessions.entries()).map(([id, s]) => ({
     id,
-    preset: session.preset,
-    label: session.label,
-    createdAt: session.createdAt,
+    preset:       s.preset,
+    label:        s.label,
+    createdAt:    s.createdAt,
+    isClone:      s.isClone,
+    cloneDir:     s.cloneDir,
+    templateName: s.templateName,
+    pid:          s.pid,
   }));
 
 export const closeAll = async () => {

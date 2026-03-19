@@ -81,9 +81,16 @@ tests/
     contracts.test.js         architecture invariant checks (static analysis)
     config-discovery.test.js  initConfig() discovery algorithm (all 6 priority steps)
     config-values.test.js     getConfig() field defaults, TOML mapping, resolvePreset
+    playwright-patches.test.js verifies all 7 playwright-core patch markers present
     runtime/
       unit.test.js            config, storage, stealth evasions
       integration.test.js     cookie persistence across two launches
+      pc-layer1.test.js       Profile cloning — storage unit (readDevToolsPort, cloneDir, cleanupClones)
+      pc-layer2.test.js       Profile cloning — pool (isClone, cloneDir fields)
+      pc-layer3.test.js       Profile cloning — destroyClone unit
+      pc-layer4.test.js       Profile cloning — launchClone unit (mocked launch)
+      pc-layer5.test.js       Profile cloning — MCP tool routing
+      pc-layer6.test.js       Profile cloning — real browser integration
 
   playwright/
     integration/              Playwright, MCP over stdio, headless
@@ -328,4 +335,5 @@ For e2e (live sites, headed browser) — open a session first, then use `browser
 | Wrong browser | Run `szkrabok detect-browser`, set `executablePath` in local TOML |
 | Project TOML not picked up by MCP server | Server reads config from MCP roots — ensure the client sends roots pointing at the project directory |
 | `getConfig() called before initConfig()` | Call `initConfig([])` before any config read; MCP server does this automatically |
+| `context.browser(...).process is not a function` | Playwright build does not expose `browser.process()` — `tryBrowserPid()` handles this gracefully, returning `null`. This error means the running code is stale. Restart the MCP server to pick up the source. |
 | Custom UA ignored | UA set in `szkrabok.config.local.toml` requires the server to find that file via the discovery chain — verify with `SZKRABOK_CONFIG=/path/to/toml` env var for quick testing |

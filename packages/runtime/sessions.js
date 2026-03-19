@@ -1,5 +1,6 @@
 // Session management helpers for callers that don't hold the launch() handle.
 
+import { rm } from 'fs/promises';
 import * as pool from './pool.js';
 import * as storage from './storage.js';
 import { log } from './logger.js';
@@ -69,9 +70,32 @@ export const deleteStoredSession = async profile => {
 export const closeAllSessions = () => pool.closeAll();
 
 /**
+ * Destroy a clone session: close context, remove from pool, delete clone dir.
+ * Throws if called with a template session id.
+ */
+export const destroyClone = async cloneId => {
+  const session = pool.get(cloneId); // throws SessionNotFoundError if absent
+
+  if (!session.isClone) {
+    throw new Error(`destroyClone: "${cloneId}" is a template session — use closeSession instead`);
+  }
+
+  await session.context.close();
+  pool.remove(cloneId);
+
+  if (session.leaseHandle) await session.leaseHandle.close().catch(() => {});
+  if (session.cloneDir) {
+    await rm(session.cloneDir, { recursive: true, force: true });
+  }
+
+  return { success: true, cloneId };
+};
+
+/**
  * Update the active page for a session (e.g. after tabs.select switches focus).
  */
 export const updateSessionPage = (profile, page) => {
   const session = pool.get(profile);
-  pool.add(profile, session.context, page, session.cdpPort, session.preset, session.label);
+  pool.add(profile, session.context, page, session.cdpPort, session.preset, session.label,
+    session.isClone, session.cloneDir, session.templateName, session.leaseHandle);
 };

@@ -59,10 +59,12 @@ packages/runtime/
                     mcpConnect, spawnClient
   launch.js         The one true launchPersistentContext call; launch() and connect()
   sessions.js       closeSession, getSession, listSessions helpers
-  pool.js           In-memory session registry { context, page, cdpPort, ... }
+  pool.js           In-memory session registry { context, page, cdpPort, pid, isClone, cloneDir, templateName, leaseHandle, ... }
   config.js         Config discovery: initConfig(roots), getConfig(), resolvePreset(), getPresets(), findChromiumPath()
   stealth.js        enhanceWithStealth, applyStealthToExistingPage
-  storage.js        Profile dirs, state.json save/restore
+  storage.js        Profile dirs, state.json save/restore;
+                    FD lease (acquireLease, leaseFree); iterative BFS cloneDir;
+                    rmWithRetry; time-gated cleanupClones (60 s cooldown)
   logger.js         Logging helpers
   scripts/
     patch-playwright.js  playwright-core patch script — used to regenerate patches/ on version upgrade
@@ -167,10 +169,12 @@ The two servers share a browser via CDP. Use `session_manage { "action": "endpoi
 
 ```js
 import {
-  launch,                 // start a new browser session
+  launch,                 // start a new browser session (template path)
+  launchClone,            // launch an ephemeral clone of a template session
   connect,                // connect to an already-running session via CDP endpoint
   checkBrowser,           // assert a usable browser exists; throws with install instructions if not
   closeSession,           // close and save a session
+  destroyClone,           // close and destroy a clone session
   getSession,             // get session handle from pool (throws if not open)
   listRuntimeSessions,    // list all open sessions
   updateSessionMeta,      // update session metadata
@@ -199,6 +203,15 @@ launch({
 }) => Promise<{ browser, context, cdpEndpoint, close() }>
 ```
 
+`launchClone()` signature:
+
+```js
+launchClone({
+  profile?: string,   // template session name (required)
+  ...launchOpts       // same stealth/viewport/userAgent options as launch()
+}) => Promise<{ browser, context, cdpEndpoint, cloneId, close() }>
+```
+
 Do NOT import runtime internals (`stealth`, `storage`, `pool`, `config`) directly.
 
 ## Non-negotiable invariants
@@ -209,6 +222,7 @@ Do NOT import runtime internals (`stealth`, `storage`, `pool`, `config`) directl
 4. MCP tools never import stealth, config internals, or storage directly
 5. `tests/playwright/e2e/fixtures.js` never imports stealth or uses internal modules directly — only public API
 6. `browser.run_test` subprocess connects via `connectOverCDP` — it never calls `launch*()`
+7. Browser PID is captured once at launch via `tryBrowserPid()` and stored in the pool entry — not re-read at close time
 
 Enforced by ESLint boundary rules in `eslint.config.js` and `tests/node/contracts.test.js`.
 
@@ -234,16 +248,46 @@ launchOptions  >  savedConfig (last used)  >  TOML preset  >  TOML defaults  >  
 
 ## Session lifecycle
 
+### Template session
+
 ```
 session_manage { action: open, sessionName: id }
   -> runtime.launch({ profile: id })
   -> load sessions/{id}/profile/ as userDataDir
-  -> derive cdpPort from id hash
-  -> launchPersistentContext with --remote-debugging-port=cdpPort
+  -> launchPersistentContext(userDataDir, { cdpPort: 0 })
+  -> poll DevToolsActivePort for bound port
   -> apply stealth (enhanceWithStealth + applyStealthToExistingPage)
-  -> restore state.json: addCookies() + addInitScript() for localStorage
-  -> store handle in pool
+  -> restore state.json: addCookies() + single-page localStorage restore
+  -> store handle in pool (pid captured at launch time)
 
+session_manage { action: close, sessionName: id }
+  -> context.storageState() -> save to state.json
+  -> update meta.json -> context.close() -> waitForExit(pid) -> remove from pool
+  -> profile dir persisted automatically (userDataDir)
+```
+
+### Clone session
+
+```
+session_manage { action: open, sessionName: id, launchOptions: { isClone: true } }
+  -> runtime.launchClone({ profile: id })
+  -> acquire FD lease on staging dir
+  -> iterative BFS copy to $TMPDIR/szkrabok-clone-{id} (skip PURGEABLE_DIRS)
+  -> atomic rename to final path (cross-device: cp + rm fallback)
+  -> launchPersistentContext(cloneDir, { cdpPort: 0 })
+  -> poll DevToolsActivePort for bound port
+  -> store handle in pool (pid captured at launch time)
+  -> return generated cloneId
+
+session_manage { action: close, sessionName: cloneId }
+  -> context.close() -> waitForExit(pid) -> remove from pool
+  -> rmWithRetry(cloneDir) -> lease.close()
+  -> NO state saved
+```
+
+### browser.run_test
+
+```
 browser.run_test(id, files?, grep?, params?)
   -> getSession(id) — throws if not open
   -> read cdpEndpoint from session handle
@@ -252,11 +296,6 @@ browser.run_test(id, files?, grep?, params?)
   -> subprocess fixture connects via connectOverCDP (no launch)
   -> parse JSON report, decode base64 result attachments
   -> return { passed, failed, tests: [{title, status, result}] }
-
-session_manage { action: close, sessionName: id }
-  -> context.storageState() -> save to state.json
-  -> update meta.json -> context.close() -> remove from pool
-  -> profile dir persisted automatically (userDataDir)
 ```
 
 ## Pool scoping
