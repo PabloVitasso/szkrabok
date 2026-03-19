@@ -1,7 +1,6 @@
 // launch.js — the one true browser bootstrap entry point.
 // Only this file calls launchPersistentContext.
 
-import { rm } from 'fs/promises';
 import { chromium } from 'playwright';
 import {
   resolvePreset,
@@ -10,6 +9,7 @@ import {
 } from './config.js';
 import { enhanceWithStealth, applyStealthToExistingPage } from './stealth.js';
 import * as storage from './storage.js';
+import { rmWithRetry } from './storage.js';
 import * as pool from './pool.js';
 import { log } from './logger.js';
 
@@ -22,13 +22,44 @@ const ensureGcOnExit = () => {
   process.once('beforeExit', () => storage.cleanupClones().catch(() => {}));
 };
 
+// ── tryBrowserPid ─────────────────────────────────────────────────────────────
+//
+// Attempts to extract the real Chromium OS process PID from the Playwright
+// Browser object. This is inherently best-effort — the public API
+// (browser.process()) only exists when the browser was launched via
+// launchServer(); the private API (osProcess()._process.pid) may not exist
+// in all Playwright versions or browser forks.
+//
+// Guards against the Node.js global `process` shadowing a non-existent
+// browser.process method in ES module scope (process is a free variable).
+//
+// Returns a pid number or null.
+
+const tryBrowserPid = browser => {
+  try {
+    if ('process' in browser) {
+      const p = browser.process;
+      if (typeof p === 'function') return p()?.pid ?? null;
+    }
+  } catch {}
+  try {
+    return browser.osProcess()?._process?.pid ?? null;
+  } catch {
+    return null;
+  }
+};
+
 // ── waitForExit ───────────────────────────────────────────────────────────────
 //
-// Wait for a Chromium PID to fully exit and release its file locks.
+// Defence-in-depth safety net. The primary directory-removal guard is
+// rmWithRetry (storage.js) — a retry loop that does not depend on Chrome PID
+// lifecycle and handles child processes (gpu, utility, network service) that
+// may hold file locks after the root PID exits. waitForExit shortens the
+// typical case where Chrome does exit promptly.
+//
 // Chromium is multi-process — the browser process exits when Playwright calls
 // context.close(), but the actual Chrome process may linger briefly while
-// releasing locks on the user data dir. Without this wait, rm() of the
-// user data dir can race with a straggling Chrome process and get ENOTEMPTY.
+// releasing locks on the user data dir.
 //
 // Retries every 100 ms up to timeoutMs. Logs each attempt so the failure
 // mode is diagnostic rather than silent.
@@ -177,7 +208,7 @@ export const launch = async (options = {}) => {
         const state = await existing.context.storageState();
         await storage.saveState(profile, state);
         await storage.updateMeta(profile, { lastUsed: Date.now() });
-        const pid = existing.context.browser().osProcess()?._process?.pid ?? null;
+        const pid = existing.pid;
         await existing.context.close();
         if (pid) await waitForExit(pid);
         pool.remove(profile);
@@ -236,16 +267,19 @@ export const launch = async (options = {}) => {
       }
     }
     if (savedState.origins?.length) {
-      const origins = savedState.origins;
-      await context.addInitScript(savedOrigins => {
-        const origin = location.origin;
-        const entry = savedOrigins.find(o => o.origin === origin);
-        if (!entry?.localStorage?.length) return;
-        for (const { name, value } of entry.localStorage) {
-          // eslint-disable-next-line no-empty -- runs in browser init script; cross-origin setItem throws, no Node logging available
-          try { localStorage.setItem(name, value); } catch {}
-        }
-      }, origins);
+      const page = await context.newPage();
+      for (const { origin, localStorage: items } of savedState.origins) {
+        if (!items?.length) continue;
+        await page.goto(origin + '/favicon.ico', { waitUntil: 'commit', timeout: 10_000 });
+        await page.evaluate(itms => {
+          for (const { name, value } of itms) {
+            // eslint-disable-next-line no-empty -- cross-origin setItem throws; no Node logging
+            try { localStorage.setItem(name, value); } catch {}
+          }
+        }, items);
+        await new Promise(r => setTimeout(r, 50 + Math.random() * 100));
+      }
+      await page.close();
       log(`Restored localStorage for ${savedState.origins.length} origin(s) in ${profile}`);
     }
   }
@@ -266,7 +300,8 @@ export const launch = async (options = {}) => {
   const pages = context.pages();
   const page = pages.length > 0 ? pages[0] : await context.newPage();
 
-  pool.add(profile, context, page, cdpPort, resolved.preset, resolved.label, false, null);
+  pool.add(profile, context, page, cdpPort, resolved.preset, resolved.label, false, null, null, null,
+    tryBrowserPid(context.browser()));
 
   const meta = {
     sessionName: profile,
@@ -297,7 +332,7 @@ export const launch = async (options = {}) => {
       const state = await context.storageState();
       await storage.saveState(profile, state);
       await storage.updateMeta(profile, { lastUsed: Date.now() });
-      const pid = context.browser().osProcess()?._process?.pid ?? null;
+      const pid = pool.get(profile).pid;
       await context.close();
       if (pid) await waitForExit(pid);
       pool.remove(profile);
@@ -334,7 +369,8 @@ export const launchClone = async (options = {}) => {
   const pages = context.pages();
   const page  = pages.length > 0 ? pages[0] : await context.newPage();
 
-  pool.add(cloneId, context, page, cdpPort, null, null, true, cloneDir, profile, lease);
+  pool.add(cloneId, context, page, cdpPort, null, null, true, cloneDir, profile, lease,
+    tryBrowserPid(context.browser()));
 
   return {
     browser: context.browser(),
@@ -342,12 +378,15 @@ export const launchClone = async (options = {}) => {
     cdpEndpoint,
     cloneId,
     close: async () => {
-      const pid = context.browser().osProcess()?._process?.pid ?? null;
+      const pid = pool.get(cloneId).pid;
       await context.close();
       if (pid) await waitForExit(pid);
       pool.remove(cloneId);
+      // rm first: lease is only scavenger fencing, not our own deletion guard.
+      // Reversing the order prevents EPERM storms if both this and cleanupClones
+      // race on the same directory.
+      await rmWithRetry(cloneDir);
       await lease.close().catch(() => {});
-      await rm(cloneDir, { recursive: true, force: true });
     },
   };
 };

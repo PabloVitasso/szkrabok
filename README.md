@@ -5,6 +5,7 @@ MCP server supplementing [microsoft/playwright-mcp](https://github.com/microsoft
 **Core Enhancements:**
 
 * **Named Sessions:** Persistent cookies, localStorage, and Chromium profiles.
+* **Profile Cloning:** Ephemeral session clones — template profile is deep-cloned to `$TMPDIR`, browser runs against the clone, clone is destroyed on close. Zero contamination of the template.
 * **Stealth:** Integrated `playwright-extra` + stealth plugin and anti-bot CDP patches.
 * **Deterministic Ports:** Fixed CDP ports per session for `connectOverCDP()`.
 
@@ -29,13 +30,16 @@ Manage browser sessions. Actions: open (launch/resume), close (save+close), list
   - **viewport**: `{ width, height }`
   - **locale**: BCP 47 locale
   - **timezone**: IANA timezone
+  - **isClone**: Create an ephemeral clone of the template session. The returned `sessionName` is a generated id. Clone dir is deleted on close; no state is saved. Template must be closed before cloning.
 
   Examples:
   - With preset: `{ preset: "desktop-chrome-win", headless: false, stealth: true }`
   - With explicit fields: `{ userAgent: "...", viewport: { width: 1280, height: 800 }, locale: "en-US", timezone: "America/New_York", headless: false }`
   - **Note:** `preset` is mutually exclusive with `userAgent`, `viewport`, `locale`, `timezone`. `headless` and `stealth` are always allowed alongside either.
 
-Returns: `{ success, sessionName, url, reused, preset, label, cdpEndpoint }`
+Returns: `{ success, sessionName, url, reused, preset, label, isClone, templateSession, cdpEndpoint }`
+
+When `isClone: true` is set in `launchOptions`, the returned `sessionName` is a generated id (e.g. `myprofile-1748234205-a3f2c1b0`). Use that id for all subsequent calls. On close, the clone dir is deleted and no state is saved.
 
 ### 2. workflow.scrape
 

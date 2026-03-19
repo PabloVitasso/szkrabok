@@ -3,6 +3,7 @@ import { join, basename } from 'path';
 import { existsSync } from 'fs';
 import { tmpdir } from 'os';
 import crypto from 'crypto';
+import { log } from './logger.js';
 
 // Sessions dir: SZKRABOK_SESSIONS_DIR env > cwd/sessions
 const getSessionsDir = () =>
@@ -240,6 +241,37 @@ export const cloneProfileAtomic = async (srcDir, templateName) => {
   }
 };
 
+// ── rmWithRetry — directory delete with retry loop ───────────────────────────
+// Chrome and its child processes (gpu, utility, network service) may hold file
+// locks on the user data dir after the browser process exits. A simple rm()
+// races those locks. Retry with backoff makes deletion reliable without
+// depending on Chrome PID lifecycle semantics.
+//
+// timeoutMs: give up after this long (default 15 s, same as waitForExit).
+// pollMs:    pause between attempts (default 100 ms).
+
+const RM_RETRY_POLL_MS   = 100;
+const RM_RETRY_TIMEOUT_MS = 15_000;
+
+export const rmWithRetry = async (dir, { timeoutMs = RM_RETRY_TIMEOUT_MS } = {}) => {
+  const deadline = Date.now() + timeoutMs;
+  let attempt = 0;
+  while (true) {
+    attempt++;
+    try {
+      await rm(dir, { recursive: true, force: true });
+      return;
+    } catch (e) {
+      if (Date.now() >= deadline) {
+        log?.(`rmWithRetry: ${dir} still undeletable after ${attempt} attempts — giving up: ${e.message}`);
+        throw e;
+      }
+      log?.(`rmWithRetry: ${dir} not yet deletable (attempt ${attempt}) — retrying…`);
+      await new Promise(r => setTimeout(r, RM_RETRY_POLL_MS));
+    }
+  }
+};
+
 // ── clone scavenger ───────────────────────────────────────────────────────────
 //
 // Two-gate delete:
@@ -253,9 +285,18 @@ export const cloneProfileAtomic = async (srcDir, templateName) => {
 // crashes after acquireLease but before writeFile(.clone); this is a rare,
 // sub-millisecond window and the dirs are empty (< 1 KB).
 
+// Time-gated GC: cleanupClones scans the whole tmpdir on every call. On shared
+// or heavily-used systems this becomes expensive. Rate-limit to once per minute
+// so that the O(N) scan is amortised across launches.
+let _lastCleanupAt = 0;
+const GC_COOLDOWN_MS = 60_000;
+
 export const cleanupClones = async () => {
+  const now = Date.now();
+  if (now - _lastCleanupAt < GC_COOLDOWN_MS) return;
+  _lastCleanupAt = now;
+
   const entries = await readdir(tmpdir(), { withFileTypes: true });
-  const now     = Date.now();
 
   await Promise.allSettled(entries.map(async e => {
     if (!e.isDirectory()) return;
