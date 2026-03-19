@@ -83,6 +83,7 @@ export const destroyClone = async cloneId => {
   await session.context.close();
   pool.remove(cloneId);
 
+  if (session.leaseHandle) await session.leaseHandle.close().catch(() => {});
   if (session.cloneDir) {
     await rm(session.cloneDir, { recursive: true, force: true });
   }
@@ -96,5 +97,5 @@ export const destroyClone = async cloneId => {
 export const updateSessionPage = (profile, page) => {
   const session = pool.get(profile);
   pool.add(profile, session.context, page, session.cdpPort, session.preset, session.label,
-    session.isClone, session.cloneDir, session.templateName);
+    session.isClone, session.cloneDir, session.templateName, session.leaseHandle);
 };

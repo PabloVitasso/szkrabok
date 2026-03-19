@@ -264,7 +264,7 @@ export const launchClone = async (options = {}) => {
   await storage.ensureSessionsDir();
 
   const templateDir = storage.getUserDataDir(profile);
-  const { cloneId, dir: cloneDir } = await storage.cloneProfileAtomic(templateDir, profile);
+  const { cloneId, dir: cloneDir, lease } = await storage.cloneProfileAtomic(templateDir, profile);
 
   const launchFn = _launchImpl ?? _launchPersistentContext;
   const context = await launchFn(cloneDir, { ...launchOpts, cdpPort: 0 });
@@ -275,7 +275,7 @@ export const launchClone = async (options = {}) => {
   const pages = context.pages();
   const page  = pages.length > 0 ? pages[0] : await context.newPage();
 
-  pool.add(cloneId, context, page, cdpPort, null, null, true, cloneDir, profile);
+  pool.add(cloneId, context, page, cdpPort, null, null, true, cloneDir, profile, lease);
 
   return {
     browser: context.browser(),
@@ -285,6 +285,7 @@ export const launchClone = async (options = {}) => {
     close: async () => {
       await context.close();
       pool.remove(cloneId);
+      await lease.close().catch(() => {});
       await rm(cloneDir, { recursive: true, force: true });
     },
   };

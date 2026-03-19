@@ -222,17 +222,18 @@ describe('PC-1 cloneProfileAtomic', { concurrency: 1 }, () => {
     }
   });
 
-  test('PC-1.17: writes .clone metadata with pid, created, templateName', async () => {
+  test('PC-1.17: writes .clone metadata with created and templateName (no pid)', async () => {
     const { cloneProfileAtomic } = await import('../../../packages/runtime/storage.js');
     const before = Date.now();
-    const { dir } = await cloneProfileAtomic(srcDir, 'myprofile');
+    const { dir, lease } = await cloneProfileAtomic(srcDir, 'myprofile');
     const after = Date.now();
     try {
       const meta = JSON.parse(await readFile(join(dir, '.clone'), 'utf8'));
-      assert.strictEqual(meta.pid, process.pid);
+      assert.ok(!('pid' in meta), '.clone must not contain pid (lease replaces PID check)');
       assert.ok(meta.created >= before && meta.created <= after);
       assert.strictEqual(meta.templateName, 'myprofile');
     } finally {
+      await lease.close().catch(() => {});
       await rm(dir, { recursive: true, force: true });
     }
   });
@@ -279,12 +280,15 @@ describe('PC-1 cleanupClones', { concurrency: 1 }, () => {
     assert.ok(!existsSync(dir), 'expired dead-PID clone should be deleted');
   });
 
-  test('PC-1.20: keeps dir with live PID regardless of age', async () => {
+  test('PC-1.20: keeps dir with active lease within hard TTL', async () => {
     const { cleanupClones } = await import('../../../packages/runtime/storage.js');
-    const dir = await makeCloneDir({ pid: process.pid, created: 0, templateName: 'test' });
+    // Use a recent created timestamp — lease-based cleanup only hard-evicts past 24h.
+    const dir = await makeCloneDir({ created: Date.now(), templateName: 'test' });
+    // Write .lease to signal active ownership (replaces PID liveness check).
+    await writeFile(join(dir, '.lease'), '');
     try {
       await cleanupClones();
-      assert.ok(existsSync(dir), 'live-PID clone must not be deleted even if old');
+      assert.ok(existsSync(dir), 'lease-held clone must not be deleted while within hard TTL');
     } finally {
       await rm(dir, { recursive: true, force: true });
     }

@@ -1,7 +1,7 @@
-import { readFile, writeFile, mkdir, rm, readdir, copyFile, lstat, readlink, symlink, access, rename } from 'fs/promises';
+import { readFile, writeFile, mkdir, rm, readdir, copyFile, lstat, readlink, symlink, access, rename, open, cp } from 'fs/promises';
 import { join, basename } from 'path';
 import { existsSync } from 'fs';
-import { tmpdir, cpus } from 'os';
+import { tmpdir } from 'os';
 import crypto from 'crypto';
 
 // Sessions dir: SZKRABOK_SESSIONS_DIR env > cwd/sessions
@@ -91,10 +91,9 @@ export const readDevToolsPort = async (userDataDir, { timeoutMs = DEVTOOLS_PORT_
 // ── clone identity ────────────────────────────────────────────────────────────
 
 const CLONE_PREFIX   = 'szkrabok-clone-';
-// Staging dirs use a different prefix — never scanned by cleanupClones.
-// All clone work happens here; only the final atomic rename makes the dir visible.
 const STAGING_PREFIX = 'szkrabok-staging-';
-const CLONE_TTL_MS   = 6 * 60 * 60 * 1000; // 6 hours
+const CLONE_TTL_MS   = 6  * 60 * 60 * 1000; // 6 hours — normal TTL (no active lease)
+const CLONE_HARD_TTL = 24 * 60 * 60 * 1000; // 24 hours — crash recovery (lease held but process dead)
 
 export const newCloneId = templateName => {
   const safe = templateName.replace(/[^a-z0-9-]/gi, '-');
@@ -102,8 +101,10 @@ export const newCloneId = templateName => {
 };
 
 // ── global IO semaphore ───────────────────────────────────────────────────────
-// One shared limiter across all concurrent clone operations bounds total
-// parallel file ops, preventing EMFILE and random ENOENT under io pressure.
+// Tunable via SZKRABOK_IO env var. Default 16 — appropriate for local SSD.
+// For HDD or overlayfs, set SZKRABOK_IO=4.
+
+const IO_CONCURRENCY = parseInt(process.env.SZKRABOK_IO || '16', 10);
 
 const pLimit = n => {
   const q = [];
@@ -117,43 +118,84 @@ const pLimit = n => {
   return fn => new Promise((res, rej) => { q.push({ fn, res, rej }); next(); });
 };
 
-const _ioLimit = pLimit(Math.max(4, cpus().length));
+export const ioLimit = pLimit(IO_CONCURRENCY);
 
-// ── cloneDir ─────────────────────────────────────────────────────────────────
+// ── cloneDir — iterative BFS walker ──────────────────────────────────────────
+// Processes entries in bounded batches via a queue. Avoids the unbounded
+// promise graph that recursive Promise.all creates on deep Chrome profiles.
 
 const CLONE_SKIP = new Set([
   'SingletonLock', 'SingletonCookie', 'SingletonSocket',
+  'LOCK', 'lockfile',
   'GPUCache', 'Code Cache', 'ShaderCache', 'GrShaderCache', 'Crashpad',
 ]);
 
-// Recursive directory walker using the global IO semaphore.
-const cloneDir = async (src, dst, skip) => {
-  const walk = async (s, d) => {
-    const st = await lstat(s);
-    if (st.isDirectory()) {
-      await mkdir(d, { recursive: true });
-      const entries = await readdir(s);
-      await Promise.all(
-        entries
-          .filter(e => !skip.has(e))
-          .map(e => _ioLimit(() => walk(join(s, e), join(d, e))))
-      );
-    } else if (st.isSymbolicLink()) {
-      await symlink(await readlink(s), d);
-    } else if (st.isFile()) {
-      await copyFile(s, d);
-    }
-  };
-  await walk(src, dst);
+export const cloneDir = async (src, dst, skip = CLONE_SKIP) => {
+  const queue = [{ s: src, d: dst }];
+
+  while (queue.length) {
+    const batch = queue.splice(0, IO_CONCURRENCY);
+    await Promise.all(batch.map(({ s, d }) =>
+      ioLimit(async () => {
+        const st = await lstat(s);
+        if (st.isDirectory()) {
+          await mkdir(d, { recursive: true });
+          const entries = await readdir(s);
+          for (const e of entries) {
+            if (!skip.has(e)) queue.push({ s: join(s, e), d: join(d, e) });
+          }
+        } else if (st.isSymbolicLink()) {
+          await symlink(await readlink(s), d);
+        } else if (st.isFile()) {
+          await copyFile(s, d);
+        }
+      })
+    ));
+  }
+};
+
+// ── FD lease — lifecycle fencing ──────────────────────────────────────────────
+// A .lease file signals that a clone dir is actively owned.
+// acquireLease: create .lease exclusively (O_EXCL); returns open FileHandle.
+// leaseFree: probe by attempting exclusive create. true = no .lease = dir is free.
+// On normal close, rm(cloneDir) deletes .lease. On crash, hard TTL handles cleanup.
+
+export const acquireLease = dir => open(join(dir, '.lease'), 'wx');
+
+export const leaseFree = async dir => {
+  try {
+    const fh = await open(join(dir, '.lease'), 'wx');
+    await fh.close();
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+// ── atomicMove — cross-device safe ────────────────────────────────────────────
+// rename() is atomic on same filesystem. Falls back to cp+rm for EXDEV.
+
+const atomicMove = async (src, dst) => {
+  try {
+    await rename(src, dst);
+  } catch (e) {
+    if (e.code !== 'EXDEV') throw e;
+    await mkdir(dst, { recursive: true });
+    await cp(src, dst, { recursive: true });
+    await rm(src, { recursive: true, force: true });
+  }
 };
 
 // ── cloneProfileAtomic ────────────────────────────────────────────────────────
 //
-// Atomic staging pattern:
-//   1. All work (metadata + file copy) happens under STAGING_PREFIX — never scanned.
-//   2. rename(staging → final) is atomic on POSIX same-filesystem.
-//   3. After rename the dir is visible to cleanupClones with .clone already present.
-//   There is no window where a clone dir exists without its .clone file.
+// Staging pattern:
+//   1. All work happens under STAGING_PREFIX — never scanned by cleanupClones.
+//   2. Lease acquired in staging dir immediately after mkdir.
+//   3. atomicMove(staging → final) — POSIX rename or EXDEV copy+rm fallback.
+//   4. After rename, .lease inode is at finalDir (handle still valid).
+//   5. Returns lease handle — caller must hold it open until close().
+//
+// No window where a clone dir is visible without .lease already present.
 
 export const cloneProfileAtomic = async (srcDir, templateName) => {
   const cloneId    = newCloneId(templateName);
@@ -161,62 +203,86 @@ export const cloneProfileAtomic = async (srcDir, templateName) => {
   const finalDir   = join(tmpdir(), `${CLONE_PREFIX}${cloneId}`);
 
   await mkdir(stagingDir, { recursive: true });
+  const stagingLease = await acquireLease(stagingDir);
+
   try {
     await writeFile(join(stagingDir, '.clone'), JSON.stringify({
-      pid:          process.pid,
-      created:      Date.now(),
+      created: Date.now(),
       templateName,
     }));
     await cloneDir(srcDir, stagingDir, CLONE_SKIP);
-    // Atomic: stagingDir appears as finalDir with all content already present.
-    await rename(stagingDir, finalDir);
+
+    let lease;
+    try {
+      await rename(stagingDir, finalDir);
+      // Same filesystem: staging is now final. Handle still points to the same
+      // inode (POSIX rename keeps inodes intact), so stagingLease is now the
+      // lease for finalDir.
+      lease = stagingLease;
+    } catch (e) {
+      if (e.code !== 'EXDEV') throw e;
+      // Cross-device tmpdir (e.g. ramdisk, PrivateTmp, container bind mount).
+      // Copy staging → final. The .lease file is included in the copy, which
+      // is sufficient for cleanup to see the dir as owned. Close and discard
+      // the staging handle; return a no-op lease since rm(finalDir) handles cleanup.
+      await mkdir(finalDir, { recursive: true });
+      await cp(stagingDir, finalDir, { recursive: true });
+      await stagingLease.close().catch(() => {});
+      await rm(stagingDir, { recursive: true, force: true });
+      lease = { close: async () => {} };
+    }
+
+    return { cloneId, dir: finalDir, lease };
   } catch (err) {
+    await stagingLease.close().catch(() => {});
     await rm(stagingDir, { recursive: true, force: true }).catch(() => {});
     throw err;
   }
-
-  return { cloneId, dir: finalDir };
 };
 
-// ── PID-safe clone scavenger ──────────────────────────────────────────────────
-
-const isPidAlive = pid => {
-  try { process.kill(pid, 0); return true; }
-  catch { return false; }
-};
+// ── clone scavenger ───────────────────────────────────────────────────────────
+//
+// Two-gate delete:
+//   lease free  + past normal TTL (or no .clone) → delete
+//   lease held  + past hard TTL  (crash recovery) → delete
+//   lease held  + within hard TTL                 → keep
+//   lease free  + within normal TTL               → keep
+//
+// Staging dirs (szkrabok-staging-*) with a held lease and no .clone are kept
+// to avoid deleting an in-progress copy. They will accumulate if a process
+// crashes after acquireLease but before writeFile(.clone); this is a rare,
+// sub-millisecond window and the dirs are empty (< 1 KB).
 
 export const cleanupClones = async () => {
   const entries = await readdir(tmpdir(), { withFileTypes: true });
   const now     = Date.now();
 
   await Promise.allSettled(entries.map(async e => {
-    const isClone   = e.isDirectory() && e.name.startsWith(CLONE_PREFIX);
-    const isStaging = e.isDirectory() && e.name.startsWith(STAGING_PREFIX);
+    if (!e.isDirectory()) return;
+    const isClone   = e.name.startsWith(CLONE_PREFIX);
+    const isStaging = e.name.startsWith(STAGING_PREFIX);
     if (!isClone && !isStaging) return;
 
-    const full = join(tmpdir(), e.name);
+    const dir = join(tmpdir(), e.name);
 
-    if (isStaging) {
-      // Staging dirs are mid-copy orphans; the process died before rename.
-      // Use same liveness/TTL logic as for clone dirs.
-      try {
-        const meta = JSON.parse(await readFile(join(full, '.clone'), 'utf8'));
-        if (isPidAlive(meta.pid)) return;
-        if (now - meta.created <= CLONE_TTL_MS) return;
-      } catch {}
-      await rm(full, { recursive: true, force: true });
-      return;
-    }
-
-    // Clone dir: after atomic rename .clone always exists.
-    // If missing, the dir is from an old version or manual creation — delete.
+    let created = null;
     try {
-      const meta = JSON.parse(await readFile(join(full, '.clone'), 'utf8'));
-      if (isPidAlive(meta.pid)) return;
-      if (now - meta.created <= CLONE_TTL_MS) return;
-      await rm(full, { recursive: true, force: true });
-    } catch {
-      await rm(full, { recursive: true, force: true });
+      const meta = JSON.parse(await readFile(join(dir, '.clone'), 'utf8'));
+      created = meta.created ?? null;
+    } catch {}
+
+    const free = await leaseFree(dir);
+
+    if (!free) {
+      // Lease held — may be active or crashed.
+      // Keep unless past hard TTL (crash recovery).
+      if (created === null || now - created <= CLONE_HARD_TTL) return;
+    } else {
+      // No lease — check normal TTL.
+      if (created !== null && now - created <= CLONE_TTL_MS) return;
+      // No .clone (orphan) or past TTL: fall through to delete.
     }
+
+    await rm(dir, { recursive: true, force: true });
   }));
 };
