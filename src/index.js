@@ -45,14 +45,38 @@ process.on('SIGINT', async () => {
 });
 
 process.on('uncaughtException', err => {
-  const msg = `uncaughtException: ${err?.message}\n${err?.stack}`;
+  let errMsg;
+  if (err !== null && err !== undefined && err.message !== null && err.message !== undefined) {
+    errMsg = err.message;
+  } else {
+    errMsg = '';
+  }
+  let errStack;
+  if (err !== null && err !== undefined && err.stack !== null && err.stack !== undefined) {
+    errStack = err.stack;
+  } else {
+    errStack = '';
+  }
+  const msg = `uncaughtException: ${errMsg}\n${errStack}`;
   _writeStartupLog(msg);
   logError('Uncaught exception', err);
   process.exit(1);
 });
 
 server.connect().catch(err => {
-  const msg = `Failed to start server: ${err?.message}\n${err?.stack}`;
+  let errMsg;
+  if (err !== null && err !== undefined && err.message !== null && err.message !== undefined) {
+    errMsg = err.message;
+  } else {
+    errMsg = '';
+  }
+  let errStack;
+  if (err !== null && err !== undefined && err.stack !== null && err.stack !== undefined) {
+    errStack = err.stack;
+  } else {
+    errStack = '';
+  }
+  const msg = `Failed to start server: ${errMsg}\n${errStack}`;
   _writeStartupLog(msg);
   logError('Failed to start server', err);
   process.exit(1);

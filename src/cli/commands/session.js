@@ -19,9 +19,9 @@ export function register(program, { safe }) {
         console.table(
           sessions.map(s => ({
             ID: s.id,
-            Active: s.active ? 'yes' : 'no',
-            Preset: s.preset ?? 'N/A',
-            Label: s.label ?? 'N/A',
+            Active: (() => { if (s.active) return 'yes'; return 'no'; })(),
+            Preset: (s.preset !== null && s.preset !== undefined) ? s.preset : 'N/A',
+            Label: (s.label !== null && s.label !== undefined) ? s.label : 'N/A',
           }))
         );
       })
@@ -42,10 +42,28 @@ export function register(program, { safe }) {
         console.log('=== METADATA ===');
         console.log(JSON.stringify(meta, null, 2));
         console.log('\n=== COOKIES ===');
-        console.log(state.cookies?.length ?? 0, 'cookies');
+        let cookiesCount;
+        if (state.cookies !== null && state.cookies !== undefined) {
+          cookiesCount = state.cookies.length;
+        } else {
+          cookiesCount = 0;
+        }
+        console.log(cookiesCount, 'cookies');
         console.log('\n=== LOCALSTORAGE ===');
-        for (const origin of state.origins ?? []) {
-          console.log(origin.origin, ':', origin.localStorage?.length ?? 0, 'items');
+        let origins;
+        if (state.origins !== null && state.origins !== undefined) {
+          origins = state.origins;
+        } else {
+          origins = [];
+        }
+        for (const origin of origins) {
+          let localStorageCount;
+          if (origin.localStorage !== null && origin.localStorage !== undefined) {
+            localStorageCount = origin.localStorage.length;
+          } else {
+            localStorageCount = 0;
+          }
+          console.log(origin.origin, ':', localStorageCount, 'items');
         }
       })
     );
@@ -80,7 +98,7 @@ export function register(program, { safe }) {
             .filter(e => e.isDirectory())
             .map(async e => {
               const meta = await readJson(path.join(SESSIONS_DIR, e.name, 'meta.json'));
-              if (meta?.lastUsed && meta.lastUsed < cutoff) {
+              if (meta !== null && meta !== undefined && meta.lastUsed !== null && meta.lastUsed !== undefined && meta.lastUsed < cutoff) {
                 await deleteSession({ sessionName: e.name });
                 console.log(`Deleted: ${e.name}`);
               }

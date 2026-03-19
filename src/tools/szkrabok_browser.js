@@ -9,7 +9,8 @@ import { readFile, mkdir } from 'fs/promises';
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
 const decodeAttachment = att => {
-  if (att?.contentType !== 'application/json' || !att.body) return;
+  if (att === null || att === undefined) return;
+  if (att.contentType !== 'application/json' || !att.body) return;
   try {
     return JSON.parse(Buffer.from(att.body, 'base64').toString());
   } catch {
@@ -19,30 +20,108 @@ const decodeAttachment = att => {
 
 const flattenTests = report => {
   const out = [];
-  const suites = report?.suites || [];
+
+  if (report === null || report === undefined) {
+    return out;
+  }
+
+  let suites;
+  if (report.suites !== null && report.suites !== undefined) {
+    suites = report.suites;
+  } else {
+    suites = [];
+  }
 
   for (const suite of suites) {
-    for (const spec of suite.specs || []) {
-      for (const t of spec.tests || []) {
-        const result = t.results?.[0] || {};
+    if (suite === null || suite === undefined) {
+      continue;
+    }
+
+    let specs;
+    if (suite.specs !== null && suite.specs !== undefined) {
+      specs = suite.specs;
+    } else {
+      specs = [];
+    }
+
+    for (const spec of specs) {
+      if (spec === null || spec === undefined) {
+        continue;
+      }
+
+      let tests;
+      if (spec.tests !== null && spec.tests !== undefined) {
+        tests = spec.tests;
+      } else {
+        tests = [];
+      }
+
+      for (const t of tests) {
+        if (t === null || t === undefined) {
+          continue;
+        }
+
+        let result;
+        if (t.results !== null && t.results !== undefined && t.results.length > 0) {
+          result = t.results[0];
+        } else {
+          result = {};
+        }
+
         const attachments = [];
 
-        for (const a of result.attachments || []) {
-          if (a.name !== 'result') continue;
+        let resultAttachments;
+        if (result.attachments !== null && result.attachments !== undefined) {
+          resultAttachments = result.attachments;
+        } else {
+          resultAttachments = [];
+        }
+
+        for (const a of resultAttachments) {
+          if (a === null || a === undefined) {
+            continue;
+          }
+          if (a.name !== 'result') {
+            continue;
+          }
           const decoded = decodeAttachment(a);
-          if (decoded) attachments.push(decoded);
+          if (decoded !== null && decoded !== undefined) {
+            attachments.push(decoded);
+          }
+        }
+
+        let status;
+        if (result.status !== null && result.status !== undefined) {
+          status = result.status;
+        } else {
+          status = 'unknown';
+        }
+
+        let error;
+        if (result.error !== null && result.error !== undefined) {
+          if (result.error.message !== null && result.error.message !== undefined) {
+            error = result.error.message;
+          } else {
+            error = null;
+          }
+        } else {
+          error = null;
+        }
+
+        let testResult;
+        if (attachments.length === 1) {
+          testResult = attachments[0];
+        } else if (attachments.length > 1) {
+          testResult = attachments;
+        } else {
+          testResult = undefined;
         }
 
         out.push({
           title: spec.title,
-          status: result.status || 'unknown',
-          error: result.error?.message || null,
-          result:
-            attachments.length === 1
-              ? attachments[0]
-              : attachments.length > 1
-              ? attachments
-              : undefined,
+          status,
+          error,
+          result: testResult,
         });
       }
     }
@@ -144,7 +223,11 @@ export const run_test = async args => {
 
   let report;
   try {
-    report = reportRaw ? JSON.parse(reportRaw) : null;
+    if (reportRaw) {
+      try { report = JSON.parse(reportRaw); } catch { report = null; }
+    } else {
+      report = null;
+    }
   } catch {
     report = null;
   }
@@ -171,11 +254,34 @@ export const run_test = async args => {
 
   const { stats } = report;
 
+  let passed, failed, skipped;
+  if (stats !== null && stats !== undefined) {
+    if (stats.expected !== null && stats.expected !== undefined) {
+      passed = stats.expected;
+    } else {
+      passed = 0;
+    }
+    if (stats.unexpected !== null && stats.unexpected !== undefined) {
+      failed = stats.unexpected;
+    } else {
+      failed = 0;
+    }
+    if (stats.skipped !== null && stats.skipped !== undefined) {
+      skipped = stats.skipped;
+    } else {
+      skipped = 0;
+    }
+  } else {
+    passed = 0;
+    failed = 0;
+    skipped = 0;
+  }
+
   return {
     log,
-    passed: stats?.expected || 0,
-    failed: stats?.unexpected || 0,
-    skipped: stats?.skipped || 0,
+    passed,
+    failed,
+    skipped,
     tests: flattenTests(report),
     ...(keepOpen && { sessionReconnected }),
   };
@@ -202,7 +308,12 @@ export const run_file = async args => {
   const absolute = resolve(path);
 
   const mod = await import(`${absolute}?t=${Date.now()}`);
-  const target = fn === 'default' ? mod.default : mod[fn];
+  let target;
+  if (fn === 'default') {
+    target = mod.default;
+  } else {
+    target = mod[fn];
+  }
 
   if (typeof target !== 'function') {
     const available = Object.keys(mod)

@@ -10,7 +10,17 @@
  * @returns {boolean} True if tool has sessionName in properties
  */
 export function hasSession(tool) {
-  return tool?.inputSchema?.properties?.sessionName !== undefined;
+  let result;
+  if (tool === null || tool === undefined) {
+    result = false;
+  } else if (tool.inputSchema === null || tool.inputSchema === undefined) {
+    result = false;
+  } else if (tool.inputSchema.properties === null || tool.inputSchema.properties === undefined) {
+    result = false;
+  } else {
+    result = tool.inputSchema.properties.sessionName !== undefined;
+  }
+  return result;
 }
 
 /**
@@ -31,7 +41,12 @@ export function injectSession(args, sessionName) {
  * @returns {Promise<object>} Open result
  */
 export async function open(client, sessionName, launchOptions) {
-  const args = launchOptions ? { action: 'open', sessionName, launchOptions } : { action: 'open', sessionName };
+  const args = (() => {
+    if (launchOptions) {
+      return { action: 'open', sessionName, launchOptions };
+    }
+    return { action: 'open', sessionName };
+  })();
   const result = await client.callTool({
     name: 'session_manage',
     arguments: args,

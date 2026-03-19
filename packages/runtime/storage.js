@@ -249,10 +249,14 @@ export const rmWithRetry = async (dir, { timeoutMs = RM_RETRY_TIMEOUT_MS } = {})
       return;
     } catch (e) {
       if (Date.now() >= deadline) {
-        log?.(`rmWithRetry: ${dir} still undeletable after ${attempt} attempts — giving up: ${e.message}`);
+        if (log !== null && log !== undefined) {
+          log(`rmWithRetry: ${dir} still undeletable after ${attempt} attempts — giving up: ${e.message}`);
+        }
         throw e;
       }
-      log?.(`rmWithRetry: ${dir} not yet deletable (attempt ${attempt}) — retrying…`);
+      if (log !== null && log !== undefined) {
+        log(`rmWithRetry: ${dir} not yet deletable (attempt ${attempt}) — retrying…`);
+      }
       await new Promise(r => setTimeout(r, RM_RETRY_POLL_MS));
     }
   }

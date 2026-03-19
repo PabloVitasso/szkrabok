@@ -130,7 +130,12 @@ function astSuppressRuntimeEnable(src, filename) {
   traverse(ast, {
     CallExpression(nodePath) {
       if (processed.has(nodePath.node)) return
-      const arg0 = nodePath.node.arguments?.[0]
+      let arg0;
+      if (nodePath.node.arguments !== null && nodePath.node.arguments !== undefined && nodePath.node.arguments.length > 0) {
+        arg0 = nodePath.node.arguments[0];
+      } else {
+        arg0 = null;
+      }
       if (!t.isStringLiteral(arg0) || arg0.value !== 'Runtime.enable') return
 
       // Walk up past .send(), await, member-access etc. to the "root" expression
@@ -148,7 +153,13 @@ function astSuppressRuntimeEnable(src, filename) {
       // the CallExpression inside the newly inserted If/Conditional node.
       processed.add(nodePath.node)
 
-      if (root.parentPath?.isExpressionStatement()) {
+      let parentIsExprStmt;
+      if (root.parentPath !== null && root.parentPath !== undefined) {
+        parentIsExprStmt = root.parentPath.isExpressionStatement();
+      } else {
+        parentIsExprStmt = false;
+      }
+      if (parentIsExprStmt) {
         // Statement-level guard
         root.parentPath.replaceWith(
           t.ifStatement(
@@ -199,12 +210,21 @@ class CDPSession`,
   // ── rebrowser Runtime.enable fix ──────────────────────────────────────────
   async __re__emitExecutionContext({ world, targetId, frame = null, utilityWorldName: callerUtilityWorldName }) {
     const fixMode = process.env['REBROWSER_PATCHES_RUNTIME_FIX_MODE'] || 'addBinding'
-    const utilityWorldName =
-      process.env['REBROWSER_PATCHES_UTILITY_WORLD_NAME'] !== '0'
-        ? (process.env['REBROWSER_PATCHES_UTILITY_WORLD_NAME'] || 'util')
-        : '__playwright_utility_world__'
-    if (process.env['REBROWSER_PATCHES_DEBUG'])
-      console.log(\`[rebrowser-patches][crSession] targetId=\${targetId} world=\${world} frame=\${frame ? 'Y' : 'N'} fixMode=\${fixMode}\`)
+    let utilityWorldName;
+    if (process.env['REBROWSER_PATCHES_UTILITY_WORLD_NAME'] !== '0') {
+      utilityWorldName = process.env['REBROWSER_PATCHES_UTILITY_WORLD_NAME'] || 'util';
+    } else {
+      utilityWorldName = '__playwright_utility_world__';
+    }
+    if (process.env['REBROWSER_PATCHES_DEBUG']) {
+      let frameFlag;
+      if (frame) {
+        frameFlag = 'Y';
+      } else {
+        frameFlag = 'N';
+      }
+      console.log(\`[rebrowser-patches][crSession] targetId=\${targetId} world=\${world} frame=\${frameFlag} fixMode=\${fixMode}\`);
+    }
 
     let getWorldPromise
     if (fixMode === 'addBinding') {

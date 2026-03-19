@@ -23,7 +23,13 @@ export const closeSession = async profile => {
   } catch (err) {
     if (pool.has(profile)) pool.remove(profile);
 
-    if (err.message?.includes('closed')) {
+    let errMessage;
+    if (err !== null && err !== undefined && err.message !== null && err.message !== undefined) {
+      errMessage = err.message;
+    } else {
+      errMessage = null;
+    }
+    if (errMessage !== null && errMessage.includes('closed')) {
       log(`Session ${profile} was already closed`);
       return { success: true, profile, alreadyClosed: true };
     }

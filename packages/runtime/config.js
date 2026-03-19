@@ -24,8 +24,18 @@ const loadTomlFromDir = dir => {
   const hasBase = existsSync(base);
   const hasLocal = existsSync(local);
   if (!hasBase && !hasLocal) return null;
-  const baseData = hasBase ? parse(readFileSync(base, 'utf8')) : {};
-  const localData = hasLocal ? parse(readFileSync(local, 'utf8')) : {};
+  let baseData;
+  if (hasBase) {
+    baseData = parse(readFileSync(base, 'utf8'));
+  } else {
+    baseData = {};
+  }
+  let localData;
+  if (hasLocal) {
+    localData = parse(readFileSync(local, 'utf8'));
+  } else {
+    localData = {};
+  }
   return deepMerge(baseData, localData);
 };
 
@@ -33,7 +43,7 @@ const loadTomlFromDir = dir => {
 // Returns first toml object found, or null.
 const walkUp = (startDir, rootBoundary) => {
   let dir = resolve(startDir);
-  const boundary = rootBoundary ? resolve(rootBoundary) : null;
+  const boundary = (() => { if (rootBoundary) return resolve(rootBoundary); return null; })();
   while (true) {
     const data = loadTomlFromDir(dir);
     if (data) return data;
@@ -182,7 +192,7 @@ export const resolvePreset = name => {
   return buildConfig({})._resolvePreset(name);
 };
 
-export const getPresets = () => (_config ? Object.keys(_config._presetsMap) : []);
+export const getPresets = () => { if (_config) return Object.keys(_config._presetsMap); return []; };
 
 // ── Chromium path resolution ────────────────────────────────────────────────
 
@@ -200,7 +210,12 @@ export const resolveBrowserPath = async finders => {
 };
 
 export const findChromiumPath = async () => {
-  const executablePath = _config?.executablePath ?? null;
+  let executablePath;
+  if (_config !== null && _config !== undefined && _config.executablePath !== null && _config.executablePath !== undefined) {
+    executablePath = _config.executablePath;
+  } else {
+    executablePath = null;
+  }
   if (executablePath) return executablePath;
 
   return resolveBrowserPath([
@@ -212,7 +227,10 @@ export const findChromiumPath = async () => {
     async () => {
       const { chromium } = await import('playwright');
       const pwPath = chromium.executablePath();
-      return pwPath && existsSync(pwPath) ? pwPath : null;
+      if (pwPath && existsSync(pwPath)) {
+        return pwPath;
+      }
+      return null;
     },
   ]);
 };

@@ -17,7 +17,13 @@ const safe = fn => async (...args) => {
   try {
     await fn(...args);
   } catch (err) {
-    console.error(err?.message ?? err);
+    let msg;
+    if (err !== null && err !== undefined && err.message !== null && err.message !== undefined) {
+      msg = err.message;
+    } else {
+      msg = err;
+    }
+    console.error(msg);
     process.exit(1);
   }
 };

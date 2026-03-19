@@ -22,7 +22,7 @@ const getFileStream = () => {
     _fileStream = createWriteStream(logFile, { flags: 'a' });
     const _origConsoleError = console.error.bind(console);
     console.error = (...args) => {
-      const line = args.map(a => (typeof a === 'string' ? a : JSON.stringify(a))).join(' ');
+      const line = args.map(a => { if (typeof a === 'string') return a; return JSON.stringify(a); }).join(' ');
       _origConsoleError(...args);
       _fileStream.write(line + '\n');
     };
@@ -33,7 +33,13 @@ const getFileStream = () => {
 const format = (level, msg, meta) => {
   const timestamp = new Date().toISOString();
   const base = { timestamp, level, msg };
-  return JSON.stringify(meta ? { ...base, ...meta } : base);
+  let serialized;
+  if (meta) {
+    serialized = JSON.stringify({ ...base, ...meta });
+  } else {
+    serialized = JSON.stringify(base);
+  }
+  return serialized;
 };
 
 export const log = (msg, meta) => {
@@ -41,8 +47,21 @@ export const log = (msg, meta) => {
 };
 
 export const logError = (msg, err, meta) => {
-  if (shouldLog('error'))
-    console.error(format('error', msg, { error: err?.message || String(err), stack: err?.stack, ...meta }));
+  if (shouldLog('error')) {
+    let errMessage;
+    if (err !== null && err !== undefined && err.message !== null && err.message !== undefined) {
+      errMessage = err.message;
+    } else {
+      errMessage = String(err);
+    }
+    let errStack;
+    if (err !== null && err !== undefined && err.stack !== null && err.stack !== undefined) {
+      errStack = err.stack;
+    } else {
+      errStack = null;
+    }
+    console.error(format('error', msg, { error: errMessage, stack: errStack, ...meta }));
+  }
 };
 
 export const logDebug = (msg, meta) => {

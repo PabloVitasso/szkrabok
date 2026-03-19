@@ -48,9 +48,21 @@ export function renderTools({ tools, hash, timestamp }) {
       const params = [];
       for (const [propName, propDef] of Object.entries(t.inputSchema.properties || {})) {
         if (propName === 'sessionName') continue; // Injected by adapter
-        const isOptional = !t.inputSchema.required?.includes(propName);
+        let isRequiredArr;
+        if (t.inputSchema.required !== null && t.inputSchema.required !== undefined) {
+          isRequiredArr = t.inputSchema.required;
+        } else {
+          isRequiredArr = [];
+        }
+        const isOptional = !isRequiredArr.includes(propName);
         const type = schemaToJSDoc(propDef);
-        params.push(`  ${propName}${isOptional ? '?' : ''}: ${type}`);
+        let optMarker;
+        if (isOptional) {
+          optMarker = '?';
+        } else {
+          optMarker = '';
+        }
+        params.push(`  ${propName}${optMarker}: ${type}`);
       }
       return `    ${t.method}({ ${Object.keys(t.inputSchema.properties || {}).filter(k => k !== 'sessionName').join(', ')} }): Promise<any>`;
     }).join('\n');
@@ -66,15 +78,37 @@ export function renderTools({ tools, hash, timestamp }) {
     const methodDefs = nsTools.map(t => {
       const props = t.inputSchema.properties || {};
       const params = Object.keys(props).filter(k => k !== 'sessionName');
-      const invokeArgs = params.length > 0 ? ', args' : '';
-      const paramDecl = params.length > 0 ? 'args = {}' : '';
+      let invokeArgs;
+      if (params.length > 0) {
+        invokeArgs = ', args';
+      } else {
+        invokeArgs = '';
+      }
+      let paramDecl;
+      if (params.length > 0) {
+        paramDecl = 'args = {}';
+      } else {
+        paramDecl = '';
+      }
 
       let jsdoc = '';
       if (params.length > 0) {
         const fields = params.map(p => {
-          const isOptional = !t.inputSchema.required?.includes(p);
+          let isRequiredArr2;
+          if (t.inputSchema.required !== null && t.inputSchema.required !== undefined) {
+            isRequiredArr2 = t.inputSchema.required;
+          } else {
+            isRequiredArr2 = [];
+          }
+          const isOptional = !isRequiredArr2.includes(p);
           const type = schemaToJSDoc(props[p]);
-          return `${p}${isOptional ? '?' : ''}: ${type}`;
+          let optMarker;
+          if (isOptional) {
+            optMarker = '?';
+          } else {
+            optMarker = '';
+          }
+          return `${p}${optMarker}: ${type}`;
         }).join(', ');
         jsdoc = `      /** @param {{ ${fields} }} [args] */\n`;
       }
@@ -190,9 +224,21 @@ export function renderDts({ tools, timestamp }) {
       }
 
       const fields = params.map(p => {
-        const isOptional = !t.inputSchema.required?.includes(p);
+        let isRequiredArr3;
+        if (t.inputSchema.required !== null && t.inputSchema.required !== undefined) {
+          isRequiredArr3 = t.inputSchema.required;
+        } else {
+          isRequiredArr3 = [];
+        }
+        const isOptional = !isRequiredArr3.includes(p);
         const type = schemaToTs(props[p]);
-        return `    ${p}${isOptional ? '?' : ''}: ${type};`;
+        let optMarker;
+        if (isOptional) {
+          optMarker = '?';
+        } else {
+          optMarker = '';
+        }
+        return `    ${p}${optMarker}: ${type};`;
       }).join('\n');
 
       return `${jsdoc}  ${t.method}(args: {\n${fields}\n  }): Promise<unknown>;`;

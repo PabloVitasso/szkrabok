@@ -6,16 +6,36 @@ import { resolvePlaywrightCore } from '../../../scripts/resolve-playwright-core.
 import { findChromium } from '../../../scripts/find-chromium.js';
 import { szkrabokCacheDir } from '../../utils/platform.js';
 
-const pass = (label, detail = '') =>
-  console.log(`  [pass] ${label}${detail ? ': ' + detail : ''}`);
+const pass = (label, detail = '') => {
+  let detailStr;
+  if (detail) {
+    detailStr = ': ' + detail;
+  } else {
+    detailStr = '';
+  }
+  console.log(`  [pass] ${label}${detailStr}`);
+};
 
 const fail = (label, detail = '') => {
-  console.error(`  [FAIL] ${label}${detail ? ': ' + detail : ''}`);
+  let detailStr;
+  if (detail) {
+    detailStr = ': ' + detail;
+  } else {
+    detailStr = '';
+  }
+  console.error(`  [FAIL] ${label}${detailStr}`);
   return true; // signals failure
 };
 
-const warn = (label, detail = '') =>
-  console.log(`  [warn] ${label}${detail ? ': ' + detail : ''}`);
+const warn = (label, detail = '') => {
+  let detailStr;
+  if (detail) {
+    detailStr = ': ' + detail;
+  } else {
+    detailStr = '';
+  }
+  console.log(`  [warn] ${label}${detailStr}`);
+};
 
 export function register(program) {
   program
@@ -60,7 +80,13 @@ export function register(program) {
         await import('../../server.js');
         pass('server.js imports');
       } catch (err) {
-        failed = fail('server.js imports', err?.message);
+        let errMessage;
+        if (err !== null && err !== undefined && err.message !== null && err.message !== undefined) {
+          errMessage = err.message;
+        } else {
+          errMessage = null;
+        }
+        failed = fail('server.js imports', errMessage);
       }
 
       // 6. Startup log
@@ -76,9 +102,14 @@ export function register(program) {
       const testNpxDir = join(pkgRoot, 'test', 'npx');
       if (existsSync(testNpxDir)) {
         console.log('\n--- Dev MCP config (for developing szkrabok itself) ---');
-        const [command, ...args] = process.platform === 'win32'
-          ? ['cmd', '/c', `cd /d "${testNpxDir}" && npx -y @pablovitasso/szkrabok`]
-          : ['bash', '-c', `cd ${testNpxDir} && npx -y @pablovitasso/szkrabok`];
+        let command, args;
+        if (process.platform === 'win32') {
+          command = 'cmd';
+          args = ['/c', `cd /d "${testNpxDir}" && npx -y @pablovitasso/szkrabok`];
+        } else {
+          command = 'bash';
+          args = ['-c', `cd ${testNpxDir} && npx -y @pablovitasso/szkrabok`];
+        }
         console.log(JSON.stringify({
           szkrabok: {
             type: 'stdio',
@@ -89,7 +120,7 @@ export function register(program) {
         }, null, 2));
       }
 
-      console.log(`\n${failed ? 'Some checks failed.' : 'All checks passed.'}`);
-      process.exit(failed ? 1 : 0);
+      console.log(`\n${(() => { if (failed) return 'Some checks failed.'; return 'All checks passed.'; })()}`);
+      if (failed) { process.exit(1); } else { process.exit(0); }
     });
 }

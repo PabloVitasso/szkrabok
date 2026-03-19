@@ -39,11 +39,43 @@ const tryBrowserPid = browser => {
   try {
     if ('process' in browser) {
       const p = browser.process;
-      if (typeof p === 'function') return p()?.pid ?? null;
+      if (typeof p === 'function') {
+        let result;
+        try {
+          const ret = p();
+          if (ret !== null && ret !== undefined && ret.pid !== null && ret.pid !== undefined) {
+            result = ret.pid;
+          } else {
+            result = null;
+          }
+        } catch {
+          result = null;
+        }
+        return result;
+      }
     }
   } catch { /* not a browser.process() instance */ }
   try {
-    return browser.osProcess()?._process?.pid ?? null;
+    let osProc;
+    try {
+      osProc = browser.osProcess();
+    } catch {
+      osProc = null;
+    }
+    if (osProc === null || osProc === undefined) {
+      return null;
+    }
+    let proc;
+    if (osProc._process !== null && osProc._process !== undefined) {
+      proc = osProc._process;
+    } else {
+      return null;
+    }
+    if (proc.pid !== null && proc.pid !== undefined) {
+      return proc.pid;
+    } else {
+      return null;
+    }
   } catch {
     return null;
   }
@@ -112,7 +144,7 @@ export const _resetGcForTesting = () => { _gcRegistered = false; };
 // Only called by launch() below.
 const _launchPersistentContext = async (userDataDir, options = {}) => {
   const presetConfig = options.presetConfig ?? {};
-  const pw = options.stealth ? enhanceWithStealth(chromium, presetConfig) : chromium;
+  const pw = (() => { if (options.stealth) return enhanceWithStealth(chromium, presetConfig); return chromium; })();
   const executablePath = await findChromiumPath();
 
   if (executablePath) {
@@ -219,12 +251,27 @@ export const launch = async (options = {}) => {
   await storage.ensureSessionsDir();
 
   const savedMeta = await storage.loadMeta(profile);
-  const savedConfig = savedMeta?.config ?? {};
+  let savedConfig;
+  if (savedMeta !== null && savedMeta !== undefined && savedMeta.config !== null && savedMeta.config !== undefined) {
+    savedConfig = savedMeta.config;
+  } else {
+    savedConfig = {};
+  }
 
   // If an explicit preset is given, it resets the baseline — savedConfig is bypassed
   // for preset-derived fields. Individual field overrides (userAgent etc.) always win.
-  const resolved = resolvePreset(presetName ?? savedMeta?.preset);
-  const base = presetName ? {} : savedConfig;
+  let presetArg;
+  if (presetName !== null && presetName !== undefined) {
+    presetArg = presetName;
+  } else {
+    if (savedMeta !== null && savedMeta !== undefined && savedMeta.preset !== null && savedMeta.preset !== undefined) {
+      presetArg = savedMeta.preset;
+    } else {
+      presetArg = null;
+    }
+  }
+  const resolved = resolvePreset(presetArg);
+  const base = (() => { if (presetName) return {}; return savedConfig; })();
 
   const effectiveViewport = viewport || base.viewport || resolved.viewport || cfg.viewport;
   const effectiveUserAgent = userAgent || base.userAgent || resolved.userAgent || cfg.userAgent;
@@ -258,18 +305,36 @@ export const launch = async (options = {}) => {
   // Restore saved state (cookies + localStorage)
   const savedState = await storage.loadState(profile);
   if (savedState) {
-    if (savedState.cookies?.length) {
+    let savedStateCookiesLength;
+    if (savedState.cookies !== null && savedState.cookies !== undefined) {
+      savedStateCookiesLength = savedState.cookies.length;
+    } else {
+      savedStateCookiesLength = 0;
+    }
+    if (savedStateCookiesLength > 0) {
       try {
         await context.addCookies(savedState.cookies);
-        log(`Restored ${savedState.cookies.length} cookies for ${profile}`);
+        log(`Restored ${savedStateCookiesLength} cookies for ${profile}`);
       } catch (err) {
         log(`Cookie restore failed for ${profile}: ${err.message}`);
       }
     }
-    if (savedState.origins?.length) {
+    let savedStateOriginsLength;
+    if (savedState.origins !== null && savedState.origins !== undefined) {
+      savedStateOriginsLength = savedState.origins.length;
+    } else {
+      savedStateOriginsLength = 0;
+    }
+    if (savedStateOriginsLength > 0) {
       const page = await context.newPage();
       for (const { origin, localStorage: items } of savedState.origins) {
-        if (!items?.length) continue;
+        let itemsLength;
+        if (items !== null && items !== undefined) {
+          itemsLength = items.length;
+        } else {
+          itemsLength = 0;
+        }
+        if (itemsLength === 0) continue;
         await page.goto(origin + '/favicon.ico', { waitUntil: 'commit', timeout: 10_000 });
         await page.evaluate(itms => {
           for (const { name, value } of itms) {
@@ -280,7 +345,7 @@ export const launch = async (options = {}) => {
         await new Promise(r => setTimeout(r, 50 + Math.random() * 100));
       }
       await page.close();
-      log(`Restored localStorage for ${savedState.origins.length} origin(s) in ${profile}`);
+      log(`Restored localStorage for ${savedStateOriginsLength} origin(s) in ${profile}`);
     }
   }
 
@@ -298,14 +363,19 @@ export const launch = async (options = {}) => {
   });
 
   const pages = context.pages();
-  const page = pages.length > 0 ? pages[0] : await context.newPage();
+  let page;
+  if (pages.length > 0) {
+    page = pages[0];
+  } else {
+    page = await context.newPage();
+  }
 
   pool.add(profile, context, page, cdpPort, resolved.preset, resolved.label, false, null, null, null,
     tryBrowserPid(context.browser()));
 
   const meta = {
     sessionName: profile,
-    created: savedMeta?.created ?? Date.now(),
+    created: (savedMeta !== null && savedMeta !== undefined && savedMeta.created !== null && savedMeta.created !== undefined) ? savedMeta.created : Date.now(),
     lastUsed: Date.now(),
     preset: resolved.preset,
     label: resolved.label,
@@ -367,7 +437,13 @@ export const launchClone = async (options = {}) => {
   const cdpEndpoint = `http://localhost:${cdpPort}`;
 
   const pages = context.pages();
-  const page  = pages.length > 0 ? pages[0] : await context.newPage();
+  let page;
+  if (pages.length > 0) {
+    page = pages[0];
+  } else {
+    page = await context.newPage();
+  }
+
 
   pool.add(cloneId, context, page, cdpPort, null, null, true, cloneDir, profile, lease,
     tryBrowserPid(context.browser()));

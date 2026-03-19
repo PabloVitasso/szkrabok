@@ -27,8 +27,22 @@ export function createLogger({ sidecarDir = DEFAULT_SIDECAR_DIR, sidecarEnabled 
   // into the parsed payload. Returns the raw result if unwrapping fails.
   const unwrap = raw => {
     try {
-      const text = raw?.content?.find(c => c.type === 'text')?.text;
-      return text ? JSON.parse(text) : raw;
+      let text = null;
+      if (raw !== null && raw !== undefined) {
+        const content = raw.content;
+        if (content !== null && content !== undefined && Array.isArray(content)) {
+          for (const c of content) {
+            if (c !== null && c !== undefined && c.type === 'text') {
+              if (c.text !== null && c.text !== undefined) {
+                text = c.text;
+                break;
+              }
+            }
+          }
+        }
+      }
+      if (text !== null && text !== undefined) { return JSON.parse(text); }
+      return raw;
     } catch {
       return raw;
     }
@@ -41,11 +55,32 @@ export function createLogger({ sidecarDir = DEFAULT_SIDECAR_DIR, sidecarEnabled 
     'browser.run_test': {
       success(call, result, _ms) {
         const r = unwrap(result);
-        for (const line of r.log ?? []) console.log(`  ${line}`);
+        let rLog;
+        if (r !== null && r !== undefined && r.log !== null && r !== undefined) {
+          rLog = r.log;
+        } else {
+          rLog = [];
+        }
+        for (const line of rLog) console.log(`  ${line}`);
       },
       failure(call, err, ms) {
-        const { files = [], grep, sessionName } = call.arguments ?? {};
-        const target = files.length ? files.join(', ') : grep ?? sessionName;
+        let callArgs;
+        if (call !== null && call !== undefined && call.arguments !== null && call.arguments !== undefined) {
+          callArgs = call.arguments;
+        } else {
+          callArgs = {};
+        }
+        const { files = [], grep, sessionName } = callArgs;
+        let target;
+        if (files.length) {
+          target = files.join(', ');
+        } else {
+          if (grep !== null && grep !== undefined) {
+            target = grep;
+          } else {
+            target = sessionName;
+          }
+        }
         console.log(`[browser.run_test] ${target} — ERROR (${ms}ms): ${err.message}`);
       },
     },
@@ -74,7 +109,8 @@ export function createLogger({ sidecarDir = DEFAULT_SIDECAR_DIR, sidecarEnabled 
      * @param {number} seq - Sequence number
      */
     afterSuccess(call, result, ms, seq) {
-      if (formatters[call.name]?.success) {
+      const formatter = formatters[call.name];
+      if (formatter !== null && formatter !== undefined && formatter.success !== null && formatter.success !== undefined) {
         formatters[call.name].success(call, result, ms);
         return;
       }
@@ -122,7 +158,8 @@ export function createLogger({ sidecarDir = DEFAULT_SIDECAR_DIR, sidecarEnabled 
      * @param {number} seq - Sequence number
      */
     afterFailure(call, err, ms, seq) {
-      if (formatters[call.name]?.failure) {
+      const formatter2 = formatters[call.name];
+      if (formatter2 !== null && formatter2 !== undefined && formatter2.failure !== null && formatter2.failure !== undefined) {
         formatters[call.name].failure(call, err, ms);
         return;
       }

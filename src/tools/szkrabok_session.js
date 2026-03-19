@@ -101,7 +101,12 @@ export const open = async ({ sessionName, url, launchOptions = {} }) => {
         _launchImpl,
       });
     } catch (err) {
-      const msg = err?.message ?? '';
+      let msg;
+      if (err !== null && err !== undefined && err.message !== null && err.message !== undefined) {
+        msg = err.message;
+      } else {
+        msg = '';
+      }
       if (msg.includes('Executable') || msg.includes('executable') || msg.includes('chromium') || msg.includes('browser')) {
         throw new Error(
           `Chromium not found. Run "npx @pablovitasso/szkrabok --setup" in your terminal, then restart the MCP server. (Original error: ${msg})`,
@@ -175,12 +180,29 @@ export const list = async () => {
   // Template sessions from disk (active or inactive).
   const templateSessions = stored.map(id => {
     const a = activeMap.get(id);
+    let preset;
+    let label;
+    if (a !== null && a !== undefined) {
+      if (a.preset !== null && a.preset !== undefined) {
+        preset = a.preset;
+      } else {
+        preset = null;
+      }
+      if (a.label !== null && a.label !== undefined) {
+        label = a.label;
+      } else {
+        label = null;
+      }
+    } else {
+      preset = null;
+      label = null;
+    }
     return {
       id,
       active:  !!a,
       isClone: false,
-      preset:  a?.preset,
-      label:   a?.label,
+      preset,
+      label,
     };
   });
 
