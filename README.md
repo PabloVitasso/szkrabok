@@ -68,12 +68,13 @@ Run `.spec.js` tests via CDP. Requires `scaffold.init` and open session.
 - **sessionName** (required)
 - **files**: File/directory paths for playwright test
 - **grep**: Filter tests by name (regex)
-- **params**: Key/value → `TEST_*` env vars
+- **params**: Key/value → uppercased env vars (e.g. `{url:"..."}` → `process.env.URL`)
 - **config**: Config path, default `playwright.config.js`
 - **project**: Playwright project name
 - **keepOpen**: Reconnect session after test if MCP context invalidated, default `false`
+- **reportFile**: Repo-relative JSON report path. Default: `sessions/<sessionName>/last-run.json`. Returns resolved path
 
-Returns: `{ passed, failed, skipped, tests: [{ title, status, error, result }], log }`
+Returns: `{ passed, failed, skipped, tests: [{ title, status, error, result }], log, reportFile }`
 
 Run from VSCode with Playwright extension — no MCP required:
 

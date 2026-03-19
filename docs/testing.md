@@ -208,6 +208,8 @@ Launches its own browser via `runtime.launch()`. No active session needed.
 PLAYWRIGHT_PROJECT=e2e npx playwright test --project=e2e tests/playwright/e2e/rebrowser.spec.js
 ```
 
+The scaffolded `playwright.config.js` includes `['json', { outputFile: 'test-results/report.json' }]` — standalone runs write the JSON report there automatically.
+
 ### Path C — Standalone CLI with existing session (CDP connect)
 
 Connects to an already-open session browser. Useful when you want to inspect the browser during/after the run.
@@ -284,15 +286,16 @@ const result = await mcp.browser.run_test({
   params: { url: 'https://example.com' },  // available as process.env.URL in spec
   grep: 'my task',        // optional: filter by test name
   project: 'e2e',         // optional: playwright project
+  reportFile: 'test-results/my-run.json',  // optional: custom report path (repo-relative)
 });
 
-console.log(result.passed, result.failed);
+console.log(result.passed, result.failed, result.reportFile);
 // result.tests: [{ title, status, result }]
 
 await mcp.close();  // closes session and shuts down the MCP subprocess
 ```
 
-`browser.run_test` returns `{ passed, failed, tests }` — decoded from the JSON reporter attachment.
+`browser.run_test` returns `{ passed, failed, skipped, tests, log, reportFile }`. `reportFile` is the resolved absolute path to the JSON report on disk.
 
 ---
 
