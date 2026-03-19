@@ -196,7 +196,7 @@ When releasing, update the dependency path in each consumer project's `package.j
 
 ## ESLint
 
-Config lives in `eslint.config.js` (flat config, ESLint v9+). Rules: `eslint:recommended` base, `no-unused-vars` as error (unused args/vars/caught errors may be prefixed `_`), `eqeqeq`, `no-throw-literal`, `prefer-const`, `no-var`. Browser globals are added for files that pass callbacks to `page.evaluate()` / `addInitScript()`. Architectural boundary rules (no direct `chromium.launch*`, no stealth imports, no runtime subpath imports outside `packages/runtime/`) are enforced via additional file-scoped config blocks.
+Config lives in `eslint.config.js` (flat config, ESLint v9+). Rules: `eslint:recommended` base, `no-unused-vars` as error (unused args and caught errors may be prefixed `_`), `eqeqeq`, `no-throw-literal`, `prefer-const`, `no-var`. Browser globals are added for files that pass callbacks to `page.evaluate()` / `addInitScript()`. Architectural boundary rules (no direct `chromium.launch*`, no stealth imports, no runtime subpath imports outside `packages/runtime/`) are enforced via additional file-scoped config blocks.
 
 ```bash
 npm run lint        # runs standalone

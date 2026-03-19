@@ -1,6 +1,7 @@
 // launch.js — the one true browser bootstrap entry point.
 // Only this file calls launchPersistentContext.
 
+import { rm } from 'fs/promises';
 import { chromium } from 'playwright';
 import {
   resolvePreset,
@@ -12,12 +13,13 @@ import * as storage from './storage.js';
 import * as pool from './pool.js';
 import { log } from './logger.js';
 
-// Derive a deterministic CDP port from session id.
-// Range 20000–29999 — avoids common service ports, gives 10 000 slots.
-const cdpPortForId = id => {
-  let h = 0;
-  for (let i = 0; i < id.length; i++) h = (Math.imul(31, h) + id.charCodeAt(i)) | 0;
-  return 20000 + (Math.abs(h) % 10000);
+let _gcRegistered = false;
+const ensureGcOnExit = () => {
+  if (_gcRegistered) return;
+  _gcRegistered = true;
+  // once: cleanupClones schedules I/O which re-empties the loop — process.on
+  // would fire again indefinitely. once fires exactly once then self-removes.
+  process.once('beforeExit', () => storage.cleanupClones().catch(() => {}));
 };
 
 // _launchPersistentContext — internal, not exported.
@@ -50,7 +52,7 @@ const _launchPersistentContext = async (userDataDir, options = {}) => {
     ...(launchOptions.args || []),
   ];
 
-  if (launchOptions.cdpPort) {
+  if (launchOptions.cdpPort !== undefined) {
     launchOptions.args = [
       ...launchOptions.args,
       `--remote-debugging-port=${launchOptions.cdpPort}`,
@@ -100,10 +102,12 @@ export const checkBrowser = async () => {
 };
 
 export const launch = async (options = {}) => {
-  const { profile = 'default', preset: presetName, headless, stealth, userAgent, viewport, locale, timezone, reuse = true } = options;
+  const { profile = 'default', preset: presetName, headless, stealth, userAgent, viewport, locale, timezone, reuse = true, _launchImpl } = options;
   const cfg = getConfig();
 
+  ensureGcOnExit();
   await checkBrowser();
+  await storage.cleanupClones();
 
   // Idempotency: return existing handle when reuse=true and profile is open
   if (reuse && pool.has(profile)) {
@@ -148,9 +152,9 @@ export const launch = async (options = {}) => {
   };
 
   const userDataDir = storage.getUserDataDir(profile);
-  const cdpPort = cdpPortForId(profile);
 
-  const context = await _launchPersistentContext(userDataDir, {
+  const launchFn = _launchImpl ?? _launchPersistentContext;
+  const context = await launchFn(userDataDir, {
     stealth: effectiveStealth,
     presetConfig,
     viewport: effectiveViewport,
@@ -158,8 +162,10 @@ export const launch = async (options = {}) => {
     locale: effectiveLocale,
     timezoneId: effectiveTimezone,
     headless: effectiveHeadless,
-    cdpPort,
+    cdpPort: 0,
   });
+
+  const cdpPort = await storage.readDevToolsPort(userDataDir);
 
   // Restore saved state (cookies + localStorage)
   const savedState = await storage.loadState(profile);
@@ -203,7 +209,7 @@ export const launch = async (options = {}) => {
   const pages = context.pages();
   const page = pages.length > 0 ? pages[0] : await context.newPage();
 
-  pool.add(profile, context, page, cdpPort, resolved.preset, resolved.label);
+  pool.add(profile, context, page, cdpPort, resolved.preset, resolved.label, false, null);
 
   const meta = {
     sessionName: profile,
@@ -225,6 +231,7 @@ export const launch = async (options = {}) => {
 
   const cdpEndpoint = `http://localhost:${cdpPort}`;
 
+
   return {
     browser: context.browser(),
     context,
@@ -235,6 +242,50 @@ export const launch = async (options = {}) => {
       await storage.updateMeta(profile, { lastUsed: Date.now() });
       await context.close();
       pool.remove(profile);
+    },
+  };
+};
+
+/**
+ * Launch an ephemeral clone of a template session.
+ * No state is saved on close; the clone dir is deleted.
+ *
+ * @param {object} [options]
+ * @param {string} [options.profile]       Template session name to clone
+ * @param {Function} [options._launchImpl] Test seam — replaces _launchPersistentContext
+ * @returns {Promise<{ browser, context, cdpEndpoint, cloneId, close(): Promise<void> }>}
+ */
+export const launchClone = async (options = {}) => {
+  const { profile = 'default', _launchImpl, ...launchOpts } = options;
+
+  ensureGcOnExit();
+  await checkBrowser();
+  await storage.cleanupClones();
+  await storage.ensureSessionsDir();
+
+  const templateDir = storage.getUserDataDir(profile);
+  const { cloneId, dir: cloneDir } = await storage.cloneProfileAtomic(templateDir, profile);
+
+  const launchFn = _launchImpl ?? _launchPersistentContext;
+  const context = await launchFn(cloneDir, { ...launchOpts, cdpPort: 0 });
+
+  const cdpPort    = await storage.readDevToolsPort(cloneDir);
+  const cdpEndpoint = `http://localhost:${cdpPort}`;
+
+  const pages = context.pages();
+  const page  = pages.length > 0 ? pages[0] : await context.newPage();
+
+  pool.add(cloneId, context, page, cdpPort, null, null, true, cloneDir, profile);
+
+  return {
+    browser: context.browser(),
+    context,
+    cdpEndpoint,
+    cloneId,
+    close: async () => {
+      await context.close();
+      pool.remove(cloneId);
+      await rm(cloneDir, { recursive: true, force: true });
     },
   };
 };
