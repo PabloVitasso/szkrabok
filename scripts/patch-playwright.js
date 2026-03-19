@@ -106,23 +106,25 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 // (spawned by browser.run_test) uses whichever playwright/test resolves.
 
 function findPkgRoots() {
-  const roots = []
   const pkgRoot = path.resolve(__dirname, '..')
 
   // Primary playwright-core (hoisted or local) — Node's own resolution from pkgRoot
   const primary = resolvePlaywrightCore(pkgRoot)
-  if (primary) roots.push(primary)
+
+  const roots = primary ? [primary] : [];
 
   // Also find playwright's own nested playwright-core copy.
   // Resolve playwright's package root, then re-run Node resolution from there.
   try {
     const playwrightPkg = path.dirname(require.resolve('playwright/package.json'))
     const nested = resolvePlaywrightCore(playwrightPkg)
-    if (nested && !roots.includes(nested)) roots.push(nested)
+    if (nested && !roots.includes(nested)) {
+      return [...roots, nested];
+    }
   // eslint-disable-next-line no-empty -- playwright may not be installed; optional resolution
   } catch {}
 
-  return roots
+  return roots;
 }
 
 const pkgRoots = findPkgRoots()
@@ -652,7 +654,7 @@ for (const pkgRoot of pkgRoots) {
   }
 
   // per-install backup list
-  const backedUp = []
+  const backedUp = new Set()
 
   function bakPath(rel) {
     return path.join(lib, rel) + '.bak'
@@ -666,7 +668,7 @@ for (const pkgRoot of pkgRoots) {
 
   function backup(rel) {
     fs.copyFileSync(path.join(lib, rel), bakPath(rel))
-    backedUp.push(rel)
+    backedUp.add(rel)
     console.log(`  backed up ${rel}`)
   }
 
