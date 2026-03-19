@@ -38,7 +38,13 @@ for (const { file, marker } of PATCHES) {
   } catch {
     ok = false
   }
-  console.log(`  ${ok ? 'PASS' : 'FAIL'} ${file}`)
+  let resultStr;
+  if (ok) {
+    resultStr = 'PASS';
+  } else {
+    resultStr = 'FAIL';
+  }
+  console.log(`  ${resultStr} ${file}`)
   if (!ok) allOk = false
 }
 

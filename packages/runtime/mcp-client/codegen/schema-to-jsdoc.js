@@ -15,7 +15,10 @@ export function schemaToTs(prop) {
     case 'integer': return 'number';
     case 'object': return 'Record<string, unknown>';
     case 'array':
-      return prop.items ? `${schemaToTs(prop.items)}[]` : 'unknown[]';
+      if (prop.items) {
+        return `${schemaToTs(prop.items)}[]`;
+      }
+      return 'unknown[]';
     default: return 'any';
   }
 }

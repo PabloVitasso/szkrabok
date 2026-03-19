@@ -192,18 +192,37 @@ class CDPSession`
   // Runtime.enable, which is detectable by anti-bot systems.
   async __re__emitExecutionContext({ world, targetId, frame = null, utilityWorldName: callerUtilityWorldName }) {
     const fixMode = process.env['REBROWSER_PATCHES_RUNTIME_FIX_MODE'] || 'addBinding'
-    const utilityWorldName =
-      process.env['REBROWSER_PATCHES_UTILITY_WORLD_NAME'] !== '0'
-        ? (process.env['REBROWSER_PATCHES_UTILITY_WORLD_NAME'] || 'util')
-        : '__playwright_utility_world__'
-    if (process.env['REBROWSER_PATCHES_DEBUG'])
-      console.log(\`[rebrowser-patches][crSession] targetId=\${targetId} world=\${world} frame=\${frame ? 'Y' : 'N'} fixMode=\${fixMode}\`)
+    let utilityWorldName;
+    if (process.env['REBROWSER_PATCHES_UTILITY_WORLD_NAME'] !== '0') {
+      if (process.env['REBROWSER_PATCHES_UTILITY_WORLD_NAME']) {
+        utilityWorldName = process.env['REBROWSER_PATCHES_UTILITY_WORLD_NAME'];
+      } else {
+        utilityWorldName = 'util';
+      }
+    } else {
+      utilityWorldName = '__playwright_utility_world__';
+    }
+    if (process.env['REBROWSER_PATCHES_DEBUG']) {
+      let frameFlag;
+      if (frame) {
+        frameFlag = 'Y';
+      } else {
+        frameFlag = 'N';
+      }
+      console.log(\`[rebrowser-patches][crSession] targetId=\${targetId} world=\${world} frame=\${frameFlag} fixMode=\${fixMode}\`);
+    }
 
     let getWorldPromise
     if (fixMode === 'addBinding') {
       if (world === 'utility') {
+        let worldName;
+        if (callerUtilityWorldName) {
+          worldName = callerUtilityWorldName;
+        } else {
+          worldName = '__playwright_utility_world__';
+        }
         getWorldPromise = this.__re__getIsolatedWorld({ client: this, frameId: targetId, worldName: utilityWorldName })
-          .then(contextId => ({ id: contextId, name: callerUtilityWorldName || '__playwright_utility_world__', auxData: { frameId: targetId, isDefault: false } }))
+          .then(contextId => ({ id: contextId, name: worldName, auxData: { frameId: targetId, isDefault: false } }))
       } else if (world === 'main') {
         getWorldPromise = this.__re__getMainWorld({ client: this, frameId: targetId, isWorker: frame === null })
           .then(contextId => ({ id: contextId, name: '', auxData: { frameId: targetId, isDefault: true } }))

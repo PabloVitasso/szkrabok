@@ -34,9 +34,12 @@ export function createCallInvoker({ client, log, adapter, sessionName }) {
       const start = Date.now();
 
       // Inject session name if tool requires it
-      const finalArgs = adapter.hasSession({ inputSchema: { properties: { sessionName: {} } } })
-        ? adapter.injectSession(args, sessionName)
-        : args;
+      let finalArgs;
+      if (adapter.hasSession({ inputSchema: { properties: { sessionName: {} } } })) {
+        finalArgs = adapter.injectSession(args, sessionName);
+      } else {
+        finalArgs = args;
+      }
 
       // Log intent
       log.before({ name: toolName, arguments: finalArgs }, seq);
@@ -52,12 +55,10 @@ export function createCallInvoker({ client, log, adapter, sessionName }) {
         seq++;
 
         // Parse result content
-        if (result.content && Array.isArray(result.content)) {
-          const textContent = result.content.find(c => c.type === 'text');
-          if (textContent) {
-            return JSON.parse(textContent.text);
-          }
-        }
+        if (!result.content) return result;
+        if (!Array.isArray(result.content)) return result;
+        const textContent = result.content.find(c => c.type === 'text');
+        if (textContent) return JSON.parse(textContent.text);
         return result;
       } catch (err) {
         const ms = Date.now() - start;

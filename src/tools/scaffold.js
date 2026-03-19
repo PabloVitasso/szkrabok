@@ -5,7 +5,12 @@ import { fileURLToPath } from 'node:url';
 import { spawn } from 'node:child_process';
 
 const TEMPLATES_DIR = join(dirname(fileURLToPath(import.meta.url)), 'templates');
-const npmBin = process.platform === 'win32' ? 'npm.cmd' : 'npm';
+let npmBin;
+if (process.platform === 'win32') {
+  npmBin = 'npm.cmd';
+} else {
+  npmBin = 'npm';
+}
 
 const { version: PKG_VERSION } = JSON.parse(
   readFileSync(new URL('../../package.json', import.meta.url))
@@ -42,17 +47,23 @@ function mergePackageJson(existing, name) {
 
   return {
     ...existing,
-    type: existing.type ?? base.type,
+    type: (() => { if (existing.type != null) return existing.type; return base.type; })(),
     scripts: { ...base.scripts, ...existing.scripts },
-    dependencies: { ...base.dependencies, ...(existing.dependencies ?? {}) },
-    devDependencies: { ...base.devDependencies, ...(existing.devDependencies ?? {}) },
+    dependencies: { ...base.dependencies, ...(existing.dependencies != null ? existing.dependencies : {}) },
+    devDependencies: { ...base.devDependencies, ...(existing.devDependencies != null ? existing.devDependencies : {}) },
   };
 }
 
 function npmInstall(dir) {
   return new Promise(resolve => {
     const child = spawn(npmBin, ['install'], { cwd: dir, stdio: 'inherit' });
-    child.on('close', code => resolve(code === 0 ? null : `npm install exited ${code}`));
+    child.on('close', code => {
+      if (code === 0) {
+        resolve(null);
+      } else {
+        resolve(`npm install exited ${code}`);
+      }
+    });
     child.on('error', err => resolve(`npm install failed: ${err.message}`));
   });
 }
@@ -60,8 +71,18 @@ function npmInstall(dir) {
 export async function init(args = {}) {
   const { dir: rawDir, name, preset = 'minimal', install = false } = args;
 
-  const dir = rawDir ? resolve(rawDir) : process.cwd();
-  const pkgName = name ?? basename(dir);
+  let dir;
+  if (rawDir) {
+    dir = resolve(rawDir);
+  } else {
+    dir = process.cwd();
+  }
+  let pkgName;
+  if (name != null) {
+    pkgName = name;
+  } else {
+    pkgName = basename(dir);
+  }
 
   await mkdir(dir, { recursive: true });
 
@@ -93,7 +114,11 @@ export async function init(args = {}) {
   if (!skipped.includes('package.json')) {
     const mergedPkg = mergePackageJson(existing, pkgName);
     await writeJsonAtomic(pkgDest, mergedPkg);
-    existing ? merged.push('package.json') : created.push('package.json');
+    if (existing) {
+      merged.push('package.json');
+    } else {
+      created.push('package.json');
+    }
   }
 
   // szkrabok.config.local.toml.example

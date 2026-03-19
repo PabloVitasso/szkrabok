@@ -6,9 +6,12 @@ export const scrape = async ({ sessionName, selectors = [] }) => {
   const blocks = await page.evaluate(userSelectors => {
     const norm = t => t.replace(/\s+/g, ' ').trim();
 
-    const targets = userSelectors.length > 0
-      ? [...document.querySelectorAll(userSelectors.join(','))]
-      : [document.querySelector('main') || document.body];
+    const targets = (() => {
+      if (userSelectors.length > 0) {
+        return [...document.querySelectorAll(userSelectors.join(','))];
+      }
+      return [document.querySelector('main') || document.body];
+    })();
 
     const result = [];
     const seenText = new Set();

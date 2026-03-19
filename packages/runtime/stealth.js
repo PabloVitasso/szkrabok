@@ -40,40 +40,100 @@ export const enhanceWithStealth = (browser, presetConfig = {}) => {
     enhanced.use(stealth);
 
     const uaConfig = STEALTH_CONFIG['user-agent-override'];
-    const overrideUA = presetConfig.overrideUserAgent ?? uaConfig.enabled ?? true;
+    let overrideUA;
+    if (presetConfig.overrideUserAgent != null) {
+      overrideUA = presetConfig.overrideUserAgent;
+    } else if (uaConfig.enabled != null) {
+      overrideUA = uaConfig.enabled;
+    } else {
+      overrideUA = true;
+    }
     if (overrideUA) {
+      let userAgentArg;
+      if (presetConfig.userAgent) {
+        userAgentArg = presetConfig.userAgent;
+      } else {
+        userAgentArg = undefined;
+      }
+      let localeArg;
+      if (presetConfig.locale) {
+        localeArg = presetConfig.locale;
+      } else {
+        localeArg = undefined;
+      }
+      let maskLinux;
+      if (uaConfig.mask_linux != null) {
+        maskLinux = uaConfig.mask_linux;
+      } else {
+        maskLinux = true;
+      }
       enhanced.use(
         UserAgentOverride({
-          userAgent: presetConfig.userAgent || undefined,
-          locale: presetConfig.locale || undefined,
-          maskLinux: uaConfig.mask_linux ?? true,
+          userAgent: userAgentArg,
+          locale: localeArg,
+          maskLinux: maskLinux,
         })
       );
     }
 
     const vendorConfig = STEALTH_CONFIG['navigator.vendor'];
-    if (vendorConfig.enabled ?? true) {
-      enhanced.use(NavigatorVendor({ vendor: vendorConfig.vendor ?? 'Google Inc.' }));
+    if (vendorConfig.enabled == null || vendorConfig.enabled) {
+      let vendor;
+      if (vendorConfig.vendor != null) {
+        vendor = vendorConfig.vendor;
+      } else {
+        vendor = 'Google Inc.';
+      }
+      enhanced.use(NavigatorVendor({ vendor: vendor }));
     }
 
     const hwConfig = STEALTH_CONFIG['navigator.hardwareConcurrency'];
-    if (hwConfig.enabled ?? true) {
-      enhanced.use(NavigatorHardwareConcurrency({ hardwareConcurrency: hwConfig.hardware_concurrency ?? 4 }));
+    if (hwConfig.enabled == null || hwConfig.enabled) {
+      let hardwareConcurrency;
+      if (hwConfig.hardware_concurrency != null) {
+        hardwareConcurrency = hwConfig.hardware_concurrency;
+      } else {
+        hardwareConcurrency = 4;
+      }
+      enhanced.use(NavigatorHardwareConcurrency({ hardwareConcurrency: hardwareConcurrency }));
     }
 
     const langConfig = STEALTH_CONFIG['navigator.languages'];
-    if (langConfig.enabled ?? true) {
-      const locale = presetConfig.locale || 'en-US';
-      const languages = langConfig.languages ?? [locale, locale.split('-')[0]].filter(Boolean);
-      enhanced.use(NavigatorLanguages({ languages }));
+    if (langConfig.enabled == null || langConfig.enabled) {
+      let locale;
+      if (presetConfig.locale) {
+        locale = presetConfig.locale;
+      } else {
+        locale = 'en-US';
+      }
+      let languages;
+      if (langConfig.languages != null) {
+        languages = langConfig.languages.filter(Boolean);
+      } else {
+        const langBase = locale.split('-')[0];
+        languages = [locale, langBase].filter(Boolean);
+      }
+      enhanced.use(NavigatorLanguages({ languages: languages }));
     }
 
     const webglConfig = STEALTH_CONFIG['webgl.vendor'];
-    if (webglConfig.enabled ?? true) {
+    if (webglConfig.enabled == null || webglConfig.enabled) {
+      let vendor;
+      if (webglConfig.vendor != null) {
+        vendor = webglConfig.vendor;
+      } else {
+        vendor = 'Intel Inc.';
+      }
+      let renderer;
+      if (webglConfig.renderer != null) {
+        renderer = webglConfig.renderer;
+      } else {
+        renderer = 'Intel Iris OpenGL Engine';
+      }
       enhanced.use(
         WebGLVendor({
-          vendor: webglConfig.vendor ?? 'Intel Inc.',
-          renderer: webglConfig.renderer ?? 'Intel Iris OpenGL Engine',
+          vendor: vendor,
+          renderer: renderer,
         })
       );
     }
@@ -90,7 +150,14 @@ export const applyStealthToExistingPage = async (page, presetConfig = {}) => {
   try {
     logDebug('applyStealthToExistingPage called', { presetConfig });
     const uaConfig = STEALTH_CONFIG['user-agent-override'];
-    const overrideUA = presetConfig.overrideUserAgent ?? uaConfig.enabled ?? true;
+    let overrideUA;
+    if (presetConfig.overrideUserAgent != null) {
+      overrideUA = presetConfig.overrideUserAgent;
+    } else if (uaConfig.enabled != null) {
+      overrideUA = uaConfig.enabled;
+    } else {
+      overrideUA = true;
+    }
     const hwConfig = STEALTH_CONFIG['navigator.hardwareConcurrency'];
     const webglConfig = STEALTH_CONFIG['webgl.vendor'];
     const langConfig = STEALTH_CONFIG['navigator.languages'];
@@ -98,9 +165,19 @@ export const applyStealthToExistingPage = async (page, presetConfig = {}) => {
     const client = await page.context().newCDPSession(page);
 
     if (overrideUA) {
-      const ua = presetConfig.userAgent || '';
+      let ua;
+      if (presetConfig.userAgent) {
+        ua = presetConfig.userAgent;
+      } else {
+        ua = '';
+      }
       const chromeMatch = ua.match(/Chrome\/([\d.]+)/);
-      const uaVersion = chromeMatch ? chromeMatch[1] : '120.0.0.0';
+      let uaVersion;
+      if (chromeMatch) {
+        uaVersion = chromeMatch[1];
+      } else {
+        uaVersion = '120.0.0.0';
+      }
       const seed = parseInt(uaVersion.split('.')[0]);
 
       const order = [
@@ -118,27 +195,50 @@ export const applyStealthToExistingPage = async (page, presetConfig = {}) => {
       brands[order[1]] = { brand: 'Chromium', version: String(seed) };
       brands[order[2]] = { brand: 'Google Chrome', version: String(seed) };
 
-      const maskLinux = uaConfig.mask_linux ?? true;
-      let platform = 'Win32';
-      let extPlatform = 'Windows';
-      let platformVersion = '10.0';
+      let maskLinux;
+      if (uaConfig.mask_linux != null) {
+        maskLinux = uaConfig.mask_linux;
+      } else {
+        maskLinux = true;
+      }
+
+      let platform;
+      let extPlatform;
+      let platformVersion;
       if (ua.includes('Mac OS X')) {
         platform = 'MacIntel';
         extPlatform = 'Mac OS X';
         const macMatch = ua.match(/Mac OS X ([^)]+)/);
-        platformVersion = macMatch ? macMatch[1] : '10_15_7';
+        if (macMatch) {
+          platformVersion = macMatch[1];
+        } else {
+          platformVersion = '10_15_7';
+        }
       } else if (ua.includes('Android')) {
         platform = 'Android';
         extPlatform = 'Android';
         const andMatch = ua.match(/Android ([^;]+)/);
-        platformVersion = andMatch ? andMatch[1] : '14';
+        if (andMatch) {
+          platformVersion = andMatch[1];
+        } else {
+          platformVersion = '14';
+        }
       } else if (ua.includes('Linux') && !maskLinux) {
         platform = 'Linux x86_64';
         extPlatform = 'Linux';
         platformVersion = '';
+      } else {
+        platform = 'Win32';
+        extPlatform = 'Windows';
+        platformVersion = '10.0';
       }
 
-      const locale = presetConfig.locale || 'en-US';
+      let locale;
+      if (presetConfig.locale) {
+        locale = presetConfig.locale;
+      } else {
+        locale = 'en-US';
+      }
 
       await client.send('Network.setUserAgentOverride', {
         userAgent: ua,
@@ -186,8 +286,13 @@ export const applyStealthToExistingPage = async (page, presetConfig = {}) => {
 })();`);
     }
 
-    if (hwConfig.enabled ?? true) {
-      const concurrency = hwConfig.hardware_concurrency ?? 4;
+    if (hwConfig.enabled == null || hwConfig.enabled) {
+      let concurrency;
+      if (hwConfig.hardware_concurrency != null) {
+        concurrency = hwConfig.hardware_concurrency;
+      } else {
+        concurrency = 4;
+      }
       logDebug('registering hardwareConcurrency init script', { concurrency });
       await page.addInitScript(`(function(){
   try {
@@ -196,18 +301,39 @@ export const applyStealthToExistingPage = async (page, presetConfig = {}) => {
 })()`);
     }
 
-    if (langConfig.enabled ?? true) {
-      const locale = presetConfig.locale || 'en-US';
-      const languages = langConfig.languages ?? [locale, locale.split('-')[0]].filter(Boolean);
+    if (langConfig.enabled == null || langConfig.enabled) {
+      let locale;
+      if (presetConfig.locale) {
+        locale = presetConfig.locale;
+      } else {
+        locale = 'en-US';
+      }
+      let languages;
+      if (langConfig.languages != null) {
+        languages = langConfig.languages.filter(Boolean);
+      } else {
+        const langBase = locale.split('-')[0];
+        languages = [locale, langBase].filter(Boolean);
+      }
       const langsJson = JSON.stringify(languages);
       await page.addInitScript(
         `Object.defineProperty(Navigator.prototype, 'languages', { get: () => ${langsJson}, configurable: true });`
       );
     }
 
-    if (webglConfig.enabled ?? true) {
-      const vendor = webglConfig.vendor ?? 'Intel Inc.';
-      const renderer = webglConfig.renderer ?? 'Intel Iris OpenGL Engine';
+    if (webglConfig.enabled == null || webglConfig.enabled) {
+      let vendor;
+      if (webglConfig.vendor != null) {
+        vendor = webglConfig.vendor;
+      } else {
+        vendor = 'Intel Inc.';
+      }
+      let renderer;
+      if (webglConfig.renderer != null) {
+        renderer = webglConfig.renderer;
+      } else {
+        renderer = 'Intel Iris OpenGL Engine';
+      }
       await page.addInitScript(`
 (function() {
   const _getParameter = WebGLRenderingContext.prototype.getParameter;
