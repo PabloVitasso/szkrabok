@@ -490,7 +490,7 @@ async function _run({ session, test, postPolicy = {} }) {
 
 | Function | File | Status |
 |---|---|---|
-| `workers` param in `browser_run_test` | `src/tools/szkrabok_browser.js` | not started |
+| `workers` param in `browser_run_test` | `src/tools/szkrabok_browser.js` | done |
 | `signalAttach` support | `src/tools/szkrabok_browser.js` + fixture | not started |
 | `cloneFromLive` | `packages/runtime/sessions.js` | not started |
 | `session_run_test` + `withLock` | `src/tools/session_run_test.js` | not started |

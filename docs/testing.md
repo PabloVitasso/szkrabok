@@ -286,6 +286,7 @@ const result = await mcp.browser_run_test({
   params: { url: 'https://example.com' },  // available as process.env.URL in spec
   grep: 'my task',        // optional: filter by test name
   project: 'e2e',         // optional: playwright project
+  workers: 1,            // optional: parallel workers (session_run_test forces 1)
   reportFile: 'test-results/my-run.json',  // optional: custom report path (repo-relative)
 });
 

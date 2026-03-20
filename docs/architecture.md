@@ -288,13 +288,13 @@ session_manage { action: close, sessionName: cloneId }
 ### browser_run_test
 
 ```
-browser_run_test(id, files?, grep?, params?, reportFile?)
+browser_run_test(id, files?, grep?, params?, workers?, reportFile?)
   -> getSession(id) — throws if not open
   -> read cdpEndpoint from session handle
   -> set SZKRABOK_CDP_ENDPOINT=cdpEndpoint
   -> set PLAYWRIGHT_JSON_OUTPUT_NAME=jsonFile
      (reportFile arg if given, else sessions/<id>/last-run.json)
-  -> spawn: npx playwright test --reporter=list,json [files] [--grep]
+  -> spawn: npx playwright test --reporter=list,json [files] [--grep] [--workers <n>]
   -> subprocess fixture connects via connectOverCDP (no launch)
   -> parse JSON report, decode base64 result attachments
   -> return { passed, failed, tests: [{title, status, result}], reportFile }

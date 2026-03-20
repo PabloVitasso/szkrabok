@@ -113,7 +113,7 @@ const tools = {
 
   'browser_run_test': {
     handler: szkrabokBrowser.run_test,
-    description: `${PLAYWRIGHT_MCP} Run .spec.js tests via CDP (returns JSON). Requires session_manage(open) and scaffold_init`,
+    description: `${PLAYWRIGHT_MCP} Worker concurrency. Default: Playwright. session_run_test overrides to 1`,
     inputSchema: {
       type: 'object',
       properties: {
@@ -138,6 +138,10 @@ const tools = {
           items: { type: 'string' },
           description:
             'File or directory paths passed as positional args to playwright test (e.g. ["automation/rebrowser-check.spec.js"] or ["automation/"]). Relative to repo root.',
+        },
+        workers: {
+          type: 'number',
+          description: 'Number of parallel workers. Defaults to Playwright config value. session_run_test forces workers:1.',
         },
         keepOpen: {
           type: 'boolean',

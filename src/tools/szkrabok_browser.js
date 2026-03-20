@@ -91,6 +91,7 @@ export const run_test = async args => {
     params = {},
     config = 'playwright.config.js',
     project,
+    workers,
     files = [],
     keepOpen = false,
     reportFile,
@@ -150,6 +151,7 @@ export const run_test = async args => {
     '--timeout',
     '60000',
     ...(project ? ['--project', project] : []),
+    ...(workers !== undefined ? ['--workers', String(workers)] : []),
   ];
 
   if (project) env.PLAYWRIGHT_PROJECT = project;
