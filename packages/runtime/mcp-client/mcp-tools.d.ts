@@ -1,6 +1,6 @@
 // AUTO-GENERATED — do not edit manually.
 // Regenerate: npm run codegen:mcp
-// Last generated: 2026-03-20T15:04:11.634Z
+// Last generated: 2026-03-20T15:43:02.349Z
 
 export interface SessionHandle {
   /**
@@ -38,12 +38,14 @@ export interface BrowserHandle {
   }): Promise<unknown>;
 
   /**
-   * [playwright-mcp] Run .spec.js tests via CDP (returns JSON). Requires session_manage(open) and scaffold_init
+   * [playwright-mcp] Worker concurrency. Default: Playwright. session_run_test overrides to 1
    * @param args.grep Filter tests by name (regex)
    * @param args.params Key/value params passed as uppercased env vars to the spec (e.g. {url:"https://..."} → URL)
    * @param args.config Config path relative to repo root. Defaults to playwright.config.js
    * @param args.project Playwright project name to run (e.g. "automation"). Runs all projects if omitted.
    * @param args.files File or directory paths passed as positional args to playwright test (e.g. ["automation/rebrowser-check.spec.js"] or ["automation/"]). Relative to repo root.
+   * @param args.workers Number of parallel workers. Defaults to Playwright config value. session_run_test forces workers:1.
+   * @param args.signalAttach Wait for fixture to confirm CDP attach before running tests. Default: false.
    * @param args.keepOpen After the test run, reconnect the session if the test subprocess invalidated the MCP context. Chrome stays alive; this restores the Playwright connection to it. Default false.
    * @param args.reportFile Repo-relative JSON report path. Default: sessions/<sessionName>/last-run.json. Returns resolved path
    */
@@ -53,6 +55,8 @@ export interface BrowserHandle {
     config?: string;
     project?: string;
     files?: string[];
+    workers?: number;
+    signalAttach?: boolean;
     keepOpen?: boolean;
     reportFile?: string;
   }): Promise<unknown>;

@@ -1,7 +1,7 @@
 // AUTO-GENERATED — do not edit manually.
 // Regenerate: npm run codegen:mcp
-// Last generated: 2026-03-20T15:04:11.634Z
-// Tools: 5  Hash: b8859b7d8a08
+// Last generated: 2026-03-20T15:43:02.349Z
+// Tools: 5  Hash: 2d08df35d3c2
 
 import { createHash } from 'node:crypto';
 import { spawnClient } from './runtime/transport.js';
@@ -9,7 +9,7 @@ import { createCallInvoker } from './runtime/invoker.js';
 import { createLogger } from './runtime/logger.js';
 import * as adapter from './adapters/szkrabok-session.js';
 
-const REGISTRY_HASH = 'b8859b7d8a08';
+const REGISTRY_HASH = '2d08df35d3c2';
 
 /**
  * @typedef {Object} McpHandle
@@ -19,7 +19,7 @@ const REGISTRY_HASH = 'b8859b7d8a08';
  *   browser: {
     scrape({ selectors }): Promise<any>
     run({ code, path, fn, args }): Promise<any>
-    run_test({ grep, params, config, project, files, keepOpen, reportFile }): Promise<any>
+    run_test({ grep, params, config, project, files, workers, signalAttach, keepOpen, reportFile }): Promise<any>
   }
  *   scaffold: {
     init({ dir, name, preset, install }): Promise<any>
@@ -69,7 +69,7 @@ export async function mcpConnect(sessionName, options = {}) {
       scrape: async (args = {}) => invoke('browser_scrape', args),
       /** @param {{ code?: string, path?: string, fn?: string, args?: object }} [args] */
       run: async (args = {}) => invoke('browser_run', args),
-      /** @param {{ grep?: string, params?: object, config?: string, project?: string, files?: string[], keepOpen?: boolean, reportFile?: string }} [args] */
+      /** @param {{ grep?: string, params?: object, config?: string, project?: string, files?: string[], workers?: number, signalAttach?: boolean, keepOpen?: boolean, reportFile?: string }} [args] */
       run_test: async (args = {}) => invoke('browser_run_test', args),
     },
     scaffold: {

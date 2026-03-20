@@ -11,6 +11,7 @@
  */
 import { test as base } from 'playwright/test';
 import { initConfig, launch, connect } from '@szkrabok/runtime';
+import { writeFile } from 'fs/promises';
 
 export { expect } from 'playwright/test';
 
@@ -27,6 +28,9 @@ async ({}, use) => {
         const handle = await connect(cdpEndpoint);
         await use(handle);
         // Do NOT close — MCP session owns this browser.
+        if (process.env.SZKRABOK_ATTACH_SIGNAL) {
+          await writeFile(process.env.SZKRABOK_ATTACH_SIGNAL, '').catch(() => {});
+        }
       } else {
         // Path B: launch standalone with full stealth + persistence
         const handle = await launch({ profile: 'dev', reuse: true });

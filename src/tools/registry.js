@@ -143,6 +143,10 @@ const tools = {
           type: 'number',
           description: 'Number of parallel workers. Defaults to Playwright config value. session_run_test forces workers:1.',
         },
+        signalAttach: {
+          type: 'boolean',
+          description: 'Wait for fixture to confirm CDP attach before running tests. Default: false.',
+        },
         keepOpen: {
           type: 'boolean',
           description:

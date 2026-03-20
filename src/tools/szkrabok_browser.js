@@ -4,9 +4,34 @@ import { resolve, dirname, join } from 'path';
 import { spawn } from 'child_process';
 import { fileURLToPath } from 'url';
 import { createWriteStream, existsSync } from 'fs';
-import { readFile, mkdir } from 'fs/promises';
+import { access, readFile, mkdir, unlink } from 'fs/promises';
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
+
+/**
+ * Wait for a signal file to appear on disk, simulating fixture CDP attach confirmation.
+ * Used by session_run_test withLock to hold the lock until the browser worker has
+ * successfully connected to the CDP endpoint.
+ */
+export const waitForAttach = signalFile => {
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      clearInterval(interval);
+      reject(new Error('signalAttach timeout: fixture did not confirm CDP attach'));
+    }, 30_000);
+    const interval = setInterval(() => {
+      access(signalFile)
+        .then(() => {
+          clearTimeout(timeout);
+          clearInterval(interval);
+          resolve();
+        })
+        .catch(() => {
+          /* not ready yet — keep polling */
+        });
+    }, 100);
+  });
+};
 
 const decodeAttachment = att => {
   if (att === null || att === undefined) return;
@@ -92,6 +117,7 @@ export const run_test = async args => {
     config = 'playwright.config.js',
     project,
     workers,
+    signalAttach,
     files = [],
     keepOpen = false,
     reportFile,
@@ -141,6 +167,14 @@ export const run_test = async args => {
 
   const logFile = join(sessionDir, 'last-run.log');
 
+  // Optional: wait for CDP attach signal from the fixture before running tests.
+  // Ensures the spawned worker has successfully connected to the browser before
+  // the handler lock is released (used by session_run_test withLock).
+  const attachSignalFile = signalAttach ? join(sessionDir, `.attach-signal`) : null;
+  if (attachSignalFile) {
+    env.SZKRABOK_ATTACH_SIGNAL = attachSignalFile;
+  }
+
   const argsPW = [
     'playwright',
     'test',
@@ -154,9 +188,17 @@ export const run_test = async args => {
     ...(workers !== undefined ? ['--workers', String(workers)] : []),
   ];
 
-  if (project) env.PLAYWRIGHT_PROJECT = project;
-  if (grep) argsPW.push('--grep', grep);
-  if (files.length) argsPW.push(...files);
+  if (project) {
+    env.PLAYWRIGHT_PROJECT = project;
+  }
+  if (grep) {
+    argsPW.push('--grep', grep);
+  }
+  if (files.length) {
+    argsPW.push(...files);
+  }
+
+  if (attachSignalFile) await waitForAttach(attachSignalFile);
 
   await new Promise((resolveP, rejectP) => {
     const logStream = createWriteStream(logFile);
@@ -182,6 +224,10 @@ export const run_test = async args => {
     readFile(logFile, 'utf8').catch(() => ''),
     readFile(jsonFile, 'utf8').catch(() => null),
   ]);
+
+  if (attachSignalFile) {
+    await unlink(attachSignalFile).catch(() => {});
+  }
 
   const log = logRaw.split('\n').filter(Boolean);
 
