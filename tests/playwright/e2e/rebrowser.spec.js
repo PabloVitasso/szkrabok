@@ -26,7 +26,7 @@
  *        session.open { "sessionName": "rebrowser", "launchOptions": { "headless": false } }
  *
  *   2. Run the test (connects to that Chrome via CDP):
- *        browser.run_test { "sessionName": "rebrowser", "grep": "rebrowser-check" }
+ *        browser_run_test { "sessionName": "rebrowser", "grep": "rebrowser-check" }
  *
  *   Expected score via MCP: 8/10. Permanent failures:
  *     - mainWorldExecution: needs rebrowser-patches alwaysIsolated mode (conflicts with dummyFn)

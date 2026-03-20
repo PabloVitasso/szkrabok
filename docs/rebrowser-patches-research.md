@@ -104,7 +104,7 @@ Runs as `postinstall` in `package.json`. Rolls back atomically on any failure.
 **Two playwright-core installs must both be patched:**
 
 - `node_modules/playwright-core` — used by the MCP server
-- `node_modules/playwright/node_modules/playwright-core` — used by the test runner (`browser.run_test` spawns `npx playwright test` which resolves through this nested copy)
+- `node_modules/playwright/node_modules/playwright-core` — used by the test runner (`browser_run_test` spawns `npx playwright test` which resolves through this nested copy)
 
 The script finds and patches all copies automatically. Each gets a `.szkrabok-patched` stamp file.
 

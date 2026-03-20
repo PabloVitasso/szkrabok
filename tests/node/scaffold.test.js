@@ -8,7 +8,7 @@ import { init } from '../../src/tools/scaffold.js';
 
 const makeTmp = () => mkdtemp(join(tmpdir(), 'scaffold-test-'));
 
-test('scaffold.init creates expected files in empty dir (minimal)', async () => {
+test('scaffold_init creates expected files in empty dir (minimal)', async () => {
   const dir = await makeTmp();
   try {
     const result = await init({ dir, name: 'test-project' });
@@ -30,7 +30,7 @@ test('scaffold.init creates expected files in empty dir (minimal)', async () => 
   }
 });
 
-test('scaffold.init full preset creates all automation files', async () => {
+test('scaffold_init full preset creates all automation files', async () => {
   const dir = await makeTmp();
   try {
     const result = await init({ dir, preset: 'full' });
@@ -49,7 +49,7 @@ test('scaffold.init full preset creates all automation files', async () => {
   }
 });
 
-test('scaffold.init skips existing files', async () => {
+test('scaffold_init skips existing files', async () => {
   const dir = await makeTmp();
   try {
     await init({ dir });
@@ -62,7 +62,7 @@ test('scaffold.init skips existing files', async () => {
   }
 });
 
-test('scaffold.init merges into existing package.json', async () => {
+test('scaffold_init merges into existing package.json', async () => {
   const dir = await makeTmp();
   try {
     const existing = {
@@ -89,7 +89,7 @@ test('scaffold.init merges into existing package.json', async () => {
   }
 });
 
-test('scaffold.init package.json has type:module', async () => {
+test('scaffold_init package.json has type:module', async () => {
   const dir = await makeTmp();
   try {
     await init({ dir });

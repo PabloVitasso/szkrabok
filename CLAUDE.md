@@ -32,6 +32,6 @@ Confirm which server is running: `session_manage { "action": "list" }` returns `
 
 See [docs/testing.md](./docs/testing.md) for all paths. Quick reference:
 
-- **MCP** (`browser.run_test`): requires an open session — `session_manage open` first
+- **MCP** (`browser_run_test`): requires an open session — `session_manage open` first
 - **Standalone CLI**: `PLAYWRIGHT_PROJECT=e2e npx playwright test --project=e2e` — no session needed
 - **Node tests**: `npm run test:node`

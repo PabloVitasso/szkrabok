@@ -19,7 +19,7 @@
 ---
 
 Reusable library for calling szkrabok MCP tools from Playwright tests.
-Provides a typed handle object (`mcp.workflow.scrape(...)`) generated from the live
+Provides a typed handle object (`mcp.browser_scrape(...)`) generated from the live
 tool registry, with JSONL console output that is 1:1 copy-pasteable for LLM
 invocation.
 
@@ -59,8 +59,8 @@ and the wire key name `sessionName`.
 ```
 your-spec.js
   └─ mcpConnect(sessionName, options?)     ← from mcp-tools.js (generated)
-       └─ mcp.workflow.scrape(args)        ← namespaced method, sessionName injected by adapter
-       └─ mcp.browser.run_test(args)
+       └─ mcp.browser_scrape(args)        ← namespaced method, sessionName injected by adapter
+       └─ mcp.browser_run_test(args)
        └─ mcp.close()
 
 mcp-tools.js  [GENERATED]
@@ -288,8 +288,8 @@ Tool names are split on the first `.`. Everything after the first dot is the
 method key — preserving nested dots:
 
 ```
-browser.run_test  → ns: "browser", method: "run_test"
-workflow.scrape   → ns: "workflow", method: "scrape"
+browser_run_test  → ns: "browser", method: "run_test"
+browser_scrape   → ns: "_root",   method: "browser_scrape"
 session_manage    → ns: "_root",   method: "session_manage"
 browser_run       → ns: "_root",   method: "browser_run"
 ```
@@ -337,19 +337,19 @@ Every call produces two JSONL lines.
 **Intent line** (emitted before the wire call):
 
 ```json
-{"name":"workflow.scrape","arguments":{"sessionName":"my-session","selectors":{"title":"h1"}},"_phase":"before","_seq":3}
+{"name":"browser_scrape","arguments":{"sessionName":"my-session","selectors":{"title":"h1"}},"_phase":"before","_seq":3}
 ```
 
 **Result line** (emitted after):
 
 ```json
-{"name":"workflow.scrape","arguments":{"sessionName":"my-session","selectors":{"title":"h1"}},"_phase":"after","_ok":true,"_ms":312,"_seq":3}
+{"name":"browser_scrape","arguments":{"sessionName":"my-session","selectors":{"title":"h1"}},"_phase":"after","_ok":true,"_ms":312,"_seq":3}
 ```
 
 **Failure**:
 
 ```json
-{"name":"workflow.scrape","arguments":{"sessionName":"my-session","selectors":{"title":"h1"}},"_phase":"after","_ok":false,"_ms":18,"_error":"net::ERR_NAME_NOT_RESOLVED","_seq":3}
+{"name":"browser_scrape","arguments":{"sessionName":"my-session","selectors":{"title":"h1"}},"_phase":"after","_ok":false,"_ms":18,"_error":"net::ERR_NAME_NOT_RESOLVED","_seq":3}
 ```
 
 `_phase` makes replay unambiguous: filter `_phase === "before"`, strip
@@ -409,8 +409,8 @@ import { mcpConnect } from '@szkrabok/runtime';
 
 const mcp = await mcpConnect('my-session', { launchOptions: { headless: false } });
 try {
-  await mcp.workflow.scrape({ selectors: { title: 'h1' } });
-  await mcp.browser.run_test({ files: ['tests/playwright/e2e/my-task.spec.js'] });
+  await mcp.browser_scrape({ selectors: { title: 'h1' } });
+  await mcp.browser_run_test({ files: ['tests/playwright/e2e/my-task.spec.js'] });
 } finally {
   await mcp.close();
 }
@@ -432,7 +432,7 @@ const mcpTest = base.extend({
 });
 
 mcpTest('my test via MCP', async ({ mcp }) => {
-  const result = await mcp.browser.run_test({ files: ['tests/playwright/e2e/my-task.spec.js'] });
+  const result = await mcp.browser_run_test({ files: ['tests/playwright/e2e/my-task.spec.js'] });
   expect(result.passed).toBe(1);
 });
 ```
@@ -445,7 +445,7 @@ Stored JSONL files in `packages/runtime/mcp-client/sequences/` represent reusabl
 without a session parameter (injected at runtime by the adapter).
 
 ```jsonl
-{"name":"workflow.scrape","arguments":{"selectors":{"title":"h1"}}}
+{"name":"browser_scrape","arguments":{"selectors":{"title":"h1"}}}
 {"name":"browser_run","arguments":{"code":"async (page) => page.url()"}}
 ```
 

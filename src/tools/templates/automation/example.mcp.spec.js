@@ -18,7 +18,7 @@
  *     Opens a szkrabok MCP session and returns a typed handle.
  *     All MCP tools are available as: mcp.session.*, mcp.browser.*, etc.
  *
- *   mcp.browser.run_test({ files, grep?, params? })
+ *   mcp.browser_run_test({ files, grep?, params? })
  *     Runs inner Playwright specs against the open session via CDP.
  *     Returns { passed, failed, tests: [{ title, status, result }] }.
  *     `result` is the value passed to attachResult() in the inner spec.
@@ -44,7 +44,7 @@ async function withMcp(fn) {
 
 test('example via MCP', async () => {
   await withMcp(async mcp => {
-    const result = await mcp.browser.run_test({
+    const result = await mcp.browser_run_test({
       files: ['automation/example.spec.js'],
     });
 

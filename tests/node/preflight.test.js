@@ -10,5 +10,5 @@ test('run_test returns structured error when playwright.config.js is missing', a
 
   assert.ok(result.error, 'should have error field');
   assert.ok(result.hint, 'should have hint field');
-  assert.match(result.hint, /scaffold\.init/);
+  assert.match(result.hint, /scaffold_init/);
 });

@@ -320,16 +320,26 @@ emits both:
 Inactive clones never appear — they do not exist once destroyed. Stored template sessions that are
 not currently open appear with `active: false` as before.
 
-#### `delete` — template sessions only
+#### `delete` — template sessions only; glob patterns supported
 
 `delete` with a clone `sessionName` throws. Clones are destroyed via `close`. There is no stored
 session to delete.
+
+When `sessionName` contains `*`, `delete` enters glob mode: all stored sessions whose id matches the
+pattern are deleted. Returns `{ success, sessionName, deleted[], errors[] }`. Examples:
+
+```
+delete sk-claude          → exact delete (single session)
+delete cfg-*             → delete all config sessions
+delete "*"              → delete all stored sessions
+delete "*-test"         → delete all sessions ending in "-test"
+```
 
 #### `endpoint` — unchanged, works for both
 
 `pool.get(sessionName)` is keyed correctly for both templates and clones. No change needed.
 
-### `browser_run`, `workflow_scrape`, `browser.run_test` — no schema change
+### `browser_run`, `browser_scrape`, `browser_run_test` — no schema change
 
 All three delegate to `getSession(sessionName)` → `pool.get(sessionName)`. The pool is keyed by
 whatever `sessionName` was returned from `open` — template name for templates, generated id for
@@ -721,6 +731,24 @@ export const list = async () => {
 };
 
 export const deleteSession = async ({ sessionName }) => {
+  // Glob mode: delete all stored sessions matching the pattern.
+  if (sessionName.includes('*')) {
+    const stored = await listStoredSessions();
+    const matched = stored.filter(id => matchGlob(id, sessionName));
+    if (matched.length === 0) return { success: true, sessionName, deleted: [] };
+    const deleted = [];
+    const errors = [];
+    for (const id of matched) {
+      try {
+        await deleteStoredSession(id);
+        deleted.push(id);
+      } catch (err) {
+        errors.push({ sessionName: id, error: err.message });
+      }
+    }
+    return { success: errors.length === 0, sessionName, deleted, errors };
+  }
+  // Exact-name mode.
   const inPool = pool.has(sessionName);
   if (inPool && pool.get(sessionName).isClone) {
     throw new Error(`"${sessionName}" is a clone session — use close to destroy it`);
@@ -752,7 +780,7 @@ clones so that `list` can return `templateSession`. Add `templateName` as a fiel
 // Update action description:
 description: `${SZKRABOK} Manage browser sessions. ` +
   'action: open (launch/resume), close (save+close for templates; destroy for clones), ' +
-  'list (templates + active clones), delete (templates only), endpoint (CDP/WS URLs). ' +
+  'list (all), delete (templates; globs support), endpoint (CDP/WS). ' +
   'open with isClone:true creates an ephemeral clone — use the returned sessionName for ' +
   'browser_run, workflow_scrape, and close.',
 ```

@@ -51,7 +51,7 @@
  *   npm may install playwright-core in two locations:
  *     node_modules/playwright-core              — used by the MCP server
  *     node_modules/playwright/node_modules/playwright-core — used by the
- *       test runner (browser.run_test spawns `npx playwright test` which
+ *       test runner (browser_run_test spawns `npx playwright test` which
  *       resolves playwright-core through its own nested copy)
  *   Both must be patched. This script finds and patches all copies.
  *   Each patched install gets a `.szkrabok-patched` stamp file next to
@@ -103,7 +103,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 // npm hoists one copy to node_modules/playwright-core but playwright itself
 // may carry its own nested copy at node_modules/playwright/node_modules/playwright-core.
 // Both must be patched — the MCP server uses the hoisted one, the test runner
-// (spawned by browser.run_test) uses whichever playwright/test resolves.
+// (spawned by browser_run_test) uses whichever playwright/test resolves.
 
 function findPkgRoots() {
   const pkgRoot = path.resolve(__dirname, '..')
@@ -520,7 +520,7 @@ class CDPSession`
     },
   },
   // ── 8. crPage.js — inject greasy brands into calculateUserAgentMetadata ────────
-  // Problem: when browser.run_test connects via CDP, Playwright wraps the page via
+  // Problem: when browser_run_test connects via CDP, Playwright wraps the page via
   // connectOverCDP. On frame init, crPage.js calls _updateUserAgent() which calls
   // Emulation.setUserAgentOverride with calculateUserAgentMetadata(options). That
   // function builds the metadata object but never sets `brands`, so Chrome reverts

@@ -27,7 +27,7 @@
  *        session.open { "sessionName": "intoli" }
  *
  *   2. Run the test (connects to that Chrome via CDP):
- *        browser.run_test { "sessionName": "intoli", "grep": "intoli-check" }
+ *        browser_run_test { "sessionName": "intoli", "grep": "intoli-check" }
  *
  *   Expected result on a clean stealth session:
  *     { "intoli": { passed: 11, failed: 0, warned: 0 },

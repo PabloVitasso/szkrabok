@@ -21,6 +21,22 @@ const PRESET_EXCLUSIVE = new Set(['userAgent', 'viewport', 'locale', 'timezone']
 const navigate = (page, url) =>
   page.goto(url, { waitUntil: 'domcontentloaded', timeout: getConfig().timeout });
 
+/**
+ * Returns true if `name` matches `pattern`, where `*` matches any sequence of
+ * characters (including empty). Supports prefix, suffix, and mid-string wildcards.
+ * e.g.  "*" matches everything
+ *       "cfg-*" matches all config/endpoint sessions
+ *       "*-test" matches sessions ending in "-test"
+ *       "*test*" matches sessions containing "test"
+ */
+const matchGlob = (name, pattern) => {
+  // Escape special regex chars except *, then replace escaped-asterisk
+  const regex = new RegExp(
+    '^' + pattern.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*') + '$'
+  );
+  return regex.test(name);
+};
+
 function validateLaunchOptions(opts = {}) {
   if (!opts.preset) return;
 
@@ -241,6 +257,32 @@ export const endpoint = async ({ sessionName }) => {
 };
 
 export const deleteSession = async ({ sessionName }) => {
+  // ── Glob mode ────────────────────────────────────────────────────────────────
+  // When sessionName contains '*', treat it as a wildcard pattern and delete
+  // every stored session whose id matches. Useful for bulk cleanup:
+  //   delete *             → all stored sessions
+  //   delete cfg-*         → all config sessions
+  //   delete scrape-*      → all scrape sessions
+  //   delete *-test        → all sessions ending in "-test"
+  if (sessionName.includes('*')) {
+    const stored = await listStoredSessions();
+    const matched = stored.filter(id => matchGlob(id, sessionName));
+    if (matched.length === 0) return { success: true, sessionName, deleted: [] };
+    log(`deleteSession(): glob "${sessionName}" matches [${matched.join(', ')}]`);
+    const deleted = [];
+    const errors = [];
+    for (const id of matched) {
+      try {
+        await deleteStoredSession(id);
+        deleted.push(id);
+      } catch (err) {
+        errors.push({ sessionName: id, error: err.message });
+      }
+    }
+    return { success: errors.length === 0, sessionName, deleted, errors };
+  }
+
+  // ── Exact-name mode ─────────────────────────────────────────────────────────
   log(`deleteSession(): deleting session "${sessionName}"`);
   // Guard: clones live only in the pool and have no disk entry to delete.
   // Caller must use close() to destroy a clone and reclaim its clone dir.

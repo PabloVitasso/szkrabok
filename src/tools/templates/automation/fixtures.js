@@ -1,9 +1,9 @@
 /**
  * Custom Playwright fixtures for szkrabok automation.
  *
- * Path A — MCP / CDP mode (SZKRABOK_CDP_ENDPOINT set by browser.run_test):
+ * Path A — MCP / CDP mode (SZKRABOK_CDP_ENDPOINT set by browser_run_test):
  *   Connects to the live MCP session browser via runtime.connect().
- *   Use when running specs via: browser.run_test { "sessionName": "..." }
+ *   Use when running specs via: browser_run_test { "sessionName": "..." }
  *
  * Path B — Standalone / dev mode (no env var):
  *   Launches a new stealth browser via runtime.launch().

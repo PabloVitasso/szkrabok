@@ -9,7 +9,7 @@
  * ── Run via MCP ───────────────────────────────────────────────────────────────
  *
  *   1. session.open { "sessionName": "nav-props" }
- *   2. browser.run_test { "sessionName": "nav-props", "grep": "navigator-properties" }
+ *   2. browser_run_test { "sessionName": "nav-props", "grep": "navigator-properties" }
  *
  * ── Run via Playwright CLI ────────────────────────────────────────────────────
  *

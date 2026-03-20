@@ -11,7 +11,7 @@ const PLAYWRIGHT_MCP = '[playwright-mcp]';
 const tools = {
   'session_manage': {
     handler: session.manage,
-    description: `${SZKRABOK} Manage browser sessions. action: open (launch/resume), close (save+close for templates; destroy+delete cloneDir for clones), list (stored templates + active clones), delete (templates only), endpoint (returns cdpEndpoint+wsEndpoint for playwright-mcp --cdp-endpoint). open requires sessionName; list requires none; others require sessionName. open with launchOptions.isClone:true clones the template - returned sessionName is the clone id, use it for all subsequent calls`,
+    description: `${SZKRABOK} Manage browser sessions. Actions: open (launch/resume), close (save/delete), list (all), delete (templates; globs support), endpoint (CDP/WS). 'open' + 'isClone:true' returns a clone ID; use this ID for subsequent calls.`,
     inputSchema: {
       type: 'object',
       properties: {
@@ -22,7 +22,7 @@ const tools = {
         sessionName: {
           type: 'string',
           description:
-            'Session name. For clones: use the generated id returned by open with isClone:true - not the template name',
+            'Session name or glob (delete only). For clones, use the ID returned by \'open\' (isClone:true), not the template name',
         },
         url: { type: 'string', description: 'URL to navigate after opening. open only' },
         launchOptions: {
@@ -57,7 +57,7 @@ const tools = {
     },
   },
 
-  'workflow.scrape': {
+  'browser_scrape': {
     handler: workflow.scrape,
     description: `${SZKRABOK} Scrape current page into LLM-ready text. Returns raw blocks and llmFriendly string. selectors: optional CSS selectors to target specific areas; omit for auto (main/body)`,
     inputSchema: {
@@ -74,7 +74,7 @@ const tools = {
     },
   },
 
-  'scaffold.init': {
+  'scaffold_init': {
     handler: scaffold.init,
     description: `${SZKRABOK} Init szkrabok project (idempotent). Prerequisite for browser runs. minimal (default): config/deps; full: automation fixtures and Playwright specs`,
     inputSchema: {
@@ -111,9 +111,9 @@ const tools = {
     },
   },
 
-  'browser.run_test': {
+  'browser_run_test': {
     handler: szkrabokBrowser.run_test,
-    description: `${PLAYWRIGHT_MCP} Run .spec.js tests via CDP (returns JSON). Requires session_manage(open) and scaffold.init`,
+    description: `${PLAYWRIGHT_MCP} Run .spec.js tests via CDP (returns JSON). Requires session_manage(open) and scaffold_init`,
     inputSchema: {
       type: 'object',
       properties: {
@@ -146,8 +146,7 @@ const tools = {
         },
         reportFile: {
           type: 'string',
-          description:
-            'Custom path for the JSON report file, relative to repo root (e.g. "test-results/my-run.json"). Defaults to sessions/<sessionName>/last-run.json. The resolved path is returned as reportFile in the result.',
+          description: 'Repo-relative JSON report path. Default: sessions/<sessionName>/last-run.json. Returns resolved path',
         },
       },
       required: ['sessionName'],

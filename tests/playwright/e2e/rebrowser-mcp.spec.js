@@ -37,9 +37,9 @@ test('rebrowser-check via MCP — 8/10', async () => {
   const mcp = await mcpConnect(SESSION, { launchOptions: { headless: true } });
   try {
     // invoker already unwraps and JSON-parses the MCP text content
-    const result = await mcp.browser.run_test({ files: ['tests/playwright/e2e/rebrowser.spec.js'] });
+    const result = await mcp.browser_run_test({ files: ['tests/playwright/e2e/rebrowser.spec.js'] });
 
-    // browser.run_test returns { passed, failed, tests: [{ result: { checks } }] }
+    // browser_run_test returns { passed, failed, tests: [{ result: { checks } }] }
     let checks;
     if (result) {
       if (result.tests) {

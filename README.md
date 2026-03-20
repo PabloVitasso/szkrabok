@@ -15,10 +15,10 @@ MCP server supplementing [microsoft/playwright-mcp](https://github.com/microsoft
 
 ### 1. session_manage
 
-Manage browser sessions. Actions: open (launch/resume), close (save+close), list (all stored), delete (remove data), endpoint (get CDP/WS URLs).
+Manage browser sessions. Actions: open (launch/resume), close (save/delete), list (all), delete (templates; globs support), endpoint (CDP/WS). `open` + `isClone:true` returns a clone ID; use this ID for subsequent calls.
 
 - **action** (required): `open` | `close` | `list` | `delete` | `endpoint`
-- **sessionName**: Session identifier. Required for open/close/delete/endpoint, not for list
+- **sessionName**: Session name or glob (delete only). For clones, use the ID returned by `open` (`isClone:true`), not the template name. Required for open/close/delete/endpoint, not for list
 - **url**: URL to navigate after opening (open only)
 - **launchOptions** (open only):
   - **preset**: Preset name. Mutually exclusive with userAgent/viewport/locale/timezone. See [Presets](#presets)
@@ -40,7 +40,7 @@ Returns: `{ success, sessionName, url, reused, preset, label, isClone, templateS
 
 When `isClone: true` is set in `launchOptions`, the returned `sessionName` is a generated id (e.g. `myprofile-1748234205-a3f2c1b0`). Use that id for all subsequent calls. On close, the clone dir is deleted and no state is saved.
 
-### 2. workflow.scrape
+### 2. browser_scrape
 
 Scrape current page into LLM-ready text.
 
@@ -61,9 +61,9 @@ Execute Playwright JS on session page.
 
 Returns: `{ result, url }`
 
-### 4. browser.run_test
+### 4. browser_run_test
 
-Run `.spec.js` tests via CDP. Requires `scaffold.init` and open session.
+Run `.spec.js` tests via CDP. Requires `scaffold_init` and open session.
 
 - **sessionName** (required)
 - **files**: File/directory paths for playwright test
@@ -90,7 +90,7 @@ test('rebrowser-check', async ({ page }) => {
 
 Full example: [tests/playwright/e2e/rebrowser.spec.js](./tests/playwright/e2e/rebrowser.spec.js)
 
-### 5. scaffold.init
+### 5. scaffold_init
 
 Init szkrabok project (idempotent). Prerequisite for browser runs.
 
@@ -119,7 +119,7 @@ const SESSION = 'rebrowser-mcp-harness';
 test('rebrowser-check via MCP', async () => {
   const mcp = await mcpConnect(SESSION, { launchOptions: { headless: true } });
   try {
-    const result = await mcp.browser.run_test({ files: ['tests/playwright/e2e/rebrowser.spec.js'] });
+    const result = await mcp.browser_run_test({ files: ['tests/playwright/e2e/rebrowser.spec.js'] });
     expect(result.passed).toBe(8);
   } finally {
     await mcp.close();
@@ -208,10 +208,10 @@ Place `szkrabok.config.toml` or `szkrabok.config.local.toml` anywhere in your pr
 ## Usage
 
 ```
-scaffold.init { "dir": "/path/to/project", "preset": "full" }
+scaffold_init { "dir": "/path/to/project", "preset": "full" }
 session_manage { "action": "open", "sessionName": "my-session", "url": "https://example.com" }
-workflow.scrape { "sessionName": "my-session" }
-browser.run_test { "sessionName": "my-session", "files": ["automation/example.spec.js"] }
+browser_scrape { "sessionName": "my-session" }
+browser_run_test { "sessionName": "my-session", "files": ["automation/example.spec.js"] }
 session_manage { "action": "close", "sessionName": "my-session" }
 ```
 
@@ -224,7 +224,8 @@ szkrabok open <profile>              # Launch browser, print CDP endpoint, stay 
 szkrabok open <profile> --clone      # Clone template into ephemeral copy; clone destroyed on exit
 szkrabok session list                # Show all sessions (active + stored)
 szkrabok session inspect <id>        # Dump cookie/localStorage counts
-szkrabok session delete <id>         # Delete a session
+szkrabok session delete <id>         # Delete a session (supports glob: "cfg-*", "*")
+szkrabok session delete "*"          # Delete all stored sessions
 szkrabok session cleanup --days 30   # Delete sessions unused for N days
 szkrabok endpoint <sessionName>      # Print CDP + WS endpoints
 szkrabok detect-browser              # List usable Chrome/Chromium installations
@@ -249,4 +250,4 @@ szkrabok install-browser             # Install Playwright's Chromium
 | [docs/development.md](./docs/development.md) | Adding tools, CLI design, release workflow |
 | [docs/testing.md](./docs/testing.md) | Test categories, how to run, writing specs |
 | [docs/mcp-client-library.md](./docs/mcp-client-library.md) | MCP client library and codegen |
-| [docs/scaffold-init.md](./docs/scaffold-init.md) | scaffold.init presets and template structure |
+| [docs/scaffold-init.md](./docs/scaffold-init.md) | scaffold_init presets and template structure |

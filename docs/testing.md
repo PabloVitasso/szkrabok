@@ -7,8 +7,8 @@
 - [Node tests](#node-tests)
 - [Playwright integration tests](#playwright-integration-tests)
 - [E2E — stealth health checks](#e2e--stealth-health-checks)
-- [Authoring specs that run via browser.run_test](#authoring-specs-that-run-via-browserrun_test)
-- [Calling browser.run_test from @szkrabok/runtime](#calling-browserrun_test-from-szkrabokмcp-client)
+- [Authoring specs that run via browser_run_test](#authoring-specs-that-run-via-browser_run_test)
+- [Calling browser_run_test from @szkrabok/runtime](#calling-browser_run_test-from-szkrabokмcp-client)
 - [Regenerate mcp-tools.js](#regenerate-mcp-toolsjs)
 - [Run everything](#run-everything)
 - [Troubleshooting](#troubleshooting)
@@ -158,9 +158,9 @@ npm run test:playwright
 
 | File | Suite | What it tests |
 |------|-------|---------------|
-| `session.spec.js` | Session Management | `session_manage` open/list/close/delete, cookie persistence across close/reopen |
+| `session.spec.js` | Session Management | `session_manage` open/list/close/delete (glob patterns supported), cookie persistence across close/reopen |
 | `stealth.spec.js` | Stealth Mode | Session opens with stealth applied, `browser_run` reads page title |
-| `tools.spec.js` | Workflow | `workflow.scrape` extracts structured data |
+| `tools.spec.js` | Workflow | `browser_scrape` extracts structured data |
 | `interop.spec.js` | CDP Interoperability | `session_manage endpoint` returns `wsEndpoint`; @playwright/mcp attaches and navigates shared browser. **Skipped** when `@playwright/mcp` is not installed |
 | `config-mcp-roots.spec.js` | Config Discovery | Roots sent at init load project TOML; `SZKRABOK_CONFIG` env var loads config; both verified via `navigator.userAgent` |
 
@@ -170,7 +170,7 @@ npm run test:playwright
 
 Real browser against live bot-detection sites. Three run paths:
 
-### Path A — MCP via `browser.run_test` (local source MCP config)
+### Path A — MCP via `browser_run_test` (local source MCP config)
 
 Requires MCP server running from `node src/index.js` (see [development.md](./development.md#mcp-config-for-developing-szkrabok)) and an active session.
 
@@ -182,7 +182,7 @@ session_manage {
   "sessionName": "check",
   "launchOptions": { "headless": false }
 }
-browser.run_test {
+browser_run_test {
   "sessionName": "check",
   "project": "e2e"
 }
@@ -191,7 +191,7 @@ browser.run_test {
 With **Config B (npx/published)**, the server runs from the npx cache and has no knowledge of the local repo — pass the absolute config path:
 
 ```
-browser.run_test {
+browser_run_test {
   "sessionName": "check",
   "config": "/absolute/path/to/szkrabok/playwright.config.js",
   "project": "e2e"
@@ -235,7 +235,7 @@ Permanent failures:
 
 ---
 
-## Authoring specs that run via `browser.run_test`
+## Authoring specs that run via `browser_run_test`
 
 ```js
 // tests/playwright/e2e/my-task.spec.js
@@ -253,7 +253,7 @@ test('my task', async ({ page }) => {
 
 Pass params from MCP:
 ```
-browser.run_test {
+browser_run_test {
   "sessionName": "s",
   "files": ["tests/playwright/e2e/my-task.spec.js"],
   "project": "e2e",
@@ -265,7 +265,7 @@ browser.run_test {
 
 ---
 
-## Calling `browser.run_test` from `@szkrabok/runtime`
+## Calling `browser_run_test` from `@szkrabok/runtime`
 
 Use this when driving szkrabok programmatically from another Playwright spec or Node script:
 
@@ -281,7 +281,7 @@ const mcp = await mcpConnect('my-session', {
   // adapter: customAdapter, // optional: override session adapter
 });
 
-const result = await mcp.browser.run_test({
+const result = await mcp.browser_run_test({
   files: ['tests/playwright/e2e/my-task.spec.js'],
   params: { url: 'https://example.com' },  // available as process.env.URL in spec
   grep: 'my task',        // optional: filter by test name
@@ -295,7 +295,7 @@ console.log(result.passed, result.failed, result.reportFile);
 await mcp.close();  // closes session and shuts down the MCP subprocess
 ```
 
-`browser.run_test` returns `{ passed, failed, skipped, tests, log, reportFile }`. `reportFile` is the resolved absolute path to the JSON report on disk.
+`browser_run_test` returns `{ passed, failed, skipped, tests, log, reportFile }`. `reportFile` is the resolved absolute path to the JSON report on disk.
 
 ---
 
@@ -322,7 +322,7 @@ npm run test:playwright             # Playwright integration (headless, MCP over
 npm run test:self                   # lint + integration + node tests (pre-publish gate)
 ```
 
-For e2e (live sites, headed browser) — open a session first, then use `browser.run_test` or the standalone CLI (see [E2E paths](#e2e--stealth-health-checks) above).
+For e2e (live sites, headed browser) — open a session first, then use `browser_run_test` or the standalone CLI (see [E2E paths](#e2e--stealth-health-checks) above).
 
 ---
 

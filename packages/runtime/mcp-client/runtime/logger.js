@@ -52,7 +52,7 @@ export function createLogger({ sidecarDir = DEFAULT_SIDECAR_DIR, sidecarEnabled 
   // Each entry: { success(call, result, ms), failure(call, err, ms) }
   // Either key is optional — omit to fall back to the default JSON log.
   const formatters = {
-    'browser.run_test': {
+    'browser_run_test': {
       success(call, result, _ms) {
         const r = unwrap(result);
         let rLog;
@@ -81,7 +81,7 @@ export function createLogger({ sidecarDir = DEFAULT_SIDECAR_DIR, sidecarEnabled 
             target = sessionName;
           }
         }
-        console.log(`[browser.run_test] ${target} — ERROR (${ms}ms): ${err.message}`);
+        console.log(`[browser_run_test] ${target} — ERROR (${ms}ms): ${err.message}`);
       },
     },
   };

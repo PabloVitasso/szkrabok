@@ -100,9 +100,9 @@ src/
   tools/
     registry.js           All tool definitions: name, handler, schema
     szkrabok_session.js   session_manage (open/close/list/delete/endpoint)
-    szkrabok_browser.js   browser_run (code/file), browser.run_test
-    workflow.js           workflow.scrape
-    scaffold.js           scaffold.init
+    szkrabok_browser.js   browser_run (code/file), browser_run_test
+    workflow.js           browser_scrape
+    scaffold.js           scaffold_init
 
 config/                   Playwright config modules (TypeScript, pure functions)
   env.ts                  Single process.env reader
@@ -158,7 +158,7 @@ tests/
 ## Tool ownership
 
 **Szkrabok** tools (5 total):
-`session_manage` `workflow.scrape` `browser_run` `browser.run_test` `scaffold.init`
+`session_manage` `browser_scrape` `browser_run` `browser_run_test` `scaffold_init`
 
 **@playwright/mcp** (separate MCP server — install alongside szkrabok):
 `browser.{snapshot,click,type,navigate,navigate_back,close,drag,hover,evaluate,select_option,fill_form,press_key,take_screenshot,wait_for,resize,tabs,console_messages,network_requests,file_upload,handle_dialog,run_code,...}`
@@ -221,7 +221,7 @@ Do NOT import runtime internals (`stealth`, `storage`, `pool`, `config`) directl
 3. Profile resolution happens only in runtime
 4. MCP tools never import stealth, config internals, or storage directly
 5. `tests/playwright/e2e/fixtures.js` never imports stealth or uses internal modules directly — only public API
-6. `browser.run_test` subprocess connects via `connectOverCDP` — it never calls `launch*()`
+6. `browser_run_test` subprocess connects via `connectOverCDP` — it never calls `launch*()`
 7. Browser PID is captured once at launch via `tryBrowserPid()` and stored in the pool entry — not re-read at close time
 
 Enforced by ESLint boundary rules in `eslint.config.js` and `tests/node/contracts.test.js`.
@@ -285,10 +285,10 @@ session_manage { action: close, sessionName: cloneId }
   -> NO state saved
 ```
 
-### browser.run_test
+### browser_run_test
 
 ```
-browser.run_test(id, files?, grep?, params?, reportFile?)
+browser_run_test(id, files?, grep?, params?, reportFile?)
   -> getSession(id) — throws if not open
   -> read cdpEndpoint from session handle
   -> set SZKRABOK_CDP_ENDPOINT=cdpEndpoint
@@ -306,7 +306,7 @@ Pool is process-scoped — not global. Each process has its own pool. CDP endpoi
 
 - CLI `szkrabok open` holds a pool entry in its own process
 - MCP server holds pool entries in its process
-- A `browser.run_test` subprocess has no pool — it connects via `SZKRABOK_CDP_ENDPOINT`
+- A `browser_run_test` subprocess has no pool — it connects via `SZKRABOK_CDP_ENDPOINT`
 
 ## CLI (`szkrabok`) and MCP tools — shared handlers
 

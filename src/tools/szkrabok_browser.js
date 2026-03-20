@@ -101,7 +101,7 @@ export const run_test = async args => {
   if (!existsSync(configPath)) {
     return {
       error: `playwright.config.js not found at ${configPath}`,
-      hint: 'Run scaffold.init to create the project scaffold.',
+      hint: 'Run scaffold_init to create the project scaffold.',
     };
   }
 

@@ -1,4 +1,4 @@
-# scaffold.init
+# scaffold_init
 
 ## Contents
 
@@ -13,12 +13,12 @@
 
 ## Problem
 
-An LLM using szkrabok MCP tools has no way to discover that `browser.run_test`
+An LLM using szkrabok MCP tools has no way to discover that `browser_run_test`
 and `browser_run` (path mode) require a project scaffold. The tools appear available
 but fail with confusing errors when `playwright.config.js`, `@szkrabok/runtime`,
 or `szkrabok.config.toml` are absent.
 
-`scaffold.init` solves this by being discoverable in the tool list with a
+`scaffold_init` solves this by being discoverable in the tool list with a
 description that explicitly says "call this first".
 
 ---
@@ -26,7 +26,7 @@ description that explicitly says "call this first".
 ## Tool signature
 
 ```
-scaffold.init({
+scaffold_init({
   dir?: string,                    // target directory, defaults to cwd
   name?: string,                   // package name, defaults to dirname
   preset?: "minimal" | "full",     // see Presets below
@@ -75,8 +75,8 @@ Additional files created:
 | File | Purpose |
 |------|---------|
 | `automation/fixtures.js` | Dual-mode Playwright fixture: Path A connects to MCP session via CDP (`SZKRABOK_CDP_ENDPOINT`), Path B launches standalone with stealth. Import `{ test, expect }` from this in your specs. |
-| `automation/example.spec.js` | Direct spec. Runs inside the MCP session browser via `browser.run_test`, or standalone via `npx playwright test`. Uses `fixtures.js`. |
-| `automation/example.mcp.spec.js` | MCP harness spec. Owns the full session lifecycle — opens a session via `mcpConnect`, calls `mcp.browser.run_test` to run inner specs, then closes. Use this pattern for CI, multi-step flows, or asserting on structured `attachResult()` data from inner tests. |
+| `automation/example.spec.js` | Direct spec. Runs inside the MCP session browser via `browser_run_test`, or standalone via `npx playwright test`. Uses `fixtures.js`. |
+| `automation/example.mcp.spec.js` | MCP harness spec. Owns the full session lifecycle — opens a session via `mcpConnect`, calls `mcp.browser_run_test` to run inner specs, then closes. Use this pattern for CI, multi-step flows, or asserting on structured `attachResult()` data from inner tests. |
 
 ---
 
@@ -84,7 +84,7 @@ Additional files created:
 
 ```
                                              ┌──────────────────────┐
-  session_manage(open) ► browser.run_test ──►│ example.spec.js      │
+  session_manage(open) ► browser_run_test ──►│ example.spec.js      │
                                              │ (direct CDP spec)    │
                                              └──────────────────────┘
 
@@ -92,7 +92,7 @@ Additional files created:
                                              │ (MCP harness)        │
                                              │  mcpConnect()        │
                                              │  └► session_manage   │
-                                             │  └► browser.run_test ├──► example.spec.js
+                                             │  └► browser_run_test ├──► example.spec.js
                                              │  └► session_manage   │
                                              └──────────────────────┘
 ```
@@ -112,7 +112,7 @@ Additional files created:
 
 ## Templates
 
-All files written by `scaffold.init` come from `src/tools/templates/`. To
+All files written by `scaffold_init` come from `src/tools/templates/`. To
 customise the scaffold for your project, edit the templates directly — the tool
 reads them at runtime.
 
