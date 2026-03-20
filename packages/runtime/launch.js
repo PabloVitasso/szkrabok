@@ -11,6 +11,7 @@ import { enhanceWithStealth, applyStealthToExistingPage } from './stealth.js';
 import * as storage from './storage.js';
 import { rmWithRetry } from './storage.js';
 import * as pool from './pool.js';
+import { computeConfigHash } from './sessions.js';
 import { log } from './logger.js';
 
 let _gcRegistered = false;
@@ -280,6 +281,18 @@ export const launch = async (options = {}) => {
   const effectiveStealth = stealth ?? savedConfig.stealth ?? cfg.stealthEnabled;
   const effectiveHeadless = headless ?? savedConfig.headless ?? cfg.headless;
 
+  // Compute stable config hash for mismatch detection (enforceLaunchOptionsMatch).
+  const effectiveConfig = {
+    userAgent: effectiveUserAgent,
+    viewport: effectiveViewport,
+    locale: effectiveLocale,
+    timezone: effectiveTimezone,
+    stealth: effectiveStealth,
+    headless: effectiveHeadless,
+    preset: presetName ?? savedMeta?.preset ?? null,
+  };
+  const configHash = computeConfigHash(effectiveConfig);
+
   const presetConfig = {
     userAgent: effectiveUserAgent,
     locale: effectiveLocale,
@@ -371,7 +384,7 @@ export const launch = async (options = {}) => {
   }
 
   pool.add(profile, context, page, cdpPort, resolved.preset, resolved.label, false, null, null, null,
-    tryBrowserPid(context.browser()));
+    tryBrowserPid(context.browser()), configHash);
 
   const meta = {
     sessionName: profile,
@@ -411,6 +424,39 @@ export const launch = async (options = {}) => {
 };
 
 /**
+ * Register a launched clone in the pool and return the standard close handle.
+ * Shared by both launchClone and cloneFromLive.
+ */
+const _addCloneToPool = async (context, cloneId, cloneDir, templateName, lease) => {
+  const cdpPort     = await storage.readDevToolsPort(cloneDir);
+  const cdpEndpoint = `http://localhost:${cdpPort}`;
+
+  const pages = context.pages();
+  const page  = pages.length > 0 ? pages[0] : await context.newPage();
+
+  pool.add(cloneId, context, page, cdpPort, null, null, true, cloneDir, templateName, lease,
+    tryBrowserPid(context.browser()));
+
+  return {
+    browser: context.browser(),
+    context,
+    cdpEndpoint,
+    cloneId,
+    close: async () => {
+      const pid = pool.get(cloneId).pid;
+      await context.close();
+      if (pid) await waitForExit(pid);
+      pool.remove(cloneId);
+      // rm first: lease is only scavenger fencing, not our own deletion guard.
+      // Reversing the order prevents EPERM storms if both this and cleanupClones
+      // race on the same directory.
+      await rmWithRetry(cloneDir);
+      await lease.close().catch(() => {});
+    },
+  };
+};
+
+/**
  * Launch an ephemeral clone of a template session.
  * No state is saved on close; the clone dir is deleted.
  *
@@ -431,40 +477,52 @@ export const launchClone = async (options = {}) => {
   const { cloneId, dir: cloneDir, lease } = await storage.cloneProfileAtomic(templateDir, profile);
 
   const launchFn = _launchImpl ?? _launchPersistentContext;
-  const context = await launchFn(cloneDir, { ...launchOpts, cdpPort: 0 });
+  const context  = await launchFn(cloneDir, { ...launchOpts, cdpPort: 0 });
 
-  const cdpPort    = await storage.readDevToolsPort(cloneDir);
-  const cdpEndpoint = `http://localhost:${cdpPort}`;
+  return _addCloneToPool(context, cloneId, cloneDir, profile, lease);
+};
 
-  const pages = context.pages();
-  let page;
-  if (pages.length > 0) {
-    page = pages[0];
-  } else {
-    page = await context.newPage();
-  }
+/**
+ * Clone a running template session without closing it.
+ *
+ * Captures in-memory browser state (cookies, localStorage) via CDP, copies the
+ * profile directory, then launches a new browser from the copy with the captured
+ * state applied. The template browser stays open.
+ *
+ * Caveats:
+ * - Chrome may hold open file handles on the profile directory — the disk copy
+ *   is best-effort. Callers needing full consistency should use "close-first".
+ * - IndexedDB is not captured (storageState does not include it for non-isolated
+ *   origins in this version). Only cookies and localStorage are transferred.
+ *
+ * @param {string} templateName   - The open template session to clone
+ * @param {object} [launchOpts]   - Passed through to _launchPersistentContext
+ * @param {Function} [_launchImpl] - Test seam
+ * @returns {Promise<{ browser, context, cdpEndpoint, cloneId, close(): Promise<void> }>}
+ */
+export const cloneFromLive = async (templateName, launchOpts = {}, _launchImpl) => {
+  const template = pool.get(templateName); // throws if not open
 
+  ensureGcOnExit();
+  await checkBrowser();
+  await storage.cleanupClones();
+  await storage.ensureSessionsDir();
 
-  pool.add(cloneId, context, page, cdpPort, null, null, true, cloneDir, profile, lease,
-    tryBrowserPid(context.browser()));
+  // Capture in-memory state from the live browser context before copying.
+  // This includes cookies and localStorage that may not have been flushed to disk.
+  const liveState = await template.context.storageState();
 
-  return {
-    browser: context.browser(),
-    context,
-    cdpEndpoint,
-    cloneId,
-    close: async () => {
-      const pid = pool.get(cloneId).pid;
-      await context.close();
-      if (pid) await waitForExit(pid);
-      pool.remove(cloneId);
-      // rm first: lease is only scavenger fencing, not our own deletion guard.
-      // Reversing the order prevents EPERM storms if both this and cleanupClones
-      // race on the same directory.
-      await rmWithRetry(cloneDir);
-      await lease.close().catch(() => {});
-    },
-  };
+  const templateDir = storage.getUserDataDir(templateName);
+  const { cloneId, dir: cloneDir, lease } = await storage.cloneProfileAtomic(templateDir, templateName);
+
+  const launchFn = _launchImpl ?? _launchPersistentContext;
+  const context  = await launchFn(cloneDir, {
+    ...launchOpts,
+    cdpPort: 0,
+    storageState: liveState,
+  });
+
+  return _addCloneToPool(context, cloneId, cloneDir, templateName, lease);
 };
 
 /**

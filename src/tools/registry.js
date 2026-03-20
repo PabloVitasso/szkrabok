@@ -2,6 +2,7 @@ import * as session from './szkrabok_session.js';
 import * as workflow from './workflow.js';
 import * as szkrabokBrowser from './szkrabok_browser.js';
 import * as scaffold from './scaffold.js';
+import * as sessionRunTest from './session_run_test.js';
 import { wrapError } from '../utils/errors.js';
 import { logError } from '../utils/logger.js';
 
@@ -158,6 +159,75 @@ const tools = {
         },
       },
       required: ['sessionName'],
+    },
+  },
+
+  'session_run_test': {
+    handler: sessionRunTest.session_run_test,
+    description: `${SZKRABOK} Composite: open/clone session → navigate → run test → apply post-policy. Single deterministic command. mode:"clone" (default) is ephemeral; mode:"template" persists. templateConflict:"clone-from-live" clones without closing template. Failure phases: session | test | postPolicy.`,
+    inputSchema: {
+      type: 'object',
+      required: ['session', 'test'],
+      properties: {
+        session: {
+          type: 'object',
+          required: ['name'],
+          properties: {
+            name:                      { type: 'string' },
+            mode:                      { type: 'string', enum: ['clone', 'template'], default: 'clone' },
+            enforceLaunchOptionsMatch: { type: 'boolean', default: false },
+            templateConflict: {
+              type: 'string',
+              enum: ['fail', 'close-first', 'clone-from-live'],
+              default: 'fail',
+              description: '"clone-from-live" is experimental: Chrome file handles may cause partial profile copy; use "close-first" for consistency',
+            },
+            launchOptions: {
+              type: 'object',
+              properties: {
+                preset:       { type: 'string' },
+                stealth:      { type: 'boolean' },
+                headless:     { type: 'boolean' },
+                disableWebGL: { type: 'boolean' },
+                userAgent:    { type: 'string' },
+                viewport: {
+                  type: 'object',
+                  properties: { width: { type: 'number' }, height: { type: 'number' } },
+                },
+                locale:   { type: 'string' },
+                timezone: { type: 'string' },
+              },
+            },
+            navigation: {
+              type: 'object',
+              required: ['policy'],
+              properties: {
+                policy:  { type: 'string', enum: ['always', 'ifBlank', 'never'] },
+                url:     { type: 'string', description: 'Required when policy !== "never"' },
+                timeout: { type: 'number', default: 30000 },
+              },
+            },
+          },
+        },
+        test: {
+          type: 'object',
+          properties: {
+            spec:       { oneOf: [{ type: 'string' }, { type: 'array', items: { type: 'string' } }] },
+            grep:       { type: 'string' },
+            params:     { type: 'object' },
+            config:     { type: 'string' },
+            project:    { type: 'string' },
+            reportFile: { type: 'string' },
+          },
+        },
+        postPolicy: {
+          type: 'object',
+          properties: {
+            action:              { type: 'string', enum: ['destroy', 'keep', 'save'], description: 'Default: "destroy" for clone, "save" for template' },
+            recreateCloneOnKeep: { type: 'boolean', default: false },
+          },
+        },
+      },
     },
   },
 

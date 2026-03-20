@@ -40,7 +40,23 @@ Returns: `{ success, sessionName, url, reused, preset, label, isClone, templateS
 
 When `isClone: true` is set in `launchOptions`, the returned `sessionName` is a generated id (e.g. `myprofile-1748234205-a3f2c1b0`). Use that id for all subsequent calls. On close, the clone dir is deleted and no state is saved.
 
-### 2. browser_scrape
+### 2. session_run_test
+
+Composite single-command primitive: open/clone session → navigate → run tests → apply post-policy. Deterministic invariants: per-name lock prevents concurrent page mutation, navigation barrier waits for `networkidle`, workers forced to 1.
+
+- **session** (required):
+  - **name** (required): logical session name
+  - **mode**: `clone` (default, ephemeral) | `template` (persistent)
+  - **templateConflict**: `fail` (default) | `close-first` | `clone-from-live` — what to do when template is open in clone mode
+  - **enforceLaunchOptionsMatch**: hard-fail if open session has different launchOptions config hash, default `false`
+  - **launchOptions**: same options as `session_manage open`
+  - **navigation**: `{ policy: "always"|"ifBlank"|"never", url, timeout }` — navigates before test; `url` required when policy is not `"never"`
+- **test** (required): same as `browser_run_test` — `spec`, `grep`, `params`, `config`, `project`, `reportFile`
+- **postPolicy**: `{ action: "destroy"|"save"|"keep", recreateCloneOnKeep: false }` — default `destroy` for clone, `save` for template
+
+Returns: `{ session: { logicalName, runtimeName, mode }, test: { passed, failed, ... } }` or `{ error, phase: "session"|"test"|"postPolicy" }` on failure.
+
+### 3. browser_scrape
 
 Scrape current page into LLM-ready text.
 
@@ -49,7 +65,7 @@ Scrape current page into LLM-ready text.
 
 Returns: `{ raw: [{ tag, text }], llmFriendly, tokenCountEstimate }`
 
-### 3. browser_run
+### 4. browser_run
 
 Execute Playwright JS on session page.
 
@@ -61,7 +77,7 @@ Execute Playwright JS on session page.
 
 Returns: `{ result, url }`
 
-### 4. browser_run_test
+### 5. browser_run_test
 
 Run `.spec.js` tests via CDP. Requires `scaffold_init` and open session.
 
@@ -90,7 +106,7 @@ test('rebrowser-check', async ({ page }) => {
 
 Full example: [tests/playwright/e2e/rebrowser.spec.js](./tests/playwright/e2e/rebrowser.spec.js)
 
-### 5. scaffold_init
+### 6. scaffold_init
 
 Init szkrabok project (idempotent). Prerequisite for browser runs.
 
@@ -209,10 +225,18 @@ Place `szkrabok.config.toml` or `szkrabok.config.local.toml` anywhere in your pr
 
 ```
 scaffold_init { "dir": "/path/to/project", "preset": "full" }
+
+# Option A — manual session lifecycle
 session_manage { "action": "open", "sessionName": "my-session", "url": "https://example.com" }
 browser_scrape { "sessionName": "my-session" }
 browser_run_test { "sessionName": "my-session", "files": ["automation/example.spec.js"] }
 session_manage { "action": "close", "sessionName": "my-session" }
+
+# Option B — composite single command (session_run_test)
+session_run_test {
+  "session": { "name": "my-session", "navigation": { "policy": "always", "url": "https://example.com" } },
+  "test": { "spec": "automation/example.spec.js" }
+}
 ```
 
 ### CLI

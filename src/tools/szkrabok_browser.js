@@ -198,8 +198,6 @@ export const run_test = async args => {
     argsPW.push(...files);
   }
 
-  if (attachSignalFile) await waitForAttach(attachSignalFile);
-
   await new Promise((resolveP, rejectP) => {
     const logStream = createWriteStream(logFile);
 
@@ -219,6 +217,10 @@ export const run_test = async args => {
       logStream.once('finish', resolveP);
     });
   });
+
+  // The e2e fixture writes the attach-signal file during worker teardown, just before the
+  // subprocess exits. By the time the close event fires the file is already on disk.
+  if (attachSignalFile) await waitForAttach(attachSignalFile);
 
   const [logRaw, reportRaw] = await Promise.all([
     readFile(logFile, 'utf8').catch(() => ''),

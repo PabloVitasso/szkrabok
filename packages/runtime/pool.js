@@ -4,8 +4,8 @@
 
 const sessions = new Map();
 
-export const add = (id, context, page, cdpPort, preset, label, isClone = false, cloneDir = null, templateName = null, leaseHandle = null, pid = null) => {
-  sessions.set(id, { context, page, cdpPort, preset, label, createdAt: Date.now(), isClone, cloneDir, templateName, leaseHandle, pid });
+export const add = (id, context, page, cdpPort, preset, label, isClone = false, cloneDir = null, templateName = null, leaseHandle = null, pid = null, configHash = null) => {
+  sessions.set(id, { context, page, cdpPort, preset, label, createdAt: Date.now(), isClone, cloneDir, templateName, leaseHandle, pid, configHash });
 };
 
 export const get = id => {
@@ -45,6 +45,7 @@ export const list = () =>
     cloneDir:     s.cloneDir,
     templateName: s.templateName,
     pid:          s.pid,
+    configHash:   s.configHash,
   }));
 
 export const closeAll = async () => {

@@ -101,6 +101,7 @@ src/
     registry.js           All tool definitions: name, handler, schema
     szkrabok_session.js   session_manage (open/close/list/delete/endpoint)
     szkrabok_browser.js   browser_run (code/file), browser_run_test
+    session_run_test.js   session_run_test — composite: open session → navigate → run_test → post-policy
     workflow.js           browser_scrape
     scaffold.js           scaffold_init
 
@@ -132,6 +133,7 @@ tests/
     schema.test.js             tool schema validation
     contracts.test.js          architecture invariant checks (static analysis)
     playwright-patches.test.js verifies all 7 playwright-core patch markers are present
+    session_run_test.test.js   session_run_test — 21 unit tests (EX-1); injected deps, no browser
     runtime/
       unit.test.js           config, storage, stealth without MCP
       integration.test.js    session persistence across two launches
@@ -144,10 +146,12 @@ tests/
       tools.spec.js
       interop.spec.js
       config-mcp-roots.spec.js
+      session_run_test.spec.js  session_run_test — 3 integration tests (EX-2); real browser + subprocess
 
     e2e/              Playwright, live external sites, headed browser
       fixtures.js           Path A: connect(CDP); Path B: launch({profile:'dev'})
       setup.js / teardown.js
+      noop.spec.js          minimal noop — inner spec used by session_run_test integration tests
       rebrowser.spec.js     bot-detector.rebrowser.net — 8/10 passing (headed only)
       rebrowser-mcp.spec.js same via MCP client
       intoli.spec.js        bot.sannysoft.com — 10 Intoli + 20 fp-collect checks
@@ -157,8 +161,8 @@ tests/
 
 ## Tool ownership
 
-**Szkrabok** tools (5 total):
-`session_manage` `browser_scrape` `browser_run` `browser_run_test` `scaffold_init`
+**Szkrabok** tools (6 total):
+`session_manage` `session_run_test` `browser_scrape` `browser_run` `browser_run_test` `scaffold_init`
 
 **@playwright/mcp** (separate MCP server — install alongside szkrabok):
 `browser.{snapshot,click,type,navigate,navigate_back,close,drag,hover,evaluate,select_option,fill_form,press_key,take_screenshot,wait_for,resize,tabs,console_messages,network_requests,file_upload,handle_dialog,run_code,...}`
@@ -288,16 +292,42 @@ session_manage { action: close, sessionName: cloneId }
 ### browser_run_test
 
 ```
-browser_run_test(id, files?, grep?, params?, workers?, reportFile?)
+browser_run_test(id, files?, grep?, params?, workers?, signalAttach?, reportFile?)
   -> getSession(id) — throws if not open
   -> read cdpEndpoint from session handle
   -> set SZKRABOK_CDP_ENDPOINT=cdpEndpoint
   -> set PLAYWRIGHT_JSON_OUTPUT_NAME=jsonFile
      (reportFile arg if given, else sessions/<id>/last-run.json)
+  -> if signalAttach: set SZKRABOK_ATTACH_SIGNAL=<signal-file-path>
   -> spawn: npx playwright test --reporter=list,json [files] [--grep] [--workers <n>]
   -> subprocess fixture connects via connectOverCDP (no launch)
+  -> subprocess fixture writes SZKRABOK_ATTACH_SIGNAL file at worker teardown
+  -> if signalAttach: await waitForAttach(signalFile) — resolves immediately (file already written)
   -> parse JSON report, decode base64 result attachments
   -> return { passed, failed, tests: [{title, status, result}], reportFile }
+```
+
+### session_run_test
+
+```
+session_run_test({ session, test, postPolicy })
+  [per-name withLock acquired]
+  -> validate: url required if navigation.policy !== "never"
+  -> resolve session:
+       clone mode:  if template open → templateConflict policy (fail / close-first / clone-from-live)
+                    else → sessionOpen({ isClone: true }) → runtimeName
+       template mode: sessionOpen(name) → runtimeName = logicalName
+  -> navigation barrier (if policy !== "never"):
+       "always"  → page.goto(url, { waitUntil: "networkidle" })
+       "ifBlank" → goto only if page.url() === "about:blank"
+  -> browser_run_test(runtimeName, { workers:1, signalAttach:true, ...test })
+  [withLock held until browser_run_test returns]
+  -> post-policy:
+       "destroy" → sessionClose (clone destroyed; no state saved)
+       "save"    → sessionClose (template saved)
+       "keep"    → verify session still open; error if not and recreateCloneOnKeep:false
+  -> return { session: { logicalName, runtimeName, mode }, test: { ... } }
+  [error paths return { error, phase: "session"|"test"|"postPolicy" }]
 ```
 
 ## Pool scoping

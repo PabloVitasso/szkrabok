@@ -82,6 +82,7 @@ tests/
     config-discovery.test.js  initConfig() discovery algorithm (all 6 priority steps)
     config-values.test.js     getConfig() field defaults, TOML mapping, resolvePreset
     playwright-patches.test.js verifies all 7 playwright-core patch markers present
+    session_run_test.test.js  session_run_test — 21 unit tests (EX-1); all deps injected, no browser
     runtime/
       unit.test.js            config, storage, stealth evasions
       integration.test.js     cookie persistence across two launches
@@ -100,9 +101,11 @@ tests/
       tools.spec.js
       interop.spec.js         (skipped when @playwright/mcp not installed)
       config-mcp-roots.spec.js  MCP roots → config → UA end-to-end
+      session_run_test.spec.js  session_run_test — 3 integration tests (EX-2); real browser + subprocess
     e2e/                      Playwright, live external sites, headed browser
       fixtures.js
       setup.js / teardown.js
+      noop.spec.js            minimal noop — used as inner spec by session_run_test integration tests
       rebrowser.spec.js
       rebrowser-mcp.spec.js
       intoli.spec.js
@@ -163,6 +166,26 @@ npm run test:playwright
 | `tools.spec.js` | Workflow | `browser_scrape` extracts structured data |
 | `interop.spec.js` | CDP Interoperability | `session_manage endpoint` returns `wsEndpoint`; @playwright/mcp attaches and navigates shared browser. **Skipped** when `@playwright/mcp` is not installed |
 | `config-mcp-roots.spec.js` | Config Discovery | Roots sent at init load project TOML; `SZKRABOK_CONFIG` env var loads config; both verified via `navigator.userAgent` |
+| `session_run_test.spec.js` | session_run_test (EX-2) | End-to-end template mode, postPolicy keep, withLock serialization |
+
+### `session_run_test` tests (EX-1 + EX-2)
+
+Unit tests (`tests/node/session_run_test.test.js`) call `_run` directly with injected deps — no browser, no subprocess. `mockGetSession({ throwNth })` throws from call N onwards; `Infinity` = always return.
+
+| ID | What | Layer |
+|----|------|-------|
+| EX-1.1–1.3 | Clone lifecycle: isClone flag, runtimeName, sessionClose on destroy | unit |
+| EX-1.4–1.6 | Template lifecycle: no isClone, runtimeName = logicalName, sessionClose on save | unit |
+| EX-1.10–1.14 | Navigation policy branching: always/ifBlank/never, URL validation before I/O | unit |
+| EX-1.15–1.18 | Failure propagation: session error, nav error, test error (postPolicy still runs), postPolicy error | unit |
+| EX-1.21–1.23 | templateConflict: fail, close-first ordering, clone-from-live | unit |
+| EX-1.24–1.25 | enforceLaunchOptionsMatch: hard fail on mismatch; warn + continue | unit |
+| EX-1.26 | workers:1 and signalAttach:true always forwarded to run_test | unit |
+| EX-2.1 | Template mode end-to-end: response shape, session closed after default save | integration |
+| EX-2.2 | postPolicy keep: session still in `session_manage list` after test | integration |
+| EX-2.3 | withLock: two concurrent same-name calls both complete (deadlock would timeout) | integration |
+
+EX-1.7–1.9 (postPolicy keep keep/dead/recreate) and EX-1.19–1.20 (concurrency) are not unit-tested — see feature doc for rationale. EX-2.2 and EX-2.3 cover these gaps.
 
 ---
 

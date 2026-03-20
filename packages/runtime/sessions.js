@@ -1,9 +1,33 @@
 // Session management helpers for callers that don't hold the launch() handle.
 
 import { rm } from 'fs/promises';
+import { createHash } from 'crypto';
 import * as pool from './pool.js';
 import * as storage from './storage.js';
 import { log } from './logger.js';
+
+// Fields that matter for launchOptions comparison.
+// Omit transient/derived fields like pid, leaseHandle, cloneDir.
+const CONFIG_FIELDS = ['userAgent', 'viewport', 'locale', 'timezone', 'stealth', 'headless', 'preset'];
+
+/**
+ * Compute a stable hash of effective launch config for mismatch detection.
+ * Used by launch() to store on pool entries and by session_run_test to
+ * compare against caller's supplied options.
+ *
+ * @param {object|null} config - resolved effective config, or null
+ * @returns {string|null} 16-char hex prefix of SHA-256, or null if config is null
+ */
+export const computeConfigHash = config => {
+  if (!config) return null;
+  const subset = {};
+  for (const k of CONFIG_FIELDS) {
+    if (config[k] !== undefined) subset[k] = config[k];
+  }
+  // Stable key order for reproducible serialization
+  const serialized = JSON.stringify(subset, Object.keys(subset).sort());
+  return createHash('sha256').update(serialized).digest('hex').slice(0, 16);
+};
 
 /**
  * Close a session by profile name.
@@ -40,7 +64,7 @@ export const closeSession = async profile => {
 
 /**
  * Get a session entry from the pool.
- * Returns { context, page, cdpPort, preset, label, createdAt }.
+ * Returns { context, page, cdpPort, preset, label, createdAt, isClone, cloneDir, templateName, leaseHandle, pid, configHash }.
  */
 export const getSession = profile => pool.get(profile);
 
@@ -103,5 +127,6 @@ export const destroyClone = async cloneId => {
 export const updateSessionPage = (profile, page) => {
   const session = pool.get(profile);
   pool.add(profile, session.context, page, session.cdpPort, session.preset, session.label,
-    session.isClone, session.cloneDir, session.templateName, session.leaseHandle);
+    session.isClone, session.cloneDir, session.templateName, session.leaseHandle, session.pid,
+    session.configHash);
 };
