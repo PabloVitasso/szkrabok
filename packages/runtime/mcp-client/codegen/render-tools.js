@@ -2,21 +2,40 @@ import { schemaToJSDoc, schemaToTs } from './schema-to-jsdoc.js';
 
 /**
  * Group tools by namespace.
+ *
+ * Namespaces are extracted from tool names using two conventions:
+ * - Dot-separated:   "browser.run_test"  → ns="browser",   method="run_test"
+ * - Underscore-first: "browser_run_test" → ns="browser",   method="run_test"
+ * - Underscore-only:  "session_manage"  → ns="session",  method="manage"
+ *
+ * Both conventions may coexist. The first underscore is used as the namespace
+ * boundary for underscore-named tools; the first dot is used for dot-named tools.
+ * Tools with no separator go to "_root".
+ *
  * @param {Array} tools - Array of { name, inputSchema }
  * @returns {Map<string, Array>} Map of namespace -> tools
  */
 export function groupByNamespace(tools) {
   return tools.reduce((groups, tool) => {
-    const dotIndex = tool.name.indexOf('.');
     let ns;
     let method;
-    if (dotIndex === -1) {
-      ns = '_root';
-      method = tool.name;
-    } else {
+
+    const dotIndex = tool.name.indexOf('.');
+    const underscoreIndex = tool.name.indexOf('_');
+
+    if (dotIndex !== -1 && (underscoreIndex === -1 || dotIndex < underscoreIndex)) {
+      // Dot-named: "browser.run_test" → ns="browser", method="run_test"
       ns = tool.name.slice(0, dotIndex);
       method = tool.name.slice(dotIndex + 1);
+    } else if (underscoreIndex !== -1) {
+      // Underscore-named: "browser_run_test" → ns="browser", method="run_test"
+      ns = tool.name.slice(0, underscoreIndex);
+      method = tool.name.slice(underscoreIndex + 1);
+    } else {
+      ns = '_root';
+      method = tool.name;
     }
+
     const existing = groups.get(ns);
     if (existing) {
       groups.set(ns, [...existing, { ...tool, method }]);
