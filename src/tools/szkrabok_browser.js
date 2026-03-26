@@ -3,10 +3,35 @@ import { open as sessionOpen } from './szkrabok_session.js';
 import { resolve, dirname, join } from 'path';
 import { spawn } from 'child_process';
 import { fileURLToPath } from 'url';
-import { createWriteStream, existsSync } from 'fs';
+import { createRequire } from 'node:module';
+import { createWriteStream, existsSync, writeFileSync, unlinkSync } from 'fs';
 import { access, readFile, mkdir, unlink } from 'fs/promises';
+import { tmpdir } from 'node:os';
+import { randomUUID } from 'node:crypto';
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
+
+const _require = createRequire(import.meta.url);
+let _runtimeEntry = null;
+
+export const getRuntimeEntry = () => {
+  if (_runtimeEntry === null) {
+    try {
+      _runtimeEntry = _require.resolve('@pablovitasso/szkrabok/runtime');
+    } catch {
+      _runtimeEntry = false; // not resolvable — skip shim silently
+    }
+  }
+  return _runtimeEntry || null;
+};
+
+export const writeRuntimeShim = () => {
+  const entry = getRuntimeEntry();
+  if (!entry) return null;
+  const shimPath = join(tmpdir(), `szkrabok-runtime-${randomUUID()}.mjs`);
+  writeFileSync(shimPath, `export * from ${JSON.stringify(entry)};\n`);
+  return shimPath;
+};
 
 /**
  * Wait for a signal file to appear on disk, simulating fixture CDP attach confirmation.
@@ -164,6 +189,12 @@ export const run_test = async args => {
   }
 
   env.SZKRABOK_CDP_ENDPOINT = `http://localhost:${session.cdpPort}`;
+
+  const shimPath = writeRuntimeShim();
+  if (shimPath) {
+    env.NODE_OPTIONS = [process.env.NODE_OPTIONS, `--import=${shimPath}`].filter(Boolean).join(' ');
+    process.once('exit', () => { try { unlinkSync(shimPath); } catch {} });
+  }
 
   const logFile = join(sessionDir, 'last-run.log');
 
