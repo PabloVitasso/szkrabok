@@ -35,7 +35,7 @@ const srt = (name, extra = {}) => ({
 
 test.describe('session_run_test', () => {
 
-  test('EX-2.1 template mode end-to-end: response shape correct, session cleaned up', async ({ client }) => {
+  test('EX-2.1 template mode end-to-end: response shape correct, session saved and inactive', async ({ client }) => {
     const name = `srt-e2e-${randomUUID()}`;
 
     const response = await client.callTool(srt(name));
@@ -47,9 +47,13 @@ test.describe('session_run_test', () => {
     expect(result.session.mode).toBe('template');
     expect(result.test).toBeDefined();
 
-    // postPolicy defaults to 'save' for template → session closed after run.
+    // postPolicy defaults to 'save' for template → browser closed, profile kept on disk.
+    // session_manage list returns ALL stored sessions (active and inactive).
     const list = await client.callTool({ name: 'session_manage', arguments: { action: 'list' } });
-    expect(list.content[0].text).not.toContain(name);
+    const { sessions } = JSON.parse(list.content[0].text);
+    const entry = sessions.find(s => s.id === name);
+    expect(entry, 'saved session should appear in list').toBeDefined();
+    expect(entry.active, 'session should be inactive after postPolicy:save').toBe(false);
 
     // Cleanup stored profile.
     await client.callTool({ name: 'session_manage', arguments: { action: 'delete', sessionName: name } });

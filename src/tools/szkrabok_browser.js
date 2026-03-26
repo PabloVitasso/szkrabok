@@ -142,16 +142,6 @@ export const run_test = async args => {
     jsonFile = join(sessionDir, 'last-run.json');
   }
 
-  const env = {
-    ...process.env,
-    FORCE_COLOR: '0',
-    SZKRABOK_SESSION: sessionName,
-    PLAYWRIGHT_JSON_OUTPUT_NAME: jsonFile,
-    ...Object.fromEntries(
-      Object.entries(params).map(([k, v]) => [k.toUpperCase(), String(v)])
-    ),
-  };
-
   let session;
   try {
     session = getSession(sessionName);
@@ -163,7 +153,16 @@ export const run_test = async args => {
     throw new Error(`Session "${sessionName}" missing CDP port — reopen session`);
   }
 
-  env.SZKRABOK_CDP_ENDPOINT = `http://localhost:${session.cdpPort}`;
+  const env = {
+    ...process.env,
+    FORCE_COLOR: '0',
+    SZKRABOK_SESSION: sessionName,
+    PLAYWRIGHT_JSON_OUTPUT_NAME: jsonFile,
+    SZKRABOK_CDP_ENDPOINT: `http://localhost:${session.cdpPort}`,
+    ...Object.fromEntries(
+      Object.entries(params).map(([k, v]) => [k.toUpperCase(), String(v)])
+    ),
+  };
 
   const logFile = join(sessionDir, 'last-run.log');
 
@@ -202,7 +201,7 @@ export const run_test = async args => {
     const logStream = createWriteStream(logFile);
 
     const child = spawn('npx', argsPW, {
-      cwd: REPO_ROOT,
+      cwd: dirname(configPath),
       env,
       stdio: ['ignore', 'pipe', 'pipe'],
     });

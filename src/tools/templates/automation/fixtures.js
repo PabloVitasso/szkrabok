@@ -2,39 +2,49 @@
  * Custom Playwright fixtures for szkrabok automation.
  *
  * Path A — MCP / CDP mode (SZKRABOK_CDP_ENDPOINT set by browser_run_test):
- *   Connects to the live MCP session browser via runtime.connect().
+ *   Connects to the live MCP session browser via plain CDP — no runtime import needed.
+ *   Stealth is already applied at session launch time (session_manage open).
  *   Use when running specs via: browser_run_test { "sessionName": "..." }
  *
  * Path B — Standalone / dev mode (no env var):
  *   Launches a new stealth browser via runtime.launch().
+ *   Requires @pablovitasso/szkrabok installed: npm install @pablovitasso/szkrabok
  *   Use when running specs directly: npx playwright test
  *
- * No direct stealth imports. No direct browser launch. No config parsing.
+ * No static runtime import — MCP path has zero runtime dependency.
  */
-import { test as base } from '@playwright/test';
-import { initConfig, launch, connect } from '@pablovitasso/szkrabok/runtime';
+import { test as base, chromium } from '@playwright/test';
 import { writeFile } from 'fs/promises';
 
 export { expect } from '@playwright/test';
 
 const cdpEndpoint = process.env.SZKRABOK_CDP_ENDPOINT || '';
 
+// Memoized per worker — avoids repeated dynamic import evaluation across tests.
+let _runtimeP;
+const getRuntime = () => _runtimeP ??= import('@pablovitasso/szkrabok/runtime');
+
 export const test = base.extend({
   // Worker-scoped: one browser connection per worker, reused across tests.
   _runtimeHandle: [
     // eslint-disable-next-line no-empty-pattern -- Playwright fixture API requires destructuring even when no fixtures are used
-async ({}, use) => {
-      initConfig();
+    async ({}, use) => {
       if (cdpEndpoint) {
-        // Path A: connect to the MCP session browser via CDP
-        const handle = await connect(cdpEndpoint);
-        await use(handle);
+        // Path A: plain CDP connect — no runtime import needed.
+        // The MCP session browser already has stealth applied at launch time.
+        const browser  = await chromium.connectOverCDP(cdpEndpoint);
+        const contexts = browser.contexts();
+        const context  = contexts[0] ?? await browser.newContext();
+        await use({ browser, context });
         // Do NOT close — the MCP session owns this browser.
         if (process.env.SZKRABOK_ATTACH_SIGNAL) {
           await writeFile(process.env.SZKRABOK_ATTACH_SIGNAL, '').catch(() => {});
         }
       } else {
-        // Path B: launch standalone with stealth + persistent profile
+        // Path B: launch standalone with stealth + persistent profile.
+        // Requires: npm install @pablovitasso/szkrabok
+        const { initConfig, launch } = await getRuntime();
+        initConfig();
         const handle = await launch({ profile: 'dev', reuse: true });
         await use(handle);
         await handle.close();

@@ -99,3 +99,26 @@ test('scaffold_init package.json has type:module', async () => {
     await rm(dir, { recursive: true });
   }
 });
+
+test('scaffolded fixtures.js has no static runtime import', async () => {
+  const dir = await makeTmp();
+  try {
+    await init({ dir, preset: 'full' });
+    const content = await readFile(join(dir, 'automation/fixtures.js'), 'utf8');
+    const hasStaticImport = /^import\s+.*szkrabok.*runtime/m.test(content);
+    assert.ok(!hasStaticImport, 'fixtures.js must not have a static top-level runtime import');
+  } finally {
+    await rm(dir, { recursive: true });
+  }
+});
+
+test('scaffolded fixtures.js uses connectOverCDP for MCP path', async () => {
+  const dir = await makeTmp();
+  try {
+    await init({ dir, preset: 'full' });
+    const content = await readFile(join(dir, 'automation/fixtures.js'), 'utf8');
+    assert.ok(content.includes('connectOverCDP'), 'MCP path must use connectOverCDP');
+  } finally {
+    await rm(dir, { recursive: true });
+  }
+});

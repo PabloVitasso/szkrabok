@@ -1,6 +1,6 @@
 /**
- * Unit tests for waitForAttach — the file-system polling primitive used by
- * browser_run_test signalAttach to confirm CDP fixture bootstrap.
+ * Unit tests for szkrabok_browser.js helpers:
+ *   - waitForAttach: file-system polling primitive for CDP attach confirmation
  *
  * No browser, no subprocess, no mocks needed.
  */
@@ -60,3 +60,4 @@ test('waitForAttach resolves when signal file appears after a delay', async () =
     await rm(dir, { recursive: true });
   }
 });
+
