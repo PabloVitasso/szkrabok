@@ -217,9 +217,23 @@ export const run_test = async args => {
     });
   });
 
-  // The e2e fixture writes the attach-signal file during worker teardown, just before the
-  // subprocess exits. By the time the close event fires the file is already on disk.
-  if (attachSignalFile) await waitForAttach(attachSignalFile);
+  // The fixture writes the attach-signal file at worker teardown, before the subprocess exits.
+  // By the time the close event fires the file must already be on disk.
+  // If it is absent immediately after process exit the fixture never ran teardown (e.g. the
+  // subprocess crashed during ESM load). Fail fast with the actual log rather than letting
+  // waitForAttach spin for 30 s and surface a misleading timeout error.
+  if (attachSignalFile) {
+    if (!existsSync(attachSignalFile)) {
+      const logRaw = await readFile(logFile, 'utf8').catch(() => '');
+      const log = logRaw.split('\n').filter(Boolean);
+      return {
+        exitCode: 1,
+        log,
+        error: 'signalAttach: fixture did not write CDP attach signal — check log for startup errors',
+      };
+    }
+    await waitForAttach(attachSignalFile);
+  }
 
   const [logRaw, reportRaw] = await Promise.all([
     readFile(logFile, 'utf8').catch(() => ''),
