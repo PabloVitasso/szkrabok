@@ -116,11 +116,17 @@ describe('Invariant 4: tests/playwright/e2e/fixtures.js has no stealth imports',
     );
   });
 
-  test('fixtures.js imports from @szkrabok/runtime', async () => {
+  test('fixtures.js references @szkrabok/runtime for standalone path (dynamic import only)', async () => {
     const src = await readSrc(join(E2E_DIR, 'fixtures.js'));
+    // Must reference runtime for standalone stealth launch.
     assert.ok(
-      src.includes("from '@szkrabok/runtime'"),
-      "e2e/fixtures.js must import from '@szkrabok/runtime'"
+      src.includes("'@szkrabok/runtime'"),
+      "e2e/fixtures.js must reference '@szkrabok/runtime'"
+    );
+    // Must NOT have a static top-level import — MCP path requires zero runtime dependency.
+    assert.ok(
+      !/^import\s+.*szkrabok.*runtime/m.test(src),
+      'e2e/fixtures.js must not have a static top-level runtime import'
     );
   });
 });
