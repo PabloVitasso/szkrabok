@@ -167,6 +167,7 @@ npm run test:playwright
 | `interop.spec.js` | CDP Interoperability | `session_manage endpoint` returns `wsEndpoint`; @playwright/mcp attaches and navigates shared browser. **Skipped** when `@playwright/mcp` is not installed |
 | `config-mcp-roots.spec.js` | Config Discovery | Roots sent at init load project TOML; `SZKRABOK_CONFIG` env var loads config; both verified via `navigator.userAgent` |
 | `session_run_test.spec.js` | session_run_test (EX-2) | End-to-end template mode, postPolicy keep, withLock serialization |
+| `scaffold-smoke.spec.js` | Zero-install smoke | `browser_run_test` CDP path works in external project (sk-skills); proves connectOverCDP fixture end-to-end |
 
 ### `session_run_test` tests (EX-1 + EX-2)
 
@@ -222,6 +223,8 @@ browser_run_test {
 ```
 
 **Note:** The `files` parameter cannot be combined with `project` — Playwright CLI treats the file paths as additional project names in that case. To run a specific spec, use `grep` instead, or omit `project` and pass only `files`.
+
+**External project configs:** `browser_run_test` spawns the Playwright subprocess with `cwd` set to `dirname(config)`. This means an absolute config path from a different project (e.g. `/path/to/sk-skills/playwright.config.js`) uses that project's own `node_modules` and playwright version — no version skew.
 
 ### Path B — Standalone CLI, no session (direct launch)
 

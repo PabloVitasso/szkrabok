@@ -3,57 +3,10 @@ import { open as sessionOpen } from './szkrabok_session.js';
 import { resolve, dirname, join } from 'path';
 import { spawn } from 'child_process';
 import { fileURLToPath } from 'url';
-import { createRequire } from 'node:module';
-import { createWriteStream, existsSync, writeFileSync, unlinkSync } from 'fs';
+import { createWriteStream, existsSync } from 'fs';
 import { access, readFile, mkdir, unlink } from 'fs/promises';
-import { tmpdir } from 'node:os';
-import { randomUUID } from 'node:crypto';
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
-
-const _require = createRequire(import.meta.url);
-let _runtimeEntry;   // undefined = not tried, null = not resolvable, string = path
-let _shimPath;       // undefined = not created, null = not possible, string = path
-
-export const getRuntimeEntry = () => {
-  if (_runtimeEntry === undefined) {
-    try {
-      _runtimeEntry = _require.resolve('@pablovitasso/szkrabok/runtime');
-    } catch {
-      _runtimeEntry = null; // not resolvable — skip shim silently
-    }
-  }
-  return _runtimeEntry;
-};
-
-export const writeRuntimeShim = () => {
-  // Return cached shim if still on disk.
-  if (_shimPath !== undefined) {
-    if (_shimPath === null) return null;
-    if (existsSync(_shimPath)) return _shimPath;
-  }
-
-  const entry = getRuntimeEntry();
-  if (!entry) { _shimPath = null; return null; }
-
-  const p = join(tmpdir(), `szkrabok-runtime-${randomUUID()}.mjs`);
-  // globalThis guard prevents double-init if --import fires multiple times
-  // (e.g. nested NODE_OPTIONS stacking or multiple workers sharing the flag).
-  writeFileSync(p, [
-    `import * as m from ${JSON.stringify(entry)};`,
-    `globalThis.__szkrabok_runtime__ ??= m;`,
-    `export * from ${JSON.stringify(entry)};`,
-  ].join('\n') + '\n');
-
-  _shimPath = p;
-
-  const cleanup = () => { try { unlinkSync(p); } catch {} };
-  process.once('beforeExit', cleanup);
-  process.once('SIGINT',     cleanup);
-  process.once('SIGTERM',    cleanup);
-
-  return p;
-};
 
 /**
  * Wait for a signal file to appear on disk, simulating fixture CDP attach confirmation.
@@ -200,14 +153,11 @@ export const run_test = async args => {
     throw new Error(`Session "${sessionName}" missing CDP port — reopen session`);
   }
 
-  const shimPath = writeRuntimeShim();
-
   const env = {
     ...process.env,
     FORCE_COLOR: '0',
     SZKRABOK_SESSION: sessionName,
     PLAYWRIGHT_JSON_OUTPUT_NAME: jsonFile,
-    NODE_OPTIONS: [process.env.NODE_OPTIONS, shimPath && `--import=${shimPath}`].filter(Boolean).join(' '),
     SZKRABOK_CDP_ENDPOINT: `http://localhost:${session.cdpPort}`,
     ...Object.fromEntries(
       Object.entries(params).map(([k, v]) => [k.toUpperCase(), String(v)])
@@ -251,7 +201,7 @@ export const run_test = async args => {
     const logStream = createWriteStream(logFile);
 
     const child = spawn('npx', argsPW, {
-      cwd: REPO_ROOT,
+      cwd: dirname(configPath),
       env,
       stdio: ['ignore', 'pipe', 'pipe'],
     });

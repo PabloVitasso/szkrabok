@@ -1,5 +1,8 @@
 # Bug: `@pablovitasso/szkrabok/runtime` import fails in user projects using npx MCP
 
+> **Status: Fixed — Option B implemented.** See [feature-zero-install-mcp.md](../features/feature-zero-install-mcp.md).
+
+
 ## Problem
 
 ```bash

@@ -1,19 +1,16 @@
 /**
  * Unit tests for szkrabok_browser.js helpers:
  *   - waitForAttach: file-system polling primitive for CDP attach confirmation
- *   - getRuntimeEntry / writeRuntimeShim: F-option shim injection for zero-install MCP
  *
  * No browser, no subprocess, no mocks needed.
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, rm, writeFile, readFile, access } from 'node:fs/promises';
-import { existsSync } from 'node:fs';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
-const { waitForAttach, getRuntimeEntry, writeRuntimeShim } =
-  await import('../../src/tools/szkrabok_browser.js');
+const { waitForAttach } = await import('../../src/tools/szkrabok_browser.js');
 
 const makeTmp = () => mkdtemp(join(tmpdir(), 'wat-test-'));
 
@@ -64,44 +61,3 @@ test('waitForAttach resolves when signal file appears after a delay', async () =
   }
 });
 
-// --- getRuntimeEntry / writeRuntimeShim ---
-
-test('getRuntimeEntry returns a resolvable path string', () => {
-  // The MCP server package can always resolve its own runtime subpath.
-  const entry = getRuntimeEntry();
-  assert.ok(typeof entry === 'string' && entry.length > 0, 'should return a non-empty string');
-  assert.ok(entry.endsWith('.js') || entry.endsWith('.mjs'), `should be a JS file, got: ${entry}`);
-});
-
-test('writeRuntimeShim creates a valid ESM re-export file', async () => {
-  const shimPath = writeRuntimeShim();
-  assert.ok(shimPath !== null, 'should return a path when runtime is resolvable');
-  try {
-    assert.ok(existsSync(shimPath), 'shim file should exist on disk');
-    const content = await readFile(shimPath, 'utf8');
-    assert.match(content, /^export \* from ".+";$/m, 'shim should be a valid ESM re-export');
-  } finally {
-    await rm(shimPath, { force: true });
-  }
-});
-
-test('writeRuntimeShim returns the same cached path on repeated calls', () => {
-  const a = writeRuntimeShim();
-  const b = writeRuntimeShim();
-  assert.ok(a !== null && b !== null, 'both calls should succeed');
-  assert.equal(a, b, 'should return the same cached path — one shim per process');
-});
-
-test('NODE_OPTIONS injection preserves existing value', () => {
-  const existing = '--max-old-space-size=512';
-  const shimArg = '--import=/tmp/test-shim.mjs';
-  const result = [existing, shimArg].filter(Boolean).join(' ');
-  assert.ok(result.includes(existing), 'should preserve existing NODE_OPTIONS');
-  assert.ok(result.includes(shimArg), 'should include shim import');
-});
-
-test('NODE_OPTIONS injection with empty existing value omits leading space', () => {
-  const shimArg = '--import=/tmp/test-shim.mjs';
-  const result = [undefined, shimArg].filter(Boolean).join(' ');
-  assert.equal(result, shimArg, 'should not have leading space when no prior NODE_OPTIONS');
-});
