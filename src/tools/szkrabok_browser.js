@@ -12,25 +12,47 @@ import { randomUUID } from 'node:crypto';
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
 const _require = createRequire(import.meta.url);
-let _runtimeEntry = null;
+let _runtimeEntry;   // undefined = not tried, null = not resolvable, string = path
+let _shimPath;       // undefined = not created, null = not possible, string = path
 
 export const getRuntimeEntry = () => {
-  if (_runtimeEntry === null) {
+  if (_runtimeEntry === undefined) {
     try {
       _runtimeEntry = _require.resolve('@pablovitasso/szkrabok/runtime');
     } catch {
-      _runtimeEntry = false; // not resolvable — skip shim silently
+      _runtimeEntry = null; // not resolvable — skip shim silently
     }
   }
-  return _runtimeEntry || null;
+  return _runtimeEntry;
 };
 
 export const writeRuntimeShim = () => {
+  // Return cached shim if still on disk.
+  if (_shimPath !== undefined) {
+    if (_shimPath === null) return null;
+    if (existsSync(_shimPath)) return _shimPath;
+  }
+
   const entry = getRuntimeEntry();
-  if (!entry) return null;
-  const shimPath = join(tmpdir(), `szkrabok-runtime-${randomUUID()}.mjs`);
-  writeFileSync(shimPath, `export * from ${JSON.stringify(entry)};\n`);
-  return shimPath;
+  if (!entry) { _shimPath = null; return null; }
+
+  const p = join(tmpdir(), `szkrabok-runtime-${randomUUID()}.mjs`);
+  // globalThis guard prevents double-init if --import fires multiple times
+  // (e.g. nested NODE_OPTIONS stacking or multiple workers sharing the flag).
+  writeFileSync(p, [
+    `import * as m from ${JSON.stringify(entry)};`,
+    `globalThis.__szkrabok_runtime__ ??= m;`,
+    `export * from ${JSON.stringify(entry)};`,
+  ].join('\n') + '\n');
+
+  _shimPath = p;
+
+  const cleanup = () => { try { unlinkSync(p); } catch {} };
+  process.once('beforeExit', cleanup);
+  process.once('SIGINT',     cleanup);
+  process.once('SIGTERM',    cleanup);
+
+  return p;
 };
 
 /**
@@ -167,16 +189,6 @@ export const run_test = async args => {
     jsonFile = join(sessionDir, 'last-run.json');
   }
 
-  const env = {
-    ...process.env,
-    FORCE_COLOR: '0',
-    SZKRABOK_SESSION: sessionName,
-    PLAYWRIGHT_JSON_OUTPUT_NAME: jsonFile,
-    ...Object.fromEntries(
-      Object.entries(params).map(([k, v]) => [k.toUpperCase(), String(v)])
-    ),
-  };
-
   let session;
   try {
     session = getSession(sessionName);
@@ -188,13 +200,19 @@ export const run_test = async args => {
     throw new Error(`Session "${sessionName}" missing CDP port — reopen session`);
   }
 
-  env.SZKRABOK_CDP_ENDPOINT = `http://localhost:${session.cdpPort}`;
-
   const shimPath = writeRuntimeShim();
-  if (shimPath) {
-    env.NODE_OPTIONS = [process.env.NODE_OPTIONS, `--import=${shimPath}`].filter(Boolean).join(' ');
-    process.once('exit', () => { try { unlinkSync(shimPath); } catch {} });
-  }
+
+  const env = {
+    ...process.env,
+    FORCE_COLOR: '0',
+    SZKRABOK_SESSION: sessionName,
+    PLAYWRIGHT_JSON_OUTPUT_NAME: jsonFile,
+    NODE_OPTIONS: [process.env.NODE_OPTIONS, shimPath && `--import=${shimPath}`].filter(Boolean).join(' '),
+    SZKRABOK_CDP_ENDPOINT: `http://localhost:${session.cdpPort}`,
+    ...Object.fromEntries(
+      Object.entries(params).map(([k, v]) => [k.toUpperCase(), String(v)])
+    ),
+  };
 
   const logFile = join(sessionDir, 'last-run.log');
 

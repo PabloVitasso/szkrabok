@@ -85,14 +85,11 @@ test('writeRuntimeShim creates a valid ESM re-export file', async () => {
   }
 });
 
-test('writeRuntimeShim produces unique paths on concurrent calls', async () => {
-  const [a, b] = [writeRuntimeShim(), writeRuntimeShim()];
-  try {
-    assert.ok(a !== null && b !== null, 'both calls should succeed');
-    assert.notEqual(a, b, 'paths should be unique');
-  } finally {
-    await Promise.all([a, b].map(p => p && rm(p, { force: true })));
-  }
+test('writeRuntimeShim returns the same cached path on repeated calls', () => {
+  const a = writeRuntimeShim();
+  const b = writeRuntimeShim();
+  assert.ok(a !== null && b !== null, 'both calls should succeed');
+  assert.equal(a, b, 'should return the same cached path — one shim per process');
 });
 
 test('NODE_OPTIONS injection preserves existing value', () => {

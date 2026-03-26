@@ -23,50 +23,29 @@ At the top of the file, add shim generation helpers. In `browser_run_test`, inje
 
 **Step 1 — Add imports at top of `szkrabok_browser.js`**
 
-Add `createRequire` from `node:module`, `writeFileSync` from `node:fs`, `tmpdir` from `node:os`, `randomUUID` from `node:crypto`. These are all Node built-ins, no new dependencies.
+Add `createRequire` from `node:module`, `writeFileSync`/`unlinkSync` to the existing `fs` import, `tmpdir` from `node:os`, `randomUUID` from `node:crypto`. All Node built-ins — no new dependencies.
 
 **Step 2 — Add `getRuntimeEntry()` — lazy, cached, silent-on-failure**
 
-```js
-import { createRequire } from 'node:module';
-import { writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { randomUUID } from 'node:crypto';
+Three-state sentinel: `undefined` = not tried, `null` = not resolvable, `string` = resolved path. Resolve is attempted exactly once per process lifetime. If the MCP server was installed via npx, `require.resolve` finds the runtime in the same npx install graph. On failure the shim is skipped silently — no error, no regression.
 
-const _require = createRequire(import.meta.url);
-let _runtimeEntry = null;
+**Step 3 — Add `writeRuntimeShim()` — one shim per process, cached**
 
-const getRuntimeEntry = () => {
-  if (_runtimeEntry === null) {
-    try {
-      _runtimeEntry = _require.resolve('@pablovitasso/szkrabok/runtime');
-    } catch {
-      _runtimeEntry = false; // not resolvable — skip shim silently
-    }
-  }
-  return _runtimeEntry || null;
-};
-```
-
-The `false` sentinel means the resolve is only attempted once per process lifetime. If the MCP server was installed via npx, `resolve` will find the runtime in the same npx cache. If for any reason it fails, the shim is simply skipped — no error, no regression.
-
-**Step 3 — Add `writeRuntimeShim()` — UUID filename, returns path or null**
+- Returns cached path if shim file still exists on disk (reuse across concurrent `browser_run_test` calls)
+- Shim content uses a `globalThis.__szkrabok_runtime__ ??=` guard to prevent double-init if `--import` fires multiple times (nested NODE_OPTIONS, multiple workers sharing the flag)
+- Registers cleanup on `beforeExit`, `SIGINT`, and `SIGTERM` — not `exit`, which is too late for async-dispatched signals
 
 ```js
-const writeRuntimeShim = () => {
-  const entry = getRuntimeEntry();
-  if (!entry) return null;
-  const shimPath = join(tmpdir(), `szkrabok-runtime-${randomUUID()}.mjs`);
-  writeFileSync(shimPath, `export * from ${JSON.stringify(entry)};\n`);
-  return shimPath;
-};
+writeFileSync(p, [
+  `import * as m from ${JSON.stringify(entry)};`,
+  `globalThis.__szkrabok_runtime__ ??= m;`,
+  `export * from ${JSON.stringify(entry)};`,
+].join('\n') + '\n');
 ```
-
-UUID in the filename prevents collisions when multiple `browser_run_test` calls run concurrently (e.g. multiple MCP tool calls, parallel sessions).
 
 **Step 4 — Inject into subprocess env inside `browser_run_test`**
 
-In the existing `env` block (after `SZKRABOK_CDP_ENDPOINT` is set, before `spawn`):
+`writeRuntimeShim()` is called before the `env` object is constructed. `NODE_OPTIONS` is set inside the object literal — before the `params` spread — so user-supplied params cannot clobber it. `SZKRABOK_CDP_ENDPOINT` is also moved into the literal for the same reason.
 
 ```js
 const shimPath = writeRuntimeShim();
@@ -76,56 +55,32 @@ const env = {
   FORCE_COLOR: '0',
   SZKRABOK_SESSION: sessionName,
   PLAYWRIGHT_JSON_OUTPUT_NAME: jsonFile,
+  NODE_OPTIONS: [process.env.NODE_OPTIONS, shimPath && `--import=${shimPath}`].filter(Boolean).join(' '),
   SZKRABOK_CDP_ENDPOINT: `http://localhost:${session.cdpPort}`,
-  NODE_OPTIONS: [
-    process.env.NODE_OPTIONS,
-    shimPath ? `--import=${shimPath}` : null,
-  ].filter(Boolean).join(' '),
   ...Object.fromEntries(
     Object.entries(params).map(([k, v]) => [k.toUpperCase(), String(v)])
   ),
 };
 ```
 
-Note: `NODE_OPTIONS` must be built before the `params` spread, or `params` could overwrite it. The filter+join pattern preserves any existing `NODE_OPTIONS` the user may have set.
+### Tests added — `tests/node/browser-run-test.test.js`
 
-**Step 5 — Add shim cleanup on process exit**
-
-After writing the shim, register a one-time cleanup:
-
-```js
-if (shimPath) {
-  process.once('exit', () => { try { unlinkSync(shimPath); } catch {} });
-}
-```
-
-Add `unlinkSync` to the `fs` import. The `once` ensures each shim gets its own handler without accumulating listeners across calls.
-
-### Tests to add — `tests/node/browser-run-test.test.js`
-
-Current file only tests `waitForAttach`. Add a new section:
-
-**Test 1 — `getRuntimeEntry` returns a string path when runtime is resolvable**
-
-Import `getRuntimeEntry` (export it from `szkrabok_browser.js`). Assert the returned value is a non-empty string ending in `.js` or `.mjs`. This confirms the resolve works from within the project.
+**Test 1 — `getRuntimeEntry` returns a resolvable path string**
+Assert non-empty string ending in `.js` or `.mjs`.
 
 **Test 2 — `writeRuntimeShim` creates a valid ESM re-export file**
+Assert file exists, content matches `/^export \* from ".+";$/m`.
 
-Call `writeRuntimeShim()`. Assert it returns a non-null path. Read the file. Assert it matches `/^export \* from ".+";$/m`. Assert the file exists on disk. Clean up manually.
+**Test 3 — `writeRuntimeShim` returns the same cached path on repeated calls**
+Assert both calls return the same string — one shim per process.
 
-**Test 3 — `writeRuntimeShim` returns null when runtime is not resolvable**
+**Test 4 — `NODE_OPTIONS` injection preserves existing value**
+Assert filter+join keeps prior flags alongside `--import=...`.
 
-Temporarily monkey-patch `_require.resolve` to throw. Assert return value is `null`. Assert no file is created.
+**Test 5 — `NODE_OPTIONS` injection with empty existing value omits leading space**
+Assert `[undefined, shimArg].filter(Boolean).join(' ')` equals `shimArg` with no leading space.
 
-**Test 4 — concurrent calls produce unique shim paths**
-
-Call `writeRuntimeShim()` twice. Assert the two paths are different strings. Clean up both.
-
-**Test 5 — `NODE_OPTIONS` preserves existing value**
-
-Assert that when `process.env.NODE_OPTIONS` is set to `--max-old-space-size=512`, the resulting env string contains both the existing value and `--import=...`.
-
-> Note: `getRuntimeEntry` and `writeRuntimeShim` must be exported from `szkrabok_browser.js` for these tests. They are internal helpers — export as named exports, not part of the MCP tool surface.
+> `getRuntimeEntry` and `writeRuntimeShim` are exported as named exports for testability. They are internal helpers — not part of the MCP tool surface.
 
 ---
 
@@ -158,6 +113,10 @@ export { expect } from '@playwright/test';
 
 const cdpEndpoint = process.env.SZKRABOK_CDP_ENDPOINT || '';
 
+// Memoized per worker — avoids repeated dynamic import evaluation on each test.
+let _runtimeP;
+const getRuntime = () => _runtimeP ??= import('@pablovitasso/szkrabok/runtime');
+
 export const test = base.extend({
   _runtimeHandle: [
     async ({}, use) => {
@@ -175,7 +134,8 @@ export const test = base.extend({
       } else {
         // Path standalone: stealth launch — requires @pablovitasso/szkrabok installed.
         // Install with: npm install @pablovitasso/szkrabok
-        const { initConfig, launch } = await import('@pablovitasso/szkrabok/runtime');
+        // Dynamic import is worker-scoped memoized to avoid repeated module evaluation.
+        const { initConfig, launch } = await getRuntime();
         initConfig();
         const handle = await launch({ profile: 'dev', reuse: true });
         await use(handle);
@@ -282,27 +242,34 @@ tests/node/                      same restructure
                                  + 2 regression tests
 ```
 
-Phase 0 has no dependency on Phase 1 and can ship first. Phase 1 can start immediately after or in parallel — the two changes are in different files.
+Phase 0 has no dependency on Phase 1 and can ship first. Phase 1 can start immediately after — the two changes are in different files.
 
-Phase 1 does not depend on Phase 0 being in place, but Phase 0 being in place means the dynamic import in the standalone path of Phase 1's fixture has a safety net (F's shim) for users who already have the package. Belt and suspenders.
+Phase 1 does not depend on Phase 0 being in place, but with Phase 0 done the dynamic import in the standalone path of Phase 1's fixture has a safety net (F's shim) for users who already have the package installed. Belt and suspenders.
+
+**Known risks addressed in implementation:**
+- CI environments that strip `NODE_OPTIONS`: shim gracefully absent, fixture falls back to whatever the user has installed. No crash.
+- Parallel `browser_run_test` calls: one shim cached per process, all calls share it.
+- Abrupt SIGKILL: shim is a small tmp file, left behind at worst — no functional impact.
+- Runtime side-effects on double-init: `globalThis.__szkrabok_runtime__ ??=` guard in shim body.
+- `params` clobbering `NODE_OPTIONS`: `NODE_OPTIONS` is set before the `params` spread in the env literal.
 
 ---
 
 ## Definition of done
 
-**Phase 0:**
-- [ ] `writeRuntimeShim` and `getRuntimeEntry` implemented and exported
-- [ ] `NODE_OPTIONS` injection in place in `browser_run_test`
-- [ ] Shim cleanup registered on `process.exit`
-- [ ] 5 unit tests passing in `tests/node/browser-run-test.test.js`
-- [ ] Existing `waitForAttach` tests still pass
-- [ ] `npm run test:node` green
+**Phase 0:** ✅ complete
+- [x] `writeRuntimeShim` and `getRuntimeEntry` implemented and exported
+- [x] `NODE_OPTIONS` injection in place in `browser_run_test`, before `params` spread
+- [x] One shim per process (cached), cleanup on `beforeExit`/`SIGINT`/`SIGTERM`
+- [x] `globalThis.__szkrabok_runtime__ ??=` guard in shim body
+- [x] 5 unit tests passing in `tests/node/browser-run-test.test.js`
+- [x] `npm run test:node` green (75/75)
 
 **Phase 1:**
 - [ ] `src/tools/templates/automation/fixtures.js` has no static runtime import
 - [ ] `tests/playwright/e2e/fixtures.js` has no static runtime import
 - [ ] Both use `connectOverCDP` in MCP path
-- [ ] Both use dynamic import in standalone path
+- [ ] Both use dynamic import with worker-scoped memoization in standalone path
 - [ ] 2 regression tests added to `scaffold.test.js`
 - [ ] `npm run test:node` green
 - [ ] e2e suite passes in MCP mode (`session_manage open` + `browser_run_test`)
