@@ -49,14 +49,39 @@ test('scaffold_init full preset creates all automation files', async () => {
   }
 });
 
-test('scaffold_init skips existing files', async () => {
+test('scaffold_init skips existing files when content is unchanged', async () => {
   const dir = await makeTmp();
   try {
     await init({ dir });
     const result2 = await init({ dir });
 
     assert.deepEqual(result2.created, []);
+    assert.deepEqual(result2.staged, []);
     assert.ok(result2.skipped.length > 0);
+  } finally {
+    await rm(dir, { recursive: true });
+  }
+});
+
+test('scaffold_init stages .new file when existing file differs from template', async () => {
+  const dir = await makeTmp();
+  try {
+    await init({ dir });
+
+    // Simulate user having modified playwright.config.js
+    const configPath = join(dir, 'playwright.config.js');
+    await writeFile(configPath, '// my custom config\n', 'utf8');
+
+    const result2 = await init({ dir });
+
+    assert.ok(result2.staged.includes('playwright.config.js'), 'modified file should be staged');
+    assert.ok(!result2.created.includes('playwright.config.js'));
+    assert.ok(!result2.skipped.includes('playwright.config.js'));
+
+    // Original untouched
+    assert.equal(await readFile(configPath, 'utf8'), '// my custom config\n');
+    // .new written with current template content
+    assert.ok(existsSync(join(dir, 'playwright.config.js.new')));
   } finally {
     await rm(dir, { recursive: true });
   }

@@ -77,7 +77,7 @@ const tools = {
 
   'scaffold_init': {
     handler: scaffold.init,
-    description: `${SZKRABOK} Init a szkrabok client project (idempotent). Run once before using browser_run_test. Two presets: minimal (default) — MCP-only setup, no local Playwright install needed, just config files and devDeps; full — adds automation/fixtures.js + example specs for running Playwright locally without MCP (standalone mode).`,
+    description: `${SZKRABOK} Init a szkrabok client project (idempotent). Run once before using browser_run_test. Two presets: minimal (default) — MCP-only setup, no local Playwright install needed, just config files and devDeps; full — adds automation/fixtures.js + example specs for running Playwright locally without MCP (standalone mode). Re-running is safe: unchanged files are skipped, modified files get a .new sidecar (dpkg-new convention).`,
     inputSchema: {
       type: 'object',
       properties: {

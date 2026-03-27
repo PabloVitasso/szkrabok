@@ -14,13 +14,19 @@ if (process.platform === 'win32') {
 
 const tpl = path => readFile(join(TEMPLATES_DIR, path), 'utf8');
 
-async function createFileAtomic(dest, content) {
+// Returns 'created' | 'skipped' | 'staged'.
+// 'staged': file existed with different content — new template written as dest+'.new',
+// original left untouched (dpkg-new convention).
+async function writeOrStage(dest, content) {
   try {
     await writeFile(dest, content, { flag: 'wx' });
-    return true;
+    return 'created';
   } catch (e) {
-    if (e.code === 'EEXIST') return false;
-    throw e;
+    if (e.code !== 'EEXIST') throw e;
+    const current = await readFile(dest, 'utf8');
+    if (current === content) return 'skipped';
+    await writeFile(dest + '.new', content);
+    return 'staged';
   }
 }
 
@@ -35,7 +41,7 @@ function mergePackageJson(existing, name) {
     name,
     type: 'module',
     scripts: { test: 'playwright test' },
-    devDependencies: { '@playwright/test': '^1.49.1', 'smol-toml': '^1.6.0' },
+    devDependencies: { '@playwright/test': '^1.58.2', 'smol-toml': '^1.6.1' },
   };
 
   if (!existing) return base;
@@ -88,16 +94,16 @@ export async function init(args = {}) {
 
   const created = [];
   const skipped = [];
+  const staged = [];
   const merged = [];
   const warnings = [];
 
   // playwright.config.js
   const configDest = join(dir, 'playwright.config.js');
-  if (await createFileAtomic(configDest, await tpl('playwright.config.js'))) {
-    created.push('playwright.config.js');
-  } else {
-    skipped.push('playwright.config.js');
-  }
+  const configStatus = await writeOrStage(configDest, await tpl('playwright.config.js'));
+  if (configStatus === 'created') created.push('playwright.config.js');
+  else if (configStatus === 'staged') staged.push('playwright.config.js');
+  else skipped.push('playwright.config.js');
 
   // package.json — merge if exists
   const pkgDest = join(dir, 'package.json');
@@ -124,11 +130,10 @@ export async function init(args = {}) {
 
   // szkrabok.config.local.toml.example
   const tomlDest = join(dir, 'szkrabok.config.local.toml.example');
-  if (await createFileAtomic(tomlDest, await tpl('szkrabok.config.local.toml.example'))) {
-    created.push('szkrabok.config.local.toml.example');
-  } else {
-    skipped.push('szkrabok.config.local.toml.example');
-  }
+  const tomlStatus = await writeOrStage(tomlDest, await tpl('szkrabok.config.local.toml.example'));
+  if (tomlStatus === 'created') created.push('szkrabok.config.local.toml.example');
+  else if (tomlStatus === 'staged') staged.push('szkrabok.config.local.toml.example');
+  else skipped.push('szkrabok.config.local.toml.example');
 
   // full preset — automation scaffold
   if (preset === 'full') {
@@ -143,11 +148,10 @@ export async function init(args = {}) {
 
     for (const rel of automationFiles) {
       const dest = join(dir, rel);
-      if (await createFileAtomic(dest, await tpl(rel))) {
-        created.push(rel);
-      } else {
-        skipped.push(rel);
-      }
+      const status = await writeOrStage(dest, await tpl(rel));
+      if (status === 'created') created.push(rel);
+      else if (status === 'staged') staged.push(rel);
+      else skipped.push(rel);
     }
   }
 
@@ -159,5 +163,5 @@ export async function init(args = {}) {
     else installed.push('@playwright/test', 'smol-toml');
   }
 
-  return { created, skipped, merged, installed, warnings };
+  return { created, skipped, staged, merged, installed, warnings };
 }
