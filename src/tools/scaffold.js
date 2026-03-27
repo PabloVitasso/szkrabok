@@ -1,5 +1,5 @@
 import { readFile, writeFile, mkdir, rename } from 'node:fs/promises';
-import { readFileSync, existsSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 import { resolve, basename, join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawn } from 'node:child_process';
@@ -11,10 +11,6 @@ if (process.platform === 'win32') {
 } else {
   npmBin = 'npm';
 }
-
-const { version: PKG_VERSION } = JSON.parse(
-  readFileSync(new URL('../../package.json', import.meta.url))
-);
 
 const tpl = path => readFile(join(TEMPLATES_DIR, path), 'utf8');
 
@@ -39,8 +35,7 @@ function mergePackageJson(existing, name) {
     name,
     type: 'module',
     scripts: { test: 'playwright test' },
-    dependencies: { '@pablovitasso/szkrabok': `^${PKG_VERSION}` },
-    devDependencies: { '@playwright/test': '^1.49.1' },
+    devDependencies: { '@playwright/test': '^1.49.1', 'smol-toml': '^1.6.0' },
   };
 
   if (!existing) return base;
@@ -49,7 +44,6 @@ function mergePackageJson(existing, name) {
     ...existing,
     type: (() => { if (existing.type != null) return existing.type; return base.type; })(),
     scripts: { ...base.scripts, ...existing.scripts },
-    dependencies: { ...base.dependencies, ...(existing.dependencies != null ? existing.dependencies : {}) },
     devDependencies: { ...base.devDependencies, ...(existing.devDependencies != null ? existing.devDependencies : {}) },
   };
 }
@@ -162,9 +156,8 @@ export async function init(args = {}) {
   if (install) {
     const warn = await npmInstall(dir);
     if (warn) warnings.push(warn);
-    else installed.push('@playwright/test', '@pablovitasso/szkrabok');
+    else installed.push('@playwright/test', 'smol-toml');
   }
 
   return { created, skipped, merged, installed, warnings };
-   
 }

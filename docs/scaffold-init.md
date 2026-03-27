@@ -54,21 +54,25 @@ not overwritten.
 
 ### `minimal` (default)
 
-Config scaffold only. Use when you want to set up the project structure before
-writing your own automation code.
+MCP-only setup. Use this when you will run specs through `browser_run_test` —
+no local szkrabok install needed. The project connects to the MCP-managed browser
+via CDP; szkrabok itself runs as a global MCP server.
 
 Files created:
 
 | File | Purpose |
 |------|---------|
 | `playwright.config.js` | Playwright config pointing at `./automation`, workers=1, headless=false |
-| `package.json` | Merged — adds `@szkrabok/runtime`, `@playwright/test`, sets `"type":"module"` |
+| `package.json` | Merged — adds `@playwright/test` + `smol-toml` as devDependencies, sets `"type":"module"` |
 | `szkrabok.config.local.toml.example` | Template for machine-specific config (Chrome path, UA, log level) |
 
 ### `full`
 
 Everything in `minimal` plus a complete automation scaffold — two spec patterns
-and the shared fixture. Use when starting a new automation project from scratch.
+and the shared fixture. Use when you also want to run Playwright locally without
+MCP (standalone mode, e.g. `npx playwright test`). Standalone requires
+`npm install @pablovitasso/szkrabok` separately — `fixtures.js` imports it
+dynamically only when `SZKRABOK_CDP_ENDPOINT` is absent.
 
 Additional files created:
 

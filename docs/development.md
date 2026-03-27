@@ -125,10 +125,12 @@ The `prepack` guard prevents publishing without a version tag on HEAD.
 
 `release:publish` checks `npm whoami` and fails with a clear message if not logged in. Run `npm login` then re-run.
 
-Scaffolded consumer projects reference the published package from npm:
-```json
-"@pablovitasso/szkrabok": "^x.y.z"
-```
+Scaffolded consumer projects do **not** depend on `@pablovitasso/szkrabok` locally —
+szkrabok runs as a global MCP server (via `npx` or `claude mcp add`). The scaffolded
+`package.json` only adds `@playwright/test` and `smol-toml` as devDependencies.
+Projects that also want standalone Playwright runs (Path B in `fixtures.js`) need to
+`npm install @pablovitasso/szkrabok` manually — the dynamic import will fail with a
+clear error if the package is absent.
 
 ---
 
