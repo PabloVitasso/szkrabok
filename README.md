@@ -115,7 +115,7 @@ Init szkrabok project (idempotent). Prerequisite for browser runs.
 - **preset**: `minimal` (default, MCP-only — config + devDeps, no local szkrabok install) or `full` (+ automation fixtures + example specs, for standalone Playwright runs)
 - **install**: Run npm install after, default `false`
 
-Returns: `{ created, skipped, merged, installed, warnings }`
+Returns: `{ created, skipped, staged, merged, installed, warnings }` — `staged` lists files whose content differed from the template; the updated template is written as `filename.new` alongside the original.
 
 ### Presets
 

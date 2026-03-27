@@ -15,8 +15,8 @@
 
 An LLM using szkrabok MCP tools has no way to discover that `browser_run_test`
 and `browser_run` (path mode) require a project scaffold. The tools appear available
-but fail with confusing errors when `playwright.config.js`, `@szkrabok/runtime`,
-or `szkrabok.config.toml` are absent.
+but fail with confusing errors when `playwright.config.js` or `szkrabok.config.toml`
+are absent.
 
 `scaffold_init` solves this by being discoverable in the tool list with a
 description that explicitly says "call this first".
@@ -39,14 +39,17 @@ Returns:
 {
   "created": ["playwright.config.js", "automation/fixtures.js", ...],
   "skipped": ["package.json"],
+  "staged": ["playwright.config.js"],
   "merged": ["package.json"],
   "installed": [],
   "warnings": []
 }
 ```
 
-Idempotent — safe to re-run on an existing project. Existing files are skipped,
-not overwritten.
+Idempotent — safe to re-run on an existing project. When a file already exists
+with identical content it is skipped. When it differs from the current template
+the new template is written as `filename.new` alongside the original (dpkg-new
+convention) — inspect the `.new` file and apply changes selectively.
 
 ---
 
