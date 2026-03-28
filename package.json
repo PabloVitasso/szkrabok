@@ -1,12 +1,13 @@
 {
   "name": "@pablovitasso/szkrabok",
-  "version": "1.1.5",
+  "version": "1.1.6",
   "description": "Production-grade MCP browser automation layer with persistent sessions and stealth capabilities",
   "type": "module",
   "main": "src/index.js",
   "exports": {
     ".": "./src/index.js",
-    "./runtime": "./packages/runtime/index.js"
+    "./runtime": "./packages/runtime/index.js",
+    "./fixtures": "./src/fixtures.js"
   },
   "imports": {
     "#runtime": "./packages/runtime/index.js"
@@ -85,6 +86,14 @@
     "puppeteer-extra-plugin-stealth": "^2.11.2",
     "smol-toml": "^1.6.0",
     "zod": "^4.3.6"
+  },
+  "peerDependencies": {
+    "@playwright/test": ">=1.49.1"
+  },
+  "peerDependenciesMeta": {
+    "@playwright/test": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
