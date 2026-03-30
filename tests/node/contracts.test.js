@@ -12,6 +12,7 @@
  * 2. Every session open in MCP goes through runtime.launch()
  * 3. Pool access in MCP tools comes via @szkrabok/runtime (not direct import of pool internals)
  * 4. tests/playwright/e2e/fixtures.js does not import stealth internals
+ * 6. resolve.js is the single browser resolution entry point
  */
 
 import { test, describe } from 'node:test';
@@ -99,12 +100,13 @@ describe('Invariant 3: pool access goes through @szkrabok/runtime public API onl
 describe('Invariant 4: tests/playwright/e2e/fixtures.js has no stealth imports', () => {
   test('fixtures.js does not import stealth internals', async () => {
     const src = await readSrc(join(E2E_DIR, 'fixtures.js'));
-    const stealthPatterns = ['szkrabok_stealth', 'playwright-extra', 'puppeteer-extra-plugin-stealth'];
+    const stealthPatterns = [
+      'szkrabok_stealth',
+      'playwright-extra',
+      'puppeteer-extra-plugin-stealth',
+    ];
     for (const pattern of stealthPatterns) {
-      assert.ok(
-        !src.includes(pattern),
-        `e2e/fixtures.js must not import "${pattern}"`
-      );
+      assert.ok(!src.includes(pattern), `e2e/fixtures.js must not import "${pattern}"`);
     }
   });
 
@@ -168,9 +170,9 @@ describe('Invariant N: src/fixtures.js structural contracts', () => {
   test('signal written before await use(session)', async () => {
     const src = await readSrc(FIXTURES_SRC);
     const signalIdx = src.indexOf('writeAttachSignal');
-    const useIdx    = src.indexOf('await use(session)');
+    const useIdx = src.indexOf('await use(session)');
     assert.ok(signalIdx !== -1, 'writeAttachSignal not found');
-    assert.ok(useIdx    !== -1, 'await use(session) not found');
+    assert.ok(useIdx !== -1, 'await use(session) not found');
     assert.ok(
       signalIdx < useIdx,
       'writeAttachSignal must appear before await use(session) in source'
@@ -187,7 +189,7 @@ describe('Invariant N: src/fixtures.js structural contracts', () => {
       `Expected at least 2 worker-scope declarations (session, browser), found ${matches.length}`
     );
     assert.ok(
-      !src.includes("context: ["),
+      !src.includes('context: ['),
       'context fixture must not be declared — conflicts with Playwright built-in test-scoped context'
     );
   });
@@ -246,6 +248,44 @@ describe('Invariant 5: packages/runtime is the only launch site', () => {
   });
 });
 
+describe('Invariant 6: resolve.js is the single browser resolution entry point', () => {
+  const RUNTIME_DIR = join(REPO_ROOT, 'packages', 'runtime');
+
+  test('launch.js imports from resolve.js (not config.js for resolution)', async () => {
+    const src = await readSrc(join(RUNTIME_DIR, 'launch.js'));
+    assert.ok(src.includes("from './resolve.js'"), 'launch.js must import from ./resolve.js');
+    // Must NOT import findChromiumPath from config.js
+    assert.ok(
+      !src.includes('findChromiumPath'),
+      'launch.js must not use findChromiumPath from config.js'
+    );
+  });
+
+  test('config.js findChromiumPath delegates to resolve.js', async () => {
+    const src = await readSrc(join(RUNTIME_DIR, 'config.js'));
+    assert.ok(
+      src.includes('resolveChromium') || src.includes("from './resolve.js'"),
+      'config.js findChromiumPath must delegate to resolve.js'
+    );
+  });
+
+  test('MCP tools do not import resolve.js directly', async () => {
+    const files = await jsFiles(MCP_TOOLS_DIR);
+    const violations = await Promise.all(
+      files.map(async file => {
+        const src = await readSrc(file);
+        return src.includes('resolve.js') ? file : null;
+      })
+    ).then(results => results.filter(Boolean));
+
+    assert.deepEqual(
+      violations,
+      [],
+      `MCP tools must not import resolve.js directly — access via checkBrowser(). Violations:\n${violations.join('\n')}`
+    );
+  });
+});
+
 // Recursive directory walker
 async function getAllJsFiles(dir) {
   const entries = await readdir(dir, { withFileTypes: true }).catch(() => []);
@@ -266,5 +306,5 @@ async function getAllJsFiles(dir) {
 function stripComments(src) {
   return src
     .replace(/\/\*[\s\S]*?\*\//g, '') // block comments
-    .replace(/\/\/[^\n]*/g, '');       // line comments
+    .replace(/\/\/[^\n]*/g, ''); // line comments
 }

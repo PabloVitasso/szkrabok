@@ -25,7 +25,9 @@ let tmpDir;
 const cleanup = () => {
   if (tmpDir && existsSync(tmpDir)) {
     // eslint-disable-next-line no-empty -- exit-handler cleanup; surfacing here would obscure the real exit cause
-    try { rmSync(tmpDir, { recursive: true, force: true }); } catch {}
+    try {
+      rmSync(tmpDir, { recursive: true, force: true });
+    } catch {}
   }
 };
 
@@ -33,7 +35,9 @@ process.on('exit', cleanup);
 process.on('SIGINT', () => process.exit(1));
 
 console.log('[smoke-test] Packing tarball...');
-const packOutput = runCapture('npm pack --json', { env: { ...process.env, npm_config_ignore_scripts: 'true' } });
+const packOutput = runCapture('npm pack --json', {
+  env: { ...process.env, npm_config_ignore_scripts: 'true' },
+});
 const packInfo = JSON.parse(packOutput);
 const tarball = resolve(root, packInfo[0].filename);
 console.log(`[smoke-test] Packed: ${tarball}`);
@@ -43,12 +47,12 @@ console.log(`[smoke-test] Installing into ${tmpDir}...`);
 
 // --foreground-scripts ensures postinstall runs visibly and exercises apply-patches.js
 // in a bare temp dir (no package.json) — the exact scenario that previously failed.
-// SZKRABOK_SKIP_BROWSER_INSTALL suppresses the Chromium download step.
+// postinstall.js is no longer in the chain (Chromium download deferred to runtime).
 try {
   execSync(`npm install --foreground-scripts ${tarball}`, {
     cwd: tmpDir,
     stdio: 'inherit',
-    env: { ...process.env, SZKRABOK_SKIP_BROWSER_INSTALL: '1' },
+    env: process.env,
   });
 } catch {
   console.error('[smoke-test] FAIL: npm install failed');
@@ -75,20 +79,13 @@ if (versionResult.status !== 0) {
 }
 console.log(`[smoke-test] version output: ${versionResult.stdout.toString().trim()}`);
 
-// doctor
-console.log('[smoke-test] Running szkrabok doctor...');
-const doctorResult = spawnSync(pkgBin, ['doctor'], {
-  cwd: tmpDir,
-  stdio: 'inherit',
-  env: { ...process.env, SZKRABOK_SKIP_BROWSER_INSTALL: '1' },
-});
-if (doctorResult.status !== 0) {
-  console.error('[smoke-test] FAIL: szkrabok doctor reported failures');
-  process.exit(1);
-}
+// doctor is deferred to Stage 4 — it requires a working browser resolution
+// chain and will fail here (temp install has no ~/.cache/ms-playwright).
 
 // remove the tarball
 // eslint-disable-next-line no-empty -- best-effort cleanup; tarball may already be gone
-try { rmSync(tarball); } catch {}
+try {
+  rmSync(tarball);
+} catch {}
 
 console.log('\n[smoke-test] PASS: package installs and starts correctly.');

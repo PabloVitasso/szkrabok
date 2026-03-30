@@ -4,9 +4,10 @@
 import { chromium } from 'playwright';
 import {
   resolvePreset,
-  findChromiumPath,
   getConfig,
 } from './config.js';
+import { resolveChromium, buildCandidates, populateCandidates } from './resolve.js';
+import { BrowserNotFoundError } from './errors.js';
 import { enhanceWithStealth, applyStealthToExistingPage } from './stealth.js';
 import * as storage from './storage.js';
 import { rmWithRetry } from './storage.js';
@@ -142,20 +143,19 @@ const waitForExit = async (pid, { timeoutMs = CHROME_EXIT_TIMEOUT_MS } = {}) => 
 export const _resetGcForTesting = () => { _gcRegistered = false; };
 
 // _launchPersistentContext — internal, not exported.
-// Only called by launch() below.
+// executablePath is passed in (resolved by checkBrowser before this is called).
 const _launchPersistentContext = async (userDataDir, options = {}) => {
   const presetConfig = options.presetConfig ?? {};
   const pw = (() => { if (options.stealth) return enhanceWithStealth(chromium, presetConfig); return chromium; })();
-  const executablePath = await findChromiumPath();
 
-  if (executablePath) {
-    log('Using existing Chromium for persistent context', { path: executablePath });
+  if (options.executablePath) {
+    log('Using existing Chromium for persistent context', { path: options.executablePath });
   }
 
   const launchOptions = {
     ...options,
     headless: options.headless ?? getConfig().headless,
-    executablePath,
+    executablePath: options.executablePath,
     viewport: options.viewport,
     locale: options.locale,
     timezoneId: options.timezoneId,
@@ -207,17 +207,21 @@ const _launchPersistentContext = async (userDataDir, options = {}) => {
  * @returns {Promise<{ browser: import('playwright').Browser, context: import('playwright').BrowserContext, cdpEndpoint: string, close(): Promise<void> }>}
  */
 export const checkBrowser = async () => {
-  const found = await findChromiumPath();
-  if (!found) {
-    throw new Error(
-      'Chromium browser not found.\n\n' +
-      'Run:\n' +
-      '  npx playwright install chromium\n\n' +
-      'Or:\n' +
-      '  szkrabok install-browser\n'
+  // getConfig() throws if initConfig() was never called (e.g., in tests).
+  // Fall back to empty config — env and system/playwright probes still work.
+  let config;
+  try { config = getConfig(); } catch { config = {}; }
+  const candidates = buildCandidates(config);
+  await populateCandidates(candidates);
+  const result = resolveChromium(candidates);
+
+  if (!result.found) {
+    throw new BrowserNotFoundError(
+      undefined,
+      { candidates: result.candidates },
     );
   }
-  return found;
+  return result.path;
 };
 
 export const launch = async (options = {}) => {
@@ -225,7 +229,7 @@ export const launch = async (options = {}) => {
   const cfg = getConfig();
 
   ensureGcOnExit();
-  await checkBrowser();
+  const executablePath = await checkBrowser();
   await storage.cleanupClones();
 
   // Idempotency: return existing handle when reuse=true and profile is open
@@ -310,6 +314,7 @@ export const launch = async (options = {}) => {
     locale: effectiveLocale,
     timezoneId: effectiveTimezone,
     headless: effectiveHeadless,
+    executablePath,
     cdpPort: 0,
   });
 
@@ -469,7 +474,7 @@ export const launchClone = async (options = {}) => {
   const { profile = 'default', _launchImpl, ...launchOpts } = options;
 
   ensureGcOnExit();
-  await checkBrowser();
+  const executablePath = await checkBrowser();
   await storage.cleanupClones();
   await storage.ensureSessionsDir();
 
@@ -477,7 +482,7 @@ export const launchClone = async (options = {}) => {
   const { cloneId, dir: cloneDir, lease } = await storage.cloneProfileAtomic(templateDir, profile);
 
   const launchFn = _launchImpl ?? _launchPersistentContext;
-  const context  = await launchFn(cloneDir, { ...launchOpts, cdpPort: 0 });
+  const context  = await launchFn(cloneDir, { ...launchOpts, executablePath, cdpPort: 0 });
 
   return _addCloneToPool(context, cloneId, cloneDir, profile, lease);
 };
@@ -504,7 +509,7 @@ export const cloneFromLive = async (templateName, launchOpts = {}, _launchImpl) 
   const template = pool.get(templateName); // throws if not open
 
   ensureGcOnExit();
-  await checkBrowser();
+  const executablePath = await checkBrowser();
   await storage.cleanupClones();
   await storage.ensureSessionsDir();
 
@@ -518,6 +523,7 @@ export const cloneFromLive = async (templateName, launchOpts = {}, _launchImpl) 
   const launchFn = _launchImpl ?? _launchPersistentContext;
   const context  = await launchFn(cloneDir, {
     ...launchOpts,
+    executablePath,
     cdpPort: 0,
     storageState: liveState,
   });

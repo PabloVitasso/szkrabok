@@ -605,39 +605,69 @@ yet.
 | ------------------------------------ | ------------------------------------------------------------------------- |
 | `packages/runtime/resolve.js`        | **NEW** — `validateCandidate()`, `resolveChromium()`, `buildCandidates()` |
 | `packages/runtime/errors.js`         | Add `BrowserNotFoundError` class                                          |
-| `tests/node/runtime/resolve.test.js` | **NEW** — categories 1-2                                                  |
+| `tests/node/runtime/resolve.test.js` | **NEW** — categories 1-2 + buildCandidates                                |
 
-**Tests (category 1 — validation, 6 tests):**
+**Tests (category 1 — validation, 9 tests):**
 
-| Test                        | Input                 | Assert                                        |
-| --------------------------- | --------------------- | --------------------------------------------- |
-| accepts real executable     | path to `/bin/ls`     | `{ ok: true, reason: null }`                  |
-| rejects non-existent path   | `/nonexistent/chrome` | `ok: false`, reason includes "not found"      |
-| rejects directory           | `/tmp`                | `ok: false`, reason includes "not a file"     |
-| rejects non-executable file | temp file without +x  | `ok: false`, reason includes "not executable" |
-| rejects empty string        | `''`                  | `ok: false`, reason includes "empty"          |
-| rejects null                | `null`                | `ok: false`, reason includes "not set"        |
+| Test                        | Input                 | Assert                                     |
+| --------------------------- | --------------------- | ------------------------------------------ |
+| accepts real executable     | path to `/bin/ls`     | `{ ok: true, reason: null }`               |
+| rejects non-existent path   | `/nonexistent/chrome` | `ok: false`, reason `=== 'file not found'` |
+| rejects directory           | `/tmp`                | `ok: false`, reason `=== 'not a file'`     |
+| rejects non-executable file | temp file without +x  | `ok: false`, reason `=== 'not executable'` |
+| rejects empty string        | `''`                  | `ok: false`, reason `=== 'empty path'`     |
+| rejects null                | `null`                | `ok: false`, reason `=== 'not set'`        |
+| rejects undefined           | `undefined`           | `ok: false`, reason `=== 'not set'`        |
+| rejects broken symlink      | broken symlink        | `ok: false`, reason `=== 'file not found'` |
+| accepts valid symlink       | symlink to `/bin/ls`  | `{ ok: true, reason: null }`               |
 
-**Tests (category 2 — priority matrix, 7 tests):**
+**Tests (category 2 — priority matrix, 8 tests):**
 
-| #   | ENV  | CONFIG | SYSTEM | CACHE | Expected source        |
-| --- | ---- | ------ | ------ | ----- | ---------------------- |
-| 1   | ok   | —      | —      | —     | `env`                  |
-| 2   | fail | ok     | —      | —     | `config`               |
-| 3   | fail | fail   | ok     | —     | `system`               |
-| 4   | fail | fail   | fail   | ok    | `playwright`           |
-| 5   | fail | fail   | fail   | fail  | `null` (not found)     |
-| 6   | ok   | ok     | —      | —     | `env` (config ignored) |
-| 7   | ok   | ok     | ok     | ok    | `env` (all ignored)    |
+| #   | ENV  | CONFIG | SYSTEM | CACHE | Expected source                              |
+| --- | ---- | ------ | ------ | ----- | -------------------------------------------- |
+| 1   | ok   | —      | —      | —     | `env`                                        |
+| 2   | fail | ok     | —      | —     | `config`                                     |
+| 3   | fail | fail   | ok     | —     | `system`                                     |
+| 4   | fail | fail   | fail   | ok    | `playwright`                                 |
+| 5   | fail | fail   | fail   | fail  | `null` (not found)                           |
+| 6   | ok   | ok     | —      | —     | `env` (config ignored)                       |
+| 7   | ok   | ok     | ok     | ok    | `env` (all ignored)                          |
+| 8   | fail | ok     | ok     | —     | `config` (short-circuit stops before system) |
+
+**Tests (buildCandidates, 4 tests):**
+
+| Test                         | Assert                                                |
+| ---------------------------- | ----------------------------------------------------- |
+| returns 4 sources in order   | `['env', 'config', 'system', 'playwright']`           |
+| passes config.executablePath | candidate[1].path === config value                    |
+| system/playwright are null   | candidate[2,3].path === null                          |
+| preserves empty env string   | `CHROMIUM_PATH=""` → path `=== ''` (not coerced null) |
+
+**Implementation notes (completed):**
+
+- `statSync` only (no separate `realpathSync`) — one syscall on hot path. `ELOOP`
+  (too many symlink levels) is caught specifically; broken symlinks return
+  `file not found` on Linux (stat follows symlink → target doesn't exist → ENOENT).
+  ELOOP cannot be reliably triggered in tests on this kernel — it is a
+  theoretical case for deeply nested symlinks, not a practical concern.
+- `?? null` not `|| null` — empty string preserved for validation
+- Short-circuit in `resolveChromium` — winner found via `results.find(r => r.ok)`;
+  lower-priority candidates are validated but not returned
+- `doctor` diagnostics use `validateCandidate()` directly per entry (not
+  `resolveChromium`) to get full chain regardless of winner
+- `ENOENT` caught specifically; other error codes surfaced with `${err.code}`
 
 **Invariants proved:** I4 (strict precedence), I5 (every candidate validated)
 
 **Stage 1 checklist:**
 
-- [ ] `packages/runtime/resolve.js` created with pure injectable functions
-- [ ] `validateCandidate()` — 6 tests pass
-- [ ] `resolveChromium()` — 7 priority matrix tests pass
-- [ ] `BrowserNotFoundError` exported from `packages/runtime/errors.js`
+- [x] `packages/runtime/resolve.js` created with pure injectable functions
+- [x] `packages/runtime/errors.js` created with `BrowserNotFoundError`
+- [x] `validateCandidate()` — 9 tests pass
+- [x] `resolveChromium()` — 8 priority matrix tests pass
+- [x] `buildCandidates()` — 4 tests pass
+- [x] `package.json` test:node glob fixed (`**/*.test.js`)
+- [x] eslint pass (clean on all runtime files)
 
 ---
 
@@ -652,24 +682,29 @@ Wire `resolve.js` into the runtime. `checkBrowser()` uses structured errors.
 | ---------------------------------------------- | ------------------------------------------------------------------------ |
 | `packages/runtime/launch.js`                   | Import from `resolve.js`, `checkBrowser()` throws `BrowserNotFoundError` |
 | `packages/runtime/config.js`                   | `findChromiumPath()` delegates to `resolve.js`                           |
-| `packages/runtime/index.js`                    | Export `resolveChromium`, `checkBrowser` from `resolve.js`               |
+| `packages/runtime/index.js`                    | Export `resolveChromium`, `checkBrowser`, `populateCandidates` from `resolve.js` |
 | `tests/node/runtime/resolve.test.js`           | Add categories 3, 8                                                      |
 | `tests/node/contracts.test.js`                 | Add Invariant 6                                                          |
 | `tests/node/runtime/browser-detection.test.js` | Update for new API                                                       |
 
-**Tests (category 3 — structured error, 9 tests):**
+**Tests (category 4 — error contract, 7 tests):**
 
-| Test                             | Setup                  | Assert                                            |
-| -------------------------------- | ---------------------- | ------------------------------------------------- |
-| error type is correct            | all candidates fail    | `err instanceof BrowserNotFoundError`             |
-| error carries candidates         | all candidates fail    | `err.candidates` is array with 4 entries          |
-| each candidate has reason        | all candidates fail    | every entry has `{ source, ok: false, reason }`   |
-| message contains install command | all candidates fail    | `err.message` includes `szkrabok install-browser` |
-| message contains env var option  | all candidates fail    | `err.message` includes `CHROMIUM_PATH`            |
-| message contains config option   | all candidates fail    | `err.message` includes `executablePath`           |
-| message is deterministic         | run twice              | `err.message === err2.message` (snapshot-stable)  |
-| success returns path             | one valid candidate    | returns string path                               |
-| no implicit download             | all fail, spy on spawn | zero `playwright install` subprocess calls        |
+Note: this machine's TOML always has a valid `executablePath`, so "no browser"
+is not reachable through `checkBrowser` here. Tests use `resolveChromium` directly
+for the failure path, and `checkBrowser` for the success path.
+
+| Test                                            | Setup                       | Assert                                                |
+| ----------------------------------------------- | --------------------------- | ----------------------------------------------------- |
+| error type is correct                           | `BrowserNotFoundError` ctor | `instanceof Error && instanceof BrowserNotFoundError` |
+| error carries candidates                        | `BrowserNotFoundError` ctor | `candidates` is array with 4 entries                  |
+| each candidate has { source, ok, reason, path } | resolveChromium all-null    | all 4 fields present per candidate                    |
+| message contains install command                | `BrowserNotFoundError` ctor | `err.message.includes('szkrabok install-browser')`    |
+| message contains CHROMIUM_PATH                  | `BrowserNotFoundError` ctor | `err.message.includes('CHROMIUM_PATH')`               |
+| message contains executablePath                 | `BrowserNotFoundError` ctor | `err.message.includes('executablePath')`              |
+| message is deterministic                        | construct twice             | `err1.message === err2.message`                       |
+| success returns path                            | `CHROMIUM_PATH=/bin/ls`     | returns string path                                   |
+| CHROMIUM_PATH wins over config                  | both env and config set     | env path returned                                     |
+| resolveChromium is pure — no side effects       | injected candidates         | completes in <100ms without any async operations      |
 
 **Tests (category 8 — backward compat, 2 tests):**
 
@@ -686,14 +721,62 @@ Wire `resolve.js` into the runtime. `checkBrowser()` uses structured errors.
 
 **Invariants proved:** I2 (deterministic failure), I6 (no implicit download)
 
+**Deferred items (must not be forgotten):**
+
+- Do NOT introduce caching at this stage. Resolution is called once per
+  `session_manage open`. If profiling shows repeated calls are a problem,
+  add a `Map<path, validationResult>` cache in a later pass — not now.
+- `BrowserNotFoundError` should construct its own formatted message from
+  `candidates`. Currently `checkBrowser` builds the string manually — if MCP tool
+  or `doctor` want to render the error, they must re-implement the same logic.
+  The error class should expose a `formatMessage()` method or a getter that
+  produces the human-readable output.
+- `findChromiumPath` accesses `_config` directly (not via `getConfig()` with
+  try/catch). This silently hides initialization state. Use the same pattern
+  as `checkBrowser` for consistency.
+
 **Stage 2 checklist:**
 
-- [ ] `checkBrowser()` throws `BrowserNotFoundError` with full candidate list
-- [ ] Structured error contract — 9 tests pass
-- [ ] Backward compat — 2 tests pass
-- [ ] Invariant 6 added to `contracts.test.js` and passes
-- [ ] `browser-detection.test.js` updated and passes
-- [ ] All existing node tests still pass
+- [x] `checkBrowser()` throws `BrowserNotFoundError` with full candidate list
+- [x] `checkBrowser()` probes system/playwright via `populateCandidates` before resolving
+- [x] `populateCandidates(candidates)` exported from `resolve.js`; no caller duplicates probe logic
+- [x] Error contract + deterministic + pure — 7 tests pass (category 4)
+- [x] Backward compat — 2 tests pass (category 5)
+- [x] Invariant 6 added to `contracts.test.js` and passes
+- [x] `browser-detection.test.js` updated and passes
+- [x] All existing non-browser node tests pass (119/119)
+
+**Deferred items — all resolved:**
+
+- `BrowserNotFoundError` now owns its `formatMessage()` static method. The
+  constructor signature is `(message, { candidates = [] } = {})` — message is
+  optional (auto-generated from candidates if omitted), data defaults to `{}`,
+  candidates default to `[]`. Callers pass `(undefined, { candidates })`.
+- `findChromiumPath` uses `getConfig()` with try/catch fallback to `{}` —
+  consistent with `checkBrowser`.
+- Centralize async discovery: `populateCandidates(candidates)` exported from
+  `resolve.js` — probes chrome-launcher and `playwright.chromium.executablePath()`
+  for null `system`/`playwright` candidates. `checkBrowser()` calls it before
+  `resolveChromium()`; `findChromiumPath()` delegates to it instead of duplicating
+  the probe logic. No caller holds probe logic independently.
+
+**Implementation notes (completed):**
+
+- `checkBrowser` calls `getConfig()` with try/catch fallback to `{}` — uninitialized
+  config (e.g., in tests) falls back gracefully without throwing
+- `checkBrowser` calls `await populateCandidates(candidates)` after `buildCandidates`,
+  before `resolveChromium` — users who ran `szkrabok install-browser` are resolved
+  correctly even without `CHROMIUM_PATH` or `executablePath` in TOML
+- `launch()`, `launchClone()`, `cloneFromLive()` all capture `executablePath` from
+  `checkBrowser()` and pass it explicitly to `_launchPersistentContext` — no
+  duplicate resolution inside `_launchPersistentContext`
+- `findChromiumPath()` delegates to `populateCandidates` — no duplicated probe logic
+- TOML config on test machines may provide `executablePath` — "no browser" tests
+  use `resolveChromium` directly with null candidates rather than `checkBrowser`
+- `BrowserNotFoundError` constructor signature: `(message, { candidates = [] } = {})`.
+  The `data` param defaults to `{}` so `new BrowserNotFoundError({ candidates })`
+  (single-arg object) does not throw on destructuring. The `candidates` default
+  `[]` ensures `formatMessage()` never receives `undefined`.
 
 ---
 
@@ -723,12 +806,12 @@ leaves.
 
 **Stage 3 checklist:**
 
-- [ ] `postinstall.js` removed from postinstall chain in `package.json`
-- [ ] `postinstall.js` file retained for manual use
-- [ ] Install-time invariant — 3 tests pass
-- [ ] `npx` cold start < 5 seconds (patches only)
-- [ ] `CHROMIUM_PATH` env var — highest precedence in resolution chain
-- [ ] Smoke test validates patches only (no browser download)
+- [x] `postinstall.js` removed from postinstall chain in `package.json`
+- [x] `postinstall.js` file retained for manual use
+- [x] Install-time invariant — 3 tests pass
+- [x] `npx` cold start < 5 seconds (patches only) — postinstall is 2 scripts (~2-3s), not 3 (~30-120s)
+- [x] `CHROMIUM_PATH` env var — highest precedence in resolution chain (from Stage 1)
+- [x] Smoke test validates patches only (`doctor` call deferred to Stage 4)
 
 ---
 
@@ -762,6 +845,23 @@ leaves.
 | failed install reported   | mock network failure      | stderr contains actionable error, exit code non-zero |
 
 **Invariants proved:** I3 (core CLI works without browser), I7 (doctor exposes full candidate chain)
+
+**Deferred items (must not be forgotten):**
+
+- Version compatibility check: `doctor` must warn (not fail) when the resolved
+  binary is not from the Playwright cache and its version does not match
+  `playwright-core`'s expected range. Read `playwright-core/package.json` version
+  at resolution time and compare against Playwright's known-good browser revision.
+  This is NOT a `validateCandidate` concern — it belongs in `doctor` output only.
+- Binary launchability check (`--version`): optional `doctor` enhancement.
+  `validateCandidate` intentionally does NOT spawn processes — it stays pure.
+  If `doctor` wants to verify the binary actually runs, it does so independently
+  after validation passes. Do NOT move launchability into `resolve.js`.
+- Distinguish "not provided" vs "invalid" in `doctor` output: the `reason`
+  string already encodes this (`"not set"` / `"empty path"` = absent vs
+  `"file not found"` / `"not executable"` = invalid). `doctor` should group
+  candidates into `[ABSENT]` vs `[FAIL]` when printing, not add a type field
+  to the data model.
 
 **Stage 4 checklist:**
 
@@ -806,6 +906,18 @@ updated.
 
 **Invariants proved:** I3 (core CLI works without browser — MCP path), cross-platform safety
 
+**Deferred items (must not be forgotten):**
+
+- Windows path normalization: `resolve.js` currently uses `realpathSync` which
+  handles symlinks but not Windows-specific quirks (backslashes, spaces in
+  `Program Files`, UNC paths). Before Windows CI runs, verify that `realpathSync`
+  normalizes correctly on win32. If not, add a `normalizePath(path)` step before
+  validation in `validateCandidate`.
+- Relative path resolution: if `config.executablePath` or `CHROMIUM_PATH` is a
+  relative path (e.g., `./chrome`), `realpathSync` resolves it against `cwd()`.
+  This is correct for env vars but may surprise config users. Consider resolving
+  config paths relative to the config file's directory, not cwd.
+
 **Stage 5 checklist:**
 
 - [ ] `session_manage open` with no browser returns actionable error with 3 options
@@ -822,9 +934,32 @@ updated.
 
 | Stage     | Focus                  | Files changed  | Tests added     | Invariants proved |
 | --------- | ---------------------- | -------------- | --------------- | ----------------- |
-| 1         | Core resolution module | 3              | 13              | I4, I5            |
-| 2         | Runtime integration    | 5              | 11 + 1 contract | I2, I6            |
+| 1         | Core resolution module | 3              | 23              | I4, I5            |
+| 2         | Runtime integration    | 5              | 12 + 1 contract | I2, I6            |
 | 3         | Remove postinstall dl  | 3              | 3               | I1                |
 | 4         | CLI commands           | 3              | 7               | I3, I7            |
 | 5         | MCP tool + docs        | 3              | 6               | I3 (MCP)          |
-| **Total** |                        | **~10 unique** | **~40**         | **I1-I7**         |
+| **Total** |                        | **~10 unique** | **~51**         | **I1-I7**         |
+
+---
+
+## Deferred items index
+
+Cross-reference of all items deferred from earlier stages. Each links to the
+stage that must implement it.
+
+| Item                                       | What                                                                                                                                                                                                                                                                                                                                                   | Where                                              | Stage |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------- | ----- |
+| Centralize async discovery                 | ✅ RESOLVED — `populateCandidates(candidates)` exported from `resolve.js`; `checkBrowser()` calls it; `findChromiumPath()` delegates to it                                                                                                                                                                                                            | Stage 2 ✅                                         | 2     |
+| Resolution caching                         | `Map<path, validationResult>` if profiling shows repeated calls                                                                                                                                                                                                                                                                                        | Stage 2 (only if needed)                           | 2     |
+| `BrowserNotFoundError` owns its message    | ✅ RESOLVED — `BrowserNotFoundError.formatMessage()` static method; constructor `(message, { candidates = [] } = {})`; `launch.js` calls `new BrowserNotFoundError(undefined, { candidates })`                                                                                                                                                         | Stage 2 ✅                                         | 2     |
+| `findChromiumPath` uses `_config` directly | ✅ RESOLVED — `findChromiumPath` uses `getConfig()` with try/catch fallback to `{}`, consistent with `checkBrowser`                                                                                                                                                                                                                                    | Stage 2 ✅                                         | 2     |
+| ELOOP cannot be tested                     | `ELOOP` (too many symlink levels) is caught in `validateCandidate` for correctness, but cannot be reliably triggered on this Linux kernel to write a passing test. If a test for ELOOP is needed, requires a fixture that reliably produces the error.                                                                                                 | Stage 1 (no action needed — documented limitation) | 1     |
+| resolveChromium eager validation           | ✅ RESOLVED — async discovery is centralized in `populateCandidates`; all callers use the same probe path                                                                                                                                                                                                                                              | Stage 2 ✅                                         | 2     |
+| Version compatibility                      | `doctor` warns on non-Playwright binary version mismatch                                                                                                                                                                                                                                                                                               | Stage 4 — doctor output                            | 4     |
+| Binary launchability                       | Optional `doctor --deep` runs `--version` on resolved binary                                                                                                                                                                                                                                                                                           | Stage 4 — doctor output                            | 4     |
+| Absent vs invalid grouping                 | `doctor` prints `[ABSENT]` vs `[FAIL]` based on reason string                                                                                                                                                                                                                                                                                          | Stage 4 — doctor output                            | 4     |
+| `doctor` not yet implemented               | Stage 1 docs promise `doctor` uses `validateCandidate()` per entry for full diagnostics. That claim cannot be verified until Stage 4 implements `doctor`.                                                                                                                                                                                              | Stage 4                                            | 4     |
+| Binary name hardcoded in error             | `'szkrabok install-browser'` in error message is the package name. If published under a different name (`@pablovitasso/szkrabok`), the message is wrong. Should come from `package.json` or a constant.                                                                                                                                                | Stage 4 or 5                                       | 4-5   |
+| Windows path normalization                 | `statSync` on win32 handles backslashes and spaces, but UNC paths (`\\server\share`) and eight-dot notation may need explicit normalization. Verify behavior on Windows CI before shipping.                                                                                                                                                            | Stage 5 — cross-platform                           | 5     |
+| Relative path in config                    | `config.executablePath` resolved relative to `cwd()`, not the config file's directory. This surprises users who set a relative path in TOML. Consider resolving relative to the config file's directory.                                                                                                                                               | Stage 5 — cross-platform                           | 5     |

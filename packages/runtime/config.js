@@ -196,7 +196,8 @@ export const getPresets = () => { if (_config) return Object.keys(_config._prese
 
 // ── Chromium path resolution ────────────────────────────────────────────────
 
-// resolveBrowserPath — pure, injectable. Exported for testing.
+// resolveBrowserPath — legacy pure finder. Kept for backward compat.
+// New code should use resolve.js directly.
 export const resolveBrowserPath = async finders => {
   for (const finder of finders) {
     try {
@@ -209,28 +210,17 @@ export const resolveBrowserPath = async finders => {
   return null;
 };
 
+/**
+ * Backward-compat wrapper. Delegates to resolve.js.
+ */
 export const findChromiumPath = async () => {
-  let executablePath;
-  if (_config !== null && _config !== undefined && _config.executablePath !== null && _config.executablePath !== undefined) {
-    executablePath = _config.executablePath;
-  } else {
-    executablePath = null;
-  }
-  if (executablePath) return executablePath;
-
-  return resolveBrowserPath([
-    async () => {
-      const { Launcher } = await import('chrome-launcher');
-      const installs = await Launcher.getInstallations();
-      return installs[0] ?? null;
-    },
-    async () => {
-      const { chromium } = await import('playwright');
-      const pwPath = chromium.executablePath();
-      if (pwPath && existsSync(pwPath)) {
-        return pwPath;
-      }
-      return null;
-    },
-  ]);
+  const { resolveChromium, buildCandidates, populateCandidates } = await import('./resolve.js');
+  // Use getConfig() with the same try/catch fallback as checkBrowser() —
+  // consistent initialization handling even if initConfig() was never called.
+  let cfg;
+  try { cfg = getConfig(); } catch { cfg = {}; }
+  const candidates = buildCandidates({ executablePath: cfg.executablePath });
+  await populateCandidates(candidates);
+  const result = resolveChromium(candidates);
+  return result.found ? result.path : null;
 };

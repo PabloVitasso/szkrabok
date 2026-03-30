@@ -12,6 +12,7 @@ import assert from 'node:assert/strict';
 import { existsSync } from 'fs';
 import { resolveBrowserPath, findChromiumPath } from '../../../packages/runtime/config.js';
 import { checkBrowser } from '../../../packages/runtime/launch.js';
+import { BrowserNotFoundError } from '../../../packages/runtime/index.js';
 
 // ── Unit: resolveBrowserPath priority order ───────────────────────────────────
 
@@ -25,16 +26,15 @@ describe('resolveBrowserPath', () => {
   });
 
   test('skips null and falls through to next finder', async () => {
-    const result = await resolveBrowserPath([
-      async () => null,
-      async () => '/fallback/chrome',
-    ]);
+    const result = await resolveBrowserPath([async () => null, async () => '/fallback/chrome']);
     assert.strictEqual(result, '/fallback/chrome');
   });
 
   test('skips throwing finder and falls through', async () => {
     const result = await resolveBrowserPath([
-      async () => { throw new Error('unavailable'); },
+      async () => {
+        throw new Error('unavailable');
+      },
       async () => '/fallback/chrome',
     ]);
     assert.strictEqual(result, '/fallback/chrome');
@@ -47,8 +47,12 @@ describe('resolveBrowserPath', () => {
 
   test('returns null when all finders throw', async () => {
     const result = await resolveBrowserPath([
-      async () => { throw new Error('a'); },
-      async () => { throw new Error('b'); },
+      async () => {
+        throw new Error('a');
+      },
+      async () => {
+        throw new Error('b');
+      },
     ]);
     assert.strictEqual(result, null);
   });
@@ -76,14 +80,22 @@ describe('findChromiumPath smoke (real system)', () => {
 });
 
 describe('checkBrowser smoke (real system)', () => {
-  test('resolves or throws with correct message — never hangs', async () => {
-    try {
-      await checkBrowser();
-    } catch (err) {
-      const expected = ['npx playwright install chromium', 'szkrabok install-browser'];
-      for (const part of expected) {
-        assert.ok(err.message.includes(part), `error missing "${part}":\n${err.message}`);
+  test('resolves or throws BrowserNotFoundError — never hangs', async () => {
+    const result = await checkBrowser().catch(e => e);
+    if (result instanceof BrowserNotFoundError) {
+      assert.ok(
+        result.message.includes('szkrabok install-browser'),
+        `expected install-browser hint:\n${result.message}`
+      );
+      if (result.candidates) {
+        assert.ok(Array.isArray(result.candidates), 'candidates must be array');
+        for (const c of result.candidates) {
+          assert.ok('source' in c, `candidate missing source: ${JSON.stringify(c)}`);
+          assert.ok('ok' in c, `candidate missing ok: ${JSON.stringify(c)}`);
+        }
       }
+    } else {
+      assert.strictEqual(typeof result, 'string', 'resolved path must be a string');
     }
   });
 });

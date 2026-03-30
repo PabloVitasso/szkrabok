@@ -12,8 +12,7 @@ import { test, expect } from './fixtures.js';
 import { randomUUID } from 'crypto';
 
 // Spec files run by browser_run_test inside session_run_test calls.
-const NOOP_SPEC        = 'tests/playwright/e2e/noop.spec.js';
-const EXAMPLE_COM_SPEC = 'tests/playwright/e2e/example-com.spec.js';
+const NOOP_SPEC = 'tests/playwright/e2e/noop.spec.js';
 
 const srt = (name, extra = {}) => ({
   name: 'session_run_test',

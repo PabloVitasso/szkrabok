@@ -18,8 +18,12 @@ const ensureLockDir = async () => {
 // Sanitizes characters invalid on Windows, then appends an 8-char sha1 suffix
 // derived from the raw id so that two names differing only in sanitized chars
 // never share the same lock file.
+const WINDOWS_INVALID = new Set([...'<>:"/\\|?*']);
+
 const sanitizeLockId = (id) => {
-  const safe   = id.replace(/[<>:"/\\|?*\x00-\x1f]/g, '_');
+  const safe = id.split('').map(c =>
+    (c.charCodeAt(0) <= 0x1f || WINDOWS_INVALID.has(c)) ? '_' : c
+  ).join('');
   const suffix = createHash('sha1').update(id).digest('hex').slice(0, 8);
   return `${safe}-${suffix}`;
 };
@@ -63,7 +67,7 @@ export const acquireLock = async (id) => {
 
       if (Date.now() - start > LOCK_MAX_WAIT) {
         log(`[ERROR] lock timeout: ${id}`);
-        throw new Error(`Lock timeout for ${id}`);
+        throw new Error(`Lock timeout for "${id}" — another process may be holding it`, { cause: err });
       }
 
       await new Promise(r => setTimeout(r, LOCK_RETRY_DELAY));
