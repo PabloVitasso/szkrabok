@@ -55,6 +55,15 @@ export default [
     ignores: ['node_modules/**'],
   },
 
+  // ── Lint directive hygiene ─────────────────────────────────────────────────
+  // Unused eslint-disable comments become errors — prevents suppressions from
+  // silently accumulating after the underlying issue is fixed.
+  {
+    linterOptions: {
+      reportUnusedDisableDirectives: 'error',
+    },
+  },
+
   // ── Base rules — all JS/MJS files ─────────────────────────────────────
   js.configs.recommended,
   {

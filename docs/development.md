@@ -205,7 +205,16 @@ npm run lint        # runs standalone
 npm run test:self   # lint runs as the first step before Playwright + node tests
 ```
 
-Empty `catch {}` blocks require an `// eslint-disable-next-line no-empty -- <reason>` comment. Use `catch (e) { log/console.warn }` everywhere else.
+**Prefer code rewrites over `eslint-disable`.** If a lint rule fires, the first instinct should be to restructure the code so the rule no longer applies — not to suppress it. Suppressions hide real issues and accumulate silently. `reportUnusedDisableDirectives` is enabled and will error on any stale suppression.
+
+If suppression is genuinely unavoidable (e.g. a rule misfires on intentional code with no clean rewrite), use the `-- <reason>` format so the intent is explicit and reviewable:
+
+```js
+// eslint-disable-next-line no-empty -- intentional: signal file absence is a no-op
+catch {}
+```
+
+Never suppress without an explanation.
 
 ---
 
