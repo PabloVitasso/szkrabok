@@ -34,7 +34,6 @@ export const waitForAttach = signalFile => {
 };
 
 const decodeAttachment = att => {
-  if (att === null || att === undefined) return;
   if (att.contentType !== 'application/json' || !att.body) return;
   try {
     return JSON.parse(Buffer.from(att.body, 'base64').toString());
@@ -43,71 +42,27 @@ const decodeAttachment = att => {
   }
 };
 
-const flattenTests = report => {
-  if (report === null || report === undefined) {
-    return [];
-  }
+const flattenTests = report =>
+  report.suites.flatMap(suite =>
+    suite.specs.flatMap(spec =>
+      spec.tests.map(t => {
+        const result = t.results[0];
+        const attachments = result.attachments
+          .filter(a => a.name === 'result')
+          .map(a => decodeAttachment(a))
+          .filter(Boolean);
 
-  const suites = report.suites !== null && report.suites !== undefined ? report.suites : [];
-
-  return suites
-    .filter(s => s !== null && s !== undefined)
-    .flatMap(suite => {
-      const specs = suite.specs !== null && suite.specs !== undefined ? suite.specs : [];
-      return specs
-        .filter(s => s !== null && s !== undefined)
-        .flatMap(spec => {
-          const tests = spec.tests !== null && spec.tests !== undefined ? spec.tests : [];
-          return tests
-            .filter(t => t !== null && t !== undefined)
-            .map(t => {
-              const result = t.results !== null && t.results !== undefined && t.results.length > 0
-                ? t.results[0]
-                : {};
-
-              const resultAttachments = result.attachments !== null && result.attachments !== undefined
-                ? result.attachments
-                : [];
-
-              const attachments = resultAttachments
-                .filter(a => a !== null && a !== undefined && a.name === 'result')
-                .map(a => decodeAttachment(a))
-                .filter(decoded => decoded !== null && decoded !== undefined);
-
-              let status;
-              if (result.status !== null && result.status !== undefined) {
-                status = result.status;
-              } else {
-                status = 'unknown';
-              }
-
-              let error;
-              if (result.error !== null && result.error !== undefined) {
-                if (result.error.message !== null && result.error.message !== undefined) {
-                  error = result.error.message;
-                } else {
-                  error = null;
-                }
-              } else {
-                error = null;
-              }
-
-              const testResult = attachments.length === 1
-                ? attachments[0]
-                : attachments.length > 1
-                  ? attachments
-                  : undefined;
-
-              return {
-                title: spec.title,
-                status,
-                error,
-                result: testResult,
-              };
-            });
-        });
-    });
-};
+        return {
+          title:  spec.title,
+          status: result.status,
+          error:  result.error ? result.error.message : null,
+          result: attachments.length === 1 ? attachments[0]
+                : attachments.length > 1   ? attachments
+                : undefined,
+        };
+      })
+    )
+  );
 
 export const run_test = async args => {
   const {
@@ -279,34 +234,11 @@ export const run_test = async args => {
 
   const { stats } = report;
 
-  let passed, failed, skipped;
-  if (stats !== null && stats !== undefined) {
-    if (stats.expected !== null && stats.expected !== undefined) {
-      passed = stats.expected;
-    } else {
-      passed = 0;
-    }
-    if (stats.unexpected !== null && stats.unexpected !== undefined) {
-      failed = stats.unexpected;
-    } else {
-      failed = 0;
-    }
-    if (stats.skipped !== null && stats.skipped !== undefined) {
-      skipped = stats.skipped;
-    } else {
-      skipped = 0;
-    }
-  } else {
-    passed = 0;
-    failed = 0;
-    skipped = 0;
-  }
-
   return {
     log,
-    passed,
-    failed,
-    skipped,
+    passed:  stats.expected,
+    failed:  stats.unexpected,
+    skipped: stats.skipped,
     tests: flattenTests(report),
     reportFile: jsonFile,
     ...(keepOpen && { sessionReconnected }),

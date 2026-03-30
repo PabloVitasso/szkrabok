@@ -213,6 +213,7 @@ Empty `catch {}` blocks require an `// eslint-disable-next-line no-empty -- <rea
 
 - **No repeated string literals for dispatch.** If a string (tool name, event type, key) controls branching in more than one place, put it in a registry/map keyed by that string. The string appears once as the key; behaviour is a value. Adding a new case = adding one entry, not touching multiple `if`/`switch` blocks
 - **No ANSI codes in programmatic output.** Subprocess output piped into structured data must be clean text. Set `FORCE_COLOR=0` (or equivalent) when spawning CLI tools whose output is parsed or logged
+- **Fail fast — no silent fallbacks.** Do not substitute empty values (`?? 0`, `?? []`, `?? 'unknown'`) for data that should always be present. If a field is unexpectedly missing, let it throw — that is a real bug and should surface immediately. Only use fallbacks for fields that are genuinely optional by design (e.g. `error` on a passing test result). Masking missing data with defaults hides bugs and produces silently wrong output
 
 ---
 

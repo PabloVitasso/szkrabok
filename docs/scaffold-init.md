@@ -65,7 +65,7 @@ Files created:
 
 | File | Purpose |
 |------|---------|
-| `playwright.config.js` | Playwright config pointing at `./automation`, workers=1, headless=false |
+| `playwright.config.js` | Playwright config pointing at `./automation`, workers=1, headless=false. Sets `szkrabokProfile` (user-configurable). Env var bridging (`SZKRABOK_CDP_ENDPOINT`, `SZKRABOK_ATTACH_SIGNAL`, `SESSIONMODE`) is handled automatically by fixture option defaults — no config boilerplate needed. |
 | `package.json` | Merged — adds `@playwright/test` + `smol-toml` as devDependencies, sets `"type":"module"` |
 | `szkrabok.config.local.toml.example` | Template for machine-specific config (Chrome path, UA, log level) |
 
@@ -74,14 +74,14 @@ Files created:
 Everything in `minimal` plus a complete automation scaffold — two spec patterns
 and the shared fixture. Use when you also want to run Playwright locally without
 MCP (standalone mode, e.g. `npx playwright test`). Standalone requires
-`npm install @pablovitasso/szkrabok` separately — `fixtures.js` imports it
-dynamically only when `SZKRABOK_CDP_ENDPOINT` is absent.
+`npm install @pablovitasso/szkrabok` separately — the fixture resolves it at runtime
+only when `szkrabokCdpEndpoint` is not set.
 
 Additional files created:
 
 | File | Purpose |
 |------|---------|
-| `automation/fixtures.js` | Dual-mode Playwright fixture: Path A connects to MCP session via CDP (`SZKRABOK_CDP_ENDPOINT`), Path B launches standalone with stealth. Import `{ test, expect }` from this in your specs. |
+| `automation/fixtures.js` | Thin shim — `export { test, expect } from '@pablovitasso/szkrabok/fixtures'`. Dual-mode logic (CDP attach vs standalone launch, signal write) lives in the package and stays up-to-date on upgrades. Extend with `test.extend({ session })` for project-specific fixtures. |
 | `automation/example.spec.js` | Direct spec. Runs inside the MCP session browser via `browser_run_test`, or standalone via `npx playwright test`. Uses `fixtures.js`. |
 | `automation/example.mcp.spec.js` | MCP harness spec. Owns the full session lifecycle — opens a session via `mcpConnect`, calls `mcp.browser_run_test` to run inner specs, then closes. Use this pattern for CI, multi-step flows, or asserting on structured `attachResult()` data from inner tests. |
 

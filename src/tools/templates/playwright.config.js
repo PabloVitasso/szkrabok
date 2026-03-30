@@ -6,5 +6,8 @@ export default defineConfig({
   retries: 0,
   workers: 1,
   reporter: [['list'], ['json', { outputFile: 'test-results/report.json' }]],
-  use: { headless: false },
+  use: {
+    headless: false,
+    szkrabokProfile: 'dev',
+  },
 });

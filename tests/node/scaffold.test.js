@@ -125,24 +125,26 @@ test('scaffold_init package.json has type:module', async () => {
   }
 });
 
-test('scaffolded fixtures.js has no static runtime import', async () => {
+test('scaffolded fixtures.js is the thin shim', async () => {
   const dir = await makeTmp();
   try {
     await init({ dir, preset: 'full' });
-    const content = await readFile(join(dir, 'automation/fixtures.js'), 'utf8');
-    const hasStaticImport = /^import\s+.*szkrabok.*runtime/m.test(content);
-    assert.ok(!hasStaticImport, 'fixtures.js must not have a static top-level runtime import');
+    const src = await readFile(join(dir, 'automation/fixtures.js'), 'utf8');
+    assert.ok(src.includes('@pablovitasso/szkrabok/fixtures'), 'shim must re-export from @pablovitasso/szkrabok/fixtures');
+    assert.ok(!src.includes('connectOverCDP'), 'implementation must live in the package, not the shim');
+    assert.ok(!src.includes('process.env'), 'shim must not read process.env');
   } finally {
     await rm(dir, { recursive: true });
   }
 });
 
-test('scaffolded fixtures.js uses connectOverCDP for MCP path', async () => {
+test('scaffolded playwright.config.js has szkrabokProfile and no env bridging', async () => {
   const dir = await makeTmp();
   try {
-    await init({ dir, preset: 'full' });
-    const content = await readFile(join(dir, 'automation/fixtures.js'), 'utf8');
-    assert.ok(content.includes('connectOverCDP'), 'MCP path must use connectOverCDP');
+    await init({ dir });
+    const src = await readFile(join(dir, 'playwright.config.js'), 'utf8');
+    assert.ok(src.includes('szkrabokProfile'), 'config must declare szkrabokProfile');
+    assert.ok(!src.includes('SZKRABOK_CDP_ENDPOINT'), 'env bridging must not be in config (belongs in fixtures.js)');
   } finally {
     await rm(dir, { recursive: true });
   }

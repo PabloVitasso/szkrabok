@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+
 import {
   launch,
   launchClone,
@@ -11,28 +12,41 @@ import {
   deleteStoredSession,
 } from '#runtime';
 
-const { version } = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url)));
+const { version } = JSON.parse(
+  readFileSync(new URL('../../package.json', import.meta.url))
+);
 
 import { log } from '../utils/logger.js';
 import { getConfig } from '../config.js';
+import { withLock } from '../utils/lock.js';
+
+/* ───────────────────────────────────────── */
 
 const PRESET_EXCLUSIVE = new Set(['userAgent', 'viewport', 'locale', 'timezone']);
 
-const navigate = (page, url) =>
-  page.goto(url, { waitUntil: 'domcontentloaded', timeout: getConfig().timeout });
+/* ───────────────────────────────────────── */
 
-/**
- * Returns true if `name` matches `pattern`, where `*` matches any sequence of
- * characters (including empty). Supports prefix, suffix, and mid-string wildcards.
- * e.g.  "*" matches everything
- *       "cfg-*" matches all config/endpoint sessions
- *       "*-test" matches sessions ending in "-test"
- *       "*test*" matches sessions containing "test"
- */
+const safeGetSession = (id) => {
+  try {
+    return getSession(id);
+  } catch {
+    return null;
+  }
+};
+
+const navigate = (page, url) =>
+  page.goto(url, {
+    waitUntil: 'domcontentloaded',
+    timeout: getConfig().timeout,
+  });
+
 const matchGlob = (name, pattern) => {
-  // Escape special regex chars except *, then replace escaped-asterisk
   const regex = new RegExp(
-    '^' + pattern.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*') + '$'
+    '^' +
+      pattern
+        .replace(/[.+?^${}()|[\]\\]/g, '\\$&')
+        .replace(/\*/g, '.*') +
+      '$'
   );
   return regex.test(name);
 };
@@ -42,94 +56,110 @@ function validateLaunchOptions(opts = {}) {
 
   const conflicts = [...PRESET_EXCLUSIVE].filter(k => opts[k] !== undefined);
 
-  if (conflicts.length)
+  if (conflicts.length) {
     throw new Error(
-      `launchOptions: preset is mutually exclusive with ${conflicts.join(
-        ', '
-      )}. Use preset OR individual fields.`
+      `launchOptions: preset is mutually exclusive with ${conflicts.join(', ')}`
     );
+  }
 }
 
-export const open = async ({ sessionName, url, launchOptions = {} }) => {
+/* ───────────────────────────────────────── */
+/* OPEN (unchanged API)                      */
+/* ───────────────────────────────────────── */
+
+export const open = ({ sessionName, url, launchOptions = {} }) => {
   validateLaunchOptions(launchOptions);
 
-  const { isClone, _launchImpl } = launchOptions;
+  const { isClone, _launchImpl, headless, stealth } = launchOptions;
 
-  // ── Clone branch ──────────────────────────────────────────────────────────
-  if (isClone) {
-    log(`open(): launching clone of template "${sessionName}"`);
-    // Guard: template session must not be open — concurrent access corrupts the profile copy.
-    let templateOpen = false;
-    try { getSession(sessionName); templateOpen = true; } catch { /* not open */ }
-    if (templateOpen) {
-      throw new Error(`open(): cannot clone "${sessionName}" while it is open — close the session first`);
-    }
+  return withLock(sessionName, async () => {
+    // ── CLONE ─────────────────────────
+    if (isClone) {
+      log(`[INFO] open clone: ${sessionName}`);
 
-    const handle = await launchClone({ profile: sessionName, _launchImpl });
-    log(`open(): clone launched: ${handle.cloneId}`);
-    return {
-      success:         true,
-      sessionName:     handle.cloneId,
-      templateSession: sessionName,
-      isClone:         true,
-      cdpEndpoint:     handle.cdpEndpoint,
-    };
-  }
-
-  // ── Template branch ───────────────────────────────────────────────────────
-  let session;
-  let reused = false;
-
-  try {
-    session = getSession(sessionName);
-    reused = true;
-    log(`open(): reusing existing session: ${sessionName}`);
-  } catch (e) {
-    log(`open(): session '${sessionName}' not found, will create: ${e.message}`);
-  }
-
-  if (!session) {
-    const {
-      preset,
-      headless,
-      stealth,
-      userAgent,
-      viewport,
-      locale,
-      timezone,
-    } = launchOptions;
-
-    let handle;
-    try {
-      handle = await launch({
-        profile: sessionName,
-        preset,
-        headless,
-        stealth,
-        userAgent,
-        viewport,
-        locale,
-        timezone,
-        reuse: false,
-        _launchImpl,
-      });
-    } catch (err) {
-      let msg;
-      if (err !== null && err !== undefined && err.message !== null && err.message !== undefined) {
-        msg = err.message;
-      } else {
-        msg = '';
-      }
-      if (msg.includes('Executable') || msg.includes('executable') || msg.includes('chromium') || msg.includes('browser')) {
+      const active = safeGetSession(sessionName);
+      if (active) {
         throw new Error(
-          `Chromium not found. Run "npx @pablovitasso/szkrabok --setup" in your terminal, then restart the MCP server. (Original error: ${msg})`,
-          { cause: err }
+          `cannot clone "${sessionName}" while it is open`
         );
       }
-      throw err;
+
+      const handle = await launchClone({
+        profile: sessionName,
+        _launchImpl,
+        headless,
+        stealth,
+      });
+
+      return {
+        success:         true,
+        sessionName:     handle.cloneId,
+        templateSession: sessionName,
+        isClone:         true,
+        cdpEndpoint:     handle.cdpEndpoint,
+      };
     }
 
-    session = getSession(sessionName);
+    // ── TEMPLATE ──────────────────────
+
+    let session = safeGetSession(sessionName);
+    let reused = false;
+
+    if (session) {
+      reused = true;
+      log(`[DEBUG] reuse: ${sessionName}`);
+    }
+
+    if (!session) {
+      log(`[INFO] launch template: ${sessionName}`);
+
+      let handle;
+      try {
+        handle = await launch({
+          profile:      sessionName,
+          preset:       launchOptions.preset,
+          headless,
+          stealth,
+          userAgent:    launchOptions.userAgent,
+          viewport:     launchOptions.viewport,
+          locale:       launchOptions.locale,
+          timezone:     launchOptions.timezone,
+          reuse:        false,
+          _launchImpl,
+        });
+      } catch (err) {
+        const msg = err?.message ?? '';
+        if (msg.includes('Executable') || msg.includes('executable') || msg.includes('chromium') || msg.includes('browser')) {
+          throw new Error(
+            `Chromium not found. Run "npx @pablovitasso/szkrabok --setup" in your terminal, then restart the MCP server. (Original error: ${msg})`,
+            { cause: err }
+          );
+        }
+        throw err;
+      }
+
+      session = getSession(sessionName);
+
+      if (!session) {
+        log(`[FATAL] session missing after launch`);
+        throw new Error(`Session inconsistency`);
+      }
+
+      if (url) {
+        await navigate(session.page, url);
+        await updateSessionMeta(sessionName, { lastUrl: url });
+      }
+
+      return {
+        success:     true,
+        sessionName,
+        url,
+        isClone:     false,
+        preset:      session.preset,
+        label:       session.label,
+        cdpEndpoint: handle.cdpEndpoint,
+      };
+    }
 
     if (url) {
       await navigate(session.page, url);
@@ -137,106 +167,37 @@ export const open = async ({ sessionName, url, launchOptions = {} }) => {
     }
 
     return {
-      success:     true,
+      success:  true,
       sessionName,
       url,
-      isClone:     false,
-      preset:      session.preset,
-      label:       session.label,
-      cdpEndpoint: handle.cdpEndpoint,
-    };
-  }
-
-  if (url) {
-    await navigate(session.page, url);
-    await updateSessionMeta(sessionName, { lastUrl: url });
-  }
-
-  return {
-    success:     true,
-    sessionName,
-    url,
-    isClone:     false,
-    reused,
-    preset:      session.preset,
-    label:       session.label,
-  };
-};
-
-export const close = async ({ sessionName }) => {
-  log(`close(): closing session "${sessionName}"`);
-  let isClone = false;
-  try {
-    const s = getSession(sessionName);
-    isClone = !!s.isClone;
-  } catch { /* session does not exist yet */ }
-
-  if (isClone) {
-    log(`close(): routing to destroyClone for clone "${sessionName}"`);
-    const result = await destroyClone(sessionName);
-    return { ...result, sessionName };
-  }
-
-  log(`close(): routing to closeSession for template "${sessionName}"`);
-  return { ...(await closeSession(sessionName)), sessionName };
-};
-
-export const list = async () => {
-  log('list(): building session list');
-  const activeMap = new Map(
-    listRuntimeSessions().map(s => [s.id, s])
-  );
-
-  const stored = await listStoredSessions();
-  const storedSet = new Set(stored);
-
-  // Template sessions from disk (active or inactive).
-  const templateSessions = stored.map(id => {
-    const a = activeMap.get(id);
-    let preset;
-    let label;
-    if (a !== null && a !== undefined) {
-      if (a.preset !== null && a.preset !== undefined) {
-        preset = a.preset;
-      } else {
-        preset = null;
-      }
-      if (a.label !== null && a.label !== undefined) {
-        label = a.label;
-      } else {
-        label = null;
-      }
-    } else {
-      preset = null;
-      label = null;
-    }
-    return {
-      id,
-      active:  !!a,
-      isClone: false,
-      preset,
-      label,
+      isClone:  false,
+      reused,
+      preset:   session.preset,
+      label:    session.label,
     };
   });
-
-  // Active clone sessions — live in pool only, no disk entry.
-  const cloneSessions = listRuntimeSessions()
-    .filter(s => s.isClone && !storedSet.has(s.id))
-    .map(s => ({
-      id:              s.id,
-      active:          true,
-      isClone:         true,
-      templateSession: s.templateName,
-      preset:          s.preset,
-      label:           s.label,
-    }));
-
-  log(`list(): ${templateSessions.length} templates, ${cloneSessions.length} clones`);
-  return {
-    sessions: [...templateSessions, ...cloneSessions],
-    server:   { version, source: process.argv[1] },
-  };
 };
+
+/* ───────────────────────────────────────── */
+/* CLOSE (unchanged API)                     */
+/* ───────────────────────────────────────── */
+
+export const close = ({ sessionName }) =>
+  withLock(sessionName, async () => {
+    const s = safeGetSession(sessionName);
+    const isClone = s ? s.isClone : false;
+
+    if (isClone) {
+      log(`[INFO] close clone: ${sessionName}`);
+      const result = await destroyClone(sessionName);
+      return { ...result, sessionName };
+    }
+
+    log(`[INFO] close template: ${sessionName}`);
+    return { ...(await closeSession(sessionName)), sessionName };
+  });
+
+/* ───────────────────────────────────────── */
 
 export const endpoint = async ({ sessionName }) => {
   const session = getSession(sessionName);
@@ -256,24 +217,20 @@ export const endpoint = async ({ sessionName }) => {
   }
 };
 
+/* ───────────────────────────────────────── */
+
 export const deleteSession = async ({ sessionName }) => {
   // ── Glob mode ────────────────────────────────────────────────────────────────
-  // When sessionName contains '*', treat it as a wildcard pattern and delete
-  // every stored session whose id matches. Useful for bulk cleanup:
-  //   delete *             → all stored sessions
-  //   delete cfg-*         → all config sessions
-  //   delete scrape-*      → all scrape sessions
-  //   delete *-test        → all sessions ending in "-test"
   if (sessionName.includes('*')) {
     const stored = await listStoredSessions();
     const matched = stored.filter(id => matchGlob(id, sessionName));
     if (matched.length === 0) return { success: true, sessionName, deleted: [] };
-    log(`deleteSession(): glob "${sessionName}" matches [${matched.join(', ')}]`);
+    log(`[INFO] deleteSession glob "${sessionName}" matches [${matched.join(', ')}]`);
     const deleted = [];
     const errors = [];
     for (const id of matched) {
       try {
-        await deleteStoredSession(id);
+        await withLock(id, () => deleteStoredSession(id));
         deleted.push(id);
       } catch (err) {
         errors.push({ sessionName: id, error: err.message });
@@ -283,27 +240,68 @@ export const deleteSession = async ({ sessionName }) => {
   }
 
   // ── Exact-name mode ─────────────────────────────────────────────────────────
-  log(`deleteSession(): deleting session "${sessionName}"`);
-  // Guard: clones live only in the pool and have no disk entry to delete.
-  // Caller must use close() to destroy a clone and reclaim its clone dir.
-  try {
-    const s = getSession(sessionName);
-    if (s.isClone) {
+  return withLock(sessionName, async () => {
+    const s = safeGetSession(sessionName);
+    if (s && s.isClone) {
       throw new Error(`deleteSession(): "${sessionName}" is a clone session — use close() instead`);
     }
-  } catch (err) {
-    if (err.code !== 'SESSION_NOT_FOUND') throw err;
-    // Not in pool → ordinary stored session, proceed.
-  }
-  await deleteStoredSession(sessionName);
-  return { success: true, sessionName };
+
+    log(`[INFO] deleteSession: ${sessionName}`);
+    await deleteStoredSession(sessionName);
+
+    return { success: true, sessionName };
+  });
 };
 
+/* ───────────────────────────────────────── */
+
+export const list = async () => {
+  log('[INFO] list sessions');
+
+  const activeMap = new Map(
+    listRuntimeSessions().map(s => [s.id, s])
+  );
+
+  const stored = await listStoredSessions();
+  const storedSet = new Set(stored);
+
+  const templateSessions = stored.map(id => {
+    const a = activeMap.get(id);
+    return {
+      id,
+      active:  !!a,
+      isClone: false,
+      preset:  a?.preset ?? null,
+      label:   a?.label ?? null,
+    };
+  });
+
+  const cloneSessions = listRuntimeSessions()
+    .filter(s => s.isClone && !storedSet.has(s.id))
+    .map(s => ({
+      id:              s.id,
+      active:          true,
+      isClone:         true,
+      templateSession: s.templateName,
+      preset:          s.preset,
+      label:           s.label,
+    }));
+
+  log(`[INFO] list(): ${templateSessions.length} templates, ${cloneSessions.length} clones`);
+
+  return {
+    sessions: [...templateSessions, ...cloneSessions],
+    server:   { version, source: process.argv[1] },
+  };
+};
+
+/* ───────────────────────────────────────── */
+
 const ACTION_MAP = {
-  open: ({ action: _, ...rest }) => open(rest),
-  close: ({ action: _, ...rest }) => close(rest),
-  list: () => list(),
-  delete: ({ action: _, ...rest }) => deleteSession(rest),
+  open:     ({ action: _, ...rest }) => open(rest),
+  close:    ({ action: _, ...rest }) => close(rest),
+  list:     () => list(),
+  delete:   ({ action: _, ...rest }) => deleteSession(rest),
   endpoint: ({ action: _, ...rest }) => endpoint(rest),
 };
 

@@ -23,6 +23,8 @@
 packages/runtime/    @szkrabok/runtime    — browser bootstrap, stealth, pool, storage
                                             zero MCP knowledge
 src/                 MCP server           — transport + tools, imports from @szkrabok/runtime
+                     ./fixtures export    — versioned Playwright fixture (src/fixtures.js);
+                                            CDP + standalone paths; signal write at attach time
 tests/               test suites          — node:test (unit/contracts) + Playwright (integration/e2e)
 ```
 
@@ -86,6 +88,9 @@ src/
   index.js          MCP entry point, stdio transport
                     Always writes fatal startup errors to ~/.cache/szkrabok/startup.log
   config.js         Re-exports initConfig/getConfig from @szkrabok/runtime; DEFAULT_TIMEOUT constant
+  attach-signal.js  writeAttachSignal(path) — best-effort atomic tmp→rename, fail-fast, no-op on falsy
+  fixtures.js       @pablovitasso/szkrabok/fixtures export — resolveConfig, session/browser/page fixtures
+                    with ownsBrowser; signal written at CDP attach time; context not overridden (Playwright scope conflict)
   cli/
     index.js        CLI program setup, version (read from package.json), parseAsync
     commands/
@@ -96,6 +101,13 @@ src/
       detect-browser.js
       install-browser.js
       doctor.js       — szkrabok doctor: checks node, playwright-core, patch, chromium, imports
+
+  utils/
+    logger.js             log() — structured JSONL output
+    errors.js             SessionNotFoundError, SessionExistsError, ValidationError
+    platform.js           platformCacheDir() — OS-aware cache path
+    lock.js               acquireLock/releaseLock/withLock — blocking file lock, cross-process safe,
+                          stale-TTL cleanup, Windows-safe filename sanitizer
 
   tools/
     registry.js           All tool definitions: name, handler, schema
@@ -226,6 +238,8 @@ Do NOT import runtime internals (`stealth`, `storage`, `pool`, `config`) directl
 4. MCP tools never import stealth, config internals, or storage directly
 5. `tests/playwright/e2e/fixtures.js` never imports stealth or uses internal modules directly — only public API
 6. `browser_run_test` subprocess connects via `connectOverCDP` — it never calls `launch*()`
+8. `src/fixtures.js` never reads `process.env` — env→option bridging is the consumer's `playwright.config.js` responsibility
+9. `writeAttachSignal` is written at CDP attach time (before `await use(session)`), not at teardown
 7. Browser PID is captured once at launch via `tryBrowserPid()` and stored in the pool entry — not re-read at close time
 
 Enforced by ESLint boundary rules in `eslint.config.js` and `tests/node/contracts.test.js`.
@@ -301,7 +315,7 @@ browser_run_test(id, files?, grep?, params?, workers?, signalAttach?, reportFile
   -> if signalAttach: set SZKRABOK_ATTACH_SIGNAL=<signal-file-path>
   -> spawn: npx playwright test --reporter=list,json [files] [--grep] [--workers <n>]
   -> subprocess fixture connects via connectOverCDP (no launch)
-  -> subprocess fixture writes SZKRABOK_ATTACH_SIGNAL file at worker teardown
+  -> subprocess fixture writes SZKRABOK_ATTACH_SIGNAL file at CDP attach time (before tests run)
   -> if signalAttach: await waitForAttach(signalFile) — resolves immediately (file already written)
   -> parse JSON report, decode base64 result attachments
   -> return { passed, failed, tests: [{title, status, result}], reportFile }

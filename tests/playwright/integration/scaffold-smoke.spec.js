@@ -19,7 +19,11 @@ import { randomUUID } from 'node:crypto';
 
 const SK_SKILLS = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '..', 'sk-skills');
 
-test('browser_run_test uses CDP path in sk-skills project', async ({ client, openSession }) => {
+// SKIPPED: depends on sk-skills companion project (@pablovitasso/szkrabok must be up-to-date).
+// Enable manually when verifying CDP end-to-end after a release and sk-skills npm update.
+// What this tests: browser_run_test CDP path in a real external project
+// (sk-skills/automation/example.spec.js via connectOverCDP, no runtime import in MCP mode).
+test.skip('browser_run_test uses CDP path in sk-skills project', async ({ client, openSession }) => {
   const sessionName = `smoke-${randomUUID().slice(0, 8)}`;
 
   try {

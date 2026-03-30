@@ -11,9 +11,9 @@
 import { test, expect } from './fixtures.js';
 import { randomUUID } from 'crypto';
 
-// Spec file run by browser_run_test inside each session_run_test call.
-// Uses the e2e fixture so _runtimeHandle teardown writes the attach-signal file.
-const NOOP_SPEC = 'tests/playwright/e2e/noop.spec.js';
+// Spec files run by browser_run_test inside session_run_test calls.
+const NOOP_SPEC        = 'tests/playwright/e2e/noop.spec.js';
+const EXAMPLE_COM_SPEC = 'tests/playwright/e2e/example-com.spec.js';
 
 const srt = (name, extra = {}) => ({
   name: 'session_run_test',
@@ -73,6 +73,55 @@ test.describe('session_run_test', () => {
 
     // Cleanup.
     await client.callTool({ name: 'session_manage', arguments: { action: 'close', sessionName: name } });
+    await client.callTool({ name: 'session_manage', arguments: { action: 'delete', sessionName: name } });
+  });
+
+  test('EX-2.4 clone mode headless: launchOptions forwarded, reads real page content', async ({ client }) => {
+    const name = `srt-clone-${randomUUID()}`;
+
+    // Create template profile (headless — no visible window).
+    await client.callTool({
+      name: 'session_manage',
+      arguments: { action: 'open', sessionName: name, launchOptions: { headless: true } },
+    });
+    await client.callTool({
+      name: 'session_manage',
+      arguments: { action: 'close', sessionName: name },
+    });
+
+    // Clone + navigate to example.com. Keep clone open so we can read the page.
+    // Regression: headless was silently dropped when forwarding launchOptions to clone.
+    const srtResponse = await client.callTool({
+      name: 'session_run_test',
+      arguments: {
+        session:    { name, mode: 'clone', launchOptions: { headless: true },
+                      navigation: { policy: 'always', url: 'https://example.com' } },
+        test:       { spec: NOOP_SPEC, project: 'e2e' },
+        postPolicy: { action: 'keep' },
+      },
+    });
+    const srtResult = JSON.parse(srtResponse.content[0].text);
+    expect(srtResult.error).toBeUndefined();
+    expect(srtResult.session.mode).toBe('clone');
+
+    const cloneName = srtResult.session.runtimeName;
+
+    // Read real page content from the live clone browser.
+    const runResponse = await client.callTool({
+      name: 'browser_run',
+      arguments: {
+        sessionName: cloneName,
+        code: 'async (page) => ({ title: await page.title(), h1: await page.locator("h1").textContent(), p: await page.locator("p").first().textContent() })',
+      },
+    });
+    const { result } = JSON.parse(runResponse.content[0].text);
+
+    expect(result.title).toBe('Example Domain');
+    expect(result.h1).toBe('Example Domain');
+    expect(result.p).toContain('This domain is for use in');
+
+    // Cleanup.
+    await client.callTool({ name: 'session_manage', arguments: { action: 'close', sessionName: cloneName } });
     await client.callTool({ name: 'session_manage', arguments: { action: 'delete', sessionName: name } });
   });
 

@@ -112,7 +112,7 @@ Init szkrabok project (idempotent). Prerequisite for browser runs.
 
 - **dir**: Target directory, default cwd
 - **name**: Package name, default dirname
-- **preset**: `minimal` (default, MCP-only — config + devDeps, no local szkrabok install) or `full` (+ automation fixtures + example specs, for standalone Playwright runs)
+- **preset**: `minimal` (default, MCP-only — config + devDeps, no local szkrabok install) or `full` (+ automation fixtures + example specs; `fixtures.js` is a thin shim re-exporting from `@pablovitasso/szkrabok/fixtures`)
 - **install**: Run npm install after, default `false`
 
 Returns: `{ created, skipped, staged, merged, installed, warnings }` — `staged` lists files whose content differed from the template; the updated template is written as `filename.new` alongside the original.
@@ -261,6 +261,7 @@ szkrabok install-browser             # Install Playwright's Chromium
 ## Project Structure
 
 * **`@szkrabok/runtime`** (`packages/runtime/`): Browser bootstrap, stealth, session pool, MCP client (`mcpConnect`, `spawnClient`, codegen).
+* **`@pablovitasso/szkrabok/fixtures`** (`src/fixtures.js`): Versioned Playwright fixture export — CDP attach path, standalone launch path, `writeAttachSignal` at attach time. Import from this in automation specs; `scaffold_init --preset full` writes a thin shim that re-exports it.
 * **Config**: `szkrabok.config.toml` (defaults) deep-merged with `szkrabok.config.local.toml` (machine-specific, gitignored).
 * **Release**: `npm run deps:update` updates dependencies, `npm run release:patch` bumps version + tags, then `npm run release:publish`.
 

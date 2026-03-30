@@ -76,6 +76,7 @@ session_manage { "action": "open", "sessionName": "s", "launchOptions": { "prese
 ```
 tests/
   node/                       node:test — no browser
+    attach-signal.test.js     writeAttachSignal — 3 tests (write, no-op, fail-fast)
     basic.test.js             public API smoke tests
     schema.test.js            tool schema validation
     contracts.test.js         architecture invariant checks (static analysis)
@@ -139,6 +140,8 @@ Static import analysis — no browser launched:
 - No MCP tool imports `@szkrabok/runtime/*` subpaths (public root only)
 - `tests/playwright/e2e/fixtures.js` has no stealth imports
 - `packages/runtime/launch.js` is the only file containing `launchPersistentContext`
+- `src/fixtures.js` structural contracts: `resolveConfig` present, `ownsBrowser` used, `writeAttachSignal` appears before `await use(session)`, `browser` worker-scoped, `context` not overridden (Playwright 1.55+ disallows scope change of built-in test-scoped fixture), no silent catch, no static runtime import, all option declarations present
+- `package.json` declares `@playwright/test >=1.49.1` as optional peer dep
 
 ### `runtime/unit.test.js`
 TOML config loading, preset resolution, storage round-trip, stealth evasions (`navigator.webdriver === false`, plugins, UA).
@@ -185,6 +188,7 @@ Unit tests (`tests/node/session_run_test.test.js`) call `_run` directly with inj
 | EX-2.1 | Template mode end-to-end: response shape, session closed after default save | integration |
 | EX-2.2 | postPolicy keep: session still in `session_manage list` after test | integration |
 | EX-2.3 | withLock: two concurrent same-name calls both complete (deadlock would timeout) | integration |
+| EX-2.4 | Clone mode headless: launchOptions forwarded, noop passes, clone not active after destroy | integration |
 
 EX-1.7–1.9 (postPolicy keep keep/dead/recreate) and EX-1.19–1.20 (concurrency) are not unit-tested — see feature doc for rationale. EX-2.2 and EX-2.3 cover these gaps.
 
@@ -196,7 +200,11 @@ Real browser against live bot-detection sites. Three run paths:
 
 ### Path A — MCP via `browser_run_test` (local source MCP config)
 
-Requires MCP server running from `node src/index.js` (see [development.md](./development.md#mcp-config-for-developing-szkrabok)) and an active session.
+Requires MCP server running from `node src/index.js` (see [development.md](./development.md#mcp-config-for-developing-szkrabok)) and an active session. **Close the session when done** — `browser_run_test` does not close it automatically (the caller owns the lifecycle):
+
+```
+session_manage { "action": "close", "sessionName": "check" }
+```
 
 With **Config A (local source)**, `REPO_ROOT` is already the szkrabok repo — the default `playwright.config.js` works without an explicit path:
 

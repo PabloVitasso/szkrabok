@@ -131,6 +131,89 @@ describe('Invariant 4: tests/playwright/e2e/fixtures.js has no stealth imports',
   });
 });
 
+describe('Invariant N: src/fixtures.js structural contracts', () => {
+  const FIXTURES_SRC = join(REPO_ROOT, 'src', 'fixtures.js');
+
+  test('no static runtime import', async () => {
+    const src = await readSrc(FIXTURES_SRC);
+    assert.ok(
+      !/^import\s+.*szkrabok.*runtime/m.test(src),
+      'src/fixtures.js must not have a static top-level runtime import'
+    );
+  });
+
+  test('uses writeAttachSignal', async () => {
+    const src = await readSrc(FIXTURES_SRC);
+    assert.ok(src.includes('writeAttachSignal'), 'src/fixtures.js must use writeAttachSignal');
+  });
+
+  test('no silent catch', async () => {
+    const src = await readSrc(FIXTURES_SRC);
+    assert.ok(
+      !/catch\s*\(\s*\)\s*\{\s*\}/.test(src),
+      'src/fixtures.js must not have a silent catch block'
+    );
+  });
+
+  test('has resolveConfig', async () => {
+    const src = await readSrc(FIXTURES_SRC);
+    assert.ok(src.includes('resolveConfig'), 'src/fixtures.js must define resolveConfig');
+  });
+
+  test('has ownsBrowser', async () => {
+    const src = await readSrc(FIXTURES_SRC);
+    assert.ok(src.includes('ownsBrowser'), 'src/fixtures.js must use ownsBrowser');
+  });
+
+  test('signal written before await use(session)', async () => {
+    const src = await readSrc(FIXTURES_SRC);
+    const signalIdx = src.indexOf('writeAttachSignal');
+    const useIdx    = src.indexOf('await use(session)');
+    assert.ok(signalIdx !== -1, 'writeAttachSignal not found');
+    assert.ok(useIdx    !== -1, 'await use(session) not found');
+    assert.ok(
+      signalIdx < useIdx,
+      'writeAttachSignal must appear before await use(session) in source'
+    );
+  });
+
+  test('session and browser are worker-scoped; context is not overridden', async () => {
+    const src = await readSrc(FIXTURES_SRC);
+    const matches = src.match(/scope:\s*'worker'/g) ?? [];
+    // session + browser = at least 2
+    // context intentionally absent: Playwright 1.58+ disallows scope override of built-in test-scoped context
+    assert.ok(
+      matches.length >= 2,
+      `Expected at least 2 worker-scope declarations (session, browser), found ${matches.length}`
+    );
+    assert.ok(
+      !src.includes("context: ["),
+      'context fixture must not be declared — conflicts with Playwright built-in test-scoped context'
+    );
+  });
+
+  test('option declarations present', async () => {
+    const src = await readSrc(FIXTURES_SRC);
+    for (const opt of ['szkrabokCdpEndpoint', 'szkrabokAttachSignal', 'szkrabokSessionMode']) {
+      assert.ok(src.includes(opt), `src/fixtures.js missing option: ${opt}`);
+    }
+  });
+});
+
+describe('package.json peer dep: @playwright/test optional', () => {
+  test('declares @playwright/test as optional peer dep', async () => {
+    const pkg = JSON.parse(await readSrc(join(REPO_ROOT, 'package.json')));
+    assert.ok(
+      pkg.peerDependencies?.['@playwright/test'],
+      'peerDependencies entry missing for @playwright/test'
+    );
+    assert.ok(
+      pkg.peerDependenciesMeta?.['@playwright/test']?.optional === true,
+      'peerDependenciesMeta.optional must be true for @playwright/test'
+    );
+  });
+});
+
 describe('Invariant 5: packages/runtime is the only launch site', () => {
   test('only packages/runtime/launch.js contains launchPersistentContext', async () => {
     const searchDirs = [
