@@ -1,7 +1,7 @@
 // AUTO-GENERATED — do not edit manually.
 // Regenerate: npm run codegen:mcp
-// Last generated: 2026-03-20T15:43:02.349Z
-// Tools: 5  Hash: 2d08df35d3c2
+// Last generated: 2026-03-31T14:42:10.839Z
+// Tools: 6  Hash: 1235c5bab4ac
 
 import { createHash } from 'node:crypto';
 import { spawnClient } from './runtime/transport.js';
@@ -9,12 +9,13 @@ import { createCallInvoker } from './runtime/invoker.js';
 import { createLogger } from './runtime/logger.js';
 import * as adapter from './adapters/szkrabok-session.js';
 
-const REGISTRY_HASH = '2d08df35d3c2';
+const REGISTRY_HASH = '1235c5bab4ac';
 
 /**
  * @typedef {Object} McpHandle
  *   session: {
     manage({ action, url, launchOptions }): Promise<any>
+    run_test({ session, test, postPolicy }): Promise<any>
   }
  *   browser: {
     scrape({ selectors }): Promise<any>
@@ -63,6 +64,8 @@ export async function mcpConnect(sessionName, options = {}) {
     session: {
       /** @param {{ action: 'open'|'close'|'list'|'delete'|'endpoint', url?: string, launchOptions?: object }} [args] */
       manage: async (args = {}) => invoke('session_manage', args),
+      /** @param {{ session: object, test: object, postPolicy?: object }} [args] */
+      run_test: async (args = {}) => invoke('session_run_test', args),
     },
     browser: {
       /** @param {{ selectors?: string[] }} [args] */
