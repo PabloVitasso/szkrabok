@@ -501,7 +501,7 @@ describe('doctor CLI output', () => {
     );
     const out = result.stdout + result.stderr;
     // Match the fixed-width 8-char bracket format
-    const tagPattern = /\[(PASS  |FAIL  |SKIP  |ABSENT|      )\]/;
+    const tagPattern = /\[(PASS {2}|FAIL {2}|SKIP {2}|ABSENT| {6})\]/;
     const tagLines = out.split('\n').filter(l => tagPattern.test(l));
     assert.ok(tagLines.length >= 1, `expected at least one fixed-width tag line:\n${out}`);
     for (const line of tagLines) {

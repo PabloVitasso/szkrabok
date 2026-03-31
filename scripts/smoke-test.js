@@ -24,10 +24,9 @@ let tmpDir;
 
 const cleanup = () => {
   if (tmpDir && existsSync(tmpDir)) {
-    // eslint-disable-next-line no-empty -- exit-handler cleanup; surfacing here would obscure the real exit cause
     try {
       rmSync(tmpDir, { recursive: true, force: true });
-    } catch {}
+    } catch {} // eslint-disable-line no-empty -- exit-handler cleanup; surfacing here would obscure the real exit cause
   }
 };
 
@@ -83,9 +82,8 @@ console.log(`[smoke-test] version output: ${versionResult.stdout.toString().trim
 // chain and will fail here (temp install has no ~/.cache/ms-playwright).
 
 // remove the tarball
-// eslint-disable-next-line no-empty -- best-effort cleanup; tarball may already be gone
 try {
   rmSync(tarball);
-} catch {}
+} catch {} // eslint-disable-line no-empty -- best-effort cleanup; tarball may already be gone
 
 console.log('\n[smoke-test] PASS: package installs and starts correctly.');
