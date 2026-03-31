@@ -98,9 +98,10 @@ src/
       session.js
       open.js
       endpoint.js
-      detect-browser.js
-      install-browser.js
-      doctor.js       — szkrabok doctor: checks node, playwright-core, patch, chromium, imports
+      doctor.js       — szkrabok doctor: checks node, playwright-core, patch, browser resolution chain, imports
+                         Subcommands: detect [--write-config], install [--force]
+    lib/
+      browser-actions.js  — shared runDetect() / runInstall() / writeExecPath() used by doctor subcommands
 
   utils/
     logger.js             log() — structured JSONL output
@@ -360,6 +361,8 @@ CLI-only operations (no MCP equivalent):
 - `szkrabok open` — human-facing browser launch, holds process alive
 - `szkrabok session inspect` — raw cookie/localStorage dump from `state.json`
 - `szkrabok endpoint` — prints CDP/WS endpoints to stdout
+- `szkrabok doctor detect [--write-config]` — show all browser candidates; pin a path to config
+- `szkrabok doctor install [--force]` — install Playwright Chromium (idempotent, `--force` to re-download)
 
 ## Stealth hacks (preserve on upstream updates)
 
@@ -373,7 +376,7 @@ CLI-only operations (no MCP equivalent):
 playwright-core is pinned to an exact version and patched via `patch-package`. The committed diff in `patches/` is applied automatically on `npm install` via the postinstall chain:
 
 ```
-scripts/apply-patches.js  →  scripts/verify-playwright-patches.js  →  scripts/postinstall.js
+scripts/apply-patches.js  →  scripts/verify-playwright-patches.js
 ```
 
 `apply-patches.js` locates `playwright-core` and `patch-package` via Node's module resolution (works for hoisted, nested, and npx installs), then invokes `patch-package --patch-dir <path>`. It writes a minimal temporary `package.json` to `targetRoot` before invoking patch-package when none exists (bare temp dirs, npx), and removes it afterwards — patch-package requires a `package.json` to locate its app root.
@@ -417,25 +420,34 @@ Walk-up: at each dir load `szkrabok.config.toml` then merge `szkrabok.config.loc
 
 ## Chromium resolution
 
-`findChromiumPath()` in `packages/runtime/config.js` is async. Priority order:
+Strict precedence (first valid candidate wins):
 
-1. `getConfig().executablePath` — user-configured path (highest priority)
-2. `chrome-launcher` — `Launcher.getInstallations()` finds system Chrome, Chromium, Brave, Edge across all standard install locations on Linux/macOS/Windows
-3. Playwright bundled binary — `chromium.executablePath()` from the playwright package
-4. `null` — `checkBrowser()` throws a deterministic error with install instructions
+1. `CHROMIUM_PATH` env var — explicit override, highest priority
+2. `getConfig().executablePath` — `executablePath` in `szkrabok.config.toml`
+3. `chrome-launcher` — `Launcher.getInstallations()` finds system Chrome, Chromium, Brave, Edge across all standard install locations on Linux/macOS/Windows. `isFunctionalBrowser(path)` probe filters stub/broken paths before selection
+4. Playwright bundled binary — `chromium.executablePath()` from the playwright package
 
-If no browser is found, `launch()` throws:
+`checkBrowser()` in `packages/runtime/launch.js` runs the full resolution chain via `resolveChromium()` (from `packages/runtime/resolve.js`). Each candidate is validated: exists, is a file, is executable. `null` — `checkBrowser()` throws a structured `BrowserNotFoundError` with install instructions.
+
+If no browser is found, `launch()` throws a structured `BrowserNotFoundError` listing all four candidates (env, config, system, playwright) with their individual status:
+
 ```
-Chromium browser not found.
+Chromium not found.
 
-Run:
-  npx playwright install chromium
+Options (choose one):
+  1. szkrabok doctor install          -- install Playwright's Chromium (idempotent)
+  2. export CHROMIUM_PATH=/usr/bin/google-chrome   -- use system Chrome
+  3. Set executablePath in szkrabok.config.toml     -- persistent config
 
-Or:
-  szkrabok install-browser
+Candidates checked:
+  env:       CHROMIUM_PATH not set
+  config:    executablePath not set
+  system:    no Chrome installation found
+  playwright: not installed
 ```
 
 To inspect what is installed on your system:
 ```bash
-szkrabok detect-browser
+szkrabok doctor detect              # shows full chain with pass/fail/skip/absent status
+szkrabok doctor detect --write-config  # detect + pin the path to ~/.config/szkrabok/config.toml
 ```

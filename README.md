@@ -194,7 +194,7 @@ New project:
 npx @pablovitasso/szkrabok init
 ```
 
-> **Browser not found?** Run `szkrabok detect-browser` to find installed browsers, or `szkrabok install-browser` to install Playwright's Chromium. Requires **Node.js ≥ 20**.
+> **Browser not found?** Run `szkrabok doctor detect` to see all candidates and their status, or `szkrabok doctor install` to install Playwright's Chromium. Use `szkrabok doctor detect --write-config` to pin a discovered path to config. Requires **Node.js ≥ 20**.
 
 **Configure**
 
@@ -252,8 +252,9 @@ szkrabok session delete <id>         # Delete a session (supports glob: "cfg-*",
 szkrabok session delete "*"          # Delete all stored sessions
 szkrabok session cleanup --days 30   # Delete sessions unused for N days
 szkrabok endpoint <sessionName>      # Print CDP + WS endpoints
-szkrabok detect-browser              # List usable Chrome/Chromium installations
-szkrabok install-browser             # Install Playwright's Chromium
+szkrabok doctor detect               # Show all browser candidates and their status
+szkrabok doctor detect --write-config  # Detect + pin the path to config.toml
+szkrabok doctor install              # Install Playwright's Chromium (idempotent)
 ```
 
 ---

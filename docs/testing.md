@@ -29,7 +29,7 @@ For tests, `process.cwd()` walk-up finds `szkrabok.config.toml` (committed repo 
 executablePath = "/path/to/your/chrome"
 ```
 
-Run `szkrabok detect-browser` to find installed binaries.
+Run `szkrabok doctor detect` to see all candidates and their status. Use `szkrabok doctor detect --write-config` to pin a discovered path to config.
 
 **Common overrides for test runs:**
 
@@ -370,7 +370,7 @@ For e2e (live sites, headed browser) — open a session first, then use `browser
 | `rebrowser` ERR_ABORTED | Site blocks headless — open session with `headless: false` |
 | intoli timeout (headed) | Intermittent — rerun |
 | `Executable doesn't exist` | `npx playwright install chromium` |
-| Wrong browser | Run `szkrabok detect-browser`, set `executablePath` in local TOML |
+| Wrong browser | Run `szkrabok doctor detect` to see the resolution chain; `doctor detect --write-config` pins the path |
 | Project TOML not picked up by MCP server | Server reads config from MCP roots — ensure the client sends roots pointing at the project directory |
 | `getConfig() called before initConfig()` | Call `initConfig([])` before any config read; MCP server does this automatically |
 | `context.browser(...).process is not a function` | Playwright build does not expose `browser.process()` — `tryBrowserPid()` handles this gracefully, returning `null`. This error means the running code is stale. Restart the MCP server to pick up the source. |

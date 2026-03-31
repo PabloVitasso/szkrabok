@@ -80,9 +80,10 @@ First browser-dependent tool call (session_manage open, browser_run_test, etc.)
      -> no valid candidate?     -> hard fail + structured error
 
 User decides:
-  1. szkrabok install-browser         -- managed Chromium via Playwright
-  2. CHROMIUM_PATH=/path/to/chrome    -- system Chrome (env var, highest priority)
-  3. executablePath in config.toml    -- persistent config
+  1. szkrabok doctor install         -- managed Chromium via Playwright (idempotent)
+  2. szkrabok doctor detect --write-config  -- detect and pin a path to config
+  3. CHROMIUM_PATH=/path/to/chrome    -- system Chrome (env var, highest priority)
+  4. executablePath in config.toml    -- persistent config
 ```
 
 ### Anti-patterns (rejected)
@@ -402,23 +403,41 @@ Browser resolution:
   [FAIL  ] system       no Chrome installation found
   [ABSENT] playwright   ~/.cache/ms-playwright/chromium-1155/ — not installed
 
-  No valid browser found. Run: szkrabok install-browser
+  No valid browser found. Run: szkrabok doctor install
 ```
 
-### 7. `src/cli/commands/install-browser.js` — install integrity check
+### 7. `src/cli/lib/browser-actions.js` — shared browser CLI actions
 
-After `npx playwright install chromium` succeeds:
+Shared library used by `doctor detect` and `doctor install`. Exposes:
 
-1. Run `resolveChromium()` again to confirm the candidate now passes
-2. If valid, print success + system Chrome hint
-3. If still invalid (partial install, wrong path), warn user to run `doctor`
+- `runDetect()` — runs full resolution chain, returns `{ winner, results }`
+- `runInstall({ force })` — idempotent Playwright Chromium install
+- `writeExecPath(path)` — writes `executablePath` to `~/.config/szkrabok/config.toml`
+- `getGlobalConfigPath()` — returns platform-appropriate config file path
+
+`doctor install` is idempotent:
+1. Run `runDetect()` to check current state
+2. If Playwright Chromium already found and `!force` → print "already installed", return 0
+3. If other browser found and `!force` → print path, hint to pin via `--write-config`, return 0
+4. Otherwise → spawn `npx playwright install chromium`, validate result, print outcome
 
 ```
-Chromium installed successfully (playwright-managed).
-  Path: ~/.cache/ms-playwright/chromium-1155/chrome-linux/chrome
+szkrabok doctor install
+  -> "Browser found via env: /usr/local/bin/chrome"
+  -> "To install Playwright-managed Chromium anyway: use --force"
+  -> "To pin this browser instead: szkrabok doctor detect --write-config"
+```
 
-  Tip: To use system Chrome instead of downloading:
-    export CHROMIUM_PATH=/usr/bin/google-chrome
+`doctor detect` shows the full candidate chain + resolved path:
+```
+Browser resolution:
+  [PASS  ] env          /usr/local/bin/chrome
+  [ABSENT] config       executablePath not set
+  [SKIP  ] system       /usr/bin/google-chrome — valid, lower priority
+  [ABSENT] playwright   ~/.cache/ms-playwright/... — not installed
+
+  Resolved: env — /usr/local/bin/chrome
+  Hint: path not pinned — run with --write-config to save to config.toml
 ```
 
 ### 8. `src/tools/szkrabok_session.js` — update user-facing error
@@ -437,7 +456,7 @@ as a separate step.
 - Remove `postinstall.js` from postinstall chain description
 - Update `prepublishOnly` smoke-test description
 - Add `CHROMIUM_PATH` to env var docs
-- Update CLI docs: `install-browser` becomes the primary install path
+- Update CLI docs: `doctor detect` + `doctor install` are the primary browser management commands
 
 ---
 
@@ -464,11 +483,15 @@ CI pipelines that previously relied on postinstall auto-install must add:
 - run: npx @pablovitasso/szkrabok install-browser
 ```
 
-Or use system Chrome:
+Or use system Chrome, or pin via `--write-config`:
 
 ```yaml
 env:
   CHROMIUM_PATH: /usr/bin/google-chrome
+```
+
+```bash
+szkrabok doctor detect --write-config   # discover + persist in one step
 ```
 
 ---
@@ -893,6 +916,9 @@ for the failure path, and `checkBrowser` for the success path.
   for null `system`/`playwright` candidates. `checkBrowser()` calls it before
   `resolveChromium()`; `findChromiumPath()` delegates to it instead of duplicating
   the probe logic. No caller holds probe logic independently.
+- chrome-launcher paths are filtered by `isFunctionalBrowser()` before use:
+  runs `path --version`, checks exit 0 + non-empty stdout. This filters Ubuntu
+  snap wrappers that pass `accessSync(X_OK)` but exit 1 or print nothing.
 
 **Implementation notes (completed):**
 
@@ -1076,12 +1102,14 @@ Corrections to decisions made in stages 4–5. All items are self-contained.
 
 | File                                  | Action                                                       |
 | ------------------------------------- | ------------------------------------------------------------ |
-| `src/cli/commands/doctor.js`          | D1: exit 0 by default, `--strict` flag. D2/D4: fixed-width tags + state model. D3: `chromium._revision` comparison |
-| `src/cli/index.js`                    | D5: remove `process.exitCode` reliance; `runCli()` returns exit code |
+| `src/cli/commands/doctor.js`          | D1: exit 0 by default, `--strict` flag. D2/D4: fixed-width tags + state model. D3: major-version CDP check. Subcommands: `doctor detect [--write-config]`, `doctor install [--force]` |
+| `src/cli/lib/browser-actions.js`      | **NEW** — shared `runDetect()`, `runInstall()`, `writeExecPath()`, `getGlobalConfigPath()` |
+| `src/cli/index.js`                    | D5: remove `process.exitCode` reliance; `runCli()` returns exit code. Remove `detect-browser` + `install-browser` registrations |
 | `src/index.js`                        | D5: `process.exit(await runCli() ?? 0)` |
-| `src/cli/commands/install-browser.js` | D5: return 0/1 instead of setting `process.exitCode` |
-| `packages/runtime/resolve.js`         | Additional: `CHROMIUM_PATH=''` → `reason: 'empty env var (invalid)'` (already `validateCandidate` returns `'empty path'`, but `buildCandidates` must not coerce `''` to null — already correct; doctor mapping must treat `'empty path'` as `fail`, not `absent`) |
-| `tests/node/runtime/resolve.test.js`  | New tests for D1 (`--strict`), D2/D4 (tag format), D3 (revision check), `CHROMIUM_PATH=''` |
+| `src/cli/commands/detect-browser.js` | **DELETED** — replaced by `doctor detect [--write-config]` |
+| `src/cli/commands/install-browser.js` | **DELETED** — replaced by `doctor install [--force]` |
+| `packages/runtime/resolve.js`         | Additional: `CHROMIUM_PATH=''` → `fail` (not `absent`). `isFunctionalBrowser()` probe filters chrome-launcher stubs |
+| `tests/node/runtime/resolve.test.js`  | New tests for D1 (`--strict`), D2/D4 (tag format), D3 (revision check), `CHROMIUM_PATH=''`, `isFunctionalBrowser`, browser-actions, detect/install CLI, removed-commands rejection |
 
 **Decisions:**
 
@@ -1112,15 +1140,15 @@ this is a configured-but-invalid value, not an absent one.
 
 ## Stage summary
 
-| Stage     | Focus                   | Files changed  | Tests added     | Invariants proved |
-| --------- | ----------------------- | -------------- | --------------- | ----------------- |
-| 1         | Core resolution module  | 3              | 23              | I4, I5            |
-| 2         | Runtime integration     | 5              | 12 + 1 contract | I2, I6            |
-| 3         | Remove postinstall dl   | 3              | 3               | I1                |
-| 4         | CLI commands            | 3              | 7               | I3, I7            |
-| 5         | MCP tool + docs         | 3              | 6               | I3 (MCP)          |
-| 6         | Refinements (D1–D5)     | ~5             | ~8              | I3 (exit code)    |
-| **Total** |                         | **~13 unique** | **~59**         | **I1-I7**         |
+| Stage     | Focus                          | Files changed       | Tests added     | Invariants proved |
+| --------- | ------------------------------ | ------------------- | --------------- | ----------------- |
+| 1         | Core resolution module         | 3                   | 23              | I4, I5            |
+| 2         | Runtime integration            | 5                   | 12 + 1 contract | I2, I6            |
+| 3         | Remove postinstall dl          | 3                   | 3               | I1                |
+| 4         | CLI commands                   | 3                   | 7               | I3, I7            |
+| 5         | MCP tool + docs                | 3                   | 6               | I3 (MCP)          |
+| 6         | Refinements (D1–D5) + CLI cons | 9 (4 new, 5 modified)| ~17             | I3 (exit code)    |
+| **Total** |                                | **~13 unique**       | **~59**         | **I1-I7**         |
 
 ---
 
@@ -1143,10 +1171,11 @@ stage that must implement it.
 | `doctor` not yet implemented               | ✅ RESOLVED — `doctor` uses `validateCandidate()` per entry for full diagnostics.                                                                                                                                                                                                                                                                       | Stage 4 ✅                                         | 4     |
 | `doctor` exit code                         | ✅ RESOLVED — exits 0 by default (execution success). `--strict` flag exits 1 when checks fail. See D1.                                                                                                                                                                                                        | Stage 6 (D1)                                       | 4→6   |
 | `doctor` tag fixed-width + state model     | ✅ RESOLVED — fixed-width 8-char tags (D2). `candidateState()` returns pass/fail/absent/skip only — `ignored` state removed (D4). All candidates always evaluated; post-winner broken/absent render as `[FAIL  ]`/`[ABSENT]`, never suppressed.                                                                | Stage 6 ✅                                          | 4→6   |
-| CLI control flow (`process.exitCode`)      | ✅ RESOLVED — `install-browser` calls `ctx.setExitCode()`; `runCli()` returns `_exitCode`; `index.js` does `process.exit(await runCli() ?? 0)`. Single exit authority. See D5.                                                                                                                     | Stage 6 (D5)                                       | 5→6   |
+| CLI control flow (`process.exitCode`)      | ✅ RESOLVED — `doctor install` returns exit code via `runInstall()`; `runCli()` returns `_exitCode`; `index.js` does `process.exit(await runCli() ?? 0)`. Single exit authority. `detect-browser` and `install-browser` deleted. See D5.                                                                                                                    | Stage 6 (D5) ✅                                     | 5→6   |
 | Binary name hardcoded in error             | `'szkrabok install-browser'` still hardcoded in `BrowserNotFoundError.formatMessage()`. Not fixed — acceptable for now since package name is stable.                                                                                                                                                                                                   | Outstanding (low priority)                         | 4-5   |
+| `install-browser` command removed           | `detect-browser` + `install-browser` commands deleted; replaced by `doctor detect [--write-config]` and `doctor install [--force]`. `browser-actions.js` added. Tests verify removed commands exit non-zero.                                                                                                                                                        | Stage 6 ✅ (CLI consolidation)                    | 6     |
 | Windows path normalization                 | Test added and guarded by `process.platform !== 'win32'` skip. Verification on Windows CI still needed before shipping to Windows users.                                                                                                                                                                                                               | Stage 5 (test guarded, CI verification deferred)   | 5     |
 | Relative path in config                    | `config.executablePath` resolved relative to `cwd()`. Not fixed — deferred. Low priority; absolute paths are recommended in docs.                                                                                                                                                                                                                      | Outstanding (low priority)                         | 5     |
 | Breaking change migration plan             | Plan documented in this spec. CHANGELOG / release notes entry not yet written. Must be done before 2.0.0 publish.                                                                                                                                                                                                                                      | Outstanding (before release)                       | —     |
 | `BrowserNotFoundError` MCP serialization   | ✅ RESOLVED — `this.code = 'BROWSER_NOT_FOUND'` + `toJSON()` method added. `JSON.stringify(err)` now produces `{code, message, candidates}` instead of `{}`. Registry `wrapError` passes it through correctly.                                                                                                                                         | Stage 5 ✅                                         | 5     |
-| `install-browser` async race               | ✅ RESOLVED — action now wraps `spawn` in a `Promise`; Commander awaits completion. Exit code still uses `process.exitCode` side-effect; refactoring to return-based codes is D5.                                                                                                                                                                       | Stage 4/5 ✅ (D5 pending)                          | 4-5   |
+| `install-browser` async race               | ✅ RESOLVED — `browser-actions.js` `runInstall()` returns exit code; `doctor install` action calls `process.exit(await runInstall(...))`. D5 complete.                                                                                                                                                                                                              | Stage 6 ✅                                         | 4-6   |
