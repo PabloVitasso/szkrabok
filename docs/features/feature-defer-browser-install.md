@@ -111,7 +111,7 @@ Each invariant has a corresponding test in `tests/node/runtime/resolve.test.js`.
 6. **I6 — no implicit install at runtime** — calling `session_manage open` with no
    browser triggers zero downloads; only an error is returned
 7. **I7 — doctor exposes full candidate chain** — output includes pass/fail/absent/
-   ignored status and failure reason per candidate, not just the winner
+   skip status and failure reason per candidate, not just the winner
 
 ---
 
@@ -315,19 +315,22 @@ Exit 0 signals execution success, not system health. Health is conveyed via outp
 #### Candidate state model
 
 Each candidate has exactly one state. States are mutually exclusive.
+State is determined by **evaluation result**, not by selection relevance.
 
-| State     | Meaning                                        | Display   |
-| --------- | ---------------------------------------------- | --------- |
-| `pass`    | selected winner                                | `[PASS  ]` |
-| `fail`    | configured but invalid (broken path, no +x)   | `[FAIL  ]` |
-| `absent`  | not configured (not set / empty env var)       | `[ABSENT]` |
-| `skip`    | valid but lower priority (winner already found) | `[SKIP  ]` |
-| `ignored` | not evaluated — winner already resolved        | `[      ]` |
+| State    | Meaning                                         | Display    |
+| -------- | ----------------------------------------------- | ---------- |
+| `pass`   | selected winner                                 | `[PASS  ]` |
+| `skip`   | valid but lower priority (winner already found) | `[SKIP  ]` |
+| `fail`   | configured but invalid (broken path, no +x)     | `[FAIL  ]` |
+| `absent` | not configured (not set / empty env var)        | `[ABSENT]` |
 
-Note: `[SKIP]` applies only to candidates that pass `validateCandidate()` but were
-not selected because a higher-priority winner was already found. A lower-priority
-candidate that is absent or invalid when a winner exists renders as `[      ]`
-(ignored — not evaluated).
+All candidates are evaluated. Evaluation results are always shown — they are
+never suppressed because a winner was already found. A broken system Chromium
+after a valid env override is still `[FAIL  ]`, not hidden. This preserves
+diagnostic signal for latent misconfiguration.
+
+`[SKIP  ]` applies only when `validateCandidate()` passes but a higher-priority
+winner was already selected.
 
 Tags use fixed-width brackets (8 chars: `[` + 6-char padded tag + `]`) for
 machine-parseable output. Do not use ad-hoc tags like `[--]` or `[ - ]`.
@@ -347,18 +350,20 @@ Empty string is not the same as absent:
 
 Candidates are printed in resolution order (env → config → system → playwright).
 
-| Candidate position relative to winner | Candidate valid? | State    | Display    |
-| -------------------------------------- | ---------------- | -------- | ---------- |
-| IS the winner                          | yes              | pass     | `[PASS  ]` |
-| before the winner (evaluated, failed)  | no, absent       | absent   | `[ABSENT]` |
-| before the winner (evaluated, failed)  | no, broken       | fail     | `[FAIL  ]` |
-| after the winner (not part of decision)| yes              | skip     | `[SKIP  ]` |
-| after the winner (not part of decision)| no               | ignored  | `[      ]` |
-| no winner anywhere — not configured    | —                | absent   | `[ABSENT]` |
-| no winner anywhere — configured, broken| —                | fail     | `[FAIL  ]` |
+| Candidate valid? | Selected? | State  | Display    |
+| ---------------- | --------- | ------ | ---------- |
+| yes              | yes       | pass   | `[PASS  ]` |
+| yes              | no        | skip   | `[SKIP  ]` |
+| no, broken       | —         | fail   | `[FAIL  ]` |
+| no, absent       | —         | absent | `[ABSENT]` |
 
-`[SKIP  ]` = "valid, but you didn't need it."
-`[      ]` = "irrelevant — wouldn't have been selected anyway."
+Selection relevance does not change how evaluation results are displayed.
+`fail` and `absent` render identically whether the candidate is before or
+after the winner. All candidates are always evaluated.
+
+`fail > absent` precedence when no winner: if some candidates are broken and
+others are absent, the summary shows the broken ones — the absence of a winner
+is more actionable when broken paths are highlighted.
 
 #### Output format
 
@@ -375,14 +380,14 @@ Browser resolution:
   Version: Chromium 133.0.6943.16
 ```
 
-Env wins with config absent, system valid, playwright ignored:
+Env wins with config absent, system valid, playwright absent:
 
 ```
 Browser resolution:
   [PASS  ] env          /usr/local/bin/chrome
-  [      ] config       (not evaluated)
+  [ABSENT] config       executablePath not set
   [SKIP  ] system       /usr/bin/google-chrome — valid, lower priority
-  [      ] playwright   (not evaluated)
+  [ABSENT] playwright   ~/.cache/ms-playwright/chromium-1155/ — not installed
 
   Resolved: env — /usr/local/bin/chrome
   [warn] CDP compatibility: expected Chromium M133, found M115
@@ -638,10 +643,10 @@ subprocess with controlled env (no browser available).
 
 | Test                             | Setup                   | Assert                                         |
 | -------------------------------- | ----------------------- | ---------------------------------------------- | ---- | -------- |
-| all fail — shows full chain      | no browser, no env      | stdout contains `[FAIL]` for each of 4 sources |
-| all fail — shows install command | no browser              | stdout contains `szkrabok install-browser`     |
-| env wins — shows precedence      | `CHROMIUM_PATH=/bin/ls` | stdout contains `[PASS] env`, others `[SKIP]`  |
-| output is parseable              | any state               | each line matches `^\s\*\[(PASS                | FAIL | SKIP)\]` |
+| all fail — shows full chain      | no browser, no env      | stdout contains `[FAIL  ]` or `[ABSENT]` for each of 4 sources        |
+| all fail — shows install command | no browser              | stdout contains `szkrabok install-browser`                             |
+| env wins — shows precedence      | `CHROMIUM_PATH=/bin/ls` | stdout contains `[PASS  ] env`; lower candidates show their true state |
+| output is parseable              | any state               | each tag line matches `^\s*\[(PASS {2}\|FAIL {2}\|SKIP {2}\|ABSENT)\]` |
 
 ---
 
@@ -958,12 +963,12 @@ leaves.
 
 **Tests (category 5 — doctor output, 4 tests):**
 
-| Test                             | Setup                   | Assert                                         |
-| -------------------------------- | ----------------------- | ---------------------------------------------- | ---- | -------- |
-| all fail — shows full chain      | no browser, no env      | stdout contains `[FAIL]` for each of 4 sources |
-| all fail — shows install command | no browser              | stdout contains `szkrabok install-browser`     |
-| env wins — shows precedence      | `CHROMIUM_PATH=/bin/ls` | stdout contains `[PASS] env`, others `[SKIP]`  |
-| output is parseable              | any state               | each line matches `^\s\*\[(PASS                | FAIL | SKIP)\]` |
+| Test                             | Setup                   | Assert                                                                 |
+| -------------------------------- | ----------------------- | ---------------------------------------------------------------------- |
+| all fail — shows full chain      | no browser, no env      | stdout contains `[FAIL  ]` or `[ABSENT]` for each of 4 sources        |
+| all fail — shows install command | no browser              | stdout contains `szkrabok install-browser`                             |
+| env wins — shows precedence      | `CHROMIUM_PATH=/bin/ls` | stdout contains `[PASS  ] env`; lower candidates show their true state |
+| output is parseable              | any state               | each tag line matches `^\s*\[(PASS {2}\|FAIL {2}\|SKIP {2}\|ABSENT)\]` |
 
 **Tests (category 6 — install-browser integrity, 3 tests):**
 
@@ -988,7 +993,7 @@ leaves.
 - Distinguish "not provided" vs "invalid" in `doctor` output: the `reason`
   string already encodes this (`"not set"` / `"empty path"` = absent vs
   `"file not found"` / `"not executable"` = invalid). `doctor` uses the state
-  model (pass/fail/absent/skip/ignored), not string pattern matching.
+  model (pass/fail/absent/skip), not string pattern matching.
 
 **Stage 4 checklist:**
 
@@ -998,12 +1003,12 @@ leaves.
 - [x] `install-browser` prints system Chrome hint on success
 - [x] Doctor output — 7 tests pass (categories 7 + 7-additions)
 - [x] Install-browser integrity — 3 tests pass (1 static + 2 mock-npx)
-- [ ] `doctor` exit code contract corrected — currently exits 1 on check failures; must exit 0 (execution success). Add `--strict` flag for CI opt-in to failure exit code. See D1.
-- [ ] Fixed-width status tags — currently `[PASS]`, `[FAIL]`, `[ABSENT]` are variable width. Must be `[PASS  ]`, `[FAIL  ]`, `[ABSENT]`. See D2.
-- [ ] State model: `ignored` state (winner found, candidate not evaluated) must render as `[      ]`, not `[SKIP]`. `[SKIP]` is reserved for valid-but-lower-priority. See D4.
-- [ ] `CHROMIUM_PATH=''` must render as `[FAIL  ]` (invalid config), not `[ABSENT]`. See additional issue below.
-- [ ] CDP version check must use `chromium._revision` comparison, not source heuristic. See D3.
-- [ ] `doctor`, `session list`, `--version` exit 0 with no browser — `session list` and `--version` exit 0; `doctor` must also exit 0 (post D1 fix). Requires machine with no browser to fully verify I3.
+- [x] `doctor` exit code contract corrected — exits 0 by default; `--strict` exits 1 on failures. See D1 (resolved in Stage 6).
+- [x] Fixed-width status tags — `[PASS  ]`, `[FAIL  ]`, `[ABSENT]`, `[SKIP  ]`. See D2 (resolved in Stage 6).
+- [x] State model: remove `ignored`/`[      ]` — all candidates always evaluated; results always shown. See D4 (resolved in Stage 6).
+- [x] `CHROMIUM_PATH=''` renders `[FAIL  ]` (invalid config). See Additional (resolved in Stage 6).
+- [x] CDP version check uses major-version comparison via `PLAYWRIGHT_CHROMIUM_MAJOR` table. See D3 (resolved in Stage 6).
+- [x] `doctor`, `session list`, `--version` exit 0 with no browser. See D1 (resolved in Stage 6).
 
 ---
 
@@ -1058,7 +1063,7 @@ updated.
 - [x] `docs/development.md` updated — install-browser, CHROMIUM_PATH, postinstall chain, smoke-test description
 - [x] `findChromiumPath()` backward-compat wrapper delegates to `resolve.js` — Stage 2
 - [ ] Breaking change migration plan documented (major bump, release notes) — spec documents the plan; CHANGELOG/release notes entry not yet written
-- [ ] CLI control flow: `install-browser` uses `process.exitCode` side-effect pattern; must be replaced with return-based exit codes (`return 0` / `return 1`). `index.js` must be the single exit authority (`process.exit(await dispatch())`). See D5.
+- [x] CLI control flow: return-based exit codes; `index.js` is the single exit authority. See D5 (resolved in Stage 6).
 - [x] All existing tests pass — 238/242; 2 pre-existing failures in `devtools-port.test.js` (unrelated, existed before this branch)
 
 ---
@@ -1081,9 +1086,9 @@ Corrections to decisions made in stages 4–5. All items are self-contained.
 **Decisions:**
 
 - **D1** — `doctor` exit 0 = execution success; `--strict` = health failure → exit 1
-- **D2** — Fixed-width tags: `[PASS  ]`, `[FAIL  ]`, `[SKIP  ]`, `[ABSENT]`, `[      ]`
+- **D2** — Fixed-width tags: `[PASS  ]`, `[FAIL  ]`, `[SKIP  ]`, `[ABSENT]`
 - **D3** — CDP compatibility: read `playwright-core/package.json` version, map to expected Chromium major via static lookup table (`PLAYWRIGHT_CHROMIUM_MAJOR` in `doctor.js`), compare against major extracted from binary `--version`; `[warn]` on mismatch, `[note]` on any parse/mapping failure. No `_revision` probe.
-- **D4** — Explicit state model: pass / fail / absent / skip / ignored. `ignored` = `[      ]`
+- **D4** — Explicit state model: pass / fail / absent / skip. No `ignored` state. All candidates are always evaluated and results always shown. A broken system Chrome after a valid env override still shows `[FAIL  ]` — evaluation results are not suppressed by selection.
 - **D5** — Return-based exit codes; `index.js` is the single `process.exit()` authority
 - **Additional** — `CHROMIUM_PATH=''` maps to `fail`/`[FAIL  ]`, not `absent`
 
@@ -1097,9 +1102,9 @@ this is a configured-but-invalid value, not an absent one.
 
 - [x] D1: `doctor` exits 0 by default; exits 1 only on `--strict` or exception
 - [x] D1: `--strict` flag added; test that `--strict` exits 1 when checks fail
-- [x] D2: All status tags fixed-width (8 chars); test format regex `^\s*\[(PASS  |FAIL  |SKIP  |ABSENT|      )\]`
+- [x] D2: All status tags fixed-width (8 chars); test format regex `^\s*\[(PASS {2}|FAIL {2}|SKIP {2}|ABSENT)\]`
 - [x] D3: CDP check uses major-version comparison — read `playwright-core/package.json` version, map to expected Chromium major via `PLAYWRIGHT_CHROMIUM_MAJOR` table, extract major from binary `--version`, `[warn]` on mismatch, `[note]` on any parse/mapping failure; no `_revision` probe
-- [x] D4: `ignored` state renders as `[      ]`; `[SKIP  ]` reserved for valid-but-lower-priority
+- [x] D4: Remove `ignored`/`[      ]` state — all candidates always evaluated; results always shown. `[SKIP  ]` for valid-but-lower-priority; `[FAIL  ]`/`[ABSENT]` for broken/absent regardless of winner position. Updated `candidateState()`, doctor output, and resolve tests.
 - [x] D5: `install-browser` returns exit code; `index.js` calls `process.exit(await runCli() ?? 0)`
 - [x] Additional: `CHROMIUM_PATH=''` renders `[FAIL  ]` in doctor; test added
 
@@ -1134,10 +1139,10 @@ stage that must implement it.
 | resolveChromium eager validation           | ✅ RESOLVED — async discovery is centralized in `populateCandidates`; all callers use the same probe path                                                                                                                                                                                                                                              | Stage 2 ✅                                         | 2     |
 | Version compatibility                      | ✅ RESOLVED — `PLAYWRIGHT_CHROMIUM_MAJOR` lookup table in `doctor.js`; `getExpectedChromiumMajor(pwCoreVersion)` maps version → major; `extractChromiumMajor` parses binary `--version`; `[warn]` on mismatch, `[note]` on parse/mapping failure. No `_revision` probe.                                                 | Stage 6 ✅                                  | 4→6   |
 | Binary launchability                       | `Version:` line printed unconditionally after resolution. Full launchability test (open a tab) remains optional/future.                                                                                                                                                                                                                                | Outstanding (low priority)                         | 4     |
-| Absent vs invalid grouping                 | ✅ RESOLVED — `ABSENT_REASONS = new Set(['not set'])` only. `'empty path'` removed. `CHROMIUM_PATH=''` renders `[FAIL  ]`. Full state model: pass/fail/absent/skip/ignored with fixed-width tags.                                                                                                                                                                                             | Stage 6 ✅                                          | 4→6   |
+| Absent vs invalid grouping                 | ✅ RESOLVED — `ABSENT_REASONS = new Set(['not set'])` only. `'empty path'` removed. `CHROMIUM_PATH=''` renders `[FAIL  ]`. State model: pass/fail/absent/skip (no `ignored`).                                                                                                                                                                         | Stage 6 ✅                                          | 4→6   |
 | `doctor` not yet implemented               | ✅ RESOLVED — `doctor` uses `validateCandidate()` per entry for full diagnostics.                                                                                                                                                                                                                                                                       | Stage 4 ✅                                         | 4     |
 | `doctor` exit code                         | ✅ RESOLVED — exits 0 by default (execution success). `--strict` flag exits 1 when checks fail. See D1.                                                                                                                                                                                                        | Stage 6 (D1)                                       | 4→6   |
-| `doctor` tag fixed-width + state model     | ✅ RESOLVED — fixed-width 8-char tags. `candidateState()` returns pass/fail/absent/skip/ignored. `[SKIP  ]` for valid-but-lower-priority; `[      ]` for not-evaluated-irrelevant. See D2, D4.                                                                                             | Stage 6 (D2, D4)                                   | 4→6   |
+| `doctor` tag fixed-width + state model     | ✅ RESOLVED — fixed-width 8-char tags (D2). `candidateState()` returns pass/fail/absent/skip only — `ignored` state removed (D4). All candidates always evaluated; post-winner broken/absent render as `[FAIL  ]`/`[ABSENT]`, never suppressed.                                                                | Stage 6 ✅                                          | 4→6   |
 | CLI control flow (`process.exitCode`)      | ✅ RESOLVED — `install-browser` calls `ctx.setExitCode()`; `runCli()` returns `_exitCode`; `index.js` does `process.exit(await runCli() ?? 0)`. Single exit authority. See D5.                                                                                                                     | Stage 6 (D5)                                       | 5→6   |
 | Binary name hardcoded in error             | `'szkrabok install-browser'` still hardcoded in `BrowserNotFoundError.formatMessage()`. Not fixed — acceptable for now since package name is stable.                                                                                                                                                                                                   | Outstanding (low priority)                         | 4-5   |
 | Windows path normalization                 | Test added and guarded by `process.platform !== 'win32'` skip. Verification on Windows CI still needed before shipping to Windows users.                                                                                                                                                                                                               | Stage 5 (test guarded, CI verification deferred)   | 5     |

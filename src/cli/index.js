@@ -7,8 +7,6 @@ import { register as registerInit } from './commands/init.js';
 import { register as registerSession } from './commands/session.js';
 import { register as registerOpen } from './commands/open.js';
 import { register as registerEndpoint } from './commands/endpoint.js';
-import { register as registerDetectBrowser } from './commands/detect-browser.js';
-import { register as registerInstallBrowser } from './commands/install-browser.js';
 import { register as registerDoctor } from './commands/doctor.js';
 
 /* ---------- shared helpers ---------- */
@@ -63,8 +61,6 @@ registerInit(program, ctx);
 registerSession(program, ctx);
 registerOpen(program, ctx);
 registerEndpoint(program, ctx);
-registerDetectBrowser(program, ctx);
-registerInstallBrowser(program, ctx);
 registerDoctor(program, ctx);
 
 export async function runCli() {

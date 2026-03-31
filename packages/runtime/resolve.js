@@ -4,6 +4,7 @@
 // Production callers use buildCandidates() to construct the real candidate array.
 
 import { statSync, accessSync, constants } from 'fs';
+import { spawnSync } from 'node:child_process';
 
 // ── Validation ─────────────────────────────────────────────────────────────────
 
@@ -109,6 +110,25 @@ export const buildCandidates = (config = {}) => {
 // ── Async discovery ────────────────────────────────────────────────────────────
 
 /**
+ * Test whether a path is a functional browser binary (not a snap wrapper stub).
+ *
+ * Probe: run `path --version` and check for exit 0 + non-empty stdout.
+ * Scope: filters obvious stubs (shell scripts that exit 1, snap wrappers that
+ * print nothing). Does NOT guarantee Playwright/CDP compatibility.
+ *
+ * @param {string} path
+ * @returns {boolean}
+ */
+export const isFunctionalBrowser = (path) => {
+  const r = spawnSync(path, ['--version'], {
+    timeout: 5000,
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  return r.status === 0 && r.stdout.trim().length > 0;
+};
+
+/**
  * Populate null system/playwright candidates via async probes.
  * Mutates candidates in-place. Only probes sources that are still null.
  * Short-circuits: if a higher-priority candidate already has a path, lower ones
@@ -123,7 +143,9 @@ export const populateCandidates = async (candidates) => {
       try {
         const { Launcher } = await import('chrome-launcher');
         const installs = await Launcher.getInstallations();
-        if (installs.length > 0) c.path = installs[0];
+        for (const path of installs) {
+          if (isFunctionalBrowser(path)) { c.path = path; break; }
+        }
       } catch {
         // chrome-launcher unavailable
       }
