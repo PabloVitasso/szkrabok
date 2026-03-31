@@ -85,7 +85,7 @@ packages/runtime/
       schema-to-jsdoc.js       pure: (inputSchema) -> JSDoc type strings
 
 src/
-  index.js          MCP entry point, stdio transport
+  index.js          MCP entry point, stdio transport; routes non-'--' first args to CLI (Commander handles unknown commands)
                     Always writes fatal startup errors to ~/.cache/szkrabok/startup.log
   config.js         Re-exports initConfig/getConfig from @szkrabok/runtime; DEFAULT_TIMEOUT constant
   attach-signal.js  writeAttachSignal(path) — best-effort atomic tmp→rename, fail-fast, no-op on falsy

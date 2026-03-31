@@ -84,8 +84,8 @@ describe('checkBrowser smoke (real system)', () => {
     const result = await checkBrowser().catch(e => e);
     if (result instanceof BrowserNotFoundError) {
       assert.ok(
-        result.message.includes('szkrabok install-browser'),
-        `expected install-browser hint:\n${result.message}`
+        result.message.includes('szkrabok doctor install'),
+        `expected doctor install hint:\n${result.message}`
       );
       if (result.candidates) {
         assert.ok(Array.isArray(result.candidates), 'candidates must be array');

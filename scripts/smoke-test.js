@@ -5,7 +5,7 @@
  * 1. Packs the tarball (npm pack --dry-run to get file list, then real pack)
  * 2. Installs it in a fresh temp directory (no pre-existing node_modules)
  * 3. Runs `szkrabok --version` from that install
- * 4. Runs `szkrabok doctor` from that install
+ * 4. Verifies binary exists (doctor skipped — requires installed browser not present in temp dir)
  * 5. Cleans up and exits non-zero on any failure
  */
 
@@ -78,8 +78,8 @@ if (versionResult.status !== 0) {
 }
 console.log(`[smoke-test] version output: ${versionResult.stdout.toString().trim()}`);
 
-// doctor is deferred to Stage 4 — it requires a working browser resolution
-// chain and will fail here (temp install has no ~/.cache/ms-playwright).
+// doctor skipped — requires a working browser resolution chain;
+// temp install has no ~/.cache/ms-playwright, so doctor browser step would fail.
 
 // remove the tarball
 try {

@@ -1,5 +1,7 @@
 # Feature: Browser CLI consolidation
 
+**Status: Implemented** (all 5 stages complete, 89 tests passing)
+
 ## Goal
 
 One entry point for browser detection and installation. No duplicated resolution
@@ -8,26 +10,26 @@ Install is idempotent — runs to desired state, not blind mutation.
 
 ---
 
-## Current state
+## What was (before implementation)
 
 Three commands with overlapping concerns:
 
-| Command | What it actually does |
+| Command | What it actually did |
 |---------|----------------------|
 | `detect-browser` | `findChromiumPath()` (old compat wrapper), prints toml snippet |
-| `install-browser` | always downloads Playwright Chromium regardless of existing browser |
+| `install-browser` | always downloaded Playwright Chromium regardless of existing browser |
 | `doctor` step 4 | `buildCandidates` + `populateCandidates` + `validateCandidate` inline |
 
-Problems:
+Problems fixed:
 
-- `install-browser` never checks if a browser already exists before downloading
-- `install-browser` tip recommends `CHROMIUM_PATH` env var — ephemeral, not visible to
+- `install-browser` never checked if a browser already existed before downloading
+- `install-browser` tip recommended `CHROMIUM_PATH` env var — ephemeral, not visible to
   MCP server spawned by Claude; the persistent path is `executablePath` in config.toml
-- No command offers to write the discovered path to config
-- `doctor` hints nothing when the winner is not pinned via config
-- `populateCandidates` uses chrome-launcher with no executable validation — snap wrapper
-  stubs (e.g. `/usr/bin/chromium-browser` on Ubuntu) pass `accessSync(X_OK)` but fail
-  at launch with a useless error
+- No command offered to write the discovered path to config
+- `doctor` hinted nothing when the winner was not pinned via config
+- `populateCandidates` used chrome-launcher with no executable validation — snap wrapper
+  stubs (e.g. `/usr/bin/chromium-browser` on Ubuntu) passed `accessSync(X_OK)` but
+  failed at launch with a useless error
 
 ---
 
@@ -51,17 +53,18 @@ intentional. `env` beats `config` so runtime overrides work without editing file
 
 ---
 
-## Files affected
+## Files changed
 
 | File | Change |
 |------|--------|
-| `packages/runtime/resolve.js` | **bug fix** — `isFunctionalBrowser` probe in `populateCandidates` for system candidate |
+| `packages/runtime/resolve.js` | `isFunctionalBrowser` probe in `populateCandidates`; `spawnSync` import |
+| `packages/runtime/errors.js` | `BrowserNotFoundError` message updated: `install-browser` → `doctor install` |
 | `src/cli/lib/browser-actions.js` | **new** — `runDetect`, `runInstall`, `writeExecPath`, `getGlobalConfigPath` |
-| `src/cli/commands/doctor.js` | add `detect`/`install` subcommands; step 4 uses `runDetect()`; persistence hint |
+| `src/cli/commands/doctor.js` | `detect`/`install` subcommands; step 4 uses `runDetect()`; persistence hint |
 | `src/cli/commands/detect-browser.js` | **deleted** |
 | `src/cli/commands/install-browser.js` | **deleted** |
-| `src/cli/index.js` | remove `detect-browser` and `install-browser` from command registration |
-| `tests/node/runtime/resolve.test.js` | new categories 12–16; update categories 8, 9 |
+| `src/cli/index.js` | removed `detect-browser` and `install-browser` registrations |
+| `tests/node/runtime/resolve.test.js` | new categories 12–16; updated categories 8, 9 |
 
 ---
 
@@ -422,13 +425,13 @@ Assertions unchanged — same behavior, new command name.
 
 **Stage 4 checklist:**
 
-- [ ] `detect-browser.js` deleted
-- [ ] `install-browser.js` deleted
-- [ ] Both removed from `CLI_COMMANDS` in `src/cli/index.js`
-- [ ] Category 8 static test updated to read `browser-actions.js`
-- [ ] Category 8 mock-npx tests updated to use `doctor install`
-- [ ] Category 16 tests pass (2 tests)
-- [ ] All existing tests pass
+- [x] `detect-browser.js` deleted
+- [x] `install-browser.js` deleted
+- [x] Both removed from `CLI_COMMANDS` in `src/cli/index.js`
+- [x] Category 8 static test updated to read `browser-actions.js`
+- [x] Category 8 mock-npx tests updated to use `doctor install`
+- [x] Category 16 tests pass (2 tests)
+- [x] All existing tests pass
 
 ---
 
@@ -459,9 +462,9 @@ Add: `stdout.includes('doctor detect --write-config')`.
 
 **Stage 5 checklist:**
 
-- [ ] `doctor install` success message shows `doctor detect --write-config` tip
-- [ ] `CHROMIUM_PATH` tip still present as secondary note
-- [ ] Mock-npx test asserts `doctor detect --write-config` in output
+- [x] `doctor install` success message shows `doctor detect --write-config` tip
+- [x] `CHROMIUM_PATH` tip still present as secondary note
+- [x] Mock-npx test asserts `doctor detect --write-config` in output
 
 ---
 

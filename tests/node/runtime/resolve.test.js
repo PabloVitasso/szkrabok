@@ -10,11 +10,15 @@
  * Category 5:  findChromiumPath backward compat (2 tests)
  * Category 6:  install-time invariant — postinstall no browser download (3 tests)
  * Category 7:  doctor CLI output (7 tests)
- * Category 8:  install-browser integrity (3 tests)
+ * Category 8:  browser-actions integrity + mock-npx integration (3 tests)
  * Category 9:  MCP tool / BrowserNotFoundError serialization (4 tests)
  * Category 10: cross-platform path handling (3 tests)
  * Category 11: Stage 6 — D1 exit codes, D2/D4 tag format, D3 CDP check, CHROMIUM_PATH=''
  * Category 12: snap wrapper fix — isFunctionalBrowser probe (3 tests)
+ * Category 13: browser-actions unit tests (9 tests)
+ * Category 14: doctor detect CLI (5 tests)
+ * Category 15: doctor install CLI (4 tests)
+ * Category 16: removed commands rejected (2 tests)
  */
 
 import { test, describe } from 'node:test';
@@ -366,7 +370,7 @@ describe('checkBrowser + error contract', () => {
     const err = new BrowserNotFoundError(
       'Chromium not found.\n\n' +
         'Options (choose one):\n' +
-        '  1. szkrabok install-browser\n' +
+        '  1. szkrabok doctor install\n' +
         '  2. export CHROMIUM_PATH=/usr/bin/google-chrome\n' +
         '  3. Set executablePath in szkrabok.config.toml\n\n' +
         'Candidates checked:\n' +
@@ -377,7 +381,7 @@ describe('checkBrowser + error contract', () => {
     assert.ok(err instanceof BrowserNotFoundError);
     assert.ok(Array.isArray(err.candidates));
     assert.strictEqual(err.candidates.length, 4);
-    assert.ok(err.message.includes('szkrabok install-browser'));
+    assert.ok(err.message.includes('szkrabok doctor install'));
     assert.ok(err.message.includes('CHROMIUM_PATH'));
     assert.ok(err.message.includes('executablePath'));
   });
@@ -560,9 +564,9 @@ describe('doctor CLI output', () => {
   });
 });
 
-// ── Category 8: install-browser integrity (static) ────────────────────────────
+// ── Category 8: browser-actions integrity (static) ────────────────────────────
 //
-// Verifies install-browser.js uses the resolution chain for post-install check.
+// Verifies browser-actions.js uses the resolution chain for detection/install.
 
 describe('browser-actions integrity (static)', () => {
   test('browser-actions.js imports from #runtime — no hardcoded path logic', async () => {
@@ -678,11 +682,11 @@ describe('doctor CLI output — ABSENT tag and version warning', () => {
   });
 });
 
-// ── Category 8 additions — install-browser (mock npx) ─────────────────────────
+// ── Category 8 additions — doctor install (mock npx) ──────────────────────────
 //
 // Uses a fake `npx` script on PATH to avoid a real ~200 MB download.
 // Success path: fake npx exits 0, resolution runs against real installed browsers.
-// Failure path: fake npx exits 2, install-browser must surface error + exit non-zero.
+// Failure path: fake npx exits 2, doctor install must surface error + exit non-zero.
 
 describe('doctor install: mock-npx integration', () => {
   const CLI = join(REPO_ROOT, 'src', 'index.js');
@@ -793,7 +797,7 @@ describe('BrowserNotFoundError serialization and MCP error contract', () => {
     const err = new BrowserNotFoundError(undefined, { candidates: [] });
     const serialized = JSON.parse(JSON.stringify(err));
     assert.ok(
-      serialized.message && serialized.message.includes('szkrabok install-browser'),
+      serialized.message && serialized.message.includes('szkrabok doctor install'),
       `JSON.stringify must preserve message with install instructions:\n${JSON.stringify(serialized)}`
     );
     assert.strictEqual(serialized.code, 'BROWSER_NOT_FOUND');

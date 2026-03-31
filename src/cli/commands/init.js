@@ -17,7 +17,7 @@ export function register(program, { safe }) {
         if (result.skipped.length) console.error(`Skipped: ${result.skipped.join(', ')}`);
         for (const w of result.warnings) console.error(`Warning: ${w}`);
 
-        console.error('Done. Run "szkrabok install-browser" if Chromium is not installed.');
+        console.error('Done. Run "szkrabok doctor install" if Chromium is not installed.');
       })
     );
 }

@@ -4,12 +4,14 @@ import { mkdirSync, appendFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { szkrabokCacheDir } from './utils/platform.js';
 
-const CLI_COMMANDS = new Set(['session', 'open', 'endpoint', 'detect-browser', 'install-browser', 'init', 'doctor']);
 const args = process.argv.slice(2);
 const firstArg = args[0];
 
 // --- CLI mode ---
-if (firstArg && (CLI_COMMANDS.has(firstArg) || firstArg === '--setup' || firstArg === '--help' || firstArg === '-h' || firstArg === '--version' || firstArg === '-V')) {
+// Route to CLI if the first arg is a subcommand name (not a '--' flag) or a help/version flag.
+// Unknown subcommand names are handled by Commander with a proper error message.
+// Server-mode flags (--no-headless, --headful, etc.) stay in server mode.
+if (firstArg && (!firstArg.startsWith('--') || firstArg === '--help' || firstArg === '-h' || firstArg === '--version' || firstArg === '-V')) {
   const { runCli } = await import('./cli/index.js');
   const exitCode = await runCli();
   process.exit(exitCode ?? 0);

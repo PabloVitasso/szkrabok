@@ -23,7 +23,7 @@ const SERVER_PATH = join(REPO_ROOT, 'src/index.js');
 // Resolve the working browser path on this machine so isolated subprocesses can launch.
 initConfig([]);
 const EXECUTABLE_PATH = await findChromiumPath();
-if (!EXECUTABLE_PATH) throw new Error('config-mcp-roots.spec.js: no browser found — run szkrabok install-browser');
+if (!EXECUTABLE_PATH) throw new Error('config-mcp-roots.spec.js: no browser found — run szkrabok doctor install');
 
 const tmpDirs = [];
 

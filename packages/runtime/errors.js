@@ -40,7 +40,7 @@ export class BrowserNotFoundError extends Error {
     return (
       'Chromium not found.\n\n' +
       'Options (choose one):\n' +
-      '  1. szkrabok install-browser\n' +
+      '  1. szkrabok doctor install\n' +
       '  2. export CHROMIUM_PATH=/usr/bin/google-chrome\n' +
       '  3. Set executablePath in szkrabok.config.toml\n\n' +
       'Candidates checked:\n' +

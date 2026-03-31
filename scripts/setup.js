@@ -11,7 +11,7 @@ const setup = async () => {
     }
   }
 
-  console.log('szkrabok installed. No browser found? Run: szkrabok install-browser')
+  console.log('szkrabok installed. No browser found? Run: szkrabok doctor install')
 }
 
 setup().catch(console.error)

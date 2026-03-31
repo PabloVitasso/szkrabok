@@ -281,7 +281,7 @@ CLI format this into user-facing instructions.
 throw new BrowserNotFoundError(
   'Chromium not found.\n\n' +
     'Options (choose one):\n' +
-    '  1. szkrabok install-browser\n' +
+    '  1. szkrabok doctor install\n' +
     '  2. export CHROMIUM_PATH=/usr/bin/google-chrome\n' +
     '  3. Set executablePath in szkrabok.config.toml\n\n' +
     'Candidates checked:\n' +
@@ -469,10 +469,10 @@ This is a breaking change for users who rely on auto-install in postinstall.
 1. **Major version bump** (2.0.0) — semver signals breaking change
 2. **Runtime warning in 1.x final release** — if browser not found, print
    deprecation notice: "Starting with v2.0, Chromium is no longer auto-installed.
-   Run `szkrabok install-browser` to install."
+   Run `szkrabok doctor install` to install."
 3. **Release notes** — explicit migration steps for each deployment type:
-   - `npx` users: run `szkrabok install-browser` once (cached globally)
-   - CI: add `szkrabok install-browser` before MCP server start
+   - `npx` users: run `szkrabok doctor install` once (cached globally)
+   - CI: add `szkrabok doctor install` before MCP server start
    - Docker: add `RUN npx playwright install chromium` to Dockerfile
 
 ### CI impact
@@ -480,7 +480,7 @@ This is a breaking change for users who rely on auto-install in postinstall.
 CI pipelines that previously relied on postinstall auto-install must add:
 
 ```yaml
-- run: npx @pablovitasso/szkrabok install-browser
+- run: npx @pablovitasso/szkrabok doctor install
 ```
 
 Or use system Chrome, or pin via `--write-config`:
@@ -500,20 +500,20 @@ szkrabok doctor detect --write-config   # discover + persist in one step
 
 ### Partial install detection
 
-After `install-browser` runs, `resolveChromium()` validates the result. A
+After `doctor install` runs, `resolveChromium()` validates the result. A
 partial download (network failure mid-transfer) will fail the exists/file/
 executable checks and produce a clear failure reason.
 
 ### No automatic retry
 
 Retry logic is the user's responsibility. `doctor` diagnoses the failure.
-`install-browser` is idempotent (re-running is safe).
+`doctor install` is idempotent (re-running is safe; skips if browser already found).
 
 ### Corruption scenario
 
 If Playwright's cache is partially corrupted, `resolveChromium()` reports the
 validation failure. Fix: `rm -rf ~/.cache/ms-playwright/chromium-*` then
-`szkrabok install-browser`.
+`szkrabok doctor install`.
 
 ---
 
@@ -637,7 +637,7 @@ Tests `BrowserNotFoundError` and `checkBrowser()` behavior.
 | error type is correct            | all candidates fail    | `err instanceof BrowserNotFoundError`             |
 | error carries candidates         | all candidates fail    | `err.candidates` is array with 4 entries          |
 | each candidate has reason        | all candidates fail    | every entry has `{ source, ok: false, reason }`   |
-| message contains install command | all candidates fail    | `err.message` includes `szkrabok install-browser` |
+| message contains install command | all candidates fail    | `err.message` includes `szkrabok doctor install` |
 | message contains env var option  | all candidates fail    | `err.message` includes `CHROMIUM_PATH`            |
 | message contains config option   | all candidates fail    | `err.message` includes `executablePath`           |
 | message is deterministic         | run twice              | `err.message === err2.message` (snapshot-stable)  |
@@ -667,7 +667,7 @@ subprocess with controlled env (no browser available).
 | Test                             | Setup                   | Assert                                         |
 | -------------------------------- | ----------------------- | ---------------------------------------------- | ---- | -------- |
 | all fail — shows full chain      | no browser, no env      | stdout contains `[FAIL  ]` or `[ABSENT]` for each of 4 sources        |
-| all fail — shows install command | no browser              | stdout contains `szkrabok install-browser`                             |
+| all fail — shows install command | no browser              | stdout contains `szkrabok doctor install`                              |
 | env wins — shows precedence      | `CHROMIUM_PATH=/bin/ls` | stdout contains `[PASS  ] env`; lower candidates show their true state |
 | output is parseable              | any state               | each tag line matches `^\s*\[(PASS {2}\|FAIL {2}\|SKIP {2}\|ABSENT)\]` |
 
@@ -855,7 +855,7 @@ for the failure path, and `checkBrowser` for the success path.
 | error type is correct                           | `BrowserNotFoundError` ctor | `instanceof Error && instanceof BrowserNotFoundError` |
 | error carries candidates                        | `BrowserNotFoundError` ctor | `candidates` is array with 4 entries                  |
 | each candidate has { source, ok, reason, path } | resolveChromium all-null    | all 4 fields present per candidate                    |
-| message contains install command                | `BrowserNotFoundError` ctor | `err.message.includes('szkrabok install-browser')`    |
+| message contains install command                | `BrowserNotFoundError` ctor | `err.message.includes('szkrabok doctor install')`     |
 | message contains CHROMIUM_PATH                  | `BrowserNotFoundError` ctor | `err.message.includes('CHROMIUM_PATH')`               |
 | message contains executablePath                 | `BrowserNotFoundError` ctor | `err.message.includes('executablePath')`              |
 | message is deterministic                        | construct twice             | `err1.message === err2.message`                       |
@@ -925,7 +925,7 @@ for the failure path, and `checkBrowser` for the success path.
 - `checkBrowser` calls `getConfig()` with try/catch fallback to `{}` — uninitialized
   config (e.g., in tests) falls back gracefully without throwing
 - `checkBrowser` calls `await populateCandidates(candidates)` after `buildCandidates`,
-  before `resolveChromium` — users who ran `szkrabok install-browser` are resolved
+  before `resolveChromium` — users who ran `szkrabok doctor install` are resolved
   correctly even without `CHROMIUM_PATH` or `executablePath` in TOML
 - `launch()`, `launchClone()`, `cloneFromLive()` all capture `executablePath` from
   `checkBrowser()` and pass it explicitly to `_launchPersistentContext` — no
@@ -984,7 +984,7 @@ leaves.
 | File                                  | Action                                       |
 | ------------------------------------- | -------------------------------------------- |
 | `src/cli/commands/doctor.js`          | Full candidate chain output with pass/fail   |
-| `src/cli/commands/install-browser.js` | Install integrity check + system Chrome hint |
+| `src/cli/commands/install-browser.js` | Install integrity check + system Chrome hint (later deleted in Stage 6 — replaced by `doctor install`) |
 | `tests/node/runtime/resolve.test.js`  | Add categories 5-6                           |
 
 **Tests (category 5 — doctor output, 4 tests):**
@@ -992,7 +992,7 @@ leaves.
 | Test                             | Setup                   | Assert                                                                 |
 | -------------------------------- | ----------------------- | ---------------------------------------------------------------------- |
 | all fail — shows full chain      | no browser, no env      | stdout contains `[FAIL  ]` or `[ABSENT]` for each of 4 sources        |
-| all fail — shows install command | no browser              | stdout contains `szkrabok install-browser`                             |
+| all fail — shows install command | no browser              | stdout contains `szkrabok doctor install`                              |
 | env wins — shows precedence      | `CHROMIUM_PATH=/bin/ls` | stdout contains `[PASS  ] env`; lower candidates show their true state |
 | output is parseable              | any state               | each tag line matches `^\s*\[(PASS {2}\|FAIL {2}\|SKIP {2}\|ABSENT)\]` |
 
@@ -1025,8 +1025,8 @@ leaves.
 
 - [x] `doctor` prints full candidate chain with pass/fail per entry
 - [x] `doctor` warns on non-Playwright binary version mismatch — `[warn] CDP compatibility` + `Version:` line after resolution
-- [x] `install-browser` validates result after download, prints integrity status
-- [x] `install-browser` prints system Chrome hint on success
+- [x] `install-browser` validates result after download, prints integrity status (Stage 4; command later replaced by `doctor install` in Stage 6)
+- [x] `install-browser` prints system Chrome hint on success (Stage 4; tip updated to `doctor detect --write-config` in Stage 6)
 - [x] Doctor output — 7 tests pass (categories 7 + 7-additions)
 - [x] Install-browser integrity — 3 tests pass (1 static + 2 mock-npx)
 - [x] `doctor` exit code contract corrected — exits 0 by default; `--strict` exits 1 on failures. See D1 (resolved in Stage 6).
@@ -1086,7 +1086,7 @@ updated.
 - [x] `session_manage open` with no browser returns actionable error with 3 options — `BrowserNotFoundError` propagates through `handleToolCall`, `isError: true`, message contains install instructions
 - [x] MCP tool — 4 tests pass (category 9: code, toJSON, JSON.stringify, resolve.js static)
 - [x] Cross-platform — 2 pass + 1 skipped (Windows backslash test guarded by `process.platform !== 'win32'`)
-- [x] `docs/development.md` updated — install-browser, CHROMIUM_PATH, postinstall chain, smoke-test description
+- [x] `docs/development.md` updated — doctor install/detect, CHROMIUM_PATH, postinstall chain, smoke-test description
 - [x] `findChromiumPath()` backward-compat wrapper delegates to `resolve.js` — Stage 2
 - [ ] Breaking change migration plan documented (major bump, release notes) — spec documents the plan; CHANGELOG/release notes entry not yet written
 - [x] CLI control flow: return-based exit codes; `index.js` is the single exit authority. See D5 (resolved in Stage 6).
@@ -1133,7 +1133,7 @@ this is a configured-but-invalid value, not an absent one.
 - [x] D2: All status tags fixed-width (8 chars); test format regex `^\s*\[(PASS {2}|FAIL {2}|SKIP {2}|ABSENT)\]`
 - [x] D3: CDP check uses major-version comparison — read `playwright-core/package.json` version, map to expected Chromium major via `PLAYWRIGHT_CHROMIUM_MAJOR` table, extract major from binary `--version`, `[warn]` on mismatch, `[note]` on any parse/mapping failure; no `_revision` probe
 - [x] D4: Remove `ignored`/`[      ]` state — all candidates always evaluated; results always shown. `[SKIP  ]` for valid-but-lower-priority; `[FAIL  ]`/`[ABSENT]` for broken/absent regardless of winner position. Updated `candidateState()`, doctor output, and resolve tests.
-- [x] D5: `install-browser` returns exit code; `index.js` calls `process.exit(await runCli() ?? 0)`
+- [x] D5: `doctor install` returns exit code via `runInstall()`; `index.js` calls `process.exit(await runCli() ?? 0)`
 - [x] Additional: `CHROMIUM_PATH=''` renders `[FAIL  ]` in doctor; test added
 
 ---
@@ -1172,7 +1172,7 @@ stage that must implement it.
 | `doctor` exit code                         | ✅ RESOLVED — exits 0 by default (execution success). `--strict` flag exits 1 when checks fail. See D1.                                                                                                                                                                                                        | Stage 6 (D1)                                       | 4→6   |
 | `doctor` tag fixed-width + state model     | ✅ RESOLVED — fixed-width 8-char tags (D2). `candidateState()` returns pass/fail/absent/skip only — `ignored` state removed (D4). All candidates always evaluated; post-winner broken/absent render as `[FAIL  ]`/`[ABSENT]`, never suppressed.                                                                | Stage 6 ✅                                          | 4→6   |
 | CLI control flow (`process.exitCode`)      | ✅ RESOLVED — `doctor install` returns exit code via `runInstall()`; `runCli()` returns `_exitCode`; `index.js` does `process.exit(await runCli() ?? 0)`. Single exit authority. `detect-browser` and `install-browser` deleted. See D5.                                                                                                                    | Stage 6 (D5) ✅                                     | 5→6   |
-| Binary name hardcoded in error             | `'szkrabok install-browser'` still hardcoded in `BrowserNotFoundError.formatMessage()`. Not fixed — acceptable for now since package name is stable.                                                                                                                                                                                                   | Outstanding (low priority)                         | 4-5   |
+| Binary name hardcoded in error             | ✅ RESOLVED — `BrowserNotFoundError.formatMessage()` updated: `'szkrabok install-browser'` → `'szkrabok doctor install'`. `errors.js` and all test assertions updated.                                                                                                                                                                                | Stage 6 ✅ (CLI consolidation)                    | 4-6   |
 | `install-browser` command removed           | `detect-browser` + `install-browser` commands deleted; replaced by `doctor detect [--write-config]` and `doctor install [--force]`. `browser-actions.js` added. Tests verify removed commands exit non-zero.                                                                                                                                                        | Stage 6 ✅ (CLI consolidation)                    | 6     |
 | Windows path normalization                 | Test added and guarded by `process.platform !== 'win32'` skip. Verification on Windows CI still needed before shipping to Windows users.                                                                                                                                                                                                               | Stage 5 (test guarded, CI verification deferred)   | 5     |
 | Relative path in config                    | `config.executablePath` resolved relative to `cwd()`. Not fixed — deferred. Low priority; absolute paths are recommended in docs.                                                                                                                                                                                                                      | Outstanding (low priority)                         | 5     |
