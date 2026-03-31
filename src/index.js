@@ -11,8 +11,8 @@ const firstArg = args[0];
 // --- CLI mode ---
 if (firstArg && (CLI_COMMANDS.has(firstArg) || firstArg === '--setup' || firstArg === '--help' || firstArg === '-h' || firstArg === '--version' || firstArg === '-V')) {
   const { runCli } = await import('./cli/index.js');
-  await runCli();
-  process.exit(0);
+  const exitCode = await runCli();
+  process.exit(exitCode ?? 0);
 }
 
 // --- MCP server mode ---

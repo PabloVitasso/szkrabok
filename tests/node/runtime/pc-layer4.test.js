@@ -14,7 +14,7 @@
  * Run: node --test tests/node/runtime/pc-layer4.test.js
  */
 
-import { test, describe, before, after, afterEach } from 'node:test';
+import { test, describe, before, after, afterEach, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtemp, rm, mkdir, writeFile } from 'fs/promises';
 import { existsSync } from 'fs';
@@ -329,6 +329,8 @@ describe('PC-4 launchClone — GC on launch', () => {
   beforeEach(async () => {
     const launch = await import('../../../packages/runtime/launch.js');
     launch._resetGcForTesting();
+    const storage = await import('../../../packages/runtime/storage.js');
+    storage._resetCleanupCooldown();
   });
 
   test('PC-4.10: stale clone dir from dead process is cleaned up during launchClone', async () => {

@@ -54,7 +54,10 @@ const { version } = _require(resolve(dirname(fileURLToPath(import.meta.url)), '.
 
 program.name('szkrabok').description('szkrabok CLI').version(version);
 
-const ctx = { safe, attachShutdown, getRuntime };
+let _exitCode = 0;
+const setExitCode = (code) => { _exitCode = code; };
+
+const ctx = { safe, attachShutdown, getRuntime, setExitCode };
 
 registerInit(program, ctx);
 registerSession(program, ctx);
@@ -66,4 +69,5 @@ registerDoctor(program, ctx);
 
 export async function runCli() {
   await program.parseAsync(process.argv);
+  return _exitCode;
 }

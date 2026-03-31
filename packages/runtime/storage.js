@@ -286,6 +286,8 @@ export const rmWithRetry = async (dir, { timeoutMs = RM_RETRY_TIMEOUT_MS } = {})
 let _lastCleanupAt = 0;
 const GC_COOLDOWN_MS = 60_000;
 
+export const _resetCleanupCooldown = () => { _lastCleanupAt = 0; };
+
 export const cleanupClones = async () => {
   const now = Date.now();
   if (now - _lastCleanupAt < GC_COOLDOWN_MS) return;

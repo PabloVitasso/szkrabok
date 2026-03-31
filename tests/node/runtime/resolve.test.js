@@ -1,23 +1,29 @@
 /**
- * Browser resolution tests — Stage 1 + Stage 2 + Stage 3
+ * Browser resolution tests — Stage 1 + Stage 2 + Stage 3 + Stage 4 + Stage 5 + Stage 6
  *
  * Run: node --test tests/node/runtime/resolve.test.js
  *
- * Category 1: validateCandidate() — false-positive prevention (11 tests)
- * Category 2: resolveChromium() — priority matrix (8 tests)
- * Category 3: buildCandidates() — discovery shape (4 tests)
- * Category 4: checkBrowser() + error contract (7 tests)
- * Category 5: findChromiumPath backward compat (2 tests)
- * Category 6: install-time invariant — postinstall no browser download (3 tests)
+ * Category 1:  validateCandidate() — false-positive prevention (11 tests)
+ * Category 2:  resolveChromium() — priority matrix (8 tests)
+ * Category 3:  buildCandidates() — discovery shape (4 tests)
+ * Category 4:  checkBrowser() + error contract (7 tests)
+ * Category 5:  findChromiumPath backward compat (2 tests)
+ * Category 6:  install-time invariant — postinstall no browser download (3 tests)
+ * Category 7:  doctor CLI output (7 tests)
+ * Category 8:  install-browser integrity (3 tests)
+ * Category 9:  MCP tool / BrowserNotFoundError serialization (4 tests)
+ * Category 10: cross-platform path handling (3 tests)
+ * Category 11: Stage 6 — D1 exit codes, D2/D4 tag format, D3 CDP check, CHROMIUM_PATH=''
  */
 
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { writeFileSync, mkdirSync, rmSync, chmodSync, symlinkSync, existsSync } from 'fs';
+import { writeFileSync, mkdirSync, mkdtempSync, rmSync, chmodSync, symlinkSync, existsSync } from 'fs';
 import { readFile } from 'fs/promises';
 import { tmpdir } from 'os';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import { spawnSync } from 'node:child_process';
 import {
   validateCandidate,
   resolveChromium,
@@ -456,5 +462,604 @@ describe('install-time: no browser download in postinstall', () => {
       existsSync(join(REPO_ROOT, 'scripts', 'postinstall.js')),
       'scripts/postinstall.js must exist for manual use'
     );
+  });
+});
+
+// ── Category 7: doctor CLI output ─────────────────────────────────────────────
+//
+// Spawns `node src/index.js doctor` as a subprocess with controlled env.
+
+describe('doctor CLI output', () => {
+  const CLI = join(REPO_ROOT, 'src', 'index.js');
+
+  test('env wins — [PASS  ] env shown, lower-priority candidates shown', () => {
+    const result = spawnSync(
+      process.execPath,
+      [CLI, 'doctor'],
+      {
+        env: { ...process.env, CHROMIUM_PATH: '/bin/ls' },
+        encoding: 'utf8',
+        timeout: 10000,
+      }
+    );
+    const out = result.stdout + result.stderr;
+    assert.ok(
+      out.includes('[PASS  ] env'),
+      `expected "[PASS  ] env" in output:\n${out}`
+    );
+  });
+
+  test('output lines with browser tags are fixed-width — [(PASS  |FAIL  |SKIP  |ABSENT|      )]', () => {
+    const result = spawnSync(
+      process.execPath,
+      [CLI, 'doctor'],
+      {
+        env: { ...process.env, CHROMIUM_PATH: '/bin/ls' },
+        encoding: 'utf8',
+        timeout: 10000,
+      }
+    );
+    const out = result.stdout + result.stderr;
+    // Match the fixed-width 8-char bracket format
+    const tagPattern = /\[(PASS  |FAIL  |SKIP  |ABSENT|      )\]/;
+    const tagLines = out.split('\n').filter(l => tagPattern.test(l));
+    assert.ok(tagLines.length >= 1, `expected at least one fixed-width tag line:\n${out}`);
+    for (const line of tagLines) {
+      assert.ok(
+        tagPattern.test(line),
+        `line does not match fixed-width tag format:\n  ${line}`
+      );
+    }
+  });
+
+  test('valid browser — Resolved line present, exits 0', () => {
+    const result = spawnSync(
+      process.execPath,
+      [CLI, 'doctor'],
+      {
+        env: { ...process.env, CHROMIUM_PATH: '/bin/ls' },
+        encoding: 'utf8',
+        timeout: 10000,
+      }
+    );
+    const out = result.stdout + result.stderr;
+    assert.ok(
+      out.includes('Resolved:'),
+      `expected "Resolved:" in output:\n${out}`
+    );
+    assert.strictEqual(result.status, 0, `expected exit 0:\n${out}`);
+  });
+
+  test('invalid CHROMIUM_PATH — env shows as [FAIL  ] (configured but broken, before winner or no winner)', () => {
+    const result = spawnSync(
+      process.execPath,
+      [CLI, 'doctor'],
+      {
+        env: { ...process.env, CHROMIUM_PATH: '/nonexistent/chrome' },
+        encoding: 'utf8',
+        timeout: 10000,
+      }
+    );
+    const out = result.stdout + result.stderr;
+    // env failed validation — it is before any winner (or there is no winner)
+    // → state is always 'fail' → [FAIL  ]
+    assert.ok(
+      out.includes('[FAIL  ] env'),
+      `expected "[FAIL  ] env" in output:\n${out}`
+    );
+    // doctor always exits 0 (D1 contract)
+    assert.strictEqual(result.status, 0, `doctor must exit 0 by default:\n${out}`);
+  });
+});
+
+// ── Category 8: install-browser integrity (static) ────────────────────────────
+//
+// Verifies install-browser.js uses the resolution chain for post-install check.
+
+describe('install-browser integrity (static)', () => {
+  test('install-browser.js imports from #runtime — no hardcoded path logic', async () => {
+    const src = await readFile(join(REPO_ROOT, 'src', 'cli', 'commands', 'install-browser.js'), 'utf8');
+    assert.ok(
+      src.includes("from '#runtime'"),
+      'install-browser.js must import from #runtime for resolution'
+    );
+    assert.ok(
+      src.includes('resolveChromium'),
+      'install-browser.js must call resolveChromium for post-install check'
+    );
+    assert.ok(
+      src.includes('CHROMIUM_PATH'),
+      'install-browser.js must mention CHROMIUM_PATH hint'
+    );
+  });
+});
+
+// ── Category 9: MCP tool behavior ─────────────────────────────────────────────
+//
+// Tests that session_manage open fails cleanly with BrowserNotFoundError.
+
+describe('MCP tool: BrowserNotFoundError propagation', () => {
+  test('szkrabok_session.js imports BrowserNotFoundError from #runtime', async () => {
+    const src = await readFile(join(REPO_ROOT, 'src', 'tools', 'szkrabok_session.js'), 'utf8');
+    assert.ok(
+      src.includes('BrowserNotFoundError'),
+      'szkrabok_session.js must import BrowserNotFoundError'
+    );
+    assert.ok(
+      src.includes('instanceof BrowserNotFoundError'),
+      'szkrabok_session.js must use instanceof check, not message string matching'
+    );
+  });
+
+  test('szkrabok_session.js does not use --setup message', async () => {
+    const src = await readFile(join(REPO_ROOT, 'src', 'tools', 'szkrabok_session.js'), 'utf8');
+    assert.ok(
+      !src.includes('--setup'),
+      'szkrabok_session.js must not reference stale --setup message'
+    );
+  });
+});
+
+// ── Category 7 additions ───────────────────────────────────────────────────────
+
+describe('doctor CLI output — ABSENT tag and version warning', () => {
+  const CLI = join(REPO_ROOT, 'src', 'index.js');
+
+  test('non-playwright binary — doctor prints [warn] or [note] for CDP compatibility', () => {
+    // /bin/ls is a valid executable but not a real browser, source=env (not playwright).
+    // Its --version output cannot be parsed as a Chromium major version →
+    // extractChromiumMajor returns null → [note] (not [warn]).
+    // A real Chrome binary would produce [warn] on mismatch or nothing on match.
+    const result = spawnSync(
+      process.execPath,
+      [CLI, 'doctor'],
+      {
+        env: { ...process.env, CHROMIUM_PATH: '/bin/ls' },
+        encoding: 'utf8',
+        timeout: 10000,
+      }
+    );
+    const out = result.stdout + result.stderr;
+    assert.ok(
+      (out.includes('[warn]') || out.includes('[note]')) && out.toLowerCase().includes('cdp'),
+      `expected "[warn] CDP" or "[note] CDP" in output when using non-playwright binary:\n${out}`
+    );
+  });
+
+  test('non-playwright binary — doctor prints version line', () => {
+    // /bin/ls --version exits 0 and prints a version string on Linux
+    const result = spawnSync(
+      process.execPath,
+      [CLI, 'doctor'],
+      {
+        env: { ...process.env, CHROMIUM_PATH: '/bin/ls' },
+        encoding: 'utf8',
+        timeout: 10000,
+      }
+    );
+    const out = result.stdout + result.stderr;
+    assert.ok(
+      out.includes('Version:'),
+      `expected "Version:" line in doctor output:\n${out}`
+    );
+  });
+
+  test('[ABSENT] vs [FAIL  ]: doctor.js source uses ABSENT_REASONS and fixed-width TAGS', async () => {
+    const src = await readFile(join(REPO_ROOT, 'src', 'cli', 'commands', 'doctor.js'), 'utf8');
+    assert.ok(
+      src.includes('ABSENT_REASONS'),
+      'doctor.js must define ABSENT_REASONS to distinguish absent from failed candidates'
+    );
+    assert.ok(
+      src.includes('[ABSENT]'),
+      'doctor.js must use [ABSENT] tag for not-configured candidates'
+    );
+    assert.ok(
+      src.includes('[FAIL  ]'),
+      'doctor.js must use fixed-width [FAIL  ] tag (8 chars)'
+    );
+    assert.ok(
+      src.includes('[PASS  ]'),
+      'doctor.js must use fixed-width [PASS  ] tag (8 chars)'
+    );
+    assert.ok(
+      src.includes('[SKIP  ]'),
+      'doctor.js must use fixed-width [SKIP  ] tag (8 chars)'
+    );
+    // CHROMIUM_PATH='' must NOT be in ABSENT_REASONS — it is a fail, not absent
+    assert.ok(
+      !src.includes("'empty path'") || src.indexOf('ABSENT_REASONS') > src.indexOf("'empty path'"),
+      "ABSENT_REASONS must not include 'empty path'"
+    );
+  });
+});
+
+// ── Category 8 additions — install-browser (mock npx) ─────────────────────────
+//
+// Uses a fake `npx` script on PATH to avoid a real ~200 MB download.
+// Success path: fake npx exits 0, resolution runs against real installed browsers.
+// Failure path: fake npx exits 2, install-browser must surface error + exit non-zero.
+
+describe('install-browser: mock-npx integration', () => {
+  const CLI = join(REPO_ROOT, 'src', 'index.js');
+
+  // Helper: create a temp dir with a fake `npx` script, return { dir, cleanup }
+  const makeFakeNpx = (exitCode) => {
+    const dir = mkdtempSync(join(tmpdir(), 'szkrabok-test-npx-'));
+    const fakeNpx = join(dir, 'npx');
+    writeFileSync(fakeNpx, `#!/bin/sh\nexit ${exitCode}\n`);
+    chmodSync(fakeNpx, 0o755);
+    return { dir, cleanup: () => rmSync(dir, { recursive: true, force: true }) };
+  };
+
+  test('fake npx exits 0 → prints CHROMIUM_PATH hint, exits 0', () => {
+    const { dir, cleanup } = makeFakeNpx(0);
+    try {
+      const result = spawnSync(
+        process.execPath,
+        [CLI, 'install-browser'],
+        {
+          env: { ...process.env, PATH: `${dir}:${process.env.PATH}` },
+          encoding: 'utf8',
+          timeout: 15000,
+        }
+      );
+      assert.strictEqual(result.status, 0, `expected exit 0:\n${result.stderr}`);
+      assert.ok(
+        result.stdout.includes('CHROMIUM_PATH'),
+        `expected "CHROMIUM_PATH" hint in stdout:\n${result.stdout}`
+      );
+    } finally {
+      cleanup();
+    }
+  });
+
+  test('fake npx exits 2 → actionable stderr message, exits non-zero', () => {
+    const { dir, cleanup } = makeFakeNpx(2);
+    try {
+      const result = spawnSync(
+        process.execPath,
+        [CLI, 'install-browser'],
+        {
+          env: { ...process.env, PATH: `${dir}:${process.env.PATH}` },
+          encoding: 'utf8',
+          timeout: 5000,
+        }
+      );
+      assert.notStrictEqual(result.status, 0, 'should exit with non-zero code on install failure');
+      assert.ok(
+        result.stderr.includes('szkrabok doctor'),
+        `expected "szkrabok doctor" in stderr:\n${result.stderr}`
+      );
+    } finally {
+      cleanup();
+    }
+  });
+
+  test('fake npx exits 0 → post-install prints resolved path', () => {
+    // After a "successful" install, install-browser resolves the browser.
+    // On this machine playwright chromium IS installed, so the path must be printed.
+    const { dir, cleanup } = makeFakeNpx(0);
+    try {
+      const result = spawnSync(
+        process.execPath,
+        [CLI, 'install-browser'],
+        {
+          env: { ...process.env, PATH: `${dir}:${process.env.PATH}` },
+          encoding: 'utf8',
+          timeout: 15000,
+        }
+      );
+      const out = result.stdout + result.stderr;
+      // Either a success path (playwright found) or a warning path (playwright not found)
+      // — in both cases a path or a meaningful message must appear
+      const hasPath = out.includes('Path:') || out.includes('playwright-managed');
+      const hasWarn = out.includes('not found after install') || out.includes('szkrabok doctor');
+      assert.ok(
+        hasPath || hasWarn,
+        `expected path or warning in install-browser output:\n${out}`
+      );
+    } finally {
+      cleanup();
+    }
+  });
+});
+
+// ── Category 9 additions — BrowserNotFoundError serialization ─────────────────
+
+describe('BrowserNotFoundError serialization and MCP error contract', () => {
+  test('has code = BROWSER_NOT_FOUND', () => {
+    const err = new BrowserNotFoundError(undefined, { candidates: [] });
+    assert.strictEqual(err.code, 'BROWSER_NOT_FOUND');
+  });
+
+  test('toJSON includes code, message, and candidates', () => {
+    const candidates = [
+      { source: 'env', path: null, ok: false, reason: 'not set' },
+    ];
+    const err = new BrowserNotFoundError(undefined, { candidates });
+    const json = err.toJSON();
+    assert.strictEqual(json.code, 'BROWSER_NOT_FOUND');
+    assert.ok(typeof json.message === 'string' && json.message.length > 0);
+    assert.deepEqual(json.candidates, candidates);
+  });
+
+  test('JSON.stringify preserves message — not empty object', () => {
+    const err = new BrowserNotFoundError(undefined, { candidates: [] });
+    const serialized = JSON.parse(JSON.stringify(err));
+    assert.ok(
+      serialized.message && serialized.message.includes('szkrabok install-browser'),
+      `JSON.stringify must preserve message with install instructions:\n${JSON.stringify(serialized)}`
+    );
+    assert.strictEqual(serialized.code, 'BROWSER_NOT_FOUND');
+  });
+
+  test('resolve.js does not import child_process — resolution never spawns', async () => {
+    // Proves invariant I6: no implicit download.
+    // If resolve.js imported child_process it could spawn processes.
+    // Note: do NOT check for 'exec' string — chromium.executablePath() legitimately
+    // contains those characters; only the import is the meaningful boundary.
+    const src = await readFile(join(REPO_ROOT, 'packages', 'runtime', 'resolve.js'), 'utf8');
+    assert.ok(
+      !src.includes('child_process'),
+      'resolve.js must not import child_process — resolution is filesystem-only'
+    );
+    // spawn/execFile/execSync are the dangerous primitives — check by exact token
+    const hasSpawn = /\bspawn\s*\(/.test(src);
+    const hasExecFile = /\bexecFile\s*\(/.test(src);
+    const hasExecSync = /\bexecSync\s*\(/.test(src);
+    assert.ok(
+      !hasSpawn && !hasExecFile && !hasExecSync,
+      'resolve.js must not call spawn/execFile/execSync — resolution must be side-effect-free'
+    );
+  });
+});
+
+// ── Category 11: Stage 6 refinements ─────────────────────────────────────────
+
+describe('Stage 6 — D1: doctor exit code contract', () => {
+  const CLI = join(REPO_ROOT, 'src', 'index.js');
+
+  test('default: exits 0 even when checks fail (no browser)', () => {
+    // Use a clearly invalid CHROMIUM_PATH and SZKRABOK_CONFIG pointing nowhere
+    // so browser section fails. Doctor must still exit 0 without --strict.
+    const result = spawnSync(
+      process.execPath,
+      [CLI, 'doctor'],
+      {
+        env: { ...process.env, CHROMIUM_PATH: '/nonexistent/chrome' },
+        encoding: 'utf8',
+        timeout: 15000,
+      }
+    );
+    // Exit 0 regardless of check outcome — this is the public API contract
+    assert.strictEqual(
+      result.status, 0,
+      `doctor must exit 0 by default (execution success), got ${result.status}:\n${result.stdout}${result.stderr}`
+    );
+  });
+
+  test('--strict: exits 1 when checks fail', () => {
+    const result = spawnSync(
+      process.execPath,
+      [CLI, 'doctor', '--strict'],
+      {
+        env: { ...process.env, CHROMIUM_PATH: '/nonexistent/chrome' },
+        encoding: 'utf8',
+        timeout: 15000,
+      }
+    );
+    // With --strict, doctor exits 1 when any check fails.
+    // On this machine the TOML may resolve a browser — so we check the output
+    // and only assert exit 1 if "Some checks failed" is present.
+    if ((result.stdout + result.stderr).includes('Some checks failed')) {
+      assert.strictEqual(
+        result.status, 1,
+        `doctor --strict must exit 1 when checks fail:\n${result.stdout}${result.stderr}`
+      );
+    } else {
+      // All checks passed (e.g. TOML resolved a browser) — --strict exits 0
+      assert.strictEqual(
+        result.status, 0,
+        `doctor --strict exits 0 when all checks pass:\n${result.stdout}${result.stderr}`
+      );
+    }
+  });
+
+  test('--strict: exits 0 when all checks pass', () => {
+    const result = spawnSync(
+      process.execPath,
+      [CLI, 'doctor', '--strict'],
+      {
+        env: { ...process.env, CHROMIUM_PATH: '/bin/ls' },
+        encoding: 'utf8',
+        timeout: 15000,
+      }
+    );
+    // /bin/ls is a valid executable — browser check passes, so all checks pass
+    // (assuming node version >=20 and playwright-core is installed)
+    assert.strictEqual(
+      result.status, 0,
+      `doctor --strict must exit 0 when all checks pass:\n${result.stdout}${result.stderr}`
+    );
+  });
+
+  test('doctor.js source defines --strict option', async () => {
+    const src = await readFile(join(REPO_ROOT, 'src', 'cli', 'commands', 'doctor.js'), 'utf8');
+    assert.ok(
+      src.includes('--strict'),
+      'doctor.js must define --strict option'
+    );
+  });
+});
+
+describe('Stage 6 — D3: CDP version check via lookup table', () => {
+  const CLI = join(REPO_ROOT, 'src', 'index.js');
+
+  test('doctor.js defines PLAYWRIGHT_CHROMIUM_MAJOR lookup table', async () => {
+    const src = await readFile(join(REPO_ROOT, 'src', 'cli', 'commands', 'doctor.js'), 'utf8');
+    assert.ok(
+      src.includes('PLAYWRIGHT_CHROMIUM_MAJOR'),
+      'doctor.js must define PLAYWRIGHT_CHROMIUM_MAJOR lookup table'
+    );
+    // The version is captured from the playwright-core package.json already read above
+    // (via resolvePlaywrightCore + fs.readFile) and stored in pwCoreVersion
+    assert.ok(
+      src.includes('pwCoreVersion'),
+      'doctor.js must use pwCoreVersion as the lookup key (sourced from playwright-core package.json)'
+    );
+    // Must NOT use _revision — that is the rejected approach
+    assert.ok(
+      !src.includes('_revision'),
+      'doctor.js must not use _revision — use package.json version as lookup key'
+    );
+  });
+
+  test('non-playwright binary with unparseable version → [note] CDP', () => {
+    // /bin/ls --version output cannot be parsed as "Chromium X.Y.Z.W" →
+    // extractChromiumMajor returns null → [note], not [warn]
+    const result = spawnSync(
+      process.execPath,
+      [CLI, 'doctor'],
+      {
+        env: { ...process.env, CHROMIUM_PATH: '/bin/ls' },
+        encoding: 'utf8',
+        timeout: 15000,
+      }
+    );
+    const out = result.stdout + result.stderr;
+    assert.ok(
+      out.includes('[note] CDP'),
+      `expected "[note] CDP" for binary with unparseable version:\n${out}`
+    );
+  });
+
+  test('playwright binary → no CDP warning or note', () => {
+    // When using playwright-managed browser (default on this machine without CHROMIUM_PATH),
+    // no CDP compatibility output should appear at all
+    const orig = process.env.CHROMIUM_PATH;
+    const env = { ...process.env };
+    delete env.CHROMIUM_PATH;
+    const result = spawnSync(
+      process.execPath,
+      [CLI, 'doctor'],
+      { env, encoding: 'utf8', timeout: 15000 }
+    );
+    // restore (not needed since subprocess, but good form to document)
+    void orig;
+    const out = result.stdout + result.stderr;
+    // If resolved via playwright, no CDP warning/note should appear
+    if (out.includes('[PASS  ] playwright')) {
+      assert.ok(
+        !out.includes('[warn] CDP') && !out.includes('[note] CDP'),
+        `playwright-managed binary must not produce CDP warning/note:\n${out}`
+      );
+    }
+    // If resolved via another source (e.g. config executablePath), skip assertion
+  });
+});
+
+describe('Stage 6 — D2/D4: tag format and state model', () => {
+  const CLI = join(REPO_ROOT, 'src', 'index.js');
+
+  test('CHROMIUM_PATH="" renders [FAIL  ] not [ABSENT]', () => {
+    const result = spawnSync(
+      process.execPath,
+      [CLI, 'doctor'],
+      {
+        env: { ...process.env, CHROMIUM_PATH: '' },
+        encoding: 'utf8',
+        timeout: 15000,
+      }
+    );
+    const out = result.stdout + result.stderr;
+    // empty string is a configured-but-invalid value → [FAIL  ], not [ABSENT]
+    assert.ok(
+      out.includes('[FAIL  ] env'),
+      `expected "[FAIL  ] env" for CHROMIUM_PATH="" — empty string is fail, not absent:\n${out}`
+    );
+    assert.ok(
+      !out.includes('[ABSENT] env'),
+      `must NOT show "[ABSENT] env" for CHROMIUM_PATH="" :\n${out}`
+    );
+  });
+
+  test('after winner: valid lower-priority candidate renders [SKIP  ]', () => {
+    // env wins, system is also valid (populated by chrome-launcher if present)
+    // We can only verify this on machines where system Chrome exists.
+    // This test verifies the tag is present when applicable.
+    const result = spawnSync(
+      process.execPath,
+      [CLI, 'doctor'],
+      {
+        env: { ...process.env, CHROMIUM_PATH: '/bin/ls' },
+        encoding: 'utf8',
+        timeout: 15000,
+      }
+    );
+    const out = result.stdout + result.stderr;
+    // [SKIP  ] must be used (not [SKIP] without padding) if any skip-state candidate is shown
+    if (out.includes('[SKIP')) {
+      assert.ok(
+        out.includes('[SKIP  ]'),
+        `[SKIP] tags must be fixed-width [SKIP  ]:\n${out}`
+      );
+    }
+    // [      ] must appear for ignored candidates (after winner, not valid)
+    assert.ok(
+      out.includes('[      ]') || out.includes('[SKIP  ]') || !out.includes('[PASS  ]'),
+      `post-winner candidates must use [SKIP  ] or [      ] tags:\n${out}`
+    );
+  });
+
+  test('state model: no old variable-width tags present', () => {
+    const result = spawnSync(
+      process.execPath,
+      [CLI, 'doctor'],
+      {
+        env: { ...process.env, CHROMIUM_PATH: '/bin/ls' },
+        encoding: 'utf8',
+        timeout: 15000,
+      }
+    );
+    const out = result.stdout + result.stderr;
+    // Old tags without padding must not appear in browser resolution section
+    assert.ok(!out.includes('[PASS]'), `old variable-width [PASS] must not appear:\n${out}`);
+    assert.ok(!out.includes('[FAIL]'), `old variable-width [FAIL] must not appear:\n${out}`);
+    assert.ok(!out.includes('[SKIP]'), `old variable-width [SKIP] must not appear:\n${out}`);
+  });
+});
+
+// ── Category 10: cross-platform path handling ─────────────────────────────────
+
+describe('cross-platform path handling', () => {
+  test('path with spaces — validation runs without error', () => {
+    // Does not need to exist — just must not throw internally
+    const result = validateCandidate('/path/to/Google Chrome.app/Contents/MacOS/Google Chrome');
+    assert.ok('ok' in result);
+    assert.ok('reason' in result);
+    // Should fail with file not found (not an internal error)
+    assert.strictEqual(result.ok, false);
+    assert.strictEqual(result.reason, 'file not found');
+  });
+
+  test('trailing slash — rejected as not a file', () => {
+    // /tmp/ has trailing slash — directories fail isFile check
+    const result = validateCandidate('/tmp/');
+    assert.strictEqual(result.ok, false);
+    assert.strictEqual(result.reason, 'not a file');
+  });
+
+  test('Windows-style backslash path — skipped on non-Windows', { skip: process.platform !== 'win32' }, () => {
+    // On win32, backslash paths must validate without internal errors.
+    // validateCandidate normalises via statSync which handles win32 separators.
+    const result = validateCandidate('C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe');
+    // File won't exist in CI — just assert no unexpected internal error
+    assert.ok(
+      result.reason !== 'cannot stat path: undefined',
+      `unexpected internal error for win32 path: ${result.reason}`
+    );
+    // Must be false (file won't exist), but with a recognisable reason
+    assert.strictEqual(result.ok, false);
   });
 });

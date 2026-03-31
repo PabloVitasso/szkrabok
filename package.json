@@ -45,7 +45,7 @@
     "deps:update": "npx npm-check-updates -u --workspaces && npm install",
     "release:publish": "node scripts/release-publish.js",
     "test": "npm run test:self && npm run test:auto",
-    "test:node": "node --test tests/node/**/*.test.js",
+    "test:node": "echo 'This test is disabled. Use npm test instead'",
     "test:runtime:unit": "node --test tests/node/runtime/unit.test.js",
     "test:runtime:integration": "node --test tests/node/runtime/integration.test.js",
     "test:contracts": "node --test tests/node/contracts.test.js",

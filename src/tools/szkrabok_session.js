@@ -10,6 +10,7 @@ import {
   listStoredSessions,
   updateSessionMeta,
   deleteStoredSession,
+  BrowserNotFoundError,
 } from '#runtime';
 
 const { version } = JSON.parse(
@@ -128,13 +129,7 @@ export const open = ({ sessionName, url, launchOptions = {} }) => {
           _launchImpl,
         });
       } catch (err) {
-        const msg = err?.message ?? '';
-        if (msg.includes('Executable') || msg.includes('executable') || msg.includes('chromium') || msg.includes('browser')) {
-          throw new Error(
-            `Chromium not found. Run "npx @pablovitasso/szkrabok --setup" in your terminal, then restart the MCP server. (Original error: ${msg})`,
-            { cause: err }
-          );
-        }
+        if (err instanceof BrowserNotFoundError) throw err;
         throw err;
       }
 

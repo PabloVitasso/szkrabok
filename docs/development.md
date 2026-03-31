@@ -38,7 +38,8 @@ CLI-only operations (no MCP equivalent):
 - `szkrabok session inspect` — raw cookie/localStorage dump
 - `szkrabok endpoint` — print endpoints to stdout
 - `szkrabok detect-browser` — lists Chrome/Chromium paths; outputs ready-to-paste `executablePath` line
-- `szkrabok install-browser` — runs `npx playwright install chromium`; use when `launch()` throws "Chromium not found"
+- `szkrabok install-browser` — installs Playwright-managed Chromium; validates result after download and prints the path; primary install path for first-time setup and CI
+- `CHROMIUM_PATH` env var — set to any system Chrome path to skip Playwright-managed Chromium (highest resolution priority)
 - `szkrabok doctor` — checks node version, playwright-core installed + patched, chromium, server imports, startup log path; also prints the correct dev MCP config snippet (see below)
 
 **Adding a new CLI command:**
@@ -121,7 +122,7 @@ This ensures the tag always points at the release commit — no manual tag moves
 
 The `prepack` guard prevents publishing without a version tag on HEAD.
 
-`prepublishOnly` runs `npm run lint` then `scripts/smoke-test.js` before every `npm publish`. The smoke-test packs a tarball, installs it in a fresh bare temp directory using `--foreground-scripts` (exercising the real postinstall pipeline: `apply-patches.js` → `verify-playwright-patches.js` → `postinstall.js`), then runs `szkrabok --version` and `szkrabok doctor`. Publish fails loudly if any step fails — catching lint errors, missing files, broken postinstall, or binary resolution issues before they reach npm.
+`prepublishOnly` runs `npm run lint` then `scripts/smoke-test.js` before every `npm publish`. The smoke-test packs a tarball, installs it in a fresh bare temp directory using `--foreground-scripts` (exercising the real postinstall pipeline: `apply-patches.js` → `verify-playwright-patches.js`), then runs `szkrabok --version` and `szkrabok doctor`. Chromium download is **not** part of postinstall — `postinstall.js` is retained for manual use but excluded from the chain. Publish fails loudly if any step fails — catching lint errors, missing files, broken postinstall, or binary resolution issues before they reach npm.
 
 `release:publish` checks `npm whoami` and fails with a clear message if not logged in. Run `npm login` then re-run.
 

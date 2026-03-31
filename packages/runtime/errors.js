@@ -12,7 +12,22 @@ export class BrowserNotFoundError extends Error {
   constructor (message, { candidates = [] } = {}) {
     super(message ?? BrowserNotFoundError.formatMessage(candidates));
     this.name = 'BrowserNotFoundError';
+    this.code = 'BROWSER_NOT_FOUND';
     this.candidates = candidates;
+  }
+
+  /**
+   * Ensure JSON.stringify produces a useful object, not `{}`.
+   * Error own-properties (message, stack) are non-enumerable so JSON.stringify
+   * silently drops them. toJSON lets callers (registry wrapError, tests) get a
+   * serialisable snapshot without special-casing Error objects everywhere.
+   */
+  toJSON () {
+    return {
+      code: this.code,
+      message: this.message,
+      candidates: this.candidates,
+    };
   }
 
   /** Format a candidate list into the standard human-readable message string. */

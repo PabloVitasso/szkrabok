@@ -16,7 +16,7 @@ import assert from 'node:assert/strict';
 import { mkdtemp, rm, access } from 'fs/promises';
 import { join } from 'path';
 import { tmpdir } from 'os';
-import { spawn } from 'child_process';
+import { spawn, spawnSync } from 'child_process';
 import net from 'net';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -74,32 +74,42 @@ const launchHeadlessBrowser = async executablePath => {
 // ── Browser discovery ─────────────────────────────────────────────────────────
 
 /**
+ * Validate that a browser path actually runs — rejects snap/wrapper stubs.
+ * Returns true only if `path --version` exits 0 and produces output.
+ *
+ * On Ubuntu, chrome-launcher resolves /usr/bin/chromium-browser, which is a
+ * 2 KB shell script stub that prints:
+ *   "Command '/usr/bin/chromium-browser' requires the chromium snap to be installed."
+ * and exits 1. The file IS executable (accessSync passes), so validateCandidate()
+ * accepts it, but it is not a real browser. The --version probe catches this.
+ */
+const isFunctionalBrowser = path => {
+  if (!path) return false;
+  try {
+    const r = spawnSync(path, ['--version'], { timeout: 5000, encoding: 'utf8' });
+    return r.status === 0 && r.stdout.trim().length > 0;
+  } catch {
+    return false;
+  }
+};
+
+/**
  * Find all installed Chromium-family browsers.
  * Returns { chrome: string|null, chromium: string|null }
  *
  * chrome   — any path containing "google-chrome" or "google/chrome"
  * chromium — any path containing "chromium"
+ *
+ * Each path is validated with --version to reject snap/wrapper stubs.
  */
 const detectBrowsers = async () => {
   try {
     const { Launcher } = await import('chrome-launcher');
-    const all = await Launcher.getInstallations();
+    const all = Launcher.getInstallations().filter(isFunctionalBrowser);
 
-    let chrome;
-    const chromeMatch = all.find(p => /google.chrome|google\/chrome/i.test(p));
-    if (chromeMatch) {
-      chrome = chromeMatch;
-    } else {
-      chrome = null;
-    }
-    let chromium;
-    const chromiumMatch = all.find(p => /chromium/i.test(p));
-    if (chromiumMatch) {
-      chromium = chromiumMatch;
-    } else {
-      chromium = null;
-    }
-    return { chrome: chrome, chromium: chromium };
+    const chrome = all.find(p => /google.chrome|google\/chrome/i.test(p)) ?? null;
+    const chromium = all.find(p => /chromium/i.test(p)) ?? null;
+    return { chrome, chromium };
   } catch {
     return { chrome: null, chromium: null };
   }
@@ -160,24 +170,16 @@ const runPortTests = executablePath => {
       await waitForFile(join(userDataDir, 'DevToolsActivePort'));
       const port = await readDevToolsPort(userDataDir);
 
-      // Minimal HTTP fetch — avoid importing undici or node-fetch just for this.
-      const body = await new Promise((resolve, reject) => {
-        const req = net.createConnection({ port, host: '127.0.0.1' });
-        let buf = '';
-        req.once('connect', () => {
-          req.write('GET /json HTTP/1.0\r\nHost: localhost\r\n\r\n');
-        });
-        req.on('data', d => { buf += d; });
-        req.once('end', () => resolve(buf));
-        req.once('error', reject);
-        req.setTimeout(5000, () => reject(new Error('timeout')));
-      });
-
-      // HTTP response must contain a JSON body starting after the blank line.
-      const bodyStart = body.indexOf('\r\n\r\n');
-      assert.ok(bodyStart !== -1, 'HTTP response has no header/body separator');
-      const json = body.slice(bodyStart + 4).trim();
-      const parsed = JSON.parse(json);
+      // Use fetch() — do NOT use a raw net.createConnection with HTTP/1.0 or HTTP/1.1.
+      // Verified manually (nc + Node net module):
+      //   - HTTP/1.0: Playwright Chromium CDP server returns empty response (not supported).
+      //   - HTTP/1.1 + Connection: close: server sends the full response (Content-Length present,
+      //     data arrives in one chunk) but IGNORES Connection: close and never closes the socket,
+      //     so the 'end' event never fires — raw TCP reads time out without a usable result.
+      // fetch() handles HTTP/1.1 keep-alive correctly: reads Content-Length, returns the body,
+      // and does not depend on the server closing the connection.
+      const resp = await fetch(`http://127.0.0.1:${port}/json`);
+      const parsed = await resp.json();
       assert.ok(Array.isArray(parsed), '/json must return an array');
     } finally {
       await cleanup();

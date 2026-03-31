@@ -101,15 +101,17 @@ Each invariant has a corresponding test in `tests/node/runtime/resolve.test.js`.
 2. **I2 — browser absence fails deterministically** — `checkBrowser()` throws
    `BrowserNotFoundError` with structured candidates, never a raw crash or hang
 3. **I3 — core CLI works without browser** — `doctor`, `session list`, `endpoint`,
-   `--version` exit 0 when no Chromium is installed
+   `--version` exit 0 when no Chromium is installed. Note: `doctor` exits 0 when
+   it executes successfully regardless of health status. `--strict` makes it exit 1
+   when checks fail.
 4. **I4 — resolution precedence is strict** — `ENV > CONFIG > SYSTEM > PLAYWRIGHT`;
    first valid candidate wins, lower-priority candidates are never probed
 5. **I5 — every candidate is validated** — exists, isFile, isExecutable; invalid
    candidates are rejected with a reason string
 6. **I6 — no implicit install at runtime** — calling `session_manage open` with no
    browser triggers zero downloads; only an error is returned
-7. **I7 — doctor exposes full candidate chain** — output includes pass/fail status
-   and failure reason per candidate, not just the winner
+7. **I7 — doctor exposes full candidate chain** — output includes pass/fail/absent/
+   ignored status and failure reason per candidate, not just the winner
 
 ---
 
@@ -143,11 +145,60 @@ Chromium is guaranteed compatible. System Chrome is not.
 - If `CHROMIUM_PATH` or `config.executablePath` point to a non-Playwright
   Chromium, the browser may launch but CDP protocol mismatch can cause silent
   failures (e.g., missing commands, changed event payloads).
-- `doctor` should warn (not fail) when the resolved binary is not from the
-  Playwright cache and its version does not match `playwright-core`'s expected
-  range.
-- Version guard: read `playwright-core/package.json` version at resolution time
-  and compare against Playwright's known-good browser revision if available.
+- `doctor` warns (not fails) when the resolved binary is not playwright-managed
+  and its version does not match `playwright-core`'s expected revision.
+
+#### Version comparison contract
+
+`_revision` is not public API. Playwright does not guarantee its name, location,
+or semantics. The system must function correctly when it disappears.
+
+Exact revision matching is not feasible from `--version` output alone — the binary
+reports a semver (`Chromium 115.0.5790.75`), not Playwright's internal build
+revision string. Use **coarse major-version comparison** instead.
+
+**Strategy:**
+
+1. Read `playwright-core/package.json` version (public, stable)
+2. Map version → expected Chromium major via a static lookup table in `doctor.js`
+3. Extract Chromium major from binary `--version` output
+4. Compare majors: mismatch → `[warn]`, any parse/mapping failure → `[note]`
+
+No `_revision` probe. No try/catch around Playwright internals. Single source of truth.
+
+```js
+// Static lookup: playwright-core version → expected Chromium major
+// Add one entry per playwright-core upgrade.
+const PLAYWRIGHT_CHROMIUM_MAJOR = {
+  '1.58.2': 133,
+  // '1.57.0': 131,
+};
+
+function getExpectedChromiumMajor() {
+  const { version } = require('playwright-core/package.json');
+  return PLAYWRIGHT_CHROMIUM_MAJOR[version] ?? null;
+}
+
+function extractChromiumMajor(versionString) {
+  // e.g. "Chromium 133.0.6943.16" or "Google Chrome 133.0.6943.16"
+  const m = versionString.match(/(\d+)\.\d+\.\d+\.\d+/);
+  return m ? parseInt(m[1], 10) : null;
+}
+```
+
+`null` from either function means comparison is not possible — degrade to `[note]`.
+
+| Case                                    | doctor output                                         |
+| --------------------------------------- | ----------------------------------------------------- |
+| Majors match                            | no warning                                            |
+| Majors mismatch                         | `[warn] CDP compatibility: expected Chromium M133, found M115` |
+| `_revision` unavailable or not in table | `[note] CDP compatibility: playwright revision unknown — skipping check` |
+| Binary `--version` unparseable          | `[note] CDP compatibility: binary version unreadable` |
+
+Do not hard-fail. Do not warn on unavailability. The system is correct regardless
+of whether the internal field or the table entry exists.
+
+**Maintenance:** update `PLAYWRIGHT_CHROMIUM_MAJOR` when upgrading `playwright-core`.
 
 ---
 
@@ -248,25 +299,103 @@ to programmatically inspect the failure (e.g., `doctor` vs MCP tool vs CLI).
 
 ### 6. `src/cli/commands/doctor.js` — full candidate chain output
 
+#### Exit code contract
+
+Exit codes are part of the public API:
+
+| Condition                          | Exit code |
+| ---------------------------------- | --------- |
+| doctor ran (any health outcome)    | 0         |
+| doctor ran with `--strict` + fails | 1         |
+| internal error (exception thrown)  | 1         |
+
+Exit 0 signals execution success, not system health. Health is conveyed via output.
+`--strict` is the CI-compatible opt-in for failure-as-exit-code.
+
+#### Candidate state model
+
+Each candidate has exactly one state. States are mutually exclusive.
+
+| State     | Meaning                                        | Display   |
+| --------- | ---------------------------------------------- | --------- |
+| `pass`    | selected winner                                | `[PASS  ]` |
+| `fail`    | configured but invalid (broken path, no +x)   | `[FAIL  ]` |
+| `absent`  | not configured (not set / empty env var)       | `[ABSENT]` |
+| `skip`    | valid but lower priority (winner already found) | `[SKIP  ]` |
+| `ignored` | not evaluated — winner already resolved        | `[      ]` |
+
+Note: `[SKIP]` applies only to candidates that pass `validateCandidate()` but were
+not selected because a higher-priority winner was already found. A lower-priority
+candidate that is absent or invalid when a winner exists renders as `[      ]`
+(ignored — not evaluated).
+
+Tags use fixed-width brackets (8 chars: `[` + 6-char padded tag + `]`) for
+machine-parseable output. Do not use ad-hoc tags like `[--]` or `[ - ]`.
+
+#### CHROMIUM_PATH='' classification
+
+Empty string is not the same as absent:
+
+- `undefined` / not set → `absent` → `[ABSENT]`
+- `''` (set but empty) → `fail` → `[FAIL  ]` with reason `'empty env var (invalid)'`
+
+`buildCandidates` preserves `''` as the path value. `validateCandidate('')` returns
+`{ ok: false, reason: 'empty path' }`. Doctor must map `reason === 'empty path'` to
+`fail` (not `absent`), since the user explicitly set the variable.
+
+#### State assignment rules
+
+Candidates are printed in resolution order (env → config → system → playwright).
+
+| Candidate position relative to winner | Candidate valid? | State    | Display    |
+| -------------------------------------- | ---------------- | -------- | ---------- |
+| IS the winner                          | yes              | pass     | `[PASS  ]` |
+| before the winner (evaluated, failed)  | no, absent       | absent   | `[ABSENT]` |
+| before the winner (evaluated, failed)  | no, broken       | fail     | `[FAIL  ]` |
+| after the winner (not part of decision)| yes              | skip     | `[SKIP  ]` |
+| after the winner (not part of decision)| no               | ignored  | `[      ]` |
+| no winner anywhere — not configured    | —                | absent   | `[ABSENT]` |
+| no winner anywhere — configured, broken| —                | fail     | `[FAIL  ]` |
+
+`[SKIP  ]` = "valid, but you didn't need it."
+`[      ]` = "irrelevant — wouldn't have been selected anyway."
+
+#### Output format
+
+Playwright wins (env/config/system all absent or failing):
+
 ```
 Browser resolution:
-  [PASS] playwright: /home/user/.cache/ms-playwright/chromium-1155/chrome-linux/chrome
-  [SKIP] system:     chrome-launcher found /usr/bin/google-chrome (lower priority)
-  [SKIP] config:     executablePath not set
-  [SKIP] env:        CHROMIUM_PATH not set
+  [ABSENT] env          CHROMIUM_PATH not set
+  [ABSENT] config       executablePath not set
+  [FAIL  ] system       no Chrome installation found
+  [PASS  ] playwright   /home/user/.cache/ms-playwright/chromium-1155/chrome-linux/chrome
 
   Resolved: playwright-managed Chromium
-  Version: chromium 115.5 (playwright-core 1.58.2)
+  Version: Chromium 133.0.6943.16
 ```
 
-Or on failure:
+Env wins with config absent, system valid, playwright ignored:
 
 ```
 Browser resolution:
-  [FAIL] env:        CHROMIUM_PATH=/opt/bad-chrome — file not found
-  [FAIL] config:     executablePath not set
-  [FAIL] system:     no Chrome installation found
-  [FAIL] playwright: ~/.cache/ms-playwright/chromium-1155/ — directory not found
+  [PASS  ] env          /usr/local/bin/chrome
+  [      ] config       (not evaluated)
+  [SKIP  ] system       /usr/bin/google-chrome — valid, lower priority
+  [      ] playwright   (not evaluated)
+
+  Resolved: env — /usr/local/bin/chrome
+  [warn] CDP compatibility: expected Chromium M133, found M115
+```
+
+All fail:
+
+```
+Browser resolution:
+  [FAIL  ] env          (empty) — invalid configuration
+  [FAIL  ] config       /opt/bad-chrome — file not found
+  [FAIL  ] system       no Chrome installation found
+  [ABSENT] playwright   ~/.cache/ms-playwright/chromium-1155/ — not installed
 
   No valid browser found. Run: szkrabok install-browser
 ```
@@ -850,8 +979,7 @@ leaves.
 
 - Version compatibility check: `doctor` must warn (not fail) when the resolved
   binary is not from the Playwright cache and its version does not match
-  `playwright-core`'s expected range. Read `playwright-core/package.json` version
-  at resolution time and compare against Playwright's known-good browser revision.
+  `playwright-core`'s expected revision. Compare against `chromium._revision`.
   This is NOT a `validateCandidate` concern — it belongs in `doctor` output only.
 - Binary launchability check (`--version`): optional `doctor` enhancement.
   `validateCandidate` intentionally does NOT spawn processes — it stays pure.
@@ -859,19 +987,23 @@ leaves.
   after validation passes. Do NOT move launchability into `resolve.js`.
 - Distinguish "not provided" vs "invalid" in `doctor` output: the `reason`
   string already encodes this (`"not set"` / `"empty path"` = absent vs
-  `"file not found"` / `"not executable"` = invalid). `doctor` should group
-  candidates into `[ABSENT]` vs `[FAIL]` when printing, not add a type field
-  to the data model.
+  `"file not found"` / `"not executable"` = invalid). `doctor` uses the state
+  model (pass/fail/absent/skip/ignored), not string pattern matching.
 
 **Stage 4 checklist:**
 
-- [ ] `doctor` prints full candidate chain with pass/fail per entry
-- [ ] `doctor` warns on non-Playwright binary version mismatch
-- [ ] `install-browser` validates result after download, prints integrity status
-- [ ] `install-browser` prints system Chrome hint on success
-- [ ] Doctor output — 4 tests pass
-- [ ] Install-browser integrity — 3 tests pass
-- [ ] `doctor`, `session list`, `--version` exit 0 with no browser
+- [x] `doctor` prints full candidate chain with pass/fail per entry
+- [x] `doctor` warns on non-Playwright binary version mismatch — `[warn] CDP compatibility` + `Version:` line after resolution
+- [x] `install-browser` validates result after download, prints integrity status
+- [x] `install-browser` prints system Chrome hint on success
+- [x] Doctor output — 7 tests pass (categories 7 + 7-additions)
+- [x] Install-browser integrity — 3 tests pass (1 static + 2 mock-npx)
+- [ ] `doctor` exit code contract corrected — currently exits 1 on check failures; must exit 0 (execution success). Add `--strict` flag for CI opt-in to failure exit code. See D1.
+- [ ] Fixed-width status tags — currently `[PASS]`, `[FAIL]`, `[ABSENT]` are variable width. Must be `[PASS  ]`, `[FAIL  ]`, `[ABSENT]`. See D2.
+- [ ] State model: `ignored` state (winner found, candidate not evaluated) must render as `[      ]`, not `[SKIP]`. `[SKIP]` is reserved for valid-but-lower-priority. See D4.
+- [ ] `CHROMIUM_PATH=''` must render as `[FAIL  ]` (invalid config), not `[ABSENT]`. See additional issue below.
+- [ ] CDP version check must use `chromium._revision` comparison, not source heuristic. See D3.
+- [ ] `doctor`, `session list`, `--version` exit 0 with no browser — `session list` and `--version` exit 0; `doctor` must also exit 0 (post D1 fix). Requires machine with no browser to fully verify I3.
 
 ---
 
@@ -920,26 +1052,70 @@ updated.
 
 **Stage 5 checklist:**
 
-- [ ] `session_manage open` with no browser returns actionable error with 3 options
-- [ ] MCP tool — 3 tests pass
-- [ ] Cross-platform — 3 tests pass (guarded by `process.platform`)
-- [ ] `docs/development.md` updated
-- [ ] `findChromiumPath()` backward-compat wrapper delegates to `resolve.js`
-- [ ] Breaking change migration plan documented (major bump, release notes)
-- [ ] All existing tests pass
+- [x] `session_manage open` with no browser returns actionable error with 3 options — `BrowserNotFoundError` propagates through `handleToolCall`, `isError: true`, message contains install instructions
+- [x] MCP tool — 4 tests pass (category 9: code, toJSON, JSON.stringify, resolve.js static)
+- [x] Cross-platform — 2 pass + 1 skipped (Windows backslash test guarded by `process.platform !== 'win32'`)
+- [x] `docs/development.md` updated — install-browser, CHROMIUM_PATH, postinstall chain, smoke-test description
+- [x] `findChromiumPath()` backward-compat wrapper delegates to `resolve.js` — Stage 2
+- [ ] Breaking change migration plan documented (major bump, release notes) — spec documents the plan; CHANGELOG/release notes entry not yet written
+- [ ] CLI control flow: `install-browser` uses `process.exitCode` side-effect pattern; must be replaced with return-based exit codes (`return 0` / `return 1`). `index.js` must be the single exit authority (`process.exit(await dispatch())`). See D5.
+- [x] All existing tests pass — 238/242; 2 pre-existing failures in `devtools-port.test.js` (unrelated, existed before this branch)
+
+---
+
+## Stage 6 — Refinements
+
+Corrections to decisions made in stages 4–5. All items are self-contained.
+
+**Files:**
+
+| File                                  | Action                                                       |
+| ------------------------------------- | ------------------------------------------------------------ |
+| `src/cli/commands/doctor.js`          | D1: exit 0 by default, `--strict` flag. D2/D4: fixed-width tags + state model. D3: `chromium._revision` comparison |
+| `src/cli/index.js`                    | D5: remove `process.exitCode` reliance; `runCli()` returns exit code |
+| `src/index.js`                        | D5: `process.exit(await runCli() ?? 0)` |
+| `src/cli/commands/install-browser.js` | D5: return 0/1 instead of setting `process.exitCode` |
+| `packages/runtime/resolve.js`         | Additional: `CHROMIUM_PATH=''` → `reason: 'empty env var (invalid)'` (already `validateCandidate` returns `'empty path'`, but `buildCandidates` must not coerce `''` to null — already correct; doctor mapping must treat `'empty path'` as `fail`, not `absent`) |
+| `tests/node/runtime/resolve.test.js`  | New tests for D1 (`--strict`), D2/D4 (tag format), D3 (revision check), `CHROMIUM_PATH=''` |
+
+**Decisions:**
+
+- **D1** — `doctor` exit 0 = execution success; `--strict` = health failure → exit 1
+- **D2** — Fixed-width tags: `[PASS  ]`, `[FAIL  ]`, `[SKIP  ]`, `[ABSENT]`, `[      ]`
+- **D3** — CDP compatibility: read `playwright-core/package.json` version, map to expected Chromium major via static lookup table (`PLAYWRIGHT_CHROMIUM_MAJOR` in `doctor.js`), compare against major extracted from binary `--version`; `[warn]` on mismatch, `[note]` on any parse/mapping failure. No `_revision` probe.
+- **D4** — Explicit state model: pass / fail / absent / skip / ignored. `ignored` = `[      ]`
+- **D5** — Return-based exit codes; `index.js` is the single `process.exit()` authority
+- **Additional** — `CHROMIUM_PATH=''` maps to `fail`/`[FAIL  ]`, not `absent`
+
+**ABSENT_REASONS correction:**
+
+Current code has `ABSENT_REASONS = new Set(['not set', 'empty path'])`. `'empty path'`
+must be removed from `ABSENT_REASONS`. `validateCandidate('')` returns reason `'empty path'`;
+this is a configured-but-invalid value, not an absent one.
+
+**Stage 6 checklist:**
+
+- [x] D1: `doctor` exits 0 by default; exits 1 only on `--strict` or exception
+- [x] D1: `--strict` flag added; test that `--strict` exits 1 when checks fail
+- [x] D2: All status tags fixed-width (8 chars); test format regex `^\s*\[(PASS  |FAIL  |SKIP  |ABSENT|      )\]`
+- [x] D3: CDP check uses major-version comparison — read `playwright-core/package.json` version, map to expected Chromium major via `PLAYWRIGHT_CHROMIUM_MAJOR` table, extract major from binary `--version`, `[warn]` on mismatch, `[note]` on any parse/mapping failure; no `_revision` probe
+- [x] D4: `ignored` state renders as `[      ]`; `[SKIP  ]` reserved for valid-but-lower-priority
+- [x] D5: `install-browser` returns exit code; `index.js` calls `process.exit(await runCli() ?? 0)`
+- [x] Additional: `CHROMIUM_PATH=''` renders `[FAIL  ]` in doctor; test added
 
 ---
 
 ## Stage summary
 
-| Stage     | Focus                  | Files changed  | Tests added     | Invariants proved |
-| --------- | ---------------------- | -------------- | --------------- | ----------------- |
-| 1         | Core resolution module | 3              | 23              | I4, I5            |
-| 2         | Runtime integration    | 5              | 12 + 1 contract | I2, I6            |
-| 3         | Remove postinstall dl  | 3              | 3               | I1                |
-| 4         | CLI commands           | 3              | 7               | I3, I7            |
-| 5         | MCP tool + docs        | 3              | 6               | I3 (MCP)          |
-| **Total** |                        | **~10 unique** | **~51**         | **I1-I7**         |
+| Stage     | Focus                   | Files changed  | Tests added     | Invariants proved |
+| --------- | ----------------------- | -------------- | --------------- | ----------------- |
+| 1         | Core resolution module  | 3              | 23              | I4, I5            |
+| 2         | Runtime integration     | 5              | 12 + 1 contract | I2, I6            |
+| 3         | Remove postinstall dl   | 3              | 3               | I1                |
+| 4         | CLI commands            | 3              | 7               | I3, I7            |
+| 5         | MCP tool + docs         | 3              | 6               | I3 (MCP)          |
+| 6         | Refinements (D1–D5)     | ~5             | ~8              | I3 (exit code)    |
+| **Total** |                         | **~13 unique** | **~59**         | **I1-I7**         |
 
 ---
 
@@ -956,10 +1132,16 @@ stage that must implement it.
 | `findChromiumPath` uses `_config` directly | ✅ RESOLVED — `findChromiumPath` uses `getConfig()` with try/catch fallback to `{}`, consistent with `checkBrowser`                                                                                                                                                                                                                                    | Stage 2 ✅                                         | 2     |
 | ELOOP cannot be tested                     | `ELOOP` (too many symlink levels) is caught in `validateCandidate` for correctness, but cannot be reliably triggered on this Linux kernel to write a passing test. If a test for ELOOP is needed, requires a fixture that reliably produces the error.                                                                                                 | Stage 1 (no action needed — documented limitation) | 1     |
 | resolveChromium eager validation           | ✅ RESOLVED — async discovery is centralized in `populateCandidates`; all callers use the same probe path                                                                                                                                                                                                                                              | Stage 2 ✅                                         | 2     |
-| Version compatibility                      | `doctor` warns on non-Playwright binary version mismatch                                                                                                                                                                                                                                                                                               | Stage 4 — doctor output                            | 4     |
-| Binary launchability                       | Optional `doctor --deep` runs `--version` on resolved binary                                                                                                                                                                                                                                                                                           | Stage 4 — doctor output                            | 4     |
-| Absent vs invalid grouping                 | `doctor` prints `[ABSENT]` vs `[FAIL]` based on reason string                                                                                                                                                                                                                                                                                          | Stage 4 — doctor output                            | 4     |
-| `doctor` not yet implemented               | Stage 1 docs promise `doctor` uses `validateCandidate()` per entry for full diagnostics. That claim cannot be verified until Stage 4 implements `doctor`.                                                                                                                                                                                              | Stage 4                                            | 4     |
-| Binary name hardcoded in error             | `'szkrabok install-browser'` in error message is the package name. If published under a different name (`@pablovitasso/szkrabok`), the message is wrong. Should come from `package.json` or a constant.                                                                                                                                                | Stage 4 or 5                                       | 4-5   |
-| Windows path normalization                 | `statSync` on win32 handles backslashes and spaces, but UNC paths (`\\server\share`) and eight-dot notation may need explicit normalization. Verify behavior on Windows CI before shipping.                                                                                                                                                            | Stage 5 — cross-platform                           | 5     |
-| Relative path in config                    | `config.executablePath` resolved relative to `cwd()`, not the config file's directory. This surprises users who set a relative path in TOML. Consider resolving relative to the config file's directory.                                                                                                                                               | Stage 5 — cross-platform                           | 5     |
+| Version compatibility                      | ✅ RESOLVED — `PLAYWRIGHT_CHROMIUM_MAJOR` lookup table in `doctor.js`; `getExpectedChromiumMajor(pwCoreVersion)` maps version → major; `extractChromiumMajor` parses binary `--version`; `[warn]` on mismatch, `[note]` on parse/mapping failure. No `_revision` probe.                                                 | Stage 6 ✅                                  | 4→6   |
+| Binary launchability                       | `Version:` line printed unconditionally after resolution. Full launchability test (open a tab) remains optional/future.                                                                                                                                                                                                                                | Outstanding (low priority)                         | 4     |
+| Absent vs invalid grouping                 | ✅ RESOLVED — `ABSENT_REASONS = new Set(['not set'])` only. `'empty path'` removed. `CHROMIUM_PATH=''` renders `[FAIL  ]`. Full state model: pass/fail/absent/skip/ignored with fixed-width tags.                                                                                                                                                                                             | Stage 6 ✅                                          | 4→6   |
+| `doctor` not yet implemented               | ✅ RESOLVED — `doctor` uses `validateCandidate()` per entry for full diagnostics.                                                                                                                                                                                                                                                                       | Stage 4 ✅                                         | 4     |
+| `doctor` exit code                         | ✅ RESOLVED — exits 0 by default (execution success). `--strict` flag exits 1 when checks fail. See D1.                                                                                                                                                                                                        | Stage 6 (D1)                                       | 4→6   |
+| `doctor` tag fixed-width + state model     | ✅ RESOLVED — fixed-width 8-char tags. `candidateState()` returns pass/fail/absent/skip/ignored. `[SKIP  ]` for valid-but-lower-priority; `[      ]` for not-evaluated-irrelevant. See D2, D4.                                                                                             | Stage 6 (D2, D4)                                   | 4→6   |
+| CLI control flow (`process.exitCode`)      | ✅ RESOLVED — `install-browser` calls `ctx.setExitCode()`; `runCli()` returns `_exitCode`; `index.js` does `process.exit(await runCli() ?? 0)`. Single exit authority. See D5.                                                                                                                     | Stage 6 (D5)                                       | 5→6   |
+| Binary name hardcoded in error             | `'szkrabok install-browser'` still hardcoded in `BrowserNotFoundError.formatMessage()`. Not fixed — acceptable for now since package name is stable.                                                                                                                                                                                                   | Outstanding (low priority)                         | 4-5   |
+| Windows path normalization                 | Test added and guarded by `process.platform !== 'win32'` skip. Verification on Windows CI still needed before shipping to Windows users.                                                                                                                                                                                                               | Stage 5 (test guarded, CI verification deferred)   | 5     |
+| Relative path in config                    | `config.executablePath` resolved relative to `cwd()`. Not fixed — deferred. Low priority; absolute paths are recommended in docs.                                                                                                                                                                                                                      | Outstanding (low priority)                         | 5     |
+| Breaking change migration plan             | Plan documented in this spec. CHANGELOG / release notes entry not yet written. Must be done before 2.0.0 publish.                                                                                                                                                                                                                                      | Outstanding (before release)                       | —     |
+| `BrowserNotFoundError` MCP serialization   | ✅ RESOLVED — `this.code = 'BROWSER_NOT_FOUND'` + `toJSON()` method added. `JSON.stringify(err)` now produces `{code, message, candidates}` instead of `{}`. Registry `wrapError` passes it through correctly.                                                                                                                                         | Stage 5 ✅                                         | 5     |
+| `install-browser` async race               | ✅ RESOLVED — action now wraps `spawn` in a `Promise`; Commander awaits completion. Exit code still uses `process.exitCode` side-effect; refactoring to return-based codes is D5.                                                                                                                                                                       | Stage 4/5 ✅ (D5 pending)                          | 4-5   |

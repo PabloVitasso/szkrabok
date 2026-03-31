@@ -9,7 +9,7 @@
  * Replaces: cloning.test.js (scaffolded, old lease naming)
  */
 
-import { test, describe, before, after } from 'node:test';
+import { test, describe, before, after, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtemp, rm, mkdir, writeFile, readFile, rename } from 'fs/promises';
 import { existsSync } from 'fs';
@@ -323,6 +323,11 @@ describe('PC-1 cloneProfileAtomic', { concurrency: 1 }, () => {
 // concurrency:1 — prevents concurrent cleanupClones() calls within this describe
 // from racing against each other's makeCloneDir setup.
 describe('PC-1 cleanupClones', { concurrency: 1 }, () => {
+  beforeEach(async () => {
+    const { _resetCleanupCooldown } = await import('../../../packages/runtime/storage.js');
+    _resetCleanupCooldown();
+  });
+
   // Atomic staging pattern: write .clone to staging dir first, then rename
   // to szkrabok-clone-pc1-* so the dir is never visible without .clone.
   const makeCloneDir = async meta => {
