@@ -129,7 +129,13 @@ The `prepack` guard prevents publishing without a version tag on HEAD.
 
 `release:publish` checks `npm whoami` and fails with a clear message if not logged in. Run `npm login` then re-run.
 
-**`release:github`** creates a GitHub release for the current package version using the `gh` CLI with auto-generated notes from commits since the previous tag. Completely independent from npm — run it any time after a release, or skip it entirely. Requires `gh auth login`.
+**`release:github`** creates a GitHub release for the current package version using the `gh` CLI with auto-generated notes from commits since the previous tag. Completely independent from npm — run it any time after a release, or skip it entirely.
+
+Auth (pick one — `GH_TOKEN` avoids keyring prompts):
+```bash
+GH_TOKEN=<token> npm run release:github   # inline, no keyring
+gh auth login && npm run release:github   # persistent gh session
+```
 
 Scaffolded consumer projects do **not** depend on `@pablovitasso/szkrabok` locally —
 szkrabok runs as a global MCP server (via `npx` or `claude mcp add`). The scaffolded
