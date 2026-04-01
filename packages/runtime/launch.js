@@ -478,6 +478,7 @@ export const launchClone = async (options = {}) => {
   await storage.cleanupClones();
   await storage.ensureSessionsDir();
 
+  await storage.ensureProfileDir(profile);
   const templateDir = storage.getUserDataDir(profile);
   const { cloneId, dir: cloneDir, lease } = await storage.cloneProfileAtomic(templateDir, profile);
 

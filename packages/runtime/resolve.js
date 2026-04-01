@@ -83,7 +83,7 @@ export const resolveChromium = (candidates) => {
 
 // ── Discovery ─────────────────────────────────────────────────────────────────
 
-const SOURCES = ['env', 'config', 'system', 'playwright'];
+const SOURCES = ['env', 'config', 'playwright', 'system'];
 
 /**
  * Build candidate array from env, config, and system. Impure — reads env/config.

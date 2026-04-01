@@ -5,7 +5,6 @@ import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { resolvePlaywrightCore } from '../../../scripts/resolve-playwright-core.js';
 import { szkrabokCacheDir } from '../../utils/platform.js';
-import { validateCandidate } from '#runtime';
 import { runDetect, runInstall, writeExecPath } from '../lib/browser-actions.js';
 
 const pass = (label, detail = '') => {

@@ -22,6 +22,10 @@ export const ensureSessionsDir = async () => {
   }
 };
 
+export const ensureProfileDir = async id => {
+  await mkdir(getUserDataDir(id), { recursive: true });
+};
+
 export const sessionExists = id => existsSync(getSessionDir(id));
 
 export const loadState = async id => {

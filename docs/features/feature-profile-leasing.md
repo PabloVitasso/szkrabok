@@ -98,12 +98,14 @@ Optional hardening after close:
 
 ### Clone phase (automated)
 
-1. `session_manage open` with `isClone: true`
-2. Template profile is cloned to `os.tmpdir()/szkrabok-clone-{cloneId}`
-3. Browser launched against clone (`--remote-debugging-port=0`)
-4. Port read from `DevToolsActivePort` after polling
-5. Run workload
-6. `session_manage close` — context closed, clone dir destroyed, no state saved
+1. `session_manage open` with `isClone: true` (+ optional `url`)
+2. Template profile dir auto-created if it does not exist
+3. Template profile is cloned to `os.tmpdir()/szkrabok-clone-{cloneId}`
+4. Browser launched against clone (`--remote-debugging-port=0`)
+5. Port read from `DevToolsActivePort` after polling
+6. If `url` was provided, page navigates to it (`domcontentloaded`)
+7. Run workload
+8. `session_manage close` — context closed, clone dir destroyed, no state saved
 
 No profile reuse. No lock contention. No stale process logic.
 
@@ -133,6 +135,8 @@ Template must never be open when a clone of it is being created.
 | 6 | State authority (template vs state.json) | **Accepted** — template is authoritative for initial implementation |
 | 7 | No multi-host / distributed clone safety | **Out of scope** — single-process only |
 | 8 | Clone GC only triggered at launch | **Fixed** — also run on `process.beforeExit` |
+| 9 | `isClone:true` fails with ENOENT if template profile dir never created | **Fixed** — `launchClone` calls `ensureProfileDir` before `cloneProfileAtomic` |
+| 10 | `url` ignored when opening a clone (`isClone:true`) | **Fixed** — `session_manage open` navigates clone page after launch if `url` provided |
 | 9 | PID extraction from Playwright browser object | **Fixed** — `tryBrowserPid()`; `osProcess()?._process?.pid` fallback |
 | 10 | `rm()` racing straggling Chrome processes | **Fixed** — `rmWithRetry()` retry loop (15 s, 100 ms poll); `waitForExit` as secondary defence |
 | 11 | Cleanup scan on every launch | **Fixed** — time-gated GC, 60 s cooldown |

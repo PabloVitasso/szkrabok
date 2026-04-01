@@ -92,11 +92,17 @@ export const open = ({ sessionName, url, launchOptions = {} }) => {
         stealth,
       });
 
+      if (url) {
+        const cloneSession = getSession(handle.cloneId);
+        await navigate(cloneSession.page, url);
+      }
+
       return {
         success:         true,
         sessionName:     handle.cloneId,
         templateSession: sessionName,
         isClone:         true,
+        url,
         cdpEndpoint:     handle.cdpEndpoint,
       };
     }

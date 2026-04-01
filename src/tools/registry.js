@@ -48,8 +48,10 @@ const tools = {
               description:
                 'Clone the template session into an ephemeral copy. ' +
                 'Returns a generated sessionName - use it for all subsequent calls. ' +
+                'url navigation (if provided) is applied after the clone opens. ' +
                 'On close: browser stops, clone dir deleted, no state saved. ' +
-                'Template session must be closed before cloning',
+                'Template session must be closed before cloning. ' +
+                'Template profile dir is created automatically if it does not exist.',
             },
           },
         },

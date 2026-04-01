@@ -1,7 +1,7 @@
 import { join } from 'node:path';
 import { homedir } from 'node:os';
-import { mkdirSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
-import { readFile, writeFile } from 'node:fs/promises';
+import { mkdirSync, existsSync, readFileSync } from 'node:fs';
+import { writeFile } from 'node:fs/promises';
 import { spawn } from 'node:child_process';
 import { initConfig, getConfig } from '../../config.js';
 import {

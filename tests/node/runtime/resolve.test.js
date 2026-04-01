@@ -33,7 +33,6 @@ import {
   validateCandidate,
   resolveChromium,
   buildCandidates,
-  populateCandidates,
   isFunctionalBrowser,
 } from '../../../packages/runtime/resolve.js';
 import { checkBrowser } from '../../../packages/runtime/launch.js';
@@ -284,8 +283,8 @@ describe('buildCandidates', () => {
     assert.strictEqual(candidates.length, 4);
     assert.strictEqual(candidates[0].source, 'env');
     assert.strictEqual(candidates[1].source, 'config');
-    assert.strictEqual(candidates[2].source, 'system');
-    assert.strictEqual(candidates[3].source, 'playwright');
+    assert.strictEqual(candidates[2].source, 'playwright');
+    assert.strictEqual(candidates[3].source, 'system');
   });
 
   test('passes through config.executablePath', () => {
@@ -1129,7 +1128,8 @@ describe('browser-actions unit', () => {
   test('runDetect() winner is consistent with resolveChromium on same candidates', async () => {
     // runDetect uses initConfig([]) + getConfig() — run twice and compare for idempotency
     const { winner: w1, results: r1 } = await runDetect();
-    const { winner: w2, results: r2 } = await runDetect();
+    // eslint-disable-next-line no-unused-vars
+    const { winner: w2, results: _r2 } = await runDetect();
     assert.strictEqual(w1.found, w2.found);
     if (w1.found) {
       assert.strictEqual(w1.path, w2.path);
@@ -1384,7 +1384,8 @@ describe('doctor install CLI', () => {
     const { dir, cleanup } = makeFakeNpxInstall(0, sentinelFile);
     try {
       // Find real playwright chromium path
-      const { chromium } = (() => {
+      // eslint-disable-next-line no-unused-vars
+      const { chromium: _chromium } = (() => {
         try { return require('playwright'); } catch { return {}; }
       })();
       // Use /bin/ls as a stand-in for playwright source since we can't easily fake source=playwright
