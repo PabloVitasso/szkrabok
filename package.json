@@ -44,6 +44,7 @@
     "release:minor": "npm version minor --workspaces --include-workspace-root --ignore-scripts --no-git-tag-version && node scripts/release-commit.js",
     "deps:update": "npx npm-check-updates -u --workspaces && npm install",
     "release:publish": "node scripts/release-publish.js",
+    "release:github": "gh release create \"v$(node -p \"require('./package.json').version\")\" --generate-notes",
     "test": "npm run test:self && npm run test:auto",
     "test:node": "echo 'This test is disabled. Use npm test instead'",
     "test:runtime:unit": "node --test tests/node/runtime/unit.test.js",

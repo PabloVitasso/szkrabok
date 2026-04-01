@@ -108,6 +108,9 @@ npm run release:patch    # or release:minor
 
 # 4. Publish to npm (requires npm login)
 npm run release:publish
+
+# 5. Create GitHub release (optional, independent — requires gh CLI + auth)
+npm run release:github
 ```
 
 **`release:patch` / `release:minor`** does everything atomically:
@@ -125,6 +128,8 @@ The `prepack` guard prevents publishing without a version tag on HEAD.
 `prepublishOnly` runs `npm run lint` then `scripts/smoke-test.js` before every `npm publish`. The smoke-test packs a tarball, installs it in a fresh bare temp directory using `--foreground-scripts` (exercising the real postinstall pipeline: `apply-patches.js` → `verify-playwright-patches.js`), then runs `szkrabok --version` and `szkrabok doctor`. Chromium download is **not** part of postinstall — `postinstall.js` is retained for manual use but excluded from the chain. Install Chromium separately with `szkrabok doctor install` or `doctor detect --write-config`. Publish fails loudly if any step fails — catching lint errors, missing files, broken postinstall, or binary resolution issues before they reach npm.
 
 `release:publish` checks `npm whoami` and fails with a clear message if not logged in. Run `npm login` then re-run.
+
+**`release:github`** creates a GitHub release for the current package version using the `gh` CLI with auto-generated notes from commits since the previous tag. Completely independent from npm — run it any time after a release, or skip it entirely. Requires `gh auth login`.
 
 Scaffolded consumer projects do **not** depend on `@pablovitasso/szkrabok` locally —
 szkrabok runs as a global MCP server (via `npx` or `claude mcp add`). The scaffolded
