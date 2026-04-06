@@ -1,15 +1,15 @@
 /*
- * stealthcheck — bot-detection fingerprint test (bot.sannysoft.com)
+ * stealthcheck - bot-detection fingerprint test (bot.sannysoft.com)
  *
  * Covers two tables on the page:
  *
- *   1. Intoli.com tests — each row has a result td that gets class "passed",
+ *   1. Intoli.com tests - each row has a result td that gets class "passed",
  *      "failed", or "warn". Named checks asserted individually:
  *        User Agent, WebDriver, WebDriver Advanced, Chrome, Permissions,
  *        Plugins Length, Plugins is of type PluginArray, Languages,
  *        WebGL Vendor, WebGL Renderer, Broken Image Dimensions
  *
- *   2. Fingerprint Scanner (fp-collect) — each row: | name | status | json |
+ *   2. Fingerprint Scanner (fp-collect) - each row: | name | status | json |
  *      The middle status td gets class "passed" when value is "ok".
  *      Checks: PHANTOM_UA, PHANTOM_PROPERTIES, PHANTOM_ETSL, PHANTOM_LANGUAGE,
  *        PHANTOM_WEBSOCKET, MQ_SCREEN, PHANTOM_OVERFLOW, PHANTOM_WINDOW_HEIGHT,
@@ -18,7 +18,7 @@
  *        CHR_MEMORY, TRANSPARENT_PIXEL, SEQUENTUM, VIDEO_CODECS
  *
  *   Iframes: 5 iframes (canvas3/4/5-iframe + 2 srcdoc) are about:blank /
- *   about:srcdoc used only for canvas fingerprint rendering — they contain
+ *   about:srcdoc used only for canvas fingerprint rendering - they contain
  *   no bot-detection tds and are not checked here.
  *
  * ── Run via MCP ──────────────────────────────────────────────────────────────
@@ -49,7 +49,7 @@ const BASE_URL = 'https://bot.sannysoft.com/';
 // Intoli table: the result td is the last td in each row and carries
 // class "result passed" | "result failed" | "result warn"
 // WebGL Renderer is excluded: it reports the hardware GPU string (SwiftShader on
-// machines without a GPU), which stealth cannot spoof — it's a hardware limit, not
+// machines without a GPU), which stealth cannot spoof - it's a hardware limit, not
 // a detection evasion issue. WebGL Vendor covers the GL identity check.
 const INTOLI_CHECKS = [
   'User Agent',

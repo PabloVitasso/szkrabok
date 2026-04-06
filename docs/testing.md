@@ -6,22 +6,20 @@
 - [Directory layout](#directory-layout)
 - [Node tests](#node-tests)
 - [Playwright integration tests](#playwright-integration-tests)
-- [E2E — stealth health checks](#e2e--stealth-health-checks)
+- [E2E - stealth health checks](#e2e--stealth-health-checks)
 - [Authoring specs that run via browser_run_test](#authoring-specs-that-run-via-browser_run_test)
 - [Calling browser_run_test from @szkrabok/runtime](#calling-browser_run_test-from-szkrabokмcp-client)
 - [Regenerate mcp-tools.js](#regenerate-mcp-toolsjs)
 - [Run everything](#run-everything)
 - [Troubleshooting](#troubleshooting)
 
----
-
 ## Configuration for tests
 
-Config is discovered at runtime via `initConfig()`. Priority order: `SZKRABOK_CONFIG` env var → `SZKRABOK_ROOT` env var → MCP roots → `process.cwd()` walk-up → `~/.config/szkrabok/config.toml` → empty defaults.
+Config is discovered at runtime via `initConfig()`. Priority order: `SZKRABOK_CONFIG` env var -> `SZKRABOK_ROOT` env var -> MCP roots -> `process.cwd()` walk-up -> `~/.config/szkrabok/config.toml` -> empty defaults.
 
 For tests, `process.cwd()` walk-up finds `szkrabok.config.toml` (committed repo defaults) and deep-merges `szkrabok.config.local.toml` (gitignored, machine-specific) on top.
 
-**Minimum required for any browser test** — set `executablePath` in your local TOML:
+**Minimum required for any browser test** - set `executablePath` in your local TOML:
 
 ```toml
 # szkrabok.config.local.toml
@@ -32,6 +30,7 @@ executablePath = "/path/to/your/chrome"
 Run `szkrabok doctor detect` to see all candidates and their status. Use `szkrabok doctor detect --write-config` to pin a discovered path to config.
 
 **Common overrides for test runs:**
+
 
 ```toml
 [default]
@@ -54,9 +53,9 @@ userAgent         = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) ..."
 launchOptions  >  savedConfig (last used)  >  TOML preset  >  TOML defaults  >  hardcoded defaults
 ```
 
-`savedConfig` is the resolved config saved in `meta.json` from the previous launch of that session — it provides "resume with same settings" behaviour when no explicit args are given. Passing an explicit `preset` bypasses `savedConfig` for preset-derived fields (userAgent, viewport, locale, timezone) and starts fresh from that preset.
+`savedConfig` is the resolved config saved in `meta.json` from the previous launch of that session - it provides "resume with same settings" behaviour when no explicit args are given. Passing an explicit `preset` bypasses `savedConfig` for preset-derived fields (userAgent, viewport, locale, timezone) and starts fresh from that preset.
 
-**`preset` is mutually exclusive with `userAgent`, `viewport`, `locale`, `timezone`** — passing both throws an error. `headless` and `stealth` are always allowed alongside either:
+**`preset` is mutually exclusive with `userAgent`, `viewport`, `locale`, `timezone`** - passing both throws an error. `headless` and `stealth` are always allowed alongside either:
 
 ```
 # valid — preset owns all appearance fields
@@ -68,8 +67,6 @@ session_manage { "action": "open", "sessionName": "s", "launchOptions": { "userA
 # error — ambiguous
 session_manage { "action": "open", "sessionName": "s", "launchOptions": { "preset": "mobile-iphone-15", "userAgent": "..." } }
 ```
-
----
 
 ## Directory layout
 
@@ -113,8 +110,6 @@ tests/
       navigator.spec.js
 ```
 
----
-
 ## Node tests
 
 No browser. Fast.
@@ -125,7 +120,7 @@ npm run test:runtime:unit      # config, storage, stealth
 npm run test:runtime:integration  # cookie persistence (launches real browser)
 ```
 
-`npm run test:contracts` is a focused alias for `tests/node/contracts.test.js` only — useful for quick invariant checks, but it is already included in `test:node`.
+`npm run test:contracts` is a focused alias for `tests/node/contracts.test.js` only - useful for quick invariant checks, but it is already included in `test:node`.
 
 ### `basic.test.js`
 `getSession` throws for missing session, `listRuntimeSessions` returns empty array, `resolvePreset` returns a valid object.
@@ -134,7 +129,7 @@ npm run test:runtime:integration  # cookie persistence (launches real browser)
 All tool schemas are valid JSON Schema; array properties have `items` defined.
 
 ### `contracts.test.js`
-Static import analysis — no browser launched:
+Static import analysis - no browser launched:
 - No MCP tool calls `chromium.launch*` directly
 - `src/core/` does not exist
 - No MCP tool imports `@szkrabok/runtime/*` subpaths (public root only)
@@ -148,8 +143,6 @@ TOML config loading, preset resolution, storage round-trip, stealth evasions (`n
 
 ### `runtime/integration.test.js`
 Launches the same profile twice. Asserts cookies from run 1 are present in run 2, profile dir is identical, `state.json` reflects changes after close.
-
----
 
 ## Playwright integration tests
 
@@ -174,39 +167,37 @@ npm run test:playwright
 
 ### `session_run_test` tests (EX-1 + EX-2)
 
-Unit tests (`tests/node/session_run_test.test.js`) call `_run` directly with injected deps — no browser, no subprocess. `mockGetSession({ throwNth })` throws from call N onwards; `Infinity` = always return.
+Unit tests (`tests/node/session_run_test.test.js`) call `_run` directly with injected deps - no browser, no subprocess. `mockGetSession({ throwNth })` throws from call N onwards; `Infinity` = always return.
 
 | ID | What | Layer |
 |----|------|-------|
-| EX-1.1–1.3 | Clone lifecycle: isClone flag, runtimeName, sessionClose on destroy | unit |
-| EX-1.4–1.6 | Template lifecycle: no isClone, runtimeName = logicalName, sessionClose on save | unit |
-| EX-1.10–1.14 | Navigation policy branching: always/ifBlank/never, URL validation before I/O | unit |
-| EX-1.15–1.18 | Failure propagation: session error, nav error, test error (postPolicy still runs), postPolicy error | unit |
-| EX-1.21–1.23 | templateConflict: fail, close-first ordering, clone-from-live | unit |
-| EX-1.24–1.25 | enforceLaunchOptionsMatch: hard fail on mismatch; warn + continue | unit |
+| EX-1.1-1.3 | Clone lifecycle: isClone flag, runtimeName, sessionClose on destroy | unit |
+| EX-1.4-1.6 | Template lifecycle: no isClone, runtimeName = logicalName, sessionClose on save | unit |
+| EX-1.10-1.14 | Navigation policy branching: always/ifBlank/never, URL validation before I/O | unit |
+| EX-1.15-1.18 | Failure propagation: session error, nav error, test error (postPolicy still runs), postPolicy error | unit |
+| EX-1.21-1.23 | templateConflict: fail, close-first ordering, clone-from-live | unit |
+| EX-1.24-1.25 | enforceLaunchOptionsMatch: hard fail on mismatch; warn + continue | unit |
 | EX-1.26 | workers:1 and signalAttach:true always forwarded to run_test | unit |
 | EX-2.1 | Template mode end-to-end: response shape, session closed after default save | integration |
 | EX-2.2 | postPolicy keep: session still in `session_manage list` after test | integration |
 | EX-2.3 | withLock: two concurrent same-name calls both complete (deadlock would timeout) | integration |
 | EX-2.4 | Clone mode headless: launchOptions forwarded, noop passes, clone not active after destroy | integration |
 
-EX-1.7–1.9 (postPolicy keep keep/dead/recreate) and EX-1.19–1.20 (concurrency) are not unit-tested — see feature doc for rationale. EX-2.2 and EX-2.3 cover these gaps.
+EX-1.7-1.9 (postPolicy keep keep/dead/recreate) and EX-1.19-1.20 (concurrency) are not unit-tested - see feature doc for rationale. EX-2.2 and EX-2.3 cover these gaps.
 
----
-
-## E2E — stealth health checks
+## E2E - stealth health checks
 
 Real browser against live bot-detection sites. Three run paths:
 
-### Path A — MCP via `browser_run_test` (local source MCP config)
+### Path A - MCP via `browser_run_test` (local source MCP config)
 
-Requires MCP server running from `node src/index.js` (see [development.md](./development.md#mcp-config-for-developing-szkrabok)) and an active session. **Close the session when done** — `browser_run_test` does not close it automatically (the caller owns the lifecycle):
+Requires MCP server running from `node src/index.js` (see [development.md](./development.md#mcp-config-for-developing-szkrabok)) and an active session. **Close the session when done** - `browser_run_test` does not close it automatically (the caller owns the lifecycle):
 
 ```
 session_manage { "action": "close", "sessionName": "check" }
 ```
 
-With **Config A (local source)**, `REPO_ROOT` is already the szkrabok repo — the default `playwright.config.js` works without an explicit path:
+With **Config A (local source)**, `REPO_ROOT` is already the szkrabok repo - the default `playwright.config.js` works without an explicit path:
 
 ```
 session_manage {
@@ -220,7 +211,7 @@ browser_run_test {
 }
 ```
 
-With **Config B (npx/published)**, the server runs from the npx cache and has no knowledge of the local repo — pass the absolute config path:
+With **Config B (npx/published)**, the server runs from the npx cache and has no knowledge of the local repo - pass the absolute config path:
 
 ```
 browser_run_test {
@@ -230,11 +221,11 @@ browser_run_test {
 }
 ```
 
-**Note:** The `files` parameter cannot be combined with `project` — Playwright CLI treats the file paths as additional project names in that case. To run a specific spec, use `grep` instead, or omit `project` and pass only `files`.
+**Note:** The `files` parameter cannot be combined with `project` - Playwright CLI treats the file paths as additional project names in that case. To run a specific spec, use `grep` instead, or omit `project` and pass only `files`.
 
-**External project configs:** `browser_run_test` spawns the Playwright subprocess with `cwd` set to `dirname(config)`. This means an absolute config path from a different project (e.g. `/path/to/sk-skills/playwright.config.js`) uses that project's own `node_modules` and playwright version — no version skew.
+**External project configs:** `browser_run_test` spawns the Playwright subprocess with `cwd` set to `dirname(config)`. This means an absolute config path from a different project (e.g. `/path/to/sk-skills/playwright.config.js`) uses that project's own `node_modules` and playwright version - no version skew.
 
-### Path B — Standalone CLI, no session (direct launch)
+### Path B - Standalone CLI, no session (direct launch)
 
 Launches its own browser via `runtime.launch()`. No active session needed.
 
@@ -242,9 +233,9 @@ Launches its own browser via `runtime.launch()`. No active session needed.
 PLAYWRIGHT_PROJECT=e2e npx playwright test --project=e2e tests/playwright/e2e/rebrowser.spec.js
 ```
 
-The scaffolded `playwright.config.js` includes `['json', { outputFile: 'test-results/report.json' }]` — standalone runs write the JSON report there automatically.
+The scaffolded `playwright.config.js` includes `['json', { outputFile: 'test-results/report.json' }]` - standalone runs write the JSON report there automatically.
 
-### Path C — Standalone CLI with existing session (CDP connect)
+### Path C - Standalone CLI with existing session (CDP connect)
 
 Connects to an already-open session browser. Useful when you want to inspect the browser during/after the run.
 
@@ -252,22 +243,18 @@ Connects to an already-open session browser. Useful when you want to inspect the
 SZKRABOK_CDP_ENDPOINT=http://localhost:<port> PLAYWRIGHT_PROJECT=e2e npx playwright test --project=e2e tests/playwright/e2e/rebrowser.spec.js
 ```
 
----
-
 | File | What it does | Mode |
 |------|-------------|------|
-| `rebrowser.spec.js` | bot-detector.rebrowser.net — **8/10 passing** | **headed only** |
+| `rebrowser.spec.js` | bot-detector.rebrowser.net - **8/10 passing** | **headed only** |
 | `rebrowser-mcp.spec.js` | Same via MCP client harness | headed |
-| `intoli.spec.js` | bot.sannysoft.com — 10 Intoli + 20 fp-collect checks | headless or headed |
+| `intoli.spec.js` | bot.sannysoft.com - 10 Intoli + 20 fp-collect checks | headless or headed |
 | `navigator.spec.js` | whatismybrowser.com navigator props + userAgentData | headed |
 
 ### rebrowser score: 8/10
 
 Permanent failures:
-- `mainWorldExecution` — requires rebrowser-patches binary (conflicts with dummyFn)
-- `exposeFunctionLeak` — `page.exposeFunction` fingerprint, no fix available
-
----
+- `mainWorldExecution` - requires rebrowser-patches binary (conflicts with dummyFn)
+- `exposeFunctionLeak` - `page.exposeFunction` fingerprint, no fix available
 
 ## Authoring specs that run via `browser_run_test`
 
@@ -282,8 +269,8 @@ test('my task', async ({ page }) => {
 ```
 
 `tests/playwright/e2e/fixtures.js` handles two modes automatically:
-- **MCP** (`SZKRABOK_CDP_ENDPOINT` set) — connects to live session via CDP
-- **Standalone** — calls `runtime.launch({ profile: 'dev', reuse: true })`
+- **MCP** (`SZKRABOK_CDP_ENDPOINT` set) - connects to live session via CDP
+- **Standalone** - calls `runtime.launch({ profile: 'dev', reuse: true })`
 
 Pass params from MCP:
 ```
@@ -295,9 +282,7 @@ browser_run_test {
   "params": { "url": "https://example.com" }
 }
 ```
-`params` keys are available as uppercased env vars in the spec (e.g. `{url:...}` → `process.env.URL`).
-
----
+`params` keys are available as uppercased env vars in the spec (e.g. `{url:...}` -> `process.env.URL`).
 
 ## Calling `browser_run_test` from `@szkrabok/runtime`
 
@@ -332,8 +317,6 @@ await mcp.close();  // closes session and shuts down the MCP subprocess
 
 `browser_run_test` returns `{ passed, failed, skipped, tests, log, reportFile }`. `reportFile` is the resolved absolute path to the JSON report on disk.
 
----
-
 ## Regenerate mcp-tools.js
 
 After any tool registry change:
@@ -343,8 +326,6 @@ npm run codegen:mcp
 ```
 
 Commit the updated `packages/runtime/mcp-client/mcp-tools.js`.
-
----
 
 ## Run everything
 
@@ -357,21 +338,19 @@ npm run test:playwright             # Playwright integration (headless, MCP over
 npm run test:self                   # lint + integration + node tests (pre-publish gate)
 ```
 
-For e2e (live sites, headed browser) — open a session first, then use `browser_run_test` or the standalone CLI (see [E2E paths](#e2e--stealth-health-checks) above).
-
----
+For e2e (live sites, headed browser) - open a session first, then use `browser_run_test` or the standalone CLI (see [E2E paths](#e2e--stealth-health-checks) above).
 
 ## Troubleshooting
 
 | Symptom | Fix |
 |---------|-----|
 | `run_test` fails "Session not open" | Call `session_manage { "action": "open" }` first |
-| `run_test` fails "no CDP port" | Session opened before CDP support — close and reopen |
-| `rebrowser` ERR_ABORTED | Site blocks headless — open session with `headless: false` |
-| intoli timeout (headed) | Intermittent — rerun |
+| `run_test` fails "no CDP port" | Session opened before CDP support - close and reopen |
+| `rebrowser` ERR_ABORTED | Site blocks headless - open session with `headless: false` |
+| intoli timeout (headed) | Intermittent - rerun |
 | `Executable doesn't exist` | `npx playwright install chromium` |
 | Wrong browser | Run `szkrabok doctor detect` to see the resolution chain; `doctor detect --write-config` pins the path |
-| Project TOML not picked up by MCP server | Server reads config from MCP roots — ensure the client sends roots pointing at the project directory |
+| Project TOML not picked up by MCP server | Server reads config from MCP roots - ensure the client sends roots pointing at the project directory |
 | `getConfig() called before initConfig()` | Call `initConfig([])` before any config read; MCP server does this automatically |
-| `context.browser(...).process is not a function` | Playwright build does not expose `browser.process()` — `tryBrowserPid()` handles this gracefully, returning `null`. This error means the running code is stale. Restart the MCP server to pick up the source. |
-| Custom UA ignored | UA set in `szkrabok.config.local.toml` requires the server to find that file via the discovery chain — verify with `SZKRABOK_CONFIG=/path/to/toml` env var for quick testing |
+| `context.browser(...).process is not a function` | Playwright build does not expose `browser.process()` - `tryBrowserPid()` handles this gracefully, returning `null`. This error means the running code is stale. Restart the MCP server to pick up the source. |
+| Custom UA ignored | UA set in `szkrabok.config.local.toml` requires the server to find that file via the discovery chain - verify with `SZKRABOK_CONFIG=/path/to/toml` env var for quick testing |

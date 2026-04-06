@@ -1,14 +1,14 @@
 /**
  * Custom fixtures for szkrabok test suite.
  *
- * Path A — MCP / CDP mode (SZKRABOK_CDP_ENDPOINT set):
- *   Connects to the live MCP session browser via plain CDP — no runtime import needed.
+ * Path A - MCP / CDP mode (SZKRABOK_CDP_ENDPOINT set):
+ *   Connects to the live MCP session browser via plain CDP - no runtime import needed.
  *   Stealth is already applied at session launch time (session_manage open).
  *
- * Path B — Dev mode (VSCode, standalone):
+ * Path B - Dev mode (VSCode, standalone):
  *   Launches a new stealth browser via runtime.launch().
  *
- * No static runtime import — MCP path has zero runtime dependency.
+ * No static runtime import - MCP path has zero runtime dependency.
  */
 import { test as base, chromium } from 'playwright/test';
 import { writeFile } from 'fs/promises';
@@ -17,7 +17,7 @@ export { expect } from 'playwright/test';
 
 const cdpEndpoint = process.env.SZKRABOK_CDP_ENDPOINT || '';
 
-// Memoized per worker — avoids repeated dynamic import evaluation across tests.
+// Memoized per worker - avoids repeated dynamic import evaluation across tests.
 let _runtimeP;
 const getRuntime = () => _runtimeP ??= import('@szkrabok/runtime');
 
@@ -27,13 +27,13 @@ export const test = base.extend({
     // eslint-disable-next-line no-empty-pattern -- Playwright fixture API requires destructuring even when no fixtures are used
     async ({}, use) => {
       if (cdpEndpoint) {
-        // Path A: plain CDP connect — no runtime import needed.
+        // Path A: plain CDP connect - no runtime import needed.
         // The MCP session browser already has stealth applied at launch time.
         const browser  = await chromium.connectOverCDP(cdpEndpoint);
         const contexts = browser.contexts();
         const context  = contexts[0] ?? await browser.newContext();
         await use({ browser, context });
-        // Do NOT close — MCP session owns this browser.
+        // Do NOT close - MCP session owns this browser.
         if (process.env.SZKRABOK_ATTACH_SIGNAL) {
           await writeFile(process.env.SZKRABOK_ATTACH_SIGNAL, '').catch(() => {});
         }
@@ -58,7 +58,7 @@ export const test = base.extend({
 
   context: async ({ _runtimeHandle }, use) => {
     await use(_runtimeHandle.context);
-    // Do NOT close — handle lifecycle manages it
+    // Do NOT close - handle lifecycle manages it
   },
 
   page: async ({ _runtimeHandle }, use) => {
@@ -66,6 +66,6 @@ export const test = base.extend({
     const pages = ctx.pages();
     const pg = pages[0] ?? (await ctx.newPage());
     await use(pg);
-    // Do NOT close — MCP session or handle lifecycle manages it
+    // Do NOT close - MCP session or handle lifecycle manages it
   },
 });

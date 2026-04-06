@@ -27,7 +27,7 @@ test('waitForAttach resolves when signal file exists', async () => {
     await waitForAttach(signalFile);
     const elapsed = Date.now() - start;
 
-    // Resolved on first poll — well under one poll interval (100ms).
+    // Resolved on first poll - well under one poll interval (100ms).
     assert.ok(elapsed < 500, `should resolve immediately, took ${elapsed}ms`);
   } finally {
     await rm(dir, { recursive: true });

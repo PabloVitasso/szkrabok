@@ -6,8 +6,6 @@ Allow users to load unpacked Chrome extensions or `.crx` files into szkrabok-man
 browser sessions, enabling automation that depends on extension-injected APIs, content
 scripts, or UI panels.
 
----
-
 ## Background
 
 The current launcher (`packages/runtime/launch.js`) imports only `chromium` from
@@ -17,11 +15,9 @@ accepted by `session_manage open` has no `args` field and no extension path fiel
 
 Extensions require `--load-extension=<path>` and `--disable-extensions-except=<path>`
 to be passed at launch time. These flags are incompatible with packed (`.crx`) files
-in newer Chromium versions — unpacked extension directories are required.
+in newer Chromium versions - unpacked extension directories are required.
 
 Only Chromium/Chrome is supported; Firefox and WebKit are not in scope.
-
----
 
 ## Proposed changes
 
@@ -64,8 +60,6 @@ extensions: z.array(z.string()).optional()
 
 Session-level `extensions` merges with config-level `extensions` (union, no dedup).
 
----
-
 ## Stealth compatibility
 
 The `user-data-dir` evasion is already disabled in `packages/runtime/stealth.js`
@@ -73,9 +67,7 @@ The `user-data-dir` evasion is already disabled in `packages/runtime/stealth.js`
 
 Some stealth evasions mock `chrome.runtime` and `navigator.plugins`. Extensions that
 inspect these APIs may behave unexpectedly in headless mode with stealth enabled.
-This is a known limitation and does not require a code change — document it.
-
----
+This is a known limitation and does not require a code change - document it.
 
 ## Constraints and non-goals
 
@@ -83,13 +75,11 @@ This is a known limitation and does not require a code change — document it.
 - **Unpacked extensions only.** Packed `.crx` files are unsupported in modern Chromium
   without enterprise policy. Users must provide unpacked directories.
 - **No extension install automation.** Installing from the Chrome Web Store is not
-  addressed — network-fetched `.crx` install is a separate concern.
+  addressed - network-fetched `.crx` install is a separate concern.
 - **No extension state isolation between clones.** Extension data lives in the profile
   directory; clones inherit it as-is. Clearing extension state between clones is out of scope.
 - **No `args` sanitization beyond schema typing.** Dangerous flags (e.g.
   `--remote-debugging-port`) are the user's responsibility. Document this.
-
----
 
 ## Definition of done
 

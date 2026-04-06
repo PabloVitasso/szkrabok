@@ -1,20 +1,20 @@
 /**
- * Browser resolution tests — Stage 1 + Stage 2 + Stage 3 + Stage 4 + Stage 5 + Stage 6
+ * Browser resolution tests - Stage 1 + Stage 2 + Stage 3 + Stage 4 + Stage 5 + Stage 6
  *
  * Run: node --test tests/node/runtime/resolve.test.js
  *
- * Category 1:  validateCandidate() — false-positive prevention (11 tests)
- * Category 2:  resolveChromium() — priority matrix (8 tests)
- * Category 3:  buildCandidates() — discovery shape (4 tests)
+ * Category 1:  validateCandidate() - false-positive prevention (11 tests)
+ * Category 2:  resolveChromium() - priority matrix (8 tests)
+ * Category 3:  buildCandidates() - discovery shape (4 tests)
  * Category 4:  checkBrowser() + error contract (7 tests)
  * Category 5:  findChromiumPath backward compat (2 tests)
- * Category 6:  install-time invariant — postinstall no browser download (3 tests)
+ * Category 6:  install-time invariant - postinstall no browser download (3 tests)
  * Category 7:  doctor CLI output (7 tests)
  * Category 8:  browser-actions integrity + mock-npx integration (3 tests)
  * Category 9:  MCP tool / BrowserNotFoundError serialization (4 tests)
  * Category 10: cross-platform path handling (3 tests)
- * Category 11: Stage 6 — D1 exit codes, D2/D4 tag format, D3 CDP check, CHROMIUM_PATH=''
- * Category 12: snap wrapper fix — isFunctionalBrowser probe (3 tests)
+ * Category 11: Stage 6 - D1 exit codes, D2/D4 tag format, D3 CDP check, CHROMIUM_PATH=''
+ * Category 12: snap wrapper fix - isFunctionalBrowser probe (3 tests)
  * Category 13: browser-actions unit tests (9 tests)
  * Category 14: doctor detect CLI (5 tests)
  * Category 15: doctor install CLI (4 tests)
@@ -128,7 +128,7 @@ describe('validateCandidate', () => {
   });
 
   test('rejects broken symlink — "file not found" (symlink target does not exist)', () => {
-    // On Linux, stat() on a broken symlink returns ENOENT — same as non-existent path.
+    // On Linux, stat() on a broken symlink returns ENOENT - same as non-existent path.
     // ELOOP is only for "too many symlink levels" (circular reference), not for
     // a symlink whose target is missing. So "file not found" is the correct reason.
     const dir = join(tmpdir(), `szkrabok-test-${process.pid}-${Date.now()}-symlink`);
@@ -552,8 +552,8 @@ describe('doctor CLI output', () => {
       }
     );
     const out = result.stdout + result.stderr;
-    // env failed validation — it is before any winner (or there is no winner)
-    // → state is always 'fail' → [FAIL  ]
+    // env failed validation - it is before any winner (or there is no winner)
+    // -> state is always 'fail' -> [FAIL  ]
     assert.ok(
       out.includes('[FAIL  ] env'),
       `expected "[FAIL  ] env" in output:\n${out}`
@@ -614,8 +614,8 @@ describe('doctor CLI output — ABSENT tag and version warning', () => {
 
   test('non-playwright binary — doctor prints [warn] or [note] for CDP compatibility', () => {
     // /bin/ls is a valid executable but not a real browser, source=env (not playwright).
-    // Its --version output cannot be parsed as a Chromium major version →
-    // extractChromiumMajor returns null → [note] (not [warn]).
+    // Its --version output cannot be parsed as a Chromium major version ->
+    // extractChromiumMajor returns null -> [note] (not [warn]).
     // A real Chrome binary would produce [warn] on mismatch or nothing on match.
     const result = spawnSync(
       process.execPath,
@@ -673,7 +673,7 @@ describe('doctor CLI output — ABSENT tag and version warning', () => {
       src.includes('[SKIP  ]'),
       'doctor.js must use fixed-width [SKIP  ] tag (8 chars)'
     );
-    // CHROMIUM_PATH='' must NOT be in ABSENT_REASONS — it is a fail, not absent
+    // CHROMIUM_PATH='' must NOT be in ABSENT_REASONS - it is a fail, not absent
     assert.ok(
       !src.includes("'empty path'") || src.indexOf('ABSENT_REASONS') > src.indexOf("'empty path'"),
       "ABSENT_REASONS must not include 'empty path'"
@@ -681,7 +681,7 @@ describe('doctor CLI output — ABSENT tag and version warning', () => {
   });
 });
 
-// ── Category 8 additions — doctor install (mock npx) ──────────────────────────
+// ── Category 8 additions - doctor install (mock npx) ──────────────────────────
 //
 // Uses a fake `npx` script on PATH to avoid a real ~200 MB download.
 // Success path: fake npx exits 0, resolution runs against real installed browsers.
@@ -773,7 +773,7 @@ describe('doctor install: mock-npx integration', () => {
   });
 });
 
-// ── Category 9 additions — BrowserNotFoundError serialization ─────────────────
+// ── Category 9 additions - BrowserNotFoundError serialization ─────────────────
 
 describe('BrowserNotFoundError serialization and MCP error contract', () => {
   test('has code = BROWSER_NOT_FOUND', () => {
@@ -842,7 +842,7 @@ describe('Stage 6 — D1: doctor exit code contract', () => {
         timeout: 15000,
       }
     );
-    // Exit 0 regardless of check outcome — this is the public API contract
+    // Exit 0 regardless of check outcome - this is the public API contract
     assert.strictEqual(
       result.status, 0,
       `doctor must exit 0 by default (execution success), got ${result.status}:\n${result.stdout}${result.stderr}`
@@ -860,7 +860,7 @@ describe('Stage 6 — D1: doctor exit code contract', () => {
       }
     );
     // With --strict, doctor exits 1 when any check fails.
-    // On this machine the TOML may resolve a browser — so we check the output
+    // On this machine the TOML may resolve a browser - so we check the output
     // and only assert exit 1 if "Some checks failed" is present.
     if ((result.stdout + result.stderr).includes('Some checks failed')) {
       assert.strictEqual(
@@ -868,7 +868,7 @@ describe('Stage 6 — D1: doctor exit code contract', () => {
         `doctor --strict must exit 1 when checks fail:\n${result.stdout}${result.stderr}`
       );
     } else {
-      // All checks passed (e.g. TOML resolved a browser) — --strict exits 0
+      // All checks passed (e.g. TOML resolved a browser) - --strict exits 0
       assert.strictEqual(
         result.status, 0,
         `doctor --strict exits 0 when all checks pass:\n${result.stdout}${result.stderr}`
@@ -886,7 +886,7 @@ describe('Stage 6 — D1: doctor exit code contract', () => {
         timeout: 15000,
       }
     );
-    // /bin/ls is a valid executable — browser check passes, so all checks pass
+    // /bin/ls is a valid executable - browser check passes, so all checks pass
     // (assuming node version >=20 and playwright-core is installed)
     assert.strictEqual(
       result.status, 0,
@@ -918,7 +918,7 @@ describe('Stage 6 — D3: CDP version check via lookup table', () => {
       src.includes('pwCoreVersion'),
       'doctor.js must use pwCoreVersion as the lookup key (sourced from playwright-core package.json)'
     );
-    // Must NOT use _revision — that is the rejected approach
+    // Must NOT use _revision - that is the rejected approach
     assert.ok(
       !src.includes('_revision'),
       'doctor.js must not use _revision — use package.json version as lookup key'
@@ -926,8 +926,8 @@ describe('Stage 6 — D3: CDP version check via lookup table', () => {
   });
 
   test('non-playwright binary with unparseable version → [note] CDP', () => {
-    // /bin/ls --version output cannot be parsed as "Chromium X.Y.Z.W" →
-    // extractChromiumMajor returns null → [note], not [warn]
+    // /bin/ls --version output cannot be parsed as "Chromium X.Y.Z.W" ->
+    // extractChromiumMajor returns null -> [note], not [warn]
     const result = spawnSync(
       process.execPath,
       [CLI, 'doctor'],
@@ -983,7 +983,7 @@ describe('Stage 6 — D2/D4: tag format and state model', () => {
       }
     );
     const out = result.stdout + result.stderr;
-    // empty string is a configured-but-invalid value → [FAIL  ], not [ABSENT]
+    // empty string is a configured-but-invalid value -> [FAIL  ], not [ABSENT]
     assert.ok(
       out.includes('[FAIL  ] env'),
       `expected "[FAIL  ] env" for CHROMIUM_PATH="" — empty string is fail, not absent:\n${out}`
@@ -1016,7 +1016,7 @@ describe('Stage 6 — D2/D4: tag format and state model', () => {
       );
     }
     // post-winner candidates render their true evaluation state (never suppressed)
-    // skip → [SKIP  ], absent → [ABSENT], fail → [FAIL  ]; no [      ] suppression
+    // skip -> [SKIP  ], absent -> [ABSENT], fail -> [FAIL  ]; no [      ] suppression
     assert.ok(
       !out.includes('[      ]'),
       `[      ] suppression tag must not appear — post-winner candidates always show true state:\n${out}`
@@ -1041,7 +1041,7 @@ describe('Stage 6 — D2/D4: tag format and state model', () => {
   });
 });
 
-// ── Category 12: snap wrapper fix — isFunctionalBrowser probe ─────────────────
+// ── Category 12: snap wrapper fix - isFunctionalBrowser probe ─────────────────
 
 describe('isFunctionalBrowser probe', () => {
   // Helper: create a temp stub script
@@ -1080,7 +1080,7 @@ describe('isFunctionalBrowser probe', () => {
 
 describe('cross-platform path handling', () => {
   test('path with spaces — validation runs without error', () => {
-    // Does not need to exist — just must not throw internally
+    // Does not need to exist - just must not throw internally
     const result = validateCandidate('/path/to/Google Chrome.app/Contents/MacOS/Google Chrome');
     assert.ok('ok' in result);
     assert.ok('reason' in result);
@@ -1090,7 +1090,7 @@ describe('cross-platform path handling', () => {
   });
 
   test('trailing slash — rejected as not a file', () => {
-    // /tmp/ has trailing slash — directories fail isFile check
+    // /tmp/ has trailing slash - directories fail isFile check
     const result = validateCandidate('/tmp/');
     assert.strictEqual(result.ok, false);
     assert.strictEqual(result.reason, 'not a file');
@@ -1100,7 +1100,7 @@ describe('cross-platform path handling', () => {
     // On win32, backslash paths must validate without internal errors.
     // validateCandidate normalises via statSync which handles win32 separators.
     const result = validateCandidate('C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe');
-    // File won't exist in CI — just assert no unexpected internal error
+    // File won't exist in CI - just assert no unexpected internal error
     assert.ok(
       result.reason !== 'cannot stat path: undefined',
       `unexpected internal error for win32 path: ${result.reason}`
@@ -1126,7 +1126,7 @@ describe('browser-actions unit', () => {
   });
 
   test('runDetect() winner is consistent with resolveChromium on same candidates', async () => {
-    // runDetect uses initConfig([]) + getConfig() — run twice and compare for idempotency
+    // runDetect uses initConfig([]) + getConfig() - run twice and compare for idempotency
     const { winner: w1, results: r1 } = await runDetect();
     // eslint-disable-next-line no-unused-vars
     const { winner: w2, results: _r2 } = await runDetect();
@@ -1227,7 +1227,7 @@ describe('browser-actions unit', () => {
   });
 });
 
-// ── Category 7 addition — doctor --write-config hint ─────────────────────────
+// ── Category 7 addition - doctor --write-config hint ─────────────────────────
 
 describe('doctor CLI output — write-config hint', () => {
   const CLI = join(REPO_ROOT, 'src', 'index.js');
@@ -1243,7 +1243,7 @@ describe('doctor CLI output — write-config hint', () => {
       }
     );
     const out = result.stdout + result.stderr;
-    // env is the winner source — not 'config' — hint must appear
+    // env is the winner source - not 'config' - hint must appear
     assert.ok(
       out.includes('--write-config'),
       `expected "--write-config" hint in output when winner is not from config:\n${out}`
@@ -1286,7 +1286,7 @@ describe('doctor detect CLI', () => {
       }
     );
     const out = result.stdout + result.stderr;
-    // May still find playwright or system — test is best-effort on CI
+    // May still find playwright or system - test is best-effort on CI
     // If no browser: must mention install
     if (!out.includes('Resolved:')) {
       assert.ok(
@@ -1390,7 +1390,7 @@ describe('doctor install CLI', () => {
       })();
       // Use /bin/ls as a stand-in for playwright source since we can't easily fake source=playwright
       // Instead, test the force guard: if browser already found via any source + no force, no download
-      // We rely on the idempotency logic in runInstall: found && source !== playwright && !force → no download
+      // We rely on the idempotency logic in runInstall: found && source !== playwright && !force -> no download
       const result = spawnSync(
         process.execPath,
         [CLI, 'doctor', 'install'],
@@ -1402,7 +1402,7 @@ describe('doctor install CLI', () => {
       );
       const out = result.stdout + result.stderr;
       assert.strictEqual(result.status, 0, `expected exit 0:\n${out}`);
-      // no-op path: browser found via env, no force → npx must NOT be called
+      // no-op path: browser found via env, no force -> npx must NOT be called
       assert.ok(
         !existsSync(sentinelFile),
         `npx must not be called when browser already found (no --force):\n${out}`

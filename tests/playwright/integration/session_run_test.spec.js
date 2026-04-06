@@ -1,11 +1,11 @@
 /**
- * Integration tests for session_run_test — EX-2 test plan.
+ * Integration tests for session_run_test - EX-2 test plan.
  * Real MCP server, real headless browser, real playwright spec subprocess.
  *
  * Covers the two gaps left by unit tests:
  *   EX-2.1  template mode end-to-end (basic sanity)
- *   EX-2.2  postPolicy keep — session stays open after test
- *   EX-2.3  withLock — two concurrent same-name calls both complete (no deadlock / race)
+ *   EX-2.2  postPolicy keep - session stays open after test
+ *   EX-2.3  withLock - two concurrent same-name calls both complete (no deadlock / race)
  */
 
 import { test, expect } from './fixtures.js';
@@ -46,7 +46,7 @@ test.describe('session_run_test', () => {
     expect(result.session.mode).toBe('template');
     expect(result.test).toBeDefined();
 
-    // postPolicy defaults to 'save' for template → browser closed, profile kept on disk.
+    // postPolicy defaults to 'save' for template -> browser closed, profile kept on disk.
     // session_manage list returns ALL stored sessions (active and inactive).
     const list = await client.callTool({ name: 'session_manage', arguments: { action: 'list' } });
     const { sessions } = JSON.parse(list.content[0].text);
@@ -78,7 +78,7 @@ test.describe('session_run_test', () => {
   test('EX-2.4 clone mode headless: launchOptions forwarded, reads real page content', async ({ client }) => {
     const name = `srt-clone-${randomUUID()}`;
 
-    // Create template profile (headless — no visible window).
+    // Create template profile (headless - no visible window).
     await client.callTool({
       name: 'session_manage',
       arguments: { action: 'open', sessionName: name, launchOptions: { headless: true } },

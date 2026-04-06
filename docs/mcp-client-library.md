@@ -1,4 +1,4 @@
-# MCP Client Library — Architecture
+# MCP Client Library - Architecture
 
 ## Contents
 
@@ -16,14 +16,10 @@
 - [Sequences (optional)](#sequences-optional)
 - [What is NOT in scope](#what-is-not-in-scope)
 
----
-
 Reusable library for calling szkrabok MCP tools from Playwright tests.
 Provides a typed handle object (`mcp.browser_scrape(...)`) generated from the live
 tool registry, with JSONL console output that is 1:1 copy-pasteable for LLM
 invocation.
-
----
 
 ## File layout
 
@@ -51,8 +47,6 @@ packages/runtime/mcp-client/
 `runtime/` contains nothing szkrabok-specific. It could drive any MCP server.
 `adapters/szkrabok-session.js` is the only file that knows about `session_manage`,
 and the wire key name `sessionName`.
-
----
 
 ## Layers
 
@@ -91,8 +85,6 @@ adapters/szkrabok-session.js
   └─ hasSession(tool)                      ← true if inputSchema.properties contains sessionName
 ```
 
----
-
 ## Generated file: `mcp-tools.js`
 
 Single output file. Never edited by hand. Committed to git. Lives at
@@ -122,10 +114,10 @@ mcpConnect(sessionName, {
 The generated file imports `szkrabok-session.js` and uses it as the default adapter.
 `adapter` in options is the extension point for testing against a different server or session model.
 
-`sessionName` is passed through the adapter — generic code never references
+`sessionName` is passed through the adapter - generic code never references
 the wire key `sessionName` directly. The adapter owns that mapping.
 
-`session_manage` is not exposed as a handle method — it is lifecycle,
+`session_manage` is not exposed as a handle method - it is lifecycle,
 called internally by the adapter via `open` and `close`.
 
 ### Registry drift detection
@@ -169,25 +161,21 @@ reused for the drift check, then handed to `createCallInvoker`. Spawning a
 second client for the check would be wasteful and subtly racy if the registry
 changed between spawns.
 
----
-
 ## `runtime/transport.js`
 
-Single export: **`spawnClient()`** — spawns `node src/index.js` via
+Single export: **`spawnClient()`** - spawns `node src/index.js` via
 `StdioClientTransport`, connects an MCP `Client`, returns it. The caller owns
 the lifecycle. Contains nothing session- or tool-specific.
 
----
-
 ## `runtime/invoker.js`
 
-Single export: **`createCallInvoker({ client, log, adapter, sessionName })`** —
+Single export: **`createCallInvoker({ client, log, adapter, sessionName })`** -
 returns `{ invoke, close }`.
 
-- `invoke(name, args)` — calls `adapter.injectSession(args, sessionName)` if
+- `invoke(name, args)` - calls `adapter.injectSession(args, sessionName)` if
   `adapter.hasSession(tool)` is true, serializes via a promise chain, logs
   before/after, calls `client.callTool`. Throws if called after `close()`.
-- `close()` — idempotent. Sets closed flag, then delegates to the adapter:
+- `close()` - idempotent. Sets closed flag, then delegates to the adapter:
 
 ```js
 async function close() {
@@ -217,17 +205,15 @@ available via `{ parallel: true }` in `invoke` options, which bypasses the
 chain for that call. Default remains serial. The escape hatch is opt-in so
 the safe path requires no thought.
 
----
-
 ## `adapters/szkrabok-session.js`
 
 The only file in `client/` that is szkrabok-specific. Implements four
 functions consumed by the invoker:
 
-- **`open(client, sessionName)`** — calls `session_manage` with `{ action: 'open', sessionName }`
-- **`close(client, sessionName)`** — calls `session_manage` with `{ action: 'close', sessionName }`
-- **`injectSession(args, sessionName)`** — returns `{ sessionName, ...args }`
-- **`hasSession(tool)`** — returns true if `tool.inputSchema.properties.sessionName` exists
+- **`open(client, sessionName)`** - calls `session_manage` with `{ action: 'open', sessionName }`
+- **`close(client, sessionName)`** - calls `session_manage` with `{ action: 'close', sessionName }`
+- **`injectSession(args, sessionName)`** - returns `{ sessionName, ...args }`
+- **`hasSession(tool)`** - returns true if `tool.inputSchema.properties.sessionName` exists
 
 `sessionName` as a wire key is defined here and nowhere else. If a future
 server uses a different session parameter name, only this file changes.
@@ -236,23 +222,21 @@ server uses a different session parameter name, only this file changes.
 inject. Tools without a `sessionName` parameter in their schema (e.g. a global
 health check) are called without injection.
 
----
-
 ## Codegen script: `generate-mcp-tools.mjs`
 
-Run manually after any change to `src/tools/registry.js`. Idempotent —
+Run manually after any change to `src/tools/registry.js`. Idempotent -
 writes only if content changed.
 
 Steps:
-1. `spawnClient()` — open one client for the entire codegen run
-2. `client.listTools()` — fetch tools
-3. `client.close()` — close
+1. `spawnClient()` - open one client for the entire codegen run
+2. `client.listTools()` - fetch tools
+3. `client.close()` - close
 4. Compute `registryHash(tools)`
 5. Group tools by namespace (see namespace rules below)
 6. For each tool, derive JSDoc param types from `inputSchema.properties`
-   — strip `sessionName` (injected by adapter), mark optional params with `?`
+   - strip `sessionName` (injected by adapter), mark optional params with `?`
 7. Render file via `render-tools.js` (pure, testable separately)
-8. Diff against existing `mcp-tools.js` — skip write if identical, print `No changes.`
+8. Diff against existing `mcp-tools.js` - skip write if identical, print `No changes.`
 9. Write file, print `Generated N tools.`
 
 ### `package.json` registration
@@ -262,7 +246,7 @@ Steps:
 ```
 
 Run anytime the registry changes, then commit the updated `mcp-tools.js`.
-IDE autocomplete works permanently from the static committed file — no build
+IDE autocomplete works permanently from the static committed file - no build
 step, no dynamic generation at test runtime.
 
 ### Header comment in `mcp-tools.js`
@@ -280,12 +264,10 @@ The hash is also emitted as a JS constant immediately after the imports:
 const REGISTRY_HASH = 'a3f9c1d82e4b';
 ```
 
----
-
 ## Namespace splitting
 
 Tool names are split on the first `.`. Everything after the first dot is the
-method key — preserving nested dots:
+method key - preserving nested dots:
 
 ```
 browser_run_test  → ns: "browser", method: "run_test"
@@ -301,13 +283,11 @@ health            → ns: "_root",   method: "health"
 ```
 
 `handle._root.health(args)` is the call form. This is explicit and
-unambiguous — the alternative (collapsing to `handle['']`) is a silent
+unambiguous - the alternative (collapsing to `handle['']`) is a silent
 footgun.
 
 Codegen documents `_root` in the `@typedef` block. Test authors are
 expected to use `_root` only for genuinely global tools.
-
----
 
 ## Type derivation: `schema-to-jsdoc.js`
 
@@ -327,8 +307,6 @@ type string.
 
 `integer` maps to `number` (JSDoc has no integer type). Kept as a separate
 module so it can be unit-tested without spawning anything.
-
----
 
 ## Log format: `runtime/logger.js`
 
@@ -356,7 +334,7 @@ Every call produces two JSONL lines.
 `_`-prefixed fields. There is no ambiguity about which lines to replay and
 which to skip, even when piping raw log output.
 
-`name` and `arguments` stay prominent at the start — the line reads as a
+`name` and `arguments` stay prominent at the start - the line reads as a
 tool call first, observability metadata second.
 
 ### Replay
@@ -370,23 +348,23 @@ for (const line of jsonlLines) {
 }
 ```
 
-The structure encodes the rule — no implicit knowledge required of the
+The structure encodes the rule - no implicit knowledge required of the
 implementer.
 
-### Result logging — two-tier by size
+### Result logging - two-tier by size
 
 MCP responses can be large (`browser.snapshot` returns a full accessibility
 tree; screenshots are base64). Logging them inline destroys the readability
 of the JSONL stream.
 
-**Small result** (under ~200 chars after JSON serialisation) — inlined as
+**Small result** (under ~200 chars after JSON serialisation) - inlined as
 `_result`, JSON-parsed if the text content is itself JSON:
 
 ```json
 {"name":"session_manage","arguments":{"action":"open","sessionName":"my-session"},"_phase":"after","_result":{"opened":true},"_ok":true,"_ms":84,"_seq":1}
 ```
 
-**Large result** — summary inline, full content written to a sidecar file
+**Large result** - summary inline, full content written to a sidecar file
 named by sequence number and tool name:
 
 ```json
@@ -399,8 +377,6 @@ The JSONL stream stays scannable.
 
 Sidecar writing is opt-in (disabled by default). The size threshold and
 output directory are configurable in `runtime/logger.js`.
-
----
 
 ## Session lifecycle in tests
 
@@ -437,8 +413,6 @@ mcpTest('my test via MCP', async ({ mcp }) => {
 });
 ```
 
----
-
 ## Sequences (optional)
 
 Stored JSONL files in `packages/runtime/mcp-client/sequences/` represent reusable call sequences
@@ -454,10 +428,8 @@ A `runSequence(mcp, filePath)` helper reads the file, calls
 returns results. Tools that have no session parameter in their schema are
 called without injection.
 
-Sequences are not required for the core library — they are an optional
+Sequences are not required for the core library - they are an optional
 higher-level convenience.
-
----
 
 ## What is NOT in scope
 

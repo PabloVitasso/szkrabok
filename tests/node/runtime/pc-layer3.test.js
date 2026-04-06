@@ -1,8 +1,8 @@
 /**
- * PC-3 — sessions unit tests
+ * PC-3 - sessions unit tests
  *
- * Tests: destroyClone — teardown, dir removal, no-persistence guards, type guard.
- * Tests: closeSession (template path) — unchanged behaviour.
+ * Tests: destroyClone - teardown, dir removal, no-persistence guards, type guard.
+ * Tests: closeSession (template path) - unchanged behaviour.
  *
  * Uses real pool and real temp dirs. No browser launched.
  *
@@ -60,7 +60,7 @@ const makeEntry = (overrides = {}) => {
   };
 };
 
-// ── PC-3.1–PC-3.5  destroyClone happy path ───────────────────────────────────
+// ── PC-3.1-PC-3.5  destroyClone happy path ───────────────────────────────────
 
 describe('PC-3 destroyClone — happy path', () => {
   test('PC-3.1: context.close() is called', async () => {
@@ -163,7 +163,7 @@ describe('PC-3 destroyClone — happy path', () => {
   });
 });
 
-// ── PC-3.6–PC-3.7  destroyClone guard paths ──────────────────────────────────
+// ── PC-3.6-PC-3.7  destroyClone guard paths ──────────────────────────────────
 
 describe('PC-3 destroyClone — guard paths', () => {
   test('PC-3.6: throws when called with a template session id (isClone: false)', async () => {
@@ -174,7 +174,7 @@ describe('PC-3 destroyClone — guard paths', () => {
     const entry = makeEntry();
 
     console.log('PC-3.6 step 1: pool.add("' + id + '", isClone=false — default)');
-    // Add as template (isClone: false — the default).
+    // Add as template (isClone: false - the default).
     pool.add(id, entry.context, entry.page, entry.cdpPort, entry.preset, entry.label);
 
     console.log('PC-3.6 step 2: destroyClone("' + id + '") (expect rejection)');

@@ -17,7 +17,7 @@
 
 ## MCP Server
 
-After editing source files: `/mcp` → **restart** szkrabok
+After editing source files: `/mcp` -> **restart** szkrabok
 
 Source changes only take effect when the MCP config points at `node src/index.js`. Add the project-local entry once:
 
@@ -27,12 +27,12 @@ claude mcp add szkrabok -s local -- node /absolute/path/to/szkrabok/src/index.js
 
 Then restart after any source edit. If the config points at npx (published), changes require a publish.
 
-Confirm which server is running: `session_manage { "action": "list" }` returns `server.source` — the entry point path. See [docs/development.md — MCP config](./docs/development.md#mcp-config-for-developing-szkrabok).
+Confirm which server is running: `session_manage { "action": "list" }` returns `server.source` - the entry point path. See [docs/development.md - MCP config](./docs/development.md#mcp-config-for-developing-szkrabok).
 
 ## Run Tests
 
 See [docs/testing.md](./docs/testing.md) for all paths. Quick reference:
 
-- **MCP** (`browser_run_test`): requires an open session — `session_manage open` first
-- **Standalone CLI**: `PLAYWRIGHT_PROJECT=e2e npx playwright test --project=e2e` — no session needed
+- **MCP** (`browser_run_test`): requires an open session - `session_manage open` first
+- **Standalone CLI**: `PLAYWRIGHT_PROJECT=e2e npx playwright test --project=e2e` - no session needed
 - **Node tests**: `npm run test:node`

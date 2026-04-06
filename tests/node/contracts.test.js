@@ -1,5 +1,5 @@
 /**
- * Phase 5.3 — MCP contract tests.
+ * Phase 5.3 - MCP contract tests.
  *
  * Uses static import analysis to enforce boundary invariants.
  * No browser launched. Runs fast.
@@ -40,7 +40,7 @@ describe('Invariant 1: no chromium.launch* in MCP tools', () => {
     const violations = await Promise.all(
       files.map(async file => {
         const raw = await readSrc(file);
-        // Match chromium.launch( or chromium.launchPersistentContext( — excluding comments
+        // Match chromium.launch( or chromium.launchPersistentContext( - excluding comments
         return /chromium\s*\.\s*launch/i.test(stripComments(raw)) ? file : null;
       })
     ).then(results => results.filter(Boolean));
@@ -125,7 +125,7 @@ describe('Invariant 4: tests/playwright/e2e/fixtures.js has no stealth imports',
       src.includes("'@szkrabok/runtime'"),
       "e2e/fixtures.js must reference '@szkrabok/runtime'"
     );
-    // Must NOT have a static top-level import — MCP path requires zero runtime dependency.
+    // Must NOT have a static top-level import - MCP path requires zero runtime dependency.
     assert.ok(
       !/^import\s+.*szkrabok.*runtime/m.test(src),
       'e2e/fixtures.js must not have a static top-level runtime import'
@@ -229,7 +229,7 @@ describe('Invariant 5: packages/runtime is the only launch site', () => {
     for (const dir of searchDirs) {
       const allFiles = await getAllJsFiles(dir);
       for (const file of allFiles) {
-        // Skip spec/test files — they may reference the term in assertions/strings
+        // Skip spec/test files - they may reference the term in assertions/strings
         if (file.endsWith('.spec.js') || file.endsWith('.test.js')) continue;
 
         const raw = await readSrc(file);

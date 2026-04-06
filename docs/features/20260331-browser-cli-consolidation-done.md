@@ -6,9 +6,7 @@
 
 One entry point for browser detection and installation. No duplicated resolution
 logic across CLI commands. Persistent config write that is safe and section-scoped.
-Install is idempotent — runs to desired state, not blind mutation.
-
----
+Install is idempotent - runs to desired state, not blind mutation.
 
 ## What was (before implementation)
 
@@ -23,15 +21,13 @@ Three commands with overlapping concerns:
 Problems fixed:
 
 - `install-browser` never checked if a browser already existed before downloading
-- `install-browser` tip recommended `CHROMIUM_PATH` env var — ephemeral, not visible to
+- `install-browser` tip recommended `CHROMIUM_PATH` env var - ephemeral, not visible to
   MCP server spawned by Claude; the persistent path is `executablePath` in config.toml
 - No command offered to write the discovered path to config
 - `doctor` hinted nothing when the winner was not pinned via config
-- `populateCandidates` used chrome-launcher with no executable validation — snap wrapper
+- `populateCandidates` used chrome-launcher with no executable validation - snap wrapper
   stubs (e.g. `/usr/bin/chromium-browser` on Ubuntu) passed `accessSync(X_OK)` but
   failed at launch with a useless error
-
----
 
 ## What is already centralized (do not duplicate)
 
@@ -39,7 +35,7 @@ Problems fixed:
 pure/injectable functions in `packages/runtime/resolve.js`. They are the single source
 of truth for candidate construction and resolution logic.
 
-Priority order is declared in `resolve.js` as the `SOURCES` constant — stable and
+Priority order is declared in `resolve.js` as the `SOURCES` constant - stable and
 intentional. `env` beats `config` so runtime overrides work without editing files:
 
 ```
@@ -51,26 +47,22 @@ intentional. `env` beats `config` so runtime overrides work without editing file
 
 `browser-actions.js` wraps this chain; it does not reimplement it.
 
----
-
 ## Files changed
 
 | File | Change |
 |------|--------|
 | `packages/runtime/resolve.js` | `isFunctionalBrowser` probe in `populateCandidates`; `spawnSync` import |
-| `packages/runtime/errors.js` | `BrowserNotFoundError` message updated: `install-browser` → `doctor install` |
-| `src/cli/lib/browser-actions.js` | **new** — `runDetect`, `runInstall`, `writeExecPath`, `getGlobalConfigPath` |
+| `packages/runtime/errors.js` | `BrowserNotFoundError` message updated: `install-browser` -> `doctor install` |
+| `src/cli/lib/browser-actions.js` | **new** - `runDetect`, `runInstall`, `writeExecPath`, `getGlobalConfigPath` |
 | `src/cli/commands/doctor.js` | `detect`/`install` subcommands; step 4 uses `runDetect()`; persistence hint |
 | `src/cli/commands/detect-browser.js` | **deleted** |
 | `src/cli/commands/install-browser.js` | **deleted** |
 | `src/cli/index.js` | removed `detect-browser` and `install-browser` registrations |
-| `tests/node/runtime/resolve.test.js` | new categories 12–16; updated categories 8, 9 |
-
----
+| `tests/node/runtime/resolve.test.js` | new categories 12-16; updated categories 8, 9 |
 
 ## Implementation stages
 
-### Stage 1 — Snap wrapper bug fix
+### Stage 1 - Snap wrapper bug fix
 
 **Problem:** `populateCandidates` assigns the first chrome-launcher result as the system
 candidate without verifying it is a functional browser. On Ubuntu,
@@ -94,27 +86,27 @@ for (const path of installs) {
 
 **Scope of the probe:** this filters obvious stubs (shell scripts that exit 1, snap
 wrappers that print nothing). It does not guarantee the binary is usable by
-Playwright/CDP — a binary that responds to `--version` may still fail to launch
+Playwright/CDP - a binary that responds to `--version` may still fail to launch
 headless, have sandbox permission issues, or use an incompatible CDP fork. The probe's
 contract is "not an obvious stub", not "Playwright-compatible". This is explicitly
 sufficient for detection purposes; full launch validation would require a CDP handshake
 and is out of scope for `populateCandidates`.
 
 `spawnSync` is only called inside `populateCandidates` (impure async discovery). The
-pure core — `validateCandidate` and `resolveChromium` — never spawns processes. The
+pure core - `validateCandidate` and `resolveChromium` - never spawns processes. The
 category 9 static test currently asserts "resolve.js must not contain 'child_process'";
 this must be updated to assert the correct invariant: the import may exist, but
 `spawnSync` must not appear inside `validateCandidate` or `resolveChromium`.
 
 **Files:** `packages/runtime/resolve.js`
 
-**Tests (category 12 — snap wrapper fix, 3 tests):**
+**Tests (category 12 - snap wrapper fix, 3 tests):**
 
 | Test | Setup | Assert |
 |------|-------|--------|
-| stub exits 1 — system candidate stays null | stub binary exits 1 | `c.path` remains null after `populateCandidates` |
-| stub exits 0, empty stdout — stays null | stub prints nothing | `c.path` remains null |
-| real binary — candidate populated | `/bin/ls` (exits 0, non-empty stdout) | `c.path` set to `/bin/ls` |
+| stub exits 1 - system candidate stays null | stub binary exits 1 | `c.path` remains null after `populateCandidates` |
+| stub exits 0, empty stdout - stays null | stub prints nothing | `c.path` remains null |
+| real binary - candidate populated | `/bin/ls` (exits 0, non-empty stdout) | `c.path` set to `/bin/ls` |
 
 Tests use a helper `isFunctionalBrowser(path)` extracted from `populateCandidates` so
 the probe logic is unit-testable without faking chrome-launcher.
@@ -122,25 +114,23 @@ the probe logic is unit-testable without faking chrome-launcher.
 **Update category 9 static test:**
 
 Change assertion from "resolve.js must not contain 'child_process'" to
-"spawnSync must not appear inside validateCandidate or resolveChromium" — checked by
+"spawnSync must not appear inside validateCandidate or resolveChromium" - checked by
 verifying the string `spawnSync` only appears after `populateCandidates` in the file.
 
 **Stage 1 checklist:**
 
 - [x] `spawnSync` probe added to `populateCandidates` system candidate block
 - [x] `isFunctionalBrowser(path)` helper extracted and exported
-- [x] Stub binary (exits 1) rejected — system candidate stays null
-- [x] Stub binary (empty stdout) rejected — system candidate stays null
-- [x] Real binary accepted — candidate populated
-- [x] Category 9 static test updated — invariant is "pure functions don't spawn"
+- [x] Stub binary (exits 1) rejected - system candidate stays null
+- [x] Stub binary (empty stdout) rejected - system candidate stays null
+- [x] Real binary accepted - candidate populated
+- [x] Category 9 static test updated - invariant is "pure functions don't spawn"
 - [x] All existing tests pass
 
----
-
-### Stage 2 — `browser-actions.js` shared module
+### Stage 2 - `browser-actions.js` shared module
 
 New file `src/cli/lib/browser-actions.js`. Wraps the `#runtime` resolution chain.
-Contains no resolution logic — delegates entirely to `resolve.js`.
+Contains no resolution logic - delegates entirely to `resolve.js`.
 
 **Public API:**
 
@@ -186,20 +176,20 @@ export async function runDetect() {
 
 Config error handling: `getConfig()` throws when the config file exists but is
 unreadable or malformed. `runDetect()` must not silently convert a broken TOML file
-into a "no config" signal — that hides misconfiguration from the user. The narrow
+into a "no config" signal - that hides misconfiguration from the user. The narrow
 catch passes through only the expected "not yet initialized" case (which is normal
 in CLI context where `initConfig([])` is called immediately before). All other errors
 propagate and surface in CLI output as a config error, not a missing browser.
 
 `ConfigError` and `CONFIG_UNINITIALIZED` are the existing error discriminators in
-`packages/runtime/config.js` — check and use whichever is present; do not introduce
+`packages/runtime/config.js` - check and use whichever is present; do not introduce
 new error types.
 
 **`runInstall({ force = false })`**
 
 **Convergence target:** Playwright-managed Chromium is installed and resolvable.
-This is the explicit goal — not "any working browser exists". The idempotency guard
-(steps 2–3) exits early when the target is already met or when a non-Playwright
+This is the explicit goal - not "any working browser exists". The idempotency guard
+(steps 2-3) exits early when the target is already met or when a non-Playwright
 browser is found and `--force` is not set. It does not change the target.
 
 ```
@@ -221,7 +211,7 @@ Returns an integer exit code. Caller is responsible for `process.exit`.
 
 **`writeExecPath(path)`**
 
-Section-scoped, line-based TOML splice. No TOML parser — only edits `[default]`.
+Section-scoped, line-based TOML splice. No TOML parser - only edits `[default]`.
 Throws loudly on ambiguous state.
 
 ```
@@ -254,18 +244,18 @@ export function getGlobalConfigPath() {
 
 **Files:** `src/cli/lib/browser-actions.js` (new)
 
-**Tests (category 13 — browser-actions unit, 9 tests):**
+**Tests (category 13 - browser-actions unit, 9 tests):**
 
 | Test | Assert |
 |------|--------|
 | `runDetect()` shape | winner has `found`; results has 4 entries with source/path/ok/reason |
 | `runDetect()` winner matches `resolveChromium` | same path/source as direct call |
-| `writeExecPath` — no [default] section | creates `[default]` + key at top |
-| `writeExecPath` — [default] exists, key absent | inserts key after header |
-| `writeExecPath` — [default] exists, key present | replaces in-place, rest unchanged |
-| `writeExecPath` — multiple keys in [default] | throws without writing |
-| `writeExecPath` — multiple [default] sections | throws without writing |
-| `writeExecPath` — other sections untouched | content outside [default] unchanged |
+| `writeExecPath` - no [default] section | creates `[default]` + key at top |
+| `writeExecPath` - [default] exists, key absent | inserts key after header |
+| `writeExecPath` - [default] exists, key present | replaces in-place, rest unchanged |
+| `writeExecPath` - multiple keys in [default] | throws without writing |
+| `writeExecPath` - multiple [default] sections | throws without writing |
+| `writeExecPath` - other sections untouched | content outside [default] unchanged |
 | `getGlobalConfigPath()` | returns absolute path containing `szkrabok` and `config.toml` |
 
 `writeExecPath` tests use a temp file, never the real global config.
@@ -273,15 +263,13 @@ export function getGlobalConfigPath() {
 **Stage 2 checklist:**
 
 - [x] `src/cli/lib/browser-actions.js` created
-- [x] `runDetect()` — shape correct, delegates entirely to resolve.js
-- [x] `runInstall()` — idempotent: 3 cases (playwright found, any browser found, no browser)
-- [x] `writeExecPath()` — 4 cases + throws on multiple keys + throws on multiple [default] sections
-- [x] `getGlobalConfigPath()` — XDG-aware, platform-correct
+- [x] `runDetect()` - shape correct, delegates entirely to resolve.js
+- [x] `runInstall()` - idempotent: 3 cases (playwright found, any browser found, no browser)
+- [x] `writeExecPath()` - 4 cases + throws on multiple keys + throws on multiple [default] sections
+- [x] `getGlobalConfigPath()` - XDG-aware, platform-correct
 - [x] Category 13 tests pass (9 tests)
 
----
-
-### Stage 3 — `doctor detect` / `doctor install` subcommands
+### Stage 3 - `doctor detect` / `doctor install` subcommands
 
 Add subcommands to `doctor`. Default `.action()` (full health check) is unchanged.
 
@@ -328,7 +316,7 @@ Hint condition `source !== 'config'` covers all unstable sources:
 
 Delegates to `runInstall({ force })`. Exits via `process.exit(code)`.
 
-**`runFullDoctor` step 4 — refactored**
+**`runFullDoctor` step 4 - refactored**
 
 Replace inline resolution with `runDetect()`. Output format identical. Add hint:
 
@@ -340,23 +328,23 @@ if (winner.source !== 'config') {
 
 **Files:** `src/cli/commands/doctor.js`
 
-**Tests (category 14 — doctor detect CLI, 5 tests):**
+**Tests (category 14 - doctor detect CLI, 5 tests):**
 
 | Test | Setup | Assert |
 |------|-------|--------|
 | valid browser found | `CHROMIUM_PATH=/bin/ls` | stdout contains `Resolved:`, exits 0 |
 | no browser found | no CHROMIUM_PATH, no system/playwright | stdout contains install hint, exits 0 |
-| hint shown — source != config | `CHROMIUM_PATH=/bin/ls` | stdout contains `--write-config` hint |
+| hint shown - source != config | `CHROMIUM_PATH=/bin/ls` | stdout contains `--write-config` hint |
 | --write-config writes file | temp config dir via `XDG_CONFIG_HOME` | file contains `executablePath = "..."` |
 | --write-config prints written path | same | stdout contains `Written to:` |
 
-**Tests (category 15 — doctor install CLI, 4 tests):**
+**Tests (category 15 - doctor install CLI, 4 tests):**
 
 | Test | Setup | Assert |
 |------|-------|--------|
-| playwright already installed — no download | playwright path valid | exits 0, "already installed", npx sentinel not written |
-| browser found non-playwright — no download | `CHROMIUM_PATH=/bin/ls` | exits 0, no-op message, npx sentinel not written |
-| no browser — downloads (mock npx exits 0) | fake npx, no CHROMIUM_PATH | exits 0, prints resolution result |
+| playwright already installed - no download | playwright path valid | exits 0, "already installed", npx sentinel not written |
+| browser found non-playwright - no download | `CHROMIUM_PATH=/bin/ls` | exits 0, no-op message, npx sentinel not written |
+| no browser - downloads (mock npx exits 0) | fake npx, no CHROMIUM_PATH | exits 0, prints resolution result |
 | install failure (mock npx exits 2) | fake npx exits 2 | exits non-zero, stderr contains "szkrabok doctor" |
 
 "npx not called" assertion: prepend a fake npx that writes a sentinel file; assert
@@ -371,25 +359,23 @@ is not `config`.
 
 - [x] `doctor detect` subcommand registered
 - [x] `doctor install` subcommand registered
-- [x] `doctor` default action — step 4 uses `runDetect()`
+- [x] `doctor` default action - step 4 uses `runDetect()`
 - [x] Persistence hint shown when `source !== 'config'`
 - [x] `--write-config` writes executablePath to global config path
 - [x] Category 14 tests pass (5 tests)
 - [x] Category 15 tests pass (4 tests)
 - [x] All existing category 7 tests pass
 
----
-
-### Stage 4 — Remove `detect-browser` and `install-browser`
+### Stage 4 - Remove `detect-browser` and `install-browser`
 
 Delete the old commands and remove them from registration. No aliases, no deprecation
-notices — clean removal.
+notices - clean removal.
 
 **Files:**
 
-- `src/cli/commands/detect-browser.js` — deleted
-- `src/cli/commands/install-browser.js` — deleted
-- `src/cli/index.js` — remove both from `CLI_COMMANDS`
+- `src/cli/commands/detect-browser.js` - deleted
+- `src/cli/commands/install-browser.js` - deleted
+- `src/cli/index.js` - remove both from `CLI_COMMANDS`
 
 **Update category 8 static test:**
 
@@ -414,14 +400,14 @@ Change invocation from `install-browser` to `doctor install`:
 [CLI, 'doctor', 'install']  // was: [CLI, 'install-browser']
 ```
 
-Assertions unchanged — same behavior, new command name.
+Assertions unchanged - same behavior, new command name.
 
-**Tests (category 16 — removed commands rejected, 2 tests):**
+**Tests (category 16 - removed commands rejected, 2 tests):**
 
 | Test | Assert |
 |------|--------|
-| `detect-browser` → unknown command error | exit non-zero, stderr contains unknown command |
-| `install-browser` → unknown command error | exit non-zero, stderr contains unknown command |
+| `detect-browser` -> unknown command error | exit non-zero, stderr contains unknown command |
+| `install-browser` -> unknown command error | exit non-zero, stderr contains unknown command |
 
 **Stage 4 checklist:**
 
@@ -433,9 +419,7 @@ Assertions unchanged — same behavior, new command name.
 - [x] Category 16 tests pass (2 tests)
 - [x] All existing tests pass
 
----
-
-### Stage 5 — `install-browser` tip update
+### Stage 5 - `install-browser` tip update
 
 Replace the `export CHROMIUM_PATH=...` tip in `doctor install` output with the
 persistent-config workflow. `CHROMIUM_PATH` is ephemeral and not visible to a
@@ -466,22 +450,18 @@ Add: `stdout.includes('doctor detect --write-config')`.
 - [x] `CHROMIUM_PATH` tip still present as secondary note
 - [x] Mock-npx test asserts `doctor detect --write-config` in output
 
----
-
 ## Invariants to preserve
 
-All existing invariants (I1–I7) from `feature-defer-browser-install.md` are unaffected.
+All existing invariants (I1-I7) from `feature-defer-browser-install.md` are unaffected.
 Additional invariants introduced by this feature:
 
-- **I8 — install is idempotent** — `doctor install` with a browser already present
+- **I8 - install is idempotent** - `doctor install` with a browser already present
   exits 0 without spawning `npx playwright install` (unless `--force`)
-- **I9 — config write is section-scoped** — `writeExecPath` never modifies lines outside
+- **I9 - config write is section-scoped** - `writeExecPath` never modifies lines outside
   `[default]`; throws rather than silently corrupting ambiguous config
-- **I10 — no resolution logic outside browser-actions + resolve.js** — `doctor.js`
+- **I10 - no resolution logic outside browser-actions + resolve.js** - `doctor.js`
   contains no `buildCandidates`/`resolveChromium` calls; all resolution goes through
   `runDetect()`
-
----
 
 ## Stage summary
 
@@ -491,5 +471,5 @@ Additional invariants introduced by this feature:
 | 2 | `browser-actions.js` | 1 new | cat 13 (9) | I8, I9 |
 | 3 | doctor subcommands | 1 | cat 14 (5) + cat 15 (4) + cat 7 update | I7, I8, I10 |
 | 4 | Delete old commands | 3 | cat 8 update + cat 16 (2) | I10 |
-| 5 | install tip update | 0 | cat 8 addition (1) | — |
-| **Total** | | **~5 unique** | **~24 new** | I8–I10 |
+| 5 | install tip update | 0 | cat 8 addition (1) | - |
+| **Total** | | **~5 unique** | **~24 new** | I8-I10 |

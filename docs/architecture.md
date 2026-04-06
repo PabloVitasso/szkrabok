@@ -15,8 +15,6 @@
 - [Playwright patches](#playwright-patches-packagesruntimescriptspatch-playwrightjs)
 - [Chromium resolution](#chromium-resolution)
 
----
-
 ## Layer overview
 
 ```
@@ -177,7 +175,7 @@ tests/
 **Szkrabok** tools (6 total):
 `session_manage` `session_run_test` `browser_scrape` `browser_run` `browser_run_test` `scaffold_init`
 
-**@playwright/mcp** (separate MCP server — install alongside szkrabok):
+**@playwright/mcp** (separate MCP server - install alongside szkrabok):
 `browser.{snapshot,click,type,navigate,navigate_back,close,drag,hover,evaluate,select_option,fill_form,press_key,take_screenshot,wait_for,resize,tabs,console_messages,network_requests,file_upload,handle_dialog,run_code,...}`
 
 The two servers share a browser via CDP. Use `session_manage { "action": "endpoint" }` to get the `wsEndpoint`, then pass it to playwright-mcp via `--cdp-endpoint`.
@@ -234,14 +232,14 @@ Do NOT import runtime internals (`stealth`, `storage`, `pool`, `config`) directl
 ## Non-negotiable invariants
 
 1. Only `packages/runtime/launch.js` calls `launchPersistentContext`
-2. Stealth runs only during `runtime.launch()` — never conditionally, never elsewhere
+2. Stealth runs only during `runtime.launch()` - never conditionally, never elsewhere
 3. Profile resolution happens only in runtime
 4. MCP tools never import stealth, config internals, or storage directly
-5. `tests/playwright/e2e/fixtures.js` never imports stealth or uses internal modules directly — only public API
-6. `browser_run_test` subprocess connects via `connectOverCDP` — it never calls `launch*()`
-8. `src/fixtures.js` never reads `process.env` — env→option bridging is the consumer's `playwright.config.js` responsibility
+5. `tests/playwright/e2e/fixtures.js` never imports stealth or uses internal modules directly - only public API
+6. `browser_run_test` subprocess connects via `connectOverCDP` - it never calls `launch*()`
+8. `src/fixtures.js` never reads `process.env` - env->option bridging is the consumer's `playwright.config.js` responsibility
 9. `writeAttachSignal` is written at CDP attach time (before `await use(session)`), not at teardown
-7. Browser PID is captured once at launch via `tryBrowserPid()` and stored in the pool entry — not re-read at close time
+7. Browser PID is captured once at launch via `tryBrowserPid()` and stored in the pool entry - not re-read at close time
 
 Enforced by ESLint boundary rules in `eslint.config.js` and `tests/node/contracts.test.js`.
 
@@ -251,19 +249,17 @@ Enforced by ESLint boundary rules in `eslint.config.js` and `tests/node/contract
 launchOptions  >  savedConfig (last used)  >  TOML preset  >  TOML defaults  >  hardcoded defaults
 ```
 
-- **`launchOptions`** — explicit per-call values from `session_manage (open)` or `mcpConnect`
-- **`savedConfig`** — resolved config saved to `meta.json` on previous launch; provides "resume with same settings" when no explicit args given
-- **`TOML preset`** — named preset from `szkrabok.config.toml` / `szkrabok.config.local.toml`
-- **`TOML defaults`** — `[default]` section values
-- **`hardcoded defaults`** — fallbacks in `packages/runtime/launch.js`
+- **`launchOptions`** - explicit per-call values from `session_manage (open)` or `mcpConnect`
+- **`savedConfig`** - resolved config saved to `meta.json` on previous launch; provides "resume with same settings" when no explicit args given
+- **`TOML preset`** - named preset from `szkrabok.config.toml` / `szkrabok.config.local.toml`
+- **`TOML defaults`** - `[default]` section values
+- **`hardcoded defaults`** - fallbacks in `packages/runtime/launch.js`
 
 **Rules:**
-- Passing an explicit `preset` bypasses `savedConfig` for preset-derived fields (userAgent, viewport, locale, timezone) — starts fresh from the preset
-- `preset` is mutually exclusive with `userAgent`, `viewport`, `locale`, `timezone` — passing both throws
+- Passing an explicit `preset` bypasses `savedConfig` for preset-derived fields (userAgent, viewport, locale, timezone) - starts fresh from the preset
+- `preset` is mutually exclusive with `userAgent`, `viewport`, `locale`, `timezone` - passing both throws
 - `headless` and `stealth` are always allowed alongside either
-- `executablePath` is TOML-only — not accepted in `launchOptions`
-
----
+- `executablePath` is TOML-only - not accepted in `launchOptions`
 
 ## Session lifecycle
 
@@ -347,29 +343,29 @@ session_run_test({ session, test, postPolicy })
 
 ## Pool scoping
 
-Pool is process-scoped — not global. Each process has its own pool. CDP endpoint is the cross-process identity.
+Pool is process-scoped - not global. Each process has its own pool. CDP endpoint is the cross-process identity.
 
 - CLI `szkrabok open` holds a pool entry in its own process
 - MCP server holds pool entries in its process
-- A `browser_run_test` subprocess has no pool — it connects via `SZKRABOK_CDP_ENDPOINT`
+- A `browser_run_test` subprocess has no pool - it connects via `SZKRABOK_CDP_ENDPOINT`
 
-## CLI (`szkrabok`) and MCP tools — shared handlers
+## CLI (`szkrabok`) and MCP Tools - Shared Handlers
 
-`szkrabok` calls the same handler functions as the MCP tools (`szkrabok_session.js`). There is one code path for session operations — fixes and changes apply to both interfaces automatically.
+`szkrabok` calls the same handler functions as the MCP tools (`szkrabok_session.js`). There is one code path for session operations - fixes and changes apply to both interfaces automatically.
 
 CLI-only operations (no MCP equivalent):
-- `szkrabok open` — human-facing browser launch, holds process alive
-- `szkrabok session inspect` — raw cookie/localStorage dump from `state.json`
-- `szkrabok endpoint` — prints CDP/WS endpoints to stdout
-- `szkrabok doctor detect [--write-config]` — show all browser candidates; pin a path to config
-- `szkrabok doctor install [--force]` — install Playwright Chromium (idempotent, `--force` to re-download)
+- `szkrabok open` - human-facing browser launch, holds process alive
+- `szkrabok session inspect` - raw cookie/localStorage dump from `state.json`
+- `szkrabok endpoint` - prints CDP/WS endpoints to stdout
+- `szkrabok doctor detect [--write-config]` - show all browser candidates; pin a path to config
+- `szkrabok doctor install [--force]` - install Playwright Chromium (idempotent, `--force` to re-download)
 
 ## Stealth hacks (preserve on upstream updates)
 
-- **`Network.setUserAgentOverride`** is target-scoped — persists across navigations.
-- **`page.addInitScript()`** is the correct API for init scripts — fires before page JS on every navigation.
+- **`Network.setUserAgentOverride`** is target-scoped - persists across navigations.
+- **`page.addInitScript()`** is the correct API for init scripts - fires before page JS on every navigation.
 - All property overrides must target **`Navigator.prototype`**, not the `navigator` instance.
-- Rebrowser score: **8/10**. Permanent failures: `mainWorldExecution` (requires [rebrowser-patches](https://github.com/rebrowser/rebrowser-patches) binary patching — see [rebrowser-patches-research.md](./rebrowser-patches-research.md)), `exposeFunctionLeak` (`page.exposeFunction` fingerprint — no fix available).
+- Rebrowser score: **8/10**. Permanent failures: `mainWorldExecution` (requires [rebrowser-patches](https://github.com/rebrowser/rebrowser-patches) binary patching - see [rebrowser-patches-research.md](./rebrowser-patches-research.md)), `exposeFunctionLeak` (`page.exposeFunction` fingerprint - no fix available).
 
 ## Playwright patches (`patches/playwright-core+<version>.patch`)
 
@@ -379,9 +375,9 @@ playwright-core is pinned to an exact version and patched via `patch-package`. T
 scripts/apply-patches.js  →  scripts/verify-playwright-patches.js
 ```
 
-`apply-patches.js` locates `playwright-core` and `patch-package` via Node's module resolution (works for hoisted, nested, and npx installs), then invokes `patch-package --patch-dir <path>`. It writes a minimal temporary `package.json` to `targetRoot` before invoking patch-package when none exists (bare temp dirs, npx), and removes it afterwards — patch-package requires a `package.json` to locate its app root.
+`apply-patches.js` locates `playwright-core` and `patch-package` via Node's module resolution (works for hoisted, nested, and npx installs), then invokes `patch-package --patch-dir <path>`. It writes a minimal temporary `package.json` to `targetRoot` before invoking patch-package when none exists (bare temp dirs, npx), and removes it afterwards - patch-package requires a `package.json` to locate its app root.
 
-`verify-playwright-patches.js` checks all 7 patched files for their markers and exits 1 (hard failure) if any are missing — the postinstall chain screams loudly rather than silently leaving the browser unpatched.
+`verify-playwright-patches.js` checks all 7 patched files for their markers and exits 1 (hard failure) if any are missing - the postinstall chain screams loudly rather than silently leaving the browser unpatched.
 
 The 7 patched files and their detection markers:
 
@@ -395,7 +391,7 @@ The 7 patched files and their detection markers:
 | `lib/server/page.js` | `getExecutionContext` |
 | `lib/generated/utilityScriptSource.js` | `var __pwUs = class` |
 
-Use `szkrabok doctor` to verify patch status at any time. For upgrading playwright-core to a new version, see [docs/development.md — Upgrading playwright-core](./development.md#upgrading-playwright-core). The patch script used to generate a new diff lives in `packages/runtime/scripts/patch-playwright.js`.
+Use `szkrabok doctor` to verify patch status at any time. For upgrading playwright-core to a new version, see [docs/development.md - Upgrading playwright-core](./development.md#upgrading-playwright-core). The patch script used to generate a new diff lives in `packages/runtime/scripts/patch-playwright.js`.
 
 ## Config discovery
 
@@ -414,20 +410,18 @@ Priority order (first match wins):
 
 Walk-up: at each dir load `szkrabok.config.toml` then merge `szkrabok.config.local.toml` on top. Stop when a config is found or the boundary root is reached.
 
-`src/server.js` calls `initConfig([])` on startup (cwd fallback active immediately), then re-calls `initConfig(rootPaths)` via `server.oninitialized` → `server.listRoots()` after the MCP handshake completes.
-
----
+`src/server.js` calls `initConfig([])` on startup (cwd fallback active immediately), then re-calls `initConfig(rootPaths)` via `server.oninitialized` -> `server.listRoots()` after the MCP handshake completes.
 
 ## Chromium resolution
 
 Strict precedence (first valid candidate wins):
 
-1. `CHROMIUM_PATH` env var — explicit override, highest priority
-2. `getConfig().executablePath` — `executablePath` in `szkrabok.config.toml`
-3. `chrome-launcher` — `Launcher.getInstallations()` finds system Chrome, Chromium, Brave, Edge across all standard install locations on Linux/macOS/Windows. `isFunctionalBrowser(path)` probe filters stub/broken paths before selection
-4. Playwright bundled binary — `chromium.executablePath()` from the playwright package
+1. `CHROMIUM_PATH` env var - explicit override, highest priority
+2. `getConfig().executablePath` - `executablePath` in `szkrabok.config.toml`
+3. `chrome-launcher` - `Launcher.getInstallations()` finds system Chrome, Chromium, Brave, Edge across all standard install locations on Linux/macOS/Windows. `isFunctionalBrowser(path)` probe filters stub/broken paths before selection
+4. Playwright bundled binary - `chromium.executablePath()` from the playwright package
 
-`checkBrowser()` in `packages/runtime/launch.js` runs the full resolution chain via `resolveChromium()` (from `packages/runtime/resolve.js`). Each candidate is validated: exists, is a file, is executable. `null` — `checkBrowser()` throws a structured `BrowserNotFoundError` with install instructions.
+`checkBrowser()` in `packages/runtime/launch.js` runs the full resolution chain via `resolveChromium()` (from `packages/runtime/resolve.js`). Each candidate is validated: exists, is a file, is executable. `null` - `checkBrowser()` throws a structured `BrowserNotFoundError` with install instructions.
 
 If no browser is found, `launch()` throws a structured `BrowserNotFoundError` listing all four candidates (env, config, system, playwright) with their individual status:
 

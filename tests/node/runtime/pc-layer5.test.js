@@ -1,5 +1,5 @@
 /**
- * PC-5 — MCP tool unit tests
+ * PC-5 - MCP tool unit tests
  *
  * Tests: session_manage open/close/list/deleteSession with isClone logic.
  * Uses _launchImpl seam for open (isClone:true) to avoid browser launch.
@@ -20,7 +20,7 @@ let sessionsDir;
 before(async () => {
   sessionsDir = await mkdtemp(join(tmpdir(), 'szkrabok-pc5-sessions-'));
   process.env.SZKRABOK_SESSIONS_DIR = sessionsDir;
-  // open() → launch() → getConfig() requires prior initConfig().
+  // open() -> launch() -> getConfig() requires prior initConfig().
   const { initConfig } = await import('../../../packages/runtime/config.js');
   await initConfig([]);
 });
@@ -69,7 +69,7 @@ const makeTemplateDir = async name => {
   return dir;
 };
 
-// ── PC-5.1–PC-5.3  open response shape (isClone: true) ───────────────────────
+// ── PC-5.1-PC-5.3  open response shape (isClone: true) ───────────────────────
 
 describe('PC-5 session_manage open — isClone:true response shape', () => {
   test('PC-5.1: response includes isClone:true', async () => {
@@ -160,7 +160,7 @@ describe('PC-5 session_manage open — isClone:true guard', () => {
   });
 });
 
-// ── PC-5.5–PC-5.6  open with isClone:false / omitted ─────────────────────────
+// ── PC-5.5-PC-5.6  open with isClone:false / omitted ─────────────────────────
 
 describe('PC-5 session_manage open — isClone default', () => {
   test('PC-5.5: isClone:false in launchOptions → response has isClone:false', async () => {
@@ -210,7 +210,7 @@ describe('PC-5 session_manage open — isClone default', () => {
   });
 });
 
-// ── PC-5.7–PC-5.8  close routing ─────────────────────────────────────────────
+// ── PC-5.7-PC-5.8  close routing ─────────────────────────────────────────────
 
 describe('PC-5 session_manage close — routing', () => {
   test('PC-5.7: close with clone sessionName routes to destroyClone (dir deleted)', async () => {
@@ -255,7 +255,7 @@ describe('PC-5 session_manage close — routing', () => {
   });
 });
 
-// ── PC-5.9–PC-5.11  list ─────────────────────────────────────────────────────
+// ── PC-5.9-PC-5.11  list ─────────────────────────────────────────────────────
 
 describe('PC-5 session_manage list', () => {
   test('PC-5.9: list includes active clone with isClone:true and templateSession', async () => {

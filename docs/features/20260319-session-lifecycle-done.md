@@ -1,17 +1,15 @@
 # Feature: Session Lifecycle Management
 
 **Implements:** session GC, profile maintenance, session index
-**Depends on:** [feature-profile-leasing.md](./feature-profile-leasing.md) — implement that first
+**Depends on:** [feature-profile-leasing.md](./feature-profile-leasing.md) - implement that first
 **Related:** `PURGEABLE_DIRS` here replaces `CLONE_SKIP` from profile-leasing; `removeTransientFiles`
 closes the stale-`DevToolsActivePort` gap identified in the leasing architecture
-
----
 
 ## Integration notes (read before implementing)
 
 - `PURGEABLE_DIRS` is the canonical replacement for the local `CLONE_SKIP` set defined in
   feature-profile-leasing. Export it from `storage.js` so `cloneProfileAtomic` can import it.
-- `CLONE_SKIP` alias is kept for call-site clarity — see "canonical purgeable set" section.
+- `CLONE_SKIP` alias is kept for call-site clarity - see "canonical purgeable set" section.
 - `touchIndex` in `launch.js` goes after `pool.add(key, ...)` unconditionally (both clone and
   template sessions). The clone branch from profile-leasing must already be in place.
 - `removeTransientFiles` should be called in the template `close()` callback in `launch.js`, not
@@ -19,35 +17,29 @@ closes the stale-`DevToolsActivePort` gap identified in the leasing architecture
 - `mapLimit` defined here should also be used by `cleanupLeases` (profile-leasing) to avoid a
   duplicate concurrency utility. Export it from `storage.js`.
 
----
-
 Two problems share the same root cause: no explicit lifecycle management.
 
-**Session accumulation** — `list` returns only `{ id, active }` with no
+**Session accumulation** - `list` returns only `{ id, active }` with no
 timestamps. ~60 of 68 observed sessions are stale test artifacts. No automated
 cleanup path exists.
 
-**Profile bloat** — profiles accumulate caches, WAL segments, and background
-update artefacts. A template profile can reach 500 MB+ when 20–80 MB is correct.
+**Profile bloat** - profiles accumulate caches, WAL segments, and background
+update artefacts. A template profile can reach 500 MB+ when 20-80 MB is correct.
 Clone cost is dominated by unnecessary bytes.
 
 Both are solved together: the same directory set that gets pruned during
 template maintenance is also excluded during cloning. One canonical list serves
 both purposes.
 
----
-
 ## Contents
 
 - [Concepts](#concepts)
 - [Canonical purgeable set](#canonical-purgeable-set)
-- [Part 1 — Session GC](#part-1--session-gc)
-- [Part 2 — Profile maintenance](#part-2--profile-maintenance)
-- [Part 3 — CLI commands](#part-3--cli-commands)
+- [Part 1 - Session GC](#part-1--session-gc)
+- [Part 2 - Profile maintenance](#part-2--profile-maintenance)
+- [Part 3 - CLI commands](#part-3--cli-commands)
 - [File layout](#file-layout)
 - [What is not addressed](#what-is-not-addressed)
-
----
 
 ## Concepts
 
@@ -62,8 +54,6 @@ Profile lifecycle:
 The GC feature manages the session lifecycle. The maintenance feature manages
 the profile lifecycle. They share the canonical purgeable set and both gate
 on the session being closed before operating.
-
----
 
 ## Canonical purgeable set
 
@@ -121,9 +111,9 @@ export const CLONE_SKIP = PURGEABLE_DIRS;
 partition dir, not top-level. The `basename` filter in `cloneProfileAtomic`
 handles top-level names correctly. For nested entries, options are:
 
-- **Option A** — add `'Cache'` and `'Network'` to `PURGEABLE_DIRS` (simple, may
+- **Option A** - add `'Cache'` and `'Network'` to `PURGEABLE_DIRS` (simple, may
   over-match other dirs of the same name at any depth)
-- **Option B** — path-aware filter:
+- **Option B** - path-aware filter:
   ```js
   filter: p => {
     const name = basename(p);
@@ -132,46 +122,44 @@ handles top-level names correctly. For nested entries, options are:
     return true;
   }
   ```
-- **Option C** — strip `Default/Cache/` during template maintenance so the filter
+- **Option C** - strip `Default/Cache/` during template maintenance so the filter
   never encounters it. Cleanest: a well-maintained template does not contain these
   dirs and the filter becomes a safety net, not the primary mechanism.
 
 Option C is preferred when the maintenance pipeline is in use.
 
----
-
-## Part 1 — Session GC
+## Part 1 - Session GC
 
 ### Design decisions
 
-**D1 — Session index, not per-session meta fan-out.**
+**D1 - Session index, not per-session meta fan-out.**
 `list()` must not do O(N) disk reads. A single `sessions.index.json` replaces
 the fan-out and makes `list()` a single file read.
 
-**D2 — `meta.json` remains ground truth.**
+**D2 - `meta.json` remains ground truth.**
 The index is a projection for fast reads. On startup or corruption it can be
 rebuilt from individual `meta.json` files.
 
-**D3 — `no-meta` ≠ stale by default.**
+**D3 - `no-meta` ≠ stale by default.**
 Missing `meta.json` is unknown, not confirmed stale. Deletion requires explicit
 `includeNoMeta: true` opt-in.
 
-**D4 — `lastUsed` is advisory, not authoritative.**
+**D4 - `lastUsed` is advisory, not authoritative.**
 Crash-before-write leaves a stale timestamp. Clock skew produces negative idle.
 `computeStaleness` centralizes interpretation and exposes `reason` for
 observability.
 
-**D5 — Purge verifies lease absence before delete.**
+**D5 - Purge verifies lease absence before delete.**
 The runtime pool reflects the current process only. `SingletonLock` presence
 catches orphan browser processes from previous crashes.
 
-**D6 — `list()` is fast by default, verbose on request.**
+**D6 - `list()` is fast by default, verbose on request.**
 Default path reads the index only. `verbose: true` enriches from individual
 meta files.
 
-**D7 — Touch index on pool acquire.**
+**D7 - Touch index on pool acquire.**
 `lastUsed` currently written only on `closeSession()`. Sessions that crash or
-are abandoned have stale timestamps — the primary cause of the ~60/68 stale
+are abandoned have stale timestamps - the primary cause of the ~60/68 stale
 observation. Touching the index on acquire closes the gap without a full
 `meta.json` write.
 
@@ -255,7 +243,7 @@ export const rebuildIndex = async () => {
 | `closeSession()` after `updateMeta()` | session closed |
 | `updateSessionMeta()` | url update / navigation |
 | `pool.add()` | session re-opened / acquired |
-| `deleteSession()` | → `removeFromIndex` instead |
+| `deleteSession()` | -> `removeFromIndex` instead |
 
 ### Bounded meta loading (fallback path)
 
@@ -408,19 +396,17 @@ false), `includeNoMeta` (boolean, default false).
 await storage.touchIndex(key, { lastUsed: Date.now() });
 ```
 
-Index only — not `meta.json`. Keeps launch path fast.
+Index only - not `meta.json`. Keeps launch path fast.
 
----
+## Part 2 - Profile maintenance
 
-## Part 2 — Profile maintenance
-
-A well-maintained template profile should be 20–80 MB, cloneable in milliseconds
+A well-maintained template profile should be 20-80 MB, cloneable in milliseconds
 with reflink, deterministic across runs, and stable for months. If it grows
 continuously, it is persisting runtime garbage.
 
 ### What to remove
 
-**Pure performance caches** (always safe — recreated on next launch):
+**Pure performance caches** (always safe - recreated on next launch):
 
 All entries in `PURGEABLE_DIRS` that are not lock files. See canonical set above.
 
@@ -432,7 +418,7 @@ SingletonLock  SingletonCookie  SingletonSocket  DevToolsActivePort
 
 These are in `CLONE_SKIP` so they are never copied into leases. They must also
 be physically removed from the template after each session close so the template
-directory stays clean. `DevToolsActivePort` carries a stale port number — a clone
+directory stays clean. `DevToolsActivePort` carries a stale port number - a clone
 that inherits it creates a startup race with `readDevToolsPort`.
 
 ### SQLite maintenance
@@ -441,10 +427,10 @@ Chromium stores cookies, history, and login data in SQLite. Without maintenance,
 a profile active for days carries hundreds of MB of WAL that is never
 checkpointed. Correct order:
 
-1. Close browser cleanly — SQLite files must not be open
-2. WAL checkpoint — flush uncommitted pages back into the main DB file
-3. Vacuum — compact and defragment
-4. Integrity check — verify before marking as template
+1. Close browser cleanly - SQLite files must not be open
+2. WAL checkpoint - flush uncommitted pages back into the main DB file
+3. Vacuum - compact and defragment
+4. Integrity check - verify before marking as template
 
 ```bash
 sqlite3 Cookies      "PRAGMA wal_checkpoint(FULL); VACUUM;"
@@ -498,7 +484,7 @@ export const pruneCaches = async profileDir => {
 };
 ```
 
-Lock files are excluded from `pruneCaches` — they are handled separately so the
+Lock files are excluded from `pruneCaches` - they are handled separately so the
 intent is explicit (see `removeTransientFiles` below).
 
 ```js
@@ -524,9 +510,7 @@ export const removeTransientFiles = async profileDir => {
 9.  Template ready for cloning
 ```
 
----
-
-## Part 3 — CLI commands
+## Part 3 - CLI commands
 
 Two new commands. Both gate on the session being closed (check pool, throw if
 open). Neither requires a browser launch.
@@ -546,14 +530,12 @@ interactive mode. `--dry-run` forces preview-only.
 szkrabok session maintain <id> [--skip-sqlite] [--no-freeze]
 ```
 
-Runs steps 4–8 of the maintenance pipeline against a stored session's profile
+Runs steps 4-8 of the maintenance pipeline against a stored session's profile
 directory. Output: before/after size, files removed, SQLite result or skip
 reason.
 
 `--skip-sqlite` gracefully skips WAL checkpoint if `sqlite3` binary is absent.
 `--no-freeze` skips the `chmod` tripwire.
-
----
 
 ## File layout
 
@@ -585,26 +567,24 @@ sessions/sessions.index.json
 sessions/sessions.index.json.tmp
 ```
 
----
-
 ## What is not addressed
 
-**Index consistency under concurrent writers** — read-modify-write on the index
+**Index consistency under concurrent writers** - read-modify-write on the index
 is not atomic at the process level. `rename()` is atomic on POSIX but two
 processes can race the read. Single-process scope (stated boundary) makes this
 acceptable. Multi-process would require a file lock or SQLite index.
 
-**Index rebuild trigger** — `rebuildIndex()` is a recovery function, not called
+**Index rebuild trigger** - `rebuildIndex()` is a recovery function, not called
 automatically. A `szkrabok doctor` check or `--rebuild-index` flag on startup
 provides recovery without slowing normal operation.
 
-**Adaptive TTL** — 7 days is the hardcoded default. Session name prefixes
+**Adaptive TTL** - 7 days is the hardcoded default. Session name prefixes
 (`test-*`, `scrape-*`) could carry shorter TTLs. Out of scope.
 
-**Clock skew recovery** — `clock-skew` reason is returned but the timestamp is
+**Clock skew recovery** - `clock-skew` reason is returned but the timestamp is
 not corrected. Conservative and correct: session stays not-stale until a valid
 `lastUsed` is written.
 
-**SQLite without `sqlite3` binary** — `better-sqlite3` is a native addon with
+**SQLite without `sqlite3` binary** - `better-sqlite3` is a native addon with
 install complexity. Not added as a dependency. `--skip-sqlite` is the escape
 hatch.

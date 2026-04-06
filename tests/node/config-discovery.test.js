@@ -84,14 +84,14 @@ test('MCP roots multiple, second has config', () => {
 
 test('MCP roots no config falls through to defaults', () => {
   const a = makeTmp(); // no toml
-  // Also need cwd to not have config — use SZKRABOK_ROOT trick to bound cwd walk
+  // Also need cwd to not have config - use SZKRABOK_ROOT trick to bound cwd walk
   // Just verify it doesn't throw and returns a config
   initConfig([a]);
   assert.ok(getConfig().userAgent); // has some default UA
 });
 
 test('MCP roots absent falls through to cwd', () => {
-  // No roots — should still produce a valid config
+  // No roots - should still produce a valid config
   initConfig([]);
   assert.ok(typeof getConfig().timeout === 'number');
 });

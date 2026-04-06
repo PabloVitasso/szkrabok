@@ -74,7 +74,7 @@ const launchHeadlessBrowser = async executablePath => {
 // ── Browser discovery ─────────────────────────────────────────────────────────
 
 /**
- * Validate that a browser path actually runs — rejects snap/wrapper stubs.
+ * Validate that a browser path actually runs - rejects snap/wrapper stubs.
  * Returns true only if `path --version` exits 0 and produces output.
  *
  * On Ubuntu, chrome-launcher resolves /usr/bin/chromium-browser, which is a
@@ -97,8 +97,8 @@ const isFunctionalBrowser = path => {
  * Find all installed Chromium-family browsers.
  * Returns { chrome: string|null, chromium: string|null }
  *
- * chrome   — any path containing "google-chrome" or "google/chrome"
- * chromium — any path containing "chromium"
+ * chrome   - any path containing "google-chrome" or "google/chrome"
+ * chromium - any path containing "chromium"
  *
  * Each path is validated with --version to reject snap/wrapper stubs.
  */
@@ -170,12 +170,12 @@ const runPortTests = executablePath => {
       await waitForFile(join(userDataDir, 'DevToolsActivePort'));
       const port = await readDevToolsPort(userDataDir);
 
-      // Use fetch() — do NOT use a raw net.createConnection with HTTP/1.0 or HTTP/1.1.
+      // Use fetch() - do NOT use a raw net.createConnection with HTTP/1.0 or HTTP/1.1.
       // Verified manually (nc + Node net module):
       //   - HTTP/1.0: Playwright Chromium CDP server returns empty response (not supported).
       //   - HTTP/1.1 + Connection: close: server sends the full response (Content-Length present,
       //     data arrives in one chunk) but IGNORES Connection: close and never closes the socket,
-      //     so the 'end' event never fires — raw TCP reads time out without a usable result.
+      //     so the 'end' event never fires - raw TCP reads time out without a usable result.
       // fetch() handles HTTP/1.1 keep-alive correctly: reads Content-Length, returns the body,
       // and does not depend on the server closing the connection.
       const resp = await fetch(`http://127.0.0.1:${port}/json`);
@@ -232,7 +232,7 @@ if (!browsers.chrome && !browsers.chromium) {
       const p = chromium.executablePath();
       const { existsSync } = await import('fs');
       if (p && existsSync(p)) playwrightPath = p;
-    } catch { /* executablePath check failed — use default */ }
+    } catch { /* executablePath check failed - use default */ }
 
     test('at least one browser must be found to run port tests', {
       skip: !!playwrightPath,

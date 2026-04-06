@@ -4,42 +4,38 @@
 
 Users who add szkrabok via `npx -y @pablovitasso/szkrabok` should be able to run
 `browser_run_test` against their own Playwright specs without installing anything
-extra — no `npm install @pablovitasso/szkrabok` required in their project.
+extra - no `npm install @pablovitasso/szkrabok` required in their project.
 
 Fixes: [bug2-runtime-import-in-mcp-mode.md](../bugs/bug2-runtime-import-in-mcp-mode.md)
 
----
-
-## Solution: Option B — fixture restructure (connectOverCDP)
+## Solution: Option B - fixture restructure (connectOverCDP)
 
 The static top-level runtime import in `fixtures.js` is the root cause. It is
 replaced with two explicit paths:
 
 - **MCP path** (`SZKRABOK_CDP_ENDPOINT` set by `browser_run_test`): use
-  `chromium.connectOverCDP()` — no runtime import needed at all. Stealth is
+  `chromium.connectOverCDP()` - no runtime import needed at all. Stealth is
   already applied at session launch time (`session_manage open`).
 - **Standalone path** (no env var): dynamic `import('@pablovitasso/szkrabok/runtime')`
   with worker-scoped memoization. Fails with a clear "install required" message
   rather than a cryptic resolution error.
 
-### Option F (shim injection) — tried and removed
+### Option F (shim injection) - tried and removed
 
 `NODE_OPTIONS --import=<shim>` was implemented and then removed. Node ESM ignores
 `NODE_PATH`, and `--import` preloads a module but does NOT intercept specifier
-resolution — the shim exports under `file:///tmp/...shim.mjs`, not under the
+resolution - the shim exports under `file:///tmp/...shim.mjs`, not under the
 `@pablovitasso/szkrabok/runtime` specifier. ESM has no `require.cache` to alias.
 The fix was fundamentally the wrong tool for the problem.
-
----
 
 ## Changes delivered
 
 ### `src/tools/szkrabok_browser.js`
 
 - Shim injection removed (was ineffective)
-- `cwd: dirname(configPath)` instead of `cwd: REPO_ROOT` — allows external
+- `cwd: dirname(configPath)` instead of `cwd: REPO_ROOT` - allows external
   project configs (e.g. `sk-skills`) to use their own `node_modules` and
-  playwright version. No regression for default usage (config in REPO_ROOT →
+  playwright version. No regression for default usage (config in REPO_ROOT ->
   `dirname(configPath) == REPO_ROOT`).
 
 ### `src/tools/templates/automation/fixtures.js`
@@ -69,25 +65,23 @@ The fix was fundamentally the wrong tool for the problem.
 
 - Added `example` project (`testMatch: 'example.spec.js'`) as the smoke target
 
----
-
 ## Tests
 
-### Regression tests (node) — `tests/node/scaffold.test.js`
+### Regression tests (node) - `tests/node/scaffold.test.js`
 
 Two tests added:
-1. **Scaffolded fixtures.js has no static runtime import** — asserts
+1. **Scaffolded fixtures.js has no static runtime import** - asserts
    `/^import\s+.*szkrabok.*runtime/m` does not match the generated file
-2. **Scaffolded fixtures.js uses connectOverCDP** — asserts `connectOverCDP`
+2. **Scaffolded fixtures.js uses connectOverCDP** - asserts `connectOverCDP`
    is present in the generated file
 
-### Architecture invariant — `tests/node/contracts.test.js`
+### Architecture invariant - `tests/node/contracts.test.js`
 
 Invariant 4 updated:
 - `e2e/fixtures.js` must NOT have a static top-level runtime import
 - Must reference `@szkrabok/runtime` via dynamic import only
 
-### Smoke test — `tests/playwright/integration/scaffold-smoke.spec.js`
+### Smoke test - `tests/playwright/integration/scaffold-smoke.spec.js`
 
 End-to-end MCP path test using the `sk-skills` companion project:
 1. Open a headless session
@@ -96,8 +90,6 @@ End-to-end MCP path test using the `sk-skills` companion project:
 
 This proves `connectOverCDP` works end-to-end in a real user project without
 relying on any synthetic isolation machinery.
-
----
 
 ## Definition of done
 

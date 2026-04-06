@@ -56,7 +56,7 @@ async function spawnWithRoots(rootPaths, extraEnv = {}) {
     args: [SERVER_PATH],
     env: {
       ...process.env,
-      // Prevent cwd walk-up from finding repo config — isolate to rootPaths only.
+      // Prevent cwd walk-up from finding repo config - isolate to rootPaths only.
       SZKRABOK_CONFIG: undefined,
       SZKRABOK_ROOT: undefined,
       ...extraEnv,
@@ -75,7 +75,7 @@ async function spawnWithRoots(rootPaths, extraEnv = {}) {
 
   await client.connect(transport);
 
-  // Allow server's oninitialized → listRoots → initConfig to complete.
+  // Allow server's oninitialized -> listRoots -> initConfig to complete.
   await new Promise(r => setTimeout(r, 300));
 
   return client;

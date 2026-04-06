@@ -1,5 +1,5 @@
 /**
- * Phase 5.2 — Runtime integration tests.
+ * Phase 5.2 - Runtime integration tests.
  *
  * Launches a real browser (headless). Requires Playwright Chromium installed.
  *

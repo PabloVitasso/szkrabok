@@ -5,11 +5,9 @@ MCP server supplementing [microsoft/playwright-mcp](https://github.com/microsoft
 **Core Enhancements:**
 
 * **Named Sessions:** Persistent cookies, localStorage, and Chromium profiles.
-* **Profile Cloning:** Ephemeral session clones — template profile is deep-cloned to `$TMPDIR`, browser runs against the clone, clone is destroyed on close. Zero contamination of the template.
+* **Profile Cloning:** Ephemeral session clones - template profile is deep-cloned to `$TMPDIR`, browser runs against the clone, clone is destroyed on close. Zero contamination of the template.
 * **Stealth:** Integrated `playwright-extra` + stealth plugin and anti-bot CDP patches.
 * **Deterministic Ports:** Fixed CDP ports per session for `connectOverCDP()`.
-
----
 
 ## Tools & Capabilities
 
@@ -42,17 +40,17 @@ When `isClone: true` is set in `launchOptions`, the returned `sessionName` is a 
 
 ### 2. session_run_test
 
-Composite single-command primitive: open/clone session → navigate → run tests → apply post-policy. Deterministic invariants: per-name lock prevents concurrent page mutation, navigation barrier waits for `networkidle`, workers forced to 1.
+Composite single-command primitive: open/clone session -> navigate -> run tests -> apply post-policy. Deterministic invariants: per-name lock prevents concurrent page mutation, navigation barrier waits for `networkidle`, workers forced to 1.
 
 - **session** (required):
   - **name** (required): logical session name
   - **mode**: `clone` (default, ephemeral) | `template` (persistent)
-  - **templateConflict**: `fail` (default) | `close-first` | `clone-from-live` — what to do when template is open in clone mode
+  - **templateConflict**: `fail` (default) | `close-first` | `clone-from-live` - what to do when template is open in clone mode
   - **enforceLaunchOptionsMatch**: hard-fail if open session has different launchOptions config hash, default `false`
   - **launchOptions**: same options as `session_manage open`
-  - **navigation**: `{ policy: "always"|"ifBlank"|"never", url, timeout }` — navigates before test; `url` required when policy is not `"never"`
-- **test** (required): same as `browser_run_test` — `spec`, `grep`, `params`, `config`, `project`, `reportFile`
-- **postPolicy**: `{ action: "destroy"|"save"|"keep", recreateCloneOnKeep: false }` — default `destroy` for clone, `save` for template
+  - **navigation**: `{ policy: "always"|"ifBlank"|"never", url, timeout }` - navigates before test; `url` required when policy is not `"never"`
+- **test** (required): same as `browser_run_test` - `spec`, `grep`, `params`, `config`, `project`, `reportFile`
+- **postPolicy**: `{ action: "destroy"|"save"|"keep", recreateCloneOnKeep: false }` - default `destroy` for clone, `save` for template
 
 Returns: `{ session: { logicalName, runtimeName, mode }, test: { passed, failed, ... } }` or `{ error, phase: "session"|"test"|"postPolicy" }` on failure.
 
@@ -84,7 +82,7 @@ Run `.spec.js` tests via CDP. Requires `scaffold_init` and open session.
 - **sessionName** (required)
 - **files**: File/directory paths for playwright test
 - **grep**: Filter tests by name (regex)
-- **params**: Key/value → uppercased env vars (e.g. `{url:"..."}` → `process.env.URL`)
+- **params**: Key/value -> uppercased env vars (e.g. `{url:"..."}` -> `process.env.URL`)
 - **config**: Config path, default `playwright.config.js`
 - **project**: Playwright project name
 - **keepOpen**: Reconnect session after test if MCP context invalidated, default `false`
@@ -92,7 +90,7 @@ Run `.spec.js` tests via CDP. Requires `scaffold_init` and open session.
 
 Returns: `{ passed, failed, skipped, tests: [{ title, status, error, result }], log, reportFile }`
 
-Run from VSCode with Playwright extension — no MCP required:
+Run from VSCode with Playwright extension - no MCP required:
 
 ```js
 // tests/playwright/e2e/rebrowser.spec.js
@@ -112,10 +110,10 @@ Init szkrabok project (idempotent). Prerequisite for browser runs.
 
 - **dir**: Target directory, default cwd
 - **name**: Package name, default dirname
-- **preset**: `minimal` (default, MCP-only — config + devDeps, no local szkrabok install) or `full` (+ automation fixtures + example specs; `fixtures.js` is a thin shim re-exporting from `@pablovitasso/szkrabok/fixtures`)
+- **preset**: `minimal` (default, MCP-only - config + devDeps, no local szkrabok install) or `full` (+ automation fixtures + example specs; `fixtures.js` is a thin shim re-exporting from `@pablovitasso/szkrabok/fixtures`)
 - **install**: Run npm install after, default `false`
 
-Returns: `{ created, skipped, staged, merged, installed, warnings }` — `staged` lists files whose content differed from the template; the updated template is written as `filename.new` alongside the original.
+Returns: `{ created, skipped, staged, merged, installed, warnings }` - `staged` lists files whose content differed from the template; the updated template is written as `filename.new` alongside the original.
 
 ### Presets
 
@@ -145,8 +143,6 @@ test('rebrowser-check via MCP', async () => {
 
 Full example: [tests/playwright/e2e/rebrowser-mcp.spec.js](./tests/playwright/e2e/rebrowser-mcp.spec.js)
 
----
-
 ## Setup
 
 **Install**
@@ -157,14 +153,14 @@ claude mcp add --scope user szkrabok -- npx -y @pablovitasso/szkrabok
 gemini mcp add --scope user szkrabok npx -y @pablovitasso/szkrabok
 kilo mcp add szkrabok npx -y @pablovitasso/szkrabok
 ```
-(Cursor: use UI → Features → MCP)
+(Cursor: use UI -> Features -> MCP)
 
 This project only:
 ```bash
 claude mcp add szkrabok -- npx -y @pablovitasso/szkrabok
 ```
 
-Shared config (Claude Desktop / Gemini / Kilo / Cursor) — add to config file:
+Shared config (Claude Desktop / Gemini / Kilo / Cursor) - add to config file:
 ```json
 {
   "mcpServers": {
@@ -175,7 +171,7 @@ Shared config (Claude Desktop / Gemini / Kilo / Cursor) — add to config file:
   }
 }
 ```
-Locations: Claude Desktop → `claude_desktop_config.json`, Gemini → `~/.gemini/settings.json`, Kilo → `mcp_settings.json`, Cursor → UI
+Locations: Claude Desktop -> `claude_desktop_config.json`, Gemini -> `~/.gemini/settings.json`, Kilo -> `mcp_settings.json`, Cursor -> UI
 
 OpenCode:
 ```json
@@ -208,7 +204,7 @@ userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML
 log_level = "debug"
 ```
 
-**Config discovery** — the server finds your TOML automatically. Priority order:
+**Config discovery** - the server finds your TOML automatically. Priority order:
 
 1. `SZKRABOK_CONFIG` env var (absolute path to a `.toml` file)
 2. `SZKRABOK_ROOT` env var (walk-up within that dir)
@@ -218,8 +214,6 @@ log_level = "debug"
 6. empty defaults
 
 Place `szkrabok.config.toml` or `szkrabok.config.local.toml` anywhere in your project tree and it will be found as long as the MCP client sends that project's directory as a root.
-
----
 
 ## Usage
 
@@ -257,16 +251,12 @@ szkrabok doctor detect --write-config  # Detect + pin the path to config.toml
 szkrabok doctor install              # Install Playwright's Chromium (idempotent)
 ```
 
----
-
 ## Project Structure
 
 * **`@szkrabok/runtime`** (`packages/runtime/`): Browser bootstrap, stealth, session pool, MCP client (`mcpConnect`, `spawnClient`, codegen).
-* **`@pablovitasso/szkrabok/fixtures`** (`src/fixtures.js`): Versioned Playwright fixture export — CDP attach path, standalone launch path, `writeAttachSignal` at attach time. Import from this in automation specs; `scaffold_init --preset full` writes a thin shim that re-exports it.
+* **`@pablovitasso/szkrabok/fixtures`** (`src/fixtures.js`): Versioned Playwright fixture export - CDP attach path, standalone launch path, `writeAttachSignal` at attach time. Import from this in automation specs; `scaffold_init --preset full` writes a thin shim that re-exports it.
 * **Config**: `szkrabok.config.toml` (defaults) deep-merged with `szkrabok.config.local.toml` (machine-specific, gitignored).
 * **Release**: `npm run deps:update` updates dependencies, `npm run release:patch` bumps version + tags, then `npm run release:publish`.
-
----
 
 ## Documentation
 

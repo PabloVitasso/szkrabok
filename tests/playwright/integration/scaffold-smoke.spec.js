@@ -1,10 +1,10 @@
 /**
- * Smoke test: browser_run_test uses CDP path — no runtime import in MCP mode.
+ * Smoke test: browser_run_test uses CDP path - no runtime import in MCP mode.
  *
  * Simulates the real user journey:
  *   1. User adds szkrabok via: claude mcp add szkrabok -- npx -y @pablovitasso/szkrabok
  *   2. User opens a session
- *   3. User calls browser_run_test — spec connects via CDP, runtime never imported
+ *   3. User calls browser_run_test - spec connects via CDP, runtime never imported
  *
  * Uses the sk-skills companion project as the target. sk-skills/automation/fixtures.js
  * implements Phase B: connectOverCDP for MCP path, dynamic import for standalone.
@@ -30,7 +30,7 @@ test.skip('browser_run_test uses CDP path in sk-skills project', async ({ client
     await openSession(client, sessionName);
 
     // Run example.spec.js from sk-skills via CDP.
-    // fixtures.js uses connectOverCDP (Phase B) — no runtime import in MCP path.
+    // fixtures.js uses connectOverCDP (Phase B) - no runtime import in MCP path.
     const run = await client.callTool({
       name: 'browser_run_test',
       arguments: {

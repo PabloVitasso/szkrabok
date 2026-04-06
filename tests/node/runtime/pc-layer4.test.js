@@ -1,11 +1,11 @@
 /**
- * PC-4 — launch unit tests
+ * PC-4 - launch unit tests
  *
  * Tests: launchClone pool keying, port discovery, no-cdpPortForId, concurrent
  *        launches, close() cleanup, ensureGcOnExit idempotency, cleanupClones
  *        call on entry.
  *
- * Uses a _launchImpl seam — no real browser launched.
+ * Uses a _launchImpl seam - no real browser launched.
  *
  * _launchImpl contract (injectable replacement for _launchPersistentContext):
  *   async (userDataDir, options) => context
@@ -84,7 +84,7 @@ const makeTemplateDir = async name => {
   return dir;
 };
 
-// ── PC-4.1–PC-4.2  pool keying and entry fields ───────────────────────────────
+// ── PC-4.1-PC-4.2  pool keying and entry fields ───────────────────────────────
 
 describe('PC-4 launchClone — pool entry', () => {
   beforeEach(async () => {
@@ -132,7 +132,7 @@ describe('PC-4 launchClone — pool entry', () => {
   });
 });
 
-// ── PC-4.3–PC-4.4  port discovery (TOCTOU fix) ─────────────────────────────
+// ── PC-4.3-PC-4.4  port discovery (TOCTOU fix) ─────────────────────────────
 
 describe('PC-4 launchClone — port discovery', () => {
   beforeEach(async () => {
@@ -211,7 +211,7 @@ describe('PC-4 launchClone — concurrency', () => {
   });
 });
 
-// ── PC-4.6–PC-4.7  close() returned from launchClone ─────────────────────────
+// ── PC-4.6-PC-4.7  close() returned from launchClone ─────────────────────────
 
 describe('PC-4 launchClone — close() behaviour', () => {
   beforeEach(async () => {
@@ -302,7 +302,7 @@ describe('PC-4 ensureGcOnExit', () => {
     const before = process.listenerCount('beforeExit');
     console.log('PC-4.9 step 1: beforeExit listener count before =', before);
 
-    // Call launchClone 3 times — each call hits ensureGcOnExit, but only the first
+    // Call launchClone 3 times - each call hits ensureGcOnExit, but only the first
     // should actually register a beforeExit handler (idempotent guard).
     const handles = [];
     for (let i = 0; i < 3; i++) {
@@ -347,14 +347,14 @@ describe('PC-4 launchClone — GC on launch', () => {
     await mkdir(staleDir, { recursive: true });
     await writeFile(join(staleDir, '.clone'), JSON.stringify({
       pid:          deadPid,
-      created:      0,          // epoch — always past TTL
+      created:      0,          // epoch - always past TTL
       templateName: 'stale-test',
     }));
 
     console.log('PC-4.10 step 3: existsSync(staleDir) =', existsSync(staleDir));
     assert.ok(existsSync(staleDir), 'stale dir must exist before launchClone');
 
-    // Launch any clone — cleanupClones should run at entry.
+    // Launch any clone - cleanupClones should run at entry.
     const profile = uid('gc-on-launch');
     await makeTemplateDir(profile);
     console.log('PC-4.10 step 4: launchClone (expect it to call cleanupClones first)');

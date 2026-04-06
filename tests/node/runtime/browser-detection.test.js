@@ -1,9 +1,9 @@
 /**
- * Browser detection tests — resolveBrowserPath(), findChromiumPath(), checkBrowser()
+ * Browser detection tests - resolveBrowserPath(), findChromiumPath(), checkBrowser()
  *
  * Run: node --test tests/node/runtime/browser-detection.test.js
  *
- * Unit tests inject finders directly into resolveBrowserPath — no module mocking needed.
+ * Unit tests inject finders directly into resolveBrowserPath - no module mocking needed.
  * Smoke tests run against the real system.
  */
 

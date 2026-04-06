@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-Run `npx` from **outside** the szkrabok repo tree. If run from inside (e.g. `test/npx/`), Node's module resolution walks up and finds the repo's own playwright-core, which fails the `npmRoot` bounds check in `apply-patches.js`. The canonical stub is `~/szkrabok-npx/` — see `docs/development.md`.
+Run `npx` from **outside** the szkrabok repo tree. If run from inside (e.g. `test/npx/`), Node's module resolution walks up and finds the repo's own playwright-core, which fails the `npmRoot` bounds check in `apply-patches.js`. The canonical stub is `~/szkrabok-npx/` - see `docs/development.md`.
 
 ## One-shot deterministic probe
 
@@ -12,8 +12,6 @@ grep -E "postinstall|patch-package|ERR|code:" /tmp/sz.log
 ```
 
 Preserves lifecycle stdout, Arborist resolver decisions, and hoisting graph in a single run. Check this before anything else.
-
----
 
 ## Root-cause-first diagnostics
 
@@ -25,8 +23,8 @@ The patching model is only valid if `playwright-core` resolves *within* the ephe
 npx --yes node -e "console.log(require.resolve('playwright-core'))"
 ```
 
-- Path inside `~/.npm/_npx/<hash>/` → resolution is correct, proceed to step 2
-- Path outside (e.g. global prefix, home `node_modules`) → **patching model is invalid by design**; `apply-patches.js` `npmRoot` bound will reject it
+- Path inside `~/.npm/_npx/<hash>/` -> resolution is correct, proceed to step 2
+- Path outside (e.g. global prefix, home `node_modules`) -> **patching model is invalid by design**; `apply-patches.js` `npmRoot` bound will reject it
 
 ### 2. Is `playwright-core` actually present at patch time?
 
@@ -59,21 +57,17 @@ If step 3 passes but npx still fails, the divergence is in the lifecycle environ
 
 Then compare `INIT_CWD`, `NODE_PATH`, `npm_config_prefix` between npx and `npm install --prefix`.
 
----
-
 ## Known failure signatures
 
 | Log signal | Root cause |
 |-----------|------------|
-| `playwright-core not found within the npm install tree` | Resolution escaped `npmRoot` bound — check step 1 |
+| `playwright-core not found within the npm install tree` | Resolution escaped `npmRoot` bound - check step 1 |
 | `Patch file found ... not present at node_modules/playwright-core` | Correct root computed but playwright-core not hoisted there; npx hoisting differs from regular install |
-| `no package.json found for this project` (from patch-package) | Fixed in 1.0.31 — `apply-patches.js` now writes a minimal temp stub before invoking patch-package when `targetRoot` has no `package.json` (bare temp dirs, npx). Should not appear on current releases. |
+| `no package.json found for this project` (from patch-package) | Fixed in 1.0.31 - `apply-patches.js` now writes a minimal temp stub before invoking patch-package when `targetRoot` has no `package.json` (bare temp dirs, npx). Should not appear on current releases. |
 | All 7 FAIL in verify | Patches applied to wrong tree or not applied at all |
-| Only `utilityScriptSource.js` FAIL | Pre-1.0.28 bug — `patch-package` called without `--patch-dir` |
+| Only `utilityScriptSource.js` FAIL | Pre-1.0.28 bug - `patch-package` called without `--patch-dir` |
 | Exit 1, zero postinstall output in log | npm lifecycle buffering; rerun with `--foreground-scripts` to surface stdout in real time |
-| ETIMEDOUT | Network drop; retry — but also check for partial tarball corruption in `~/.npm/_cacache` |
-
----
+| ETIMEDOUT | Network drop; retry - but also check for partial tarball corruption in `~/.npm/_cacache` |
 
 ## Structural notes
 

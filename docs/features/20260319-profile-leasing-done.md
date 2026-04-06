@@ -1,11 +1,9 @@
 # Feature: Profile Cloning
 
-**Implements:** ephemeral profile cloning — template → clone → destroy
-**Depends on:** nothing — implement this first
-**Related:** [feature-session-lifecycle.md](./feature-session-lifecycle.md) — expands `CLONE_SKIP`
+**Implements:** ephemeral profile cloning - template -> clone -> destroy
+**Depends on:** nothing - implement this first
+**Related:** [feature-session-lifecycle.md](./feature-session-lifecycle.md) - expands `CLONE_SKIP`
 into `PURGEABLE_DIRS`; adds `removeTransientFiles` which closes the stale-`DevToolsActivePort` gap
-
----
 
 ## Integration notes (read before implementing)
 
@@ -15,14 +13,12 @@ into `PURGEABLE_DIRS`; adds `removeTransientFiles` which closes the stale-`DevTo
 - Wire `removeTransientFiles(userDataDir)` into the template session's `close()` callback (not only
   the `session maintain` CLI). This prevents stale `DevToolsActivePort` from causing a startup race
   on the next clone without requiring a manual maintenance run.
-- `mapLimit` (introduced in session-lifecycle) should also be used in `cleanupClones` — avoids a
+- `mapLimit` (introduced in session-lifecycle) should also be used in `cleanupClones` - avoids a
   duplicate concurrency utility. Export it from `storage.js`.
 - `cleanupClones` (this feature) and `purge()` (session-lifecycle) operate on different namespaces:
   `os.tmpdir()` clone dirs vs. `sessions/` stored profiles. Neither subsumes the other.
 - The `touchIndex` call in `launch.js` (from session-lifecycle) sits after `pool.add()` in the
   merged launch path. Add the clone branch first; session-lifecycle adds the index call on top.
-
----
 
 ## Implementation status
 
@@ -32,40 +28,38 @@ Status values: `not started` | `in progress` | `done`
 
 | Function | File | Status | Tests |
 |----------|------|--------|-------|
-| `readDevToolsPort` | `packages/runtime/storage.js` | **done** | PC-1.1–PC-1.7 ✓, PC-6.2 |
-| `newCloneId` | `packages/runtime/storage.js` | **done** | PC-1.8–PC-1.11 ✓ |
-| `cloneProfileAtomic` (staging + FD lease + iterative BFS walker) | `packages/runtime/storage.js` | **done** | PC-1.12–PC-1.18 ✓ |
-| `cleanupClones` (time-gated + STAGING_PREFIX + EXDEV fallback) | `packages/runtime/storage.js` | **done** | PC-1.19–PC-1.24 ✓, PC-4.10 ✓ |
-| `acquireLease`, `leaseFree` | `packages/runtime/storage.js` | **done** | — |
-| `rmWithRetry` (retry loop for directory removal) | `packages/runtime/storage.js` | **done** | — |
-| `pool.add` — `isClone`, `cloneDir`, `templateName`, `leaseHandle`, `pid` | `packages/runtime/pool.js` | **done** | PC-2.1–PC-2.5 ✓ |
-| `pool.list` — expose `isClone`, `cloneDir`, `pid` | `packages/runtime/pool.js` | **done** | PC-2.4–PC-2.5 ✓ |
-| `destroyClone` | `packages/runtime/sessions.js` | **done** | PC-3.1–PC-3.7 ✓ |
-| `launchClone` (PID capture, retry rm, reversed lease close) | `packages/runtime/launch.js` | **done** | PC-4.1–PC-4.7 ✓, PC-4.10 ✓ |
+| `readDevToolsPort` | `packages/runtime/storage.js` | **done** | PC-1.1-PC-1.7 ✓, PC-6.2 |
+| `newCloneId` | `packages/runtime/storage.js` | **done** | PC-1.8-PC-1.11 ✓ |
+| `cloneProfileAtomic` (staging + FD lease + iterative BFS walker) | `packages/runtime/storage.js` | **done** | PC-1.12-PC-1.18 ✓ |
+| `cleanupClones` (time-gated + STAGING_PREFIX + EXDEV fallback) | `packages/runtime/storage.js` | **done** | PC-1.19-PC-1.24 ✓, PC-4.10 ✓ |
+| `acquireLease`, `leaseFree` | `packages/runtime/storage.js` | **done** | - |
+| `rmWithRetry` (retry loop for directory removal) | `packages/runtime/storage.js` | **done** | - |
+| `pool.add` - `isClone`, `cloneDir`, `templateName`, `leaseHandle`, `pid` | `packages/runtime/pool.js` | **done** | PC-2.1-PC-2.5 ✓ |
+| `pool.list` - expose `isClone`, `cloneDir`, `pid` | `packages/runtime/pool.js` | **done** | PC-2.4-PC-2.5 ✓ |
+| `destroyClone` | `packages/runtime/sessions.js` | **done** | PC-3.1-PC-3.7 ✓ |
+| `launchClone` (PID capture, retry rm, reversed lease close) | `packages/runtime/launch.js` | **done** | PC-4.1-PC-4.7 ✓, PC-4.10 ✓ |
 | `launch` (PID capture from pool entry) | `packages/runtime/launch.js` | **done** | PC-4.8 ✓ |
-| `tryBrowserPid` (safe PID extraction) | `packages/runtime/launch.js` | **done** | — |
-| `waitForExit` (defence-in-depth, documented as secondary) | `packages/runtime/launch.js` | **done** | — |
+| `tryBrowserPid` (safe PID extraction) | `packages/runtime/launch.js` | **done** | - |
+| `waitForExit` (defence-in-depth, documented as secondary) | `packages/runtime/launch.js` | **done** | - |
 | `ensureGcOnExit` | `packages/runtime/launch.js` | **done** | PC-4.9 ✓ |
-| `localStorage restore` (single hidden page, favicon.ico, randomised delay) | `packages/runtime/launch.js` | **done** | — |
-| `session_manage open` — `isClone` option | `src/tools/szkrabok_session.js` | **done** | PC-5.1–PC-5.6 ✓ |
-| `session_manage close` — auto-route | `src/tools/szkrabok_session.js` | **done** | PC-5.7–PC-5.8 ✓ |
-| `session_manage list` — include clones | `src/tools/szkrabok_session.js` | **done** | PC-5.9–PC-5.11 ✓ |
-| `session_manage deleteSession` — clone guard | `src/tools/szkrabok_session.js` | **done** | PC-5.12 ✓ |
-| `session_manage` schema — `isClone` in `launchOptions`, updated description | `src/tools/registry.js` | **done** | — |
-| `index.js` — export `launchClone`, `destroyClone` | `packages/runtime/index.js` | **done** | — |
+| `localStorage restore` (single hidden page, favicon.ico, randomised delay) | `packages/runtime/launch.js` | **done** | - |
+| `session_manage open` - `isClone` option | `src/tools/szkrabok_session.js` | **done** | PC-5.1-PC-5.6 ✓ |
+| `session_manage close` - auto-route | `src/tools/szkrabok_session.js` | **done** | PC-5.7-PC-5.8 ✓ |
+| `session_manage list` - include clones | `src/tools/szkrabok_session.js` | **done** | PC-5.9-PC-5.11 ✓ |
+| `session_manage deleteSession` - clone guard | `src/tools/szkrabok_session.js` | **done** | PC-5.12 ✓ |
+| `session_manage` schema - `isClone` in `launchOptions`, updated description | `src/tools/registry.js` | **done** | - |
+| `index.js` - export `launchClone`, `destroyClone` | `packages/runtime/index.js` | **done** | - |
 
 ### Test files
 
 | File | Tests | Status |
 |------|-------|--------|
-| `tests/node/runtime/pc-layer1.test.js` | PC-1.1–PC-1.24 (24 tests) | **24/24 passing** |
-| `tests/node/runtime/pc-layer2.test.js` | PC-2.1–PC-2.5 (5 tests) | **5/5 passing** |
-| `tests/node/runtime/pc-layer3.test.js` | PC-3.1–PC-3.8 (8 tests) | **8/8 passing** |
-| `tests/node/runtime/pc-layer4.test.js` | PC-4.1–PC-4.10 (10 tests) | **10/10 passing** |
-| `tests/node/runtime/pc-layer5.test.js` | PC-5.1–PC-5.12 (12 tests) | **12/12 passing** |
-| `tests/node/runtime/pc-layer6.test.js` | PC-6.1–PC-6.5 (5 tests) | **5/5 passing** |
-
----
+| `tests/node/runtime/pc-layer1.test.js` | PC-1.1-PC-1.24 (24 tests) | **24/24 passing** |
+| `tests/node/runtime/pc-layer2.test.js` | PC-2.1-PC-2.5 (5 tests) | **5/5 passing** |
+| `tests/node/runtime/pc-layer3.test.js` | PC-3.1-PC-3.8 (8 tests) | **8/8 passing** |
+| `tests/node/runtime/pc-layer4.test.js` | PC-4.1-PC-4.10 (10 tests) | **10/10 passing** |
+| `tests/node/runtime/pc-layer5.test.js` | PC-5.1-PC-5.12 (12 tests) | **12/12 passing** |
+| `tests/node/runtime/pc-layer6.test.js` | PC-6.1-PC-6.5 (5 tests) | **5/5 passing** |
 
 ## Core invariant
 
@@ -80,21 +74,19 @@ Therefore:
 - Clone profile = ephemeral, write-once, destroy on close
 - State persistence = explicit export/import on template sessions only; never on clones
 
----
-
 ## Lifecycle model
 
 ### Template phase (human / bootstrap)
 
 1. `session_manage open` with `isClone: false` (default)
 2. Login / configure
-3. Close — state saved to `state.json`, template profile updated
+3. Close - state saved to `state.json`, template profile updated
 
 Optional hardening after close:
 
 - SQLite WAL checkpoint + vacuum
 - Remove caches (`pruneCaches` from session-lifecycle)
-- `chmod -R a-w` — tripwire, not a security boundary
+- `chmod -R a-w` - tripwire, not a security boundary
 
 ### Clone phase (automated)
 
@@ -105,11 +97,9 @@ Optional hardening after close:
 5. Port read from `DevToolsActivePort` after polling
 6. If `url` was provided, page navigates to it (`domcontentloaded`)
 7. Run workload
-8. `session_manage close` — context closed, clone dir destroyed, no state saved
+8. `session_manage close` - context closed, clone dir destroyed, no state saved
 
 No profile reuse. No lock contention. No stale process logic.
-
----
 
 ## Modes
 
@@ -120,39 +110,35 @@ No profile reuse. No lock contention. No stale process logic.
 
 Template must never be open when a clone of it is being created.
 
----
-
 ## Known issues and resolution status
 
 | # | Issue | Status |
 |---|-------|--------|
-| 1 | Port allocator TOCTOU | **Fixed** — pass `--remote-debugging-port=0`, poll `DevToolsActivePort` |
-| 2 | Template immutability via chmod is insufficient | **Partially fixed** — physical directory separation; see note |
-| 3 | Clone atomicity (`cp` is not transactional) | **Fixed** — iterative BFS walker + staging+rename pattern |
-| 4 | TTL scavenger early-deletes live clone dirs | **Fixed** — FD lease + hard TTL two-gate + time-gated GC (60 s cooldown) |
-| 4a | TTL scavenger late-deletes after PID reuse | **Accepted** — single-machine leak risk; see note |
-| 5 | Pool key leaky on crash path | **Fixed** — FD lease held for full lifecycle; scavenger gates on it |
-| 6 | State authority (template vs state.json) | **Accepted** — template is authoritative for initial implementation |
-| 7 | No multi-host / distributed clone safety | **Out of scope** — single-process only |
-| 8 | Clone GC only triggered at launch | **Fixed** — also run on `process.beforeExit` |
-| 9 | `isClone:true` fails with ENOENT if template profile dir never created | **Fixed** — `launchClone` calls `ensureProfileDir` before `cloneProfileAtomic` |
-| 10 | `url` ignored when opening a clone (`isClone:true`) | **Fixed** — `session_manage open` navigates clone page after launch if `url` provided |
-| 9 | PID extraction from Playwright browser object | **Fixed** — `tryBrowserPid()`; `osProcess()?._process?.pid` fallback |
-| 10 | `rm()` racing straggling Chrome processes | **Fixed** — `rmWithRetry()` retry loop (15 s, 100 ms poll); `waitForExit` as secondary defence |
-| 11 | Cleanup scan on every launch | **Fixed** — time-gated GC, 60 s cooldown |
-| 12 | localStorage restore on pre-existing blank page | **Fixed** — single hidden page, sequential favicon.ico navigations, 50-150 ms randomised pause |
-
----
+| 1 | Port allocator TOCTOU | **Fixed** - pass `--remote-debugging-port=0`, poll `DevToolsActivePort` |
+| 2 | Template immutability via chmod is insufficient | **Partially fixed** - physical directory separation; see note |
+| 3 | Clone atomicity (`cp` is not transactional) | **Fixed** - iterative BFS walker + staging+rename pattern |
+| 4 | TTL scavenger early-deletes live clone dirs | **Fixed** - FD lease + hard TTL two-gate + time-gated GC (60 s cooldown) |
+| 4a | TTL scavenger late-deletes after PID reuse | **Accepted** - single-machine leak risk; see note |
+| 5 | Pool key leaky on crash path | **Fixed** - FD lease held for full lifecycle; scavenger gates on it |
+| 6 | State authority (template vs state.json) | **Accepted** - template is authoritative for initial implementation |
+| 7 | No multi-host / distributed clone safety | **Out of scope** - single-process only |
+| 8 | Clone GC only triggered at launch | **Fixed** - also run on `process.beforeExit` |
+| 9 | `isClone:true` fails with ENOENT if template profile dir never created | **Fixed** - `launchClone` calls `ensureProfileDir` before `cloneProfileAtomic` |
+| 10 | `url` ignored when opening a clone (`isClone:true`) | **Fixed** - `session_manage open` navigates clone page after launch if `url` provided |
+| 9 | PID extraction from Playwright browser object | **Fixed** - `tryBrowserPid()`; `osProcess()?._process?.pid` fallback |
+| 10 | `rm()` racing straggling Chrome processes | **Fixed** - `rmWithRetry()` retry loop (15 s, 100 ms poll); `waitForExit` as secondary defence |
+| 11 | Cleanup scan on every launch | **Fixed** - time-gated GC, 60 s cooldown |
+| 12 | localStorage restore on pre-existing blank page | **Fixed** - single hidden page, sequential favicon.ico navigations, 50-150 ms randomised pause |
 
 ## Issue notes
 
-**#1 — DevToolsActivePort readiness**
+**#1 - DevToolsActivePort readiness**
 
 `launchPersistentContext` returning does not contractually guarantee the file has been flushed to
 disk. Slow disks, AV hooks, remote filesystems, or a Chromium regression can all cause a race.
 `readDevToolsPort` must poll with a configurable timeout rather than reading once.
 
-**#2 — Template immutability**
+**#2 - Template immutability**
 
 `chmod 0555` is a weak guard: meaningless on Windows, bypassable on macOS sandbox, and some
 Chromium subsystems touch timestamps even on read-only trees. The real fix is physical directory
@@ -162,20 +148,20 @@ a tripwire on top.
 
 Remaining failure modes: browser extension auto-update writing to the profile while the template
 session is open, or a code path that constructs a template path from a session id. Both require the
-template to be closed before any clone runs — that invariant cannot be enforced mechanically without
+template to be closed before any clone runs - that invariant cannot be enforced mechanically without
 a kernel-level filesystem lock.
 
-**#3 — Clone atomicity — iterative BFS walker**
+**#3 - Clone atomicity - iterative BFS walker**
 
 The recursive `cp` approach has two problems: unbounded promise graphs on deep Chrome profiles
 (and the resulting memory pressure), and no atomicity guarantee across files. The staging+rename
 pattern solves both: all cloning work happens in `$TMPDIR/szkrabok-staging-{cloneId}`, and the
 final directory is created by a single POSIX `rename()`. If the process crashes during copy, the
 staging dir is orphaned and the scavenger cleans it up. On EXDEV (cross-device tmpdir), the
-fallback is `cp` into a fresh `mkdir` — no atomic rename, but the .lease fence still protects
+fallback is `cp` into a fresh `mkdir` - no atomic rename, but the .lease fence still protects
 against scavenger races.
 
-**#4a — PID reuse late-delete leak**
+**#4a - PID reuse late-delete leak**
 
 The two-gate delete (PID dead AND TTL exceeded) prevents early deletion but introduces a
 permanent-leak class: if PID is reused by an unrelated process after TTL expires, the scavenger
@@ -183,35 +169,35 @@ sees the PID as alive and skips the dir forever. The correct fix is to store the
 alongside the PID and validate both (Linux: `/proc/<pid>/stat` field 22, `starttime`). This is
 Linux-only and adds complexity. For the initial implementation the leak is accepted and documented.
 
-**#5 — Pool crash path**
+**#5 - Pool crash path**
 
 If the browser crashes without `context.close()`, the `close` event fires and `pool.remove` is
 called. The FD lease is still held open at that point (held since staging mkdir). The scavenger
 sees `leaseFree()` as false and keeps the dir until hard TTL expires or the lease is next
 explicitly closed. The `rmWithRetry` in `launchClone.close()` runs after the context closes and
-repeatedly retries until Chrome has fully released its locks — this is the primary deletion
+repeatedly retries until Chrome has fully released its locks - this is the primary deletion
 mechanism. The scavenger is a secondary cleanup path.
 
-**#7 — Multi-host scope**
+**#7 - Multi-host scope**
 
 The cloning model is process-local. `tmpdir()` and `sessions/` are assumed to be local filesystem,
 not shared. Multi-host use requires a distributed lock at the outer layer (Redis, etcd, DB row).
 
-**#8 — Clone GC trigger**
+**#8 - Clone GC trigger**
 
 GC that runs only at `launchClone()` time leaves stale dirs accumulating when launches are
 infrequent. Registering a `process.beforeExit` handler covers the gap: it fires when the event loop
 drains naturally, giving GC a second trigger without a background interval or timer.
 
-**#9 — PID extraction**
+**#9 - PID extraction**
 
 `browser.process()` is the public Playwright API but only exists when the browser was launched via
 `launchServer()`. On `launchPersistentContext()` it may be absent entirely. `tryBrowserPid()` probes
 with `'process' in browser` before calling, avoiding the ES module scope issue where `process`
 resolves to the Node.js global. The private `osProcess()?._process?.pid` is the fallback. If both are
-absent, `null` is returned — `waitForExit` and `rmWithRetry` degrade gracefully.
+absent, `null` is returned - `waitForExit` and `rmWithRetry` degrade gracefully.
 
-**#10 — Chrome lock release timing**
+**#10 - Chrome lock release timing**
 
 `waitForExit()` uses `process.kill(pid, 0)` which only tracks the root browser PID. Chrome child
 processes (gpu, utility, network service) may hold file locks after the root exits.
@@ -219,33 +205,31 @@ processes (gpu, utility, network service) may hold file locks after the root exi
 the directory is deletable, regardless of which process held the lock. `waitForExit()` shortens the
 typical case but is not relied upon for correctness.
 
-**#11 — Cleanup scan cost**
+**#11 - Cleanup scan cost**
 
 `cleanupClones()` called on every `launch()` previously scanned the entire tmpdir each time.
 On shared or heavily-used systems this is O(N) with N = all tmpdir entries, not just clones.
 Time-gating with a 60 s cooldown means at most one full scan per minute regardless of launch
 frequency. The scavenger still runs on `beforeExit` unconditionally.
 
-**#12 — localStorage restore determinism**
+**#12 - localStorage restore determinism**
 
 `addInitScript` registered after the pre-existing blank page was created does not fire on that
 page. The original fix (force `page.goto('about:blank')`) navigates away from the session page.
 The current approach uses a single hidden helper page that navigates sequentially to each saved
 origin via `favicon.ico` (with `waitUntil: 'commit'`), writes localStorage items directly via
-`page.evaluate()`, then closes. A randomised 50–150 ms pause between origins smooths the CPU
+`page.evaluate()`, then closes. A randomised 50-150 ms pause between origins smooths the CPU
 and network burst to reduce timing anomalies detectable by bot detectors.
-
----
 
 ## MCP API surface
 
-### `session_manage` — extended, not replaced
+### `session_manage` - extended, not replaced
 
 Clone sessions are a behavioural variant of sessions. They use the same tool, the same `sessionName`
 field, and the same actions. The only additions are `isClone` in `launchOptions` (input) and
 `isClone` + `templateSession` in responses.
 
-#### `open` — new `launchOptions.isClone` (optional, default `false`)
+#### `open` - new `launchOptions.isClone` (optional, default `false`)
 
 ```json
 {
@@ -277,13 +261,13 @@ Response when `isClone: true`:
 ```
 
 The generated `sessionName` is the clone's identity for all subsequent calls. It is formed as
-`{templateName}-{timestamp}-{randomHex}`. The caller stores it and uses it verbatim — the same
+`{templateName}-{timestamp}-{randomHex}`. The caller stores it and uses it verbatim - the same
 field, the same tools, no branching required.
 
 `isClone: false` is the default and can be omitted. Existing callers that do not pass `isClone` get
 the current behaviour unchanged.
 
-#### `close` — auto-routes, no schema change
+#### `close` - auto-routes, no schema change
 
 ```json
 { "action": "close", "sessionName": "myprofile-1748234205-a3f2c1b0" }
@@ -291,12 +275,12 @@ the current behaviour unchanged.
 
 The handler looks up `pool.get(sessionName).isClone` and routes:
 
-- `isClone: false` → `closeSession(sessionName)`: save state, update meta, close context
-- `isClone: true`  → `destroyClone(sessionName)`: close context, `rm -rf` clone dir, no save
+- `isClone: false` -> `closeSession(sessionName)`: save state, update meta, close context
+- `isClone: true`  -> `destroyClone(sessionName)`: close context, `rm -rf` clone dir, no save
 
 The caller does not need to know which path is taken.
 
-#### `list` — unified, clones included
+#### `list` - unified, clones included
 
 Clone sessions have no disk presence in `sessions/` but are held in the pool while active. `list`
 emits both:
@@ -321,10 +305,10 @@ emits both:
 }
 ```
 
-Inactive clones never appear — they do not exist once destroyed. Stored template sessions that are
+Inactive clones never appear - they do not exist once destroyed. Stored template sessions that are
 not currently open appear with `active: false` as before.
 
-#### `delete` — template sessions only; glob patterns supported
+#### `delete` - template sessions only; glob patterns supported
 
 `delete` with a clone `sessionName` throws. Clones are destroyed via `close`. There is no stored
 session to delete.
@@ -339,22 +323,20 @@ delete "*"              → delete all stored sessions
 delete "*-test"         → delete all sessions ending in "-test"
 ```
 
-#### `endpoint` — unchanged, works for both
+#### `endpoint` - unchanged, works for both
 
 `pool.get(sessionName)` is keyed correctly for both templates and clones. No change needed.
 
-### `browser_run`, `browser_scrape`, `browser_run_test` — no schema change
+### `browser_run`, `browser_scrape`, `browser_run_test` - no schema change
 
-All three delegate to `getSession(sessionName)` → `pool.get(sessionName)`. The pool is keyed by
-whatever `sessionName` was returned from `open` — template name for templates, generated id for
+All three delegate to `getSession(sessionName)` -> `pool.get(sessionName)`. The pool is keyed by
+whatever `sessionName` was returned from `open` - template name for templates, generated id for
 clones. No new fields needed. Update description strings only:
 
 ```
 sessionName — session name (template) or the generated name returned by session_manage open
               with isClone:true (clone). Use whichever was returned from open.
 ```
-
----
 
 ## Implementation
 
@@ -473,7 +455,7 @@ export const cleanupClones = async () => {
 
 Pool entries gain `isClone`, `cloneDir`, `templateName`, `leaseHandle`, and `pid` so that `close`
 and `list` can route without requiring callers to track session type separately. `pid` is captured
-once at launch and stored — never re-read at close time.
+once at launch and stored - never re-read at close time.
 
 ```js
 // packages/runtime/pool.js
@@ -497,10 +479,10 @@ export const list = () =>
 
 ### `sessions.js` additions
 
-`closeSession` is unchanged — template path only. `destroyClone` is the new clone-specific path.
+`closeSession` is unchanged - template path only. `destroyClone` is the new clone-specific path.
 The two functions are structurally separate; no branching inside either.
 
-Note: `destroyClone` in `sessions.js` uses a plain `rm()` — the retry loop lives in
+Note: `destroyClone` in `sessions.js` uses a plain `rm()` - the retry loop lives in
 `launchClone.close()` which is the primary close path. Both ultimately call through to the pool entry
 close function returned by `launchClone`.
 
@@ -527,16 +509,16 @@ export const destroyClone = async cloneId => {
 
 ### `launch.js` additions
 
-`launchClone` is a separate exported function — not a branch inside `launch()`. Both functions call
+`launchClone` is a separate exported function - not a branch inside `launch()`. Both functions call
 `readDevToolsPort` for port discovery. `cdpPortForId` is deleted; neither path uses it.
 
 Key implementation decisions (actual code vs design doc):
 
 - **PID capture**: `tryBrowserPid()` extracts PID once at launch, stored in pool entry. Close paths read from pool.
-- **`waitForExit`**: secondary defence-in-depth — shortens the typical case, not relied upon for correctness.
-- **`rmWithRetry`**: primary directory removal guard — retry loop that does not depend on Chrome PID lifecycle.
-- **Clone close order**: `rmWithRetry(cloneDir)` runs before `lease.close()` — lease is scavenger fencing only.
-- **localStorage restore**: single hidden helper page, sequential favicon.ico navigations, randomised 50–150 ms pause.
+- **`waitForExit`**: secondary defence-in-depth - shortens the typical case, not relied upon for correctness.
+- **`rmWithRetry`**: primary directory removal guard - retry loop that does not depend on Chrome PID lifecycle.
+- **Clone close order**: `rmWithRetry(cloneDir)` runs before `lease.close()` - lease is scavenger fencing only.
+- **localStorage restore**: single hidden helper page, sequential favicon.ico navigations, randomised 50-150 ms pause.
 
 ```js
 // packages/runtime/launch.js
@@ -640,7 +622,7 @@ export const launchClone = async (options = {}) => {
 };
 ```
 
-### `szkrabok_session.js` — MCP handler changes
+### `szkrabok_session.js` - MCP handler changes
 
 ```js
 // src/tools/szkrabok_session.js
@@ -766,7 +748,7 @@ export const deleteSession = async ({ sessionName }) => {
 clones so that `list` can return `templateSession`. Add `templateName` as a field alongside
 `isClone` and `cloneDir` in the pool entry. `launchClone` passes it; `list` reads it.
 
-### `registry.js` — schema additions
+### `registry.js` - schema additions
 
 ```js
 // session_manage inputSchema additions:
@@ -789,8 +771,6 @@ description: `${SZKRABOK} Manage browser sessions. ` +
   'browser_run, workflow_scrape, and close.',
 ```
 
----
-
 ## Directory structure
 
 ```
@@ -810,8 +790,6 @@ os.tmpdir()/
 `cloneProfileAtomic` always writes to `tmpdir()`.
 `getUserDataDir` always points into `sessions/`.
 No function crosses the boundary.
-
----
 
 ## File layout changes
 
@@ -847,56 +825,52 @@ tests/node/runtime/
   pc-layer6.test.js     PC-6.* — real browser integration
 ```
 
-`portAllocator.js` is **not needed** — eliminated by the `DevToolsActivePort` fix.
-
----
+`portAllocator.js` is **not needed** - eliminated by the `DevToolsActivePort` fix.
 
 ## Test plan
 
-Identifier scheme: `PC-{layer}.{n}` — Profile Cloning, layer number, test number within layer.
+Identifier scheme: `PC-{layer}.{n}` - Profile Cloning, layer number, test number within layer.
 
 ### File naming and status
 
 | File | Layer | Tests | Status |
 |------|-------|-------|--------|
-| `tests/node/runtime/pc-layer1.test.js` | Storage — unit, no browser | 24 | **done** |
-| `tests/node/runtime/pc-layer2.test.js` | Pool — unit | 5 | **done** |
-| `tests/node/runtime/pc-layer3.test.js` | Sessions — unit, mocked pool | 8 | **done** |
-| `tests/node/runtime/pc-layer4.test.js` | Launch — unit, mocked `_launchPersistentContext` | 10 | **done** |
-| `tests/node/runtime/pc-layer5.test.js` | MCP tool — unit, mocked runtime | 12 | **done** |
-| `tests/node/runtime/pc-layer6.test.js` | Real browser — integration | 5 | **done** |
+| `tests/node/runtime/pc-layer1.test.js` | Storage - unit, no browser | 24 | **done** |
+| `tests/node/runtime/pc-layer2.test.js` | Pool - unit | 5 | **done** |
+| `tests/node/runtime/pc-layer3.test.js` | Sessions - unit, mocked pool | 8 | **done** |
+| `tests/node/runtime/pc-layer4.test.js` | Launch - unit, mocked `_launchPersistentContext` | 10 | **done** |
+| `tests/node/runtime/pc-layer5.test.js` | MCP tool - unit, mocked runtime | 12 | **done** |
+| `tests/node/runtime/pc-layer6.test.js` | Real browser - integration | 5 | **done** |
 
----
-
-### PC-1 — storage (unit, no browser)
+### PC-1 - storage (unit, no browser)
 `tests/node/runtime/pc-layer1.test.js`
 
 | ID | Test | Covers |
 |----|------|--------|
-| PC-1.1 | `readDevToolsPort` — standard format `"{port}\n/devtools/..."` | parse |
-| PC-1.2 | `readDevToolsPort` — port-only content (no path line) | parse edge |
-| PC-1.3 | `readDevToolsPort` — returns number, not string | type |
-| PC-1.4 | `readDevToolsPort` — file absent → rejects | missing file |
-| PC-1.5 | `readDevToolsPort` — **[gap]** file appears after 200 ms delay → resolves | polling path |
-| PC-1.6 | `readDevToolsPort` — **[gap]** file never appears within `timeoutMs` → rejects | timeout |
-| PC-1.7 | `readDevToolsPort` — **[gap]** content `"abc\n/devtools/..."` → throws invalid port | parse guard |
-| PC-1.8 | `newCloneId` — returns non-empty string | format |
-| PC-1.9 | `newCloneId` — starts with sanitised template name | readability |
-| PC-1.10 | `newCloneId` — timestamp segment falls within call window | monotonic |
-| PC-1.11 | `newCloneId` — two consecutive calls produce different ids | uniqueness |
-| PC-1.12 | `cloneProfileAtomic` — returns `{ cloneId, dir }` | return shape |
-| PC-1.13 | `cloneProfileAtomic` — dest dir exists and contains copied files | copy |
-| PC-1.14 | `cloneProfileAtomic` — skips `SingletonLock` | skip list |
-| PC-1.15 | `cloneProfileAtomic` — skips `GPUCache` directory | skip list |
-| PC-1.16 | `cloneProfileAtomic` — copies dirs not in skip list | allow list |
-| PC-1.17 | `cloneProfileAtomic` — writes `.clone` with `pid`, `created`, `templateName` | metadata |
-| PC-1.18 | `cloneProfileAtomic` — two concurrent calls produce separate dirs and ids | concurrency |
-| PC-1.19 | `cleanupClones` — deletes expired dir with dead PID | two-gate delete |
-| PC-1.20 | `cleanupClones` — keeps dir with live PID regardless of age | live guard |
-| PC-1.21 | `cleanupClones` — keeps dir with dead PID within TTL | TTL guard |
-| PC-1.22 | `cleanupClones` — deletes orphaned dir with no `.clone` file | orphan |
-| PC-1.23 | `cleanupClones` — **[gap]** no `szkrabok-clone-*` dirs present → runs without error | empty case |
-| PC-1.24 | `cleanupClones` — **[gap]** non-clone dirs in tmpdir are ignored | prefix filter |
+| PC-1.1 | `readDevToolsPort` - standard format `"{port}\n/devtools/..."` | parse |
+| PC-1.2 | `readDevToolsPort` - port-only content (no path line) | parse edge |
+| PC-1.3 | `readDevToolsPort` - returns number, not string | type |
+| PC-1.4 | `readDevToolsPort` - file absent -> rejects | missing file |
+| PC-1.5 | `readDevToolsPort` - **[gap]** file appears after 200 ms delay -> resolves | polling path |
+| PC-1.6 | `readDevToolsPort` - **[gap]** file never appears within `timeoutMs` -> rejects | timeout |
+| PC-1.7 | `readDevToolsPort` - **[gap]** content `"abc\n/devtools/..."` -> throws invalid port | parse guard |
+| PC-1.8 | `newCloneId` - returns non-empty string | format |
+| PC-1.9 | `newCloneId` - starts with sanitised template name | readability |
+| PC-1.10 | `newCloneId` - timestamp segment falls within call window | monotonic |
+| PC-1.11 | `newCloneId` - two consecutive calls produce different ids | uniqueness |
+| PC-1.12 | `cloneProfileAtomic` - returns `{ cloneId, dir }` | return shape |
+| PC-1.13 | `cloneProfileAtomic` - dest dir exists and contains copied files | copy |
+| PC-1.14 | `cloneProfileAtomic` - skips `SingletonLock` | skip list |
+| PC-1.15 | `cloneProfileAtomic` - skips `GPUCache` directory | skip list |
+| PC-1.16 | `cloneProfileAtomic` - copies dirs not in skip list | allow list |
+| PC-1.17 | `cloneProfileAtomic` - writes `.clone` with `pid`, `created`, `templateName` | metadata |
+| PC-1.18 | `cloneProfileAtomic` - two concurrent calls produce separate dirs and ids | concurrency |
+| PC-1.19 | `cleanupClones` - deletes expired dir with dead PID | two-gate delete |
+| PC-1.20 | `cleanupClones` - keeps dir with live PID regardless of age | live guard |
+| PC-1.21 | `cleanupClones` - keeps dir with dead PID within TTL | TTL guard |
+| PC-1.22 | `cleanupClones` - deletes orphaned dir with no `.clone` file | orphan |
+| PC-1.23 | `cleanupClones` - **[gap]** no `szkrabok-clone-*` dirs present -> runs without error | empty case |
+| PC-1.24 | `cleanupClones` - **[gap]** non-clone dirs in tmpdir are ignored | prefix filter |
 
 **PC-1.5 implementation note:** write `DevToolsActivePort` after a 200 ms `setTimeout`; call
 `readDevToolsPort(dir, { timeoutMs: 1000 })`. No browser needed.
@@ -904,38 +878,32 @@ Identifier scheme: `PC-{layer}.{n}` — Profile Cloning, layer number, test numb
 **PC-1.6 implementation note:** call `readDevToolsPort(emptyDir, { timeoutMs: 300 })`. Assert
 rejects within ~350 ms. Requires the injectable `timeoutMs` option.
 
----
-
-### PC-2 — pool (unit)
+### PC-2 - pool (unit)
 `tests/node/runtime/pc-layer2.test.js`
 
 | ID | Test | Covers |
 |----|------|--------|
-| PC-2.1 | `pool.add(id, ...)` default → `isClone: false`, `cloneDir: null` | default values |
-| PC-2.2 | `pool.add(cloneId, ..., true, '/tmp/...')` → `get(cloneId).isClone === true` | clone entry |
+| PC-2.1 | `pool.add(id, ...)` default -> `isClone: false`, `cloneDir: null` | default values |
+| PC-2.2 | `pool.add(cloneId, ..., true, '/tmp/...')` -> `get(cloneId).isClone === true` | clone entry |
 | PC-2.3 | `pool.get(cloneId).cloneDir` equals the passed dir | field stored |
 | PC-2.4 | `pool.list()` entries all have `isClone` and `cloneDir` fields | list contract |
 | PC-2.5 | `pool.list()` returns clone entries alongside template entries | mixed list |
 
----
-
-### PC-3 — sessions (unit, mocked pool)
+### PC-3 - sessions (unit, mocked pool)
 `tests/node/runtime/pc-layer3.test.js`
 
 | ID | Test | Covers |
 |----|------|--------|
-| PC-3.1 | `destroyClone(cloneId)` — `context.close()` called | teardown |
-| PC-3.2 | `destroyClone(cloneId)` — `pool.remove(cloneId)` called | pool cleanup |
-| PC-3.3 | `destroyClone(cloneId)` — `rm(cloneDir, { recursive: true })` called | dir removal |
-| PC-3.4 | `destroyClone(cloneId)` — `saveState` NOT called | no persistence |
-| PC-3.5 | `destroyClone(cloneId)` — `updateMeta` NOT called | no persistence |
-| PC-3.6 | `destroyClone(id)` where `isClone: false` → throws type guard error | guard |
-| PC-3.7 | `destroyClone(unknown)` → throws `SessionNotFoundError` | pool miss |
-| PC-3.8 | `closeSession(profile)` where `isClone: false` — still saves state | unchanged path |
+| PC-3.1 | `destroyClone(cloneId)` - `context.close()` called | teardown |
+| PC-3.2 | `destroyClone(cloneId)` - `pool.remove(cloneId)` called | pool cleanup |
+| PC-3.3 | `destroyClone(cloneId)` - `rm(cloneDir, { recursive: true })` called | dir removal |
+| PC-3.4 | `destroyClone(cloneId)` - `saveState` NOT called | no persistence |
+| PC-3.5 | `destroyClone(cloneId)` - `updateMeta` NOT called | no persistence |
+| PC-3.6 | `destroyClone(id)` where `isClone: false` -> throws type guard error | guard |
+| PC-3.7 | `destroyClone(unknown)` -> throws `SessionNotFoundError` | pool miss |
+| PC-3.8 | `closeSession(profile)` where `isClone: false` - still saves state | unchanged path |
 
----
-
-### PC-4 — launch (unit, mocked `_launchPersistentContext`)
+### PC-4 - launch (unit, mocked `_launchPersistentContext`)
 `tests/node/runtime/pc-layer4.test.js`
 
 The mock writes a fake `DevToolsActivePort` in the provided `userDataDir` before returning, so
@@ -943,42 +911,38 @@ The mock writes a fake `DevToolsActivePort` in the provided `userDataDir` before
 
 | ID | Test | Covers |
 |----|------|--------|
-| PC-4.1 | `launchClone({ profile })` — pool key is `cloneId`, not profile name | correct keying |
-| PC-4.2 | `launchClone({ profile })` — pool entry has `isClone: true`, `cloneDir` set | pool record |
-| PC-4.3 | `launchClone({ profile })` — returned `cdpEndpoint` uses port from `DevToolsActivePort` | TOCTOU fix |
-| PC-4.4 | `launchClone({ profile })` — `cdpPortForId` is not called (deleted) | TOCTOU fix |
-| PC-4.5 | `launchClone({ profile })` — two concurrent calls produce distinct `cloneId` and `cloneDir` | concurrency |
-| PC-4.6 | `launchClone` returned `close()` — clone dir removed | cleanup |
-| PC-4.7 | `launchClone` returned `close()` — `saveState` not called | no persistence |
-| PC-4.8 | `launch({ profile })` — `cdpEndpoint` uses `DevToolsActivePort`, not hash | TOCTOU fix on template path |
-| PC-4.9 | `ensureGcOnExit` called N times → `process.listenerCount('beforeExit')` increases by exactly 1 | idempotency |
+| PC-4.1 | `launchClone({ profile })` - pool key is `cloneId`, not profile name | correct keying |
+| PC-4.2 | `launchClone({ profile })` - pool entry has `isClone: true`, `cloneDir` set | pool record |
+| PC-4.3 | `launchClone({ profile })` - returned `cdpEndpoint` uses port from `DevToolsActivePort` | TOCTOU fix |
+| PC-4.4 | `launchClone({ profile })` - `cdpPortForId` is not called (deleted) | TOCTOU fix |
+| PC-4.5 | `launchClone({ profile })` - two concurrent calls produce distinct `cloneId` and `cloneDir` | concurrency |
+| PC-4.6 | `launchClone` returned `close()` - clone dir removed | cleanup |
+| PC-4.7 | `launchClone` returned `close()` - `saveState` not called | no persistence |
+| PC-4.8 | `launch({ profile })` - `cdpEndpoint` uses `DevToolsActivePort`, not hash | TOCTOU fix on template path |
+| PC-4.9 | `ensureGcOnExit` called N times -> `process.listenerCount('beforeExit')` increases by exactly 1 | idempotency |
 | PC-4.10 | `cleanupClones` called at `launchClone` entry | GC on launch |
 
----
-
-### PC-5 — MCP tool (unit, mocked runtime)
+### PC-5 - MCP tool (unit, mocked runtime)
 `tests/node/runtime/pc-layer5.test.js`
 
 Mocks: `launchClone`, `destroyClone`, `pool`, `listStoredSessions`.
 
 | ID | Test | Covers |
 |----|------|--------|
-| PC-5.1 | `open({ sessionName, launchOptions: { isClone: true } })` — response has `isClone: true` | open shape |
-| PC-5.2 | `open(...)` with `isClone: true` — `sessionName` in response is generated clone id | id generation |
-| PC-5.3 | `open(...)` with `isClone: true` — `templateSession` in response equals original name | traceability |
-| PC-5.4 | `open(...)` with `isClone: true` while template is in pool — throws | open guard |
-| PC-5.5 | `open(...)` with `isClone: false` — response has `isClone: false` | explicit false |
-| PC-5.6 | `open(...)` with `isClone` omitted — response has `isClone: false` | default |
-| PC-5.7 | `close({ sessionName: cloneId })` — routes to `destroyClone`, not `closeSession` | routing |
-| PC-5.8 | `close({ sessionName: templateName })` — routes to `closeSession`, not `destroyClone` | routing |
-| PC-5.9 | `list()` — includes active clone entry with `isClone: true` and `templateSession` | list shape |
-| PC-5.10 | `list()` — clone id does not appear in `listStoredSessions()` result | no disk entry |
-| PC-5.11 | `list()` — template entry appears with `isClone: false` alongside clone entry | mixed list |
-| PC-5.12 | `deleteSession({ sessionName: cloneId })` — throws "use close to destroy a clone" | delete guard |
+| PC-5.1 | `open({ sessionName, launchOptions: { isClone: true } })` - response has `isClone: true` | open shape |
+| PC-5.2 | `open(...)` with `isClone: true` - `sessionName` in response is generated clone id | id generation |
+| PC-5.3 | `open(...)` with `isClone: true` - `templateSession` in response equals original name | traceability |
+| PC-5.4 | `open(...)` with `isClone: true` while template is in pool - throws | open guard |
+| PC-5.5 | `open(...)` with `isClone: false` - response has `isClone: false` | explicit false |
+| PC-5.6 | `open(...)` with `isClone` omitted - response has `isClone: false` | default |
+| PC-5.7 | `close({ sessionName: cloneId })` - routes to `destroyClone`, not `closeSession` | routing |
+| PC-5.8 | `close({ sessionName: templateName })` - routes to `closeSession`, not `destroyClone` | routing |
+| PC-5.9 | `list()` - includes active clone entry with `isClone: true` and `templateSession` | list shape |
+| PC-5.10 | `list()` - clone id does not appear in `listStoredSessions()` result | no disk entry |
+| PC-5.11 | `list()` - template entry appears with `isClone: false` alongside clone entry | mixed list |
+| PC-5.12 | `deleteSession({ sessionName: cloneId })` - throws "use close to destroy a clone" | delete guard |
 
----
-
-### PC-6 — real browser integration
+### PC-6 - real browser integration
 `tests/node/runtime/pc-layer6.test.js`
 
 Parameterised over all detected browser types (Chrome, Chromium/ungoogled, Playwright bundled
@@ -992,27 +956,23 @@ fallback). Tests skipped per browser type if binary not found.
 | PC-6.4 | `GET /json` on CDP port returns valid JSON array | CDP protocol |
 | PC-6.5 | Two simultaneous launches against separate `userDataDir` get different ports | no collision |
 
----
-
 ## What is not addressed (and why)
 
-**Distributed clone coordination** — out of scope. szkrabok is a single-process tool. If embedded in
+**Distributed clone coordination** - out of scope. szkrabok is a single-process tool. If embedded in
 a multi-host system, clone coordination belongs at that outer layer (Redis, etcd, DB), not here.
 
-**Hybrid state authority** — template carries auth bootstrap, `state.json` carries volatile session
+**Hybrid state authority** - template carries auth bootstrap, `state.json` carries volatile session
 state. Option A (profile snapshot authoritative) is simpler and correct for the common case.
 Hybrid is future work.
 
-**`better-sqlite3` for WAL checkpoint** — see session-lifecycle feature. Not a dependency of this
+**`better-sqlite3` for WAL checkpoint** - see session-lifecycle feature. Not a dependency of this
 feature.
-
----
 
 ## Engineering verdict
 
 A clone is a session that destroys itself on close. The API surface reflects this: one tool
 (`session_manage`), one identifier field (`sessionName`), one boolean flag (`isClone`) that drives
-behaviour internally. Callers do not branch — they store whatever `open` returned and pass it to
+behaviour internally. Callers do not branch - they store whatever `open` returned and pass it to
 subsequent calls unchanged.
 
 The two correctness fixes (port TOCTOU via `DevToolsActivePort`, live-clone deletion via PID + TTL

@@ -1,5 +1,5 @@
 /**
- * PC-1 — storage unit tests
+ * PC-1 - storage unit tests
  *
  * Tests: readDevToolsPort, newCloneId, cloneProfileAtomic, cleanupClones
  * No browser launched. All tests use temp directories.
@@ -17,10 +17,10 @@ import { join } from 'path';
 import { tmpdir } from 'os';
 import { spawnSync } from 'child_process';
 
-// Guaranteed dead PID — process exits immediately.
+// Guaranteed dead PID - process exits immediately.
 const deadPid = spawnSync(process.execPath, ['--eval', '']).pid;
 
-// ── PC-1.1–PC-1.7  readDevToolsPort ──────────────────────────────────────────
+// ── PC-1.1-PC-1.7  readDevToolsPort ──────────────────────────────────────────
 
 describe('PC-1 readDevToolsPort', () => {
   let tmpDir;
@@ -126,7 +126,7 @@ describe('PC-1 readDevToolsPort', () => {
   });
 });
 
-// ── PC-1.8–PC-1.11  newCloneId ────────────────────────────────────────────────
+// ── PC-1.8-PC-1.11  newCloneId ────────────────────────────────────────────────
 
 describe('PC-1 newCloneId', () => {
   test('PC-1.8: returns a non-empty string', async () => {
@@ -180,9 +180,9 @@ describe('PC-1 newCloneId', () => {
   });
 });
 
-// ── PC-1.12–PC-1.18  cloneProfileAtomic ──────────────────────────────────────
+// ── PC-1.12-PC-1.18  cloneProfileAtomic ──────────────────────────────────────
 
-// concurrency:1 — prevent cleanupClones describe from running in parallel
+// concurrency:1 - prevent cleanupClones describe from running in parallel
 // and deleting clone dirs (szkrabok-clone-*) before .clone is written.
 describe('PC-1 cloneProfileAtomic', { concurrency: 1 }, () => {
   let srcDir;
@@ -285,7 +285,7 @@ describe('PC-1 cloneProfileAtomic', { concurrency: 1 }, () => {
       console.log('PC-1.17 step 3 returned raw:', raw);
       const meta = JSON.parse(raw);
       console.log('PC-1.17 step 3 parsed:', meta);
-      // FD lease replaces PID liveness check — .clone must NOT contain pid.
+      // FD lease replaces PID liveness check - .clone must NOT contain pid.
       assert.ok(!('pid' in meta), '.clone must not contain pid (FD lease replaces PID check)');
       console.log('PC-1.17 step 4: assert created in [', before, ',', after, '], got:', meta.created);
       assert.ok(meta.created >= before && meta.created <= after, `created ${meta.created} must be in [${before}, ${after}]`);
@@ -318,9 +318,9 @@ describe('PC-1 cloneProfileAtomic', { concurrency: 1 }, () => {
   });
 });
 
-// ── PC-1.19–PC-1.24  cleanupClones ───────────────────────────────────────────
+// ── PC-1.19-PC-1.24  cleanupClones ───────────────────────────────────────────
 
-// concurrency:1 — prevents concurrent cleanupClones() calls within this describe
+// concurrency:1 - prevents concurrent cleanupClones() calls within this describe
 // from racing against each other's makeCloneDir setup.
 describe('PC-1 cleanupClones', { concurrency: 1 }, () => {
   beforeEach(async () => {
@@ -364,7 +364,7 @@ describe('PC-1 cleanupClones', { concurrency: 1 }, () => {
       console.log('PC-1.20 step 3: check dir still exists');
       const exists = existsSync(dir);
       console.log('PC-1.20 step 3 dir exists:', exists);
-      // Recent created timestamp is within TTL — must be kept (no FD lease held).
+      // Recent created timestamp is within TTL - must be kept (no FD lease held).
       assert.ok(exists, 'recently-created clone must not be deleted within TTL');
     } finally {
       await rm(dir, { recursive: true, force: true });

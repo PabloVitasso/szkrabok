@@ -1,5 +1,5 @@
 /**
- * Phase 5.1 — Runtime unit tests.
+ * Phase 5.1 - Runtime unit tests.
  *
  * Run without MCP, without Playwright Test runner:
  *   node --test selftest/runtime/unit.test.js

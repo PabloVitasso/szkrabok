@@ -1,5 +1,5 @@
 /**
- * PC-2 — pool unit tests
+ * PC-2 - pool unit tests
  *
  * Tests: isClone, cloneDir, templateName fields on pool entries.
  * Verifies existing add/get/remove/list behaviour is unchanged.

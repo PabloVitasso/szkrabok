@@ -9,21 +9,17 @@
 - [Consumer projects](#consumer-projects)
 - [Config modules](#config-modules-config)
 
----
-
 ## Adding a new MCP tool
 
 1. Add handler to the appropriate file in `src/tools/` (or create a new one)
-2. Register it in `src/tools/registry.js` — name, handler, schema
+2. Register it in `src/tools/registry.js` - name, handler, schema
 3. Regenerate the client: `npm run codegen:mcp`
 4. Commit the updated `packages/runtime/mcp-client/mcp-tools.js`
 5. Run `npm run test:contracts` and `npm run test:playwright`
 
----
-
 ## CLI
 
-`szkrabok` is both the MCP server and the CLI — a single binary. Invoked with no arguments it starts the MCP server (stdio). Invoked with a subcommand it runs the CLI.
+`szkrabok` is both the MCP server and the CLI - a single binary. Invoked with no arguments it starts the MCP server (stdio). Invoked with a subcommand it runs the CLI.
 
 ```
 szkrabok                        # MCP server (used by Claude)
@@ -34,20 +30,18 @@ szkrabok open <profile>         # CLI
 **Design rule:** CLI commands call the same handler functions as the MCP tools. They never re-implement session logic. When adding a new MCP tool handler that makes sense as a CLI command, add a file to `src/cli/commands/` and register it in `src/cli/index.js`.
 
 CLI-only operations (no MCP equivalent):
-- `szkrabok open` — human-facing browser launch
-- `szkrabok session inspect` — raw cookie/localStorage dump
-- `szkrabok endpoint` — print endpoints to stdout
-- `szkrabok doctor` — checks node version, playwright-core installed + patched, browser resolution chain, server imports, startup log path; also prints the correct dev MCP config snippet (see below)
-- `szkrabok doctor detect [--write-config]` — runs the full resolution chain, shows all candidates with pass/fail/skip/absent status, prints resolved path; `--write-config` pins the discovered path to `~/.config/szkrabok/config.toml`
-- `szkrabok doctor install [--force]` — installs Playwright-managed Chromium (idempotent: skips if browser already found via any source; `--force` bypasses this guard to force re-download)
-- `CHROMIUM_PATH` env var — set to any system Chrome path to skip Playwright-managed Chromium (highest resolution priority)
+- `szkrabok open` - human-facing browser launch
+- `szkrabok session inspect` - raw cookie/localStorage dump
+- `szkrabok endpoint` - print endpoints to stdout
+- `szkrabok doctor` - checks node version, playwright-core installed + patched, browser resolution chain, server imports, startup log path; also prints the correct dev MCP config snippet (see below)
+- `szkrabok doctor detect [--write-config]` - runs the full resolution chain, shows all candidates with pass/fail/skip/absent status, prints resolved path; `--write-config` pins the discovered path to `~/.config/szkrabok/config.toml`
+- `szkrabok doctor install [--force]` - installs Playwright-managed Chromium (idempotent: skips if browser already found via any source; `--force` bypasses this guard to force re-download)
+- `CHROMIUM_PATH` env var - set to any system Chrome path to skip Playwright-managed Chromium (highest resolution priority)
 
 **Adding a new CLI command:**
-1. Create `src/cli/commands/<name>.js` — export `register(program, ctx)`
+1. Create `src/cli/commands/<name>.js` - export `register(program, ctx)`
 2. Import and call `register` in `src/cli/index.js`
 3. Add the command name to `CLI_COMMANDS` in `src/index.js`
-
----
 
 ## MCP config for developing szkrabok
 
@@ -65,7 +59,7 @@ End users add szkrabok via `npx`:
 
 When developing szkrabok itself, choose between two configs:
 
-**Config A — local source** (source changes take effect on MCP restart, no publish needed):
+**Config A - local source** (source changes take effect on MCP restart, no publish needed):
 
 Add a project-local entry that overrides the user-level config for this repo only:
 
@@ -73,9 +67,9 @@ Add a project-local entry that overrides the user-level config for this repo onl
 claude mcp add szkrabok -s local -- node /absolute/path/to/szkrabok/src/index.js
 ```
 
-**Config B — published registry** (stable, matches what consumers get):
+**Config B - published registry** (stable, matches what consumers get):
 
-`npx` must run from a directory **outside** the szkrabok repo tree. If run from inside, Node's module resolution walks up past `node_modules` in the repo and finds the repo's own copies of playwright-core and other packages — corrupting the patching logic. Use the stub at `~/szkrabok-npx/` (a single `package.json` with a different package name, located outside the repo):
+`npx` must run from a directory **outside** the szkrabok repo tree. If run from inside, Node's module resolution walks up past `node_modules` in the repo and finds the repo's own copies of playwright-core and other packages - corrupting the patching logic. Use the stub at `~/szkrabok-npx/` (a single `package.json` with a different package name, located outside the repo):
 
 ```bash
 claude mcp add szkrabok -s local -- bash -c "cd ~/szkrabok-npx && npx -y @pablovitasso/szkrabok"
@@ -83,15 +77,13 @@ claude mcp add szkrabok -s local -- bash -c "cd ~/szkrabok-npx && npx -y @pablov
 
 Run `szkrabok doctor` to get the correct path for your machine. Both commands write to `.mcp.json` in the repo root (project-local scope, gitignored).
 
-**Verify which server is running** — after restarting, call `session_manage { "action": "list" }`. The response includes:
+**Verify which server is running** - after restarting, call `session_manage { "action": "list" }`. The response includes:
 
 ```json
 { "server": { "version": "1.0.25", "source": "/path/to/src/index.js" } }
 ```
 
-`source` is the entry point Node was invoked with — local repo path for Config A, npx cache path for Config B. The same info is written to `~/.cache/szkrabok/startup.log` on every start.
-
----
+`source` is the entry point Node was invoked with - local repo path for Config A, npx cache path for Config B. The same info is written to `~/.cache/szkrabok/startup.log` on every start.
 
 ## Git safety
 
@@ -99,10 +91,10 @@ Irreversible git operations can silently destroy uncommitted work. The following
 
 | Command | Risk |
 |---------|------|
-| `git reset --hard` | Destroys all uncommitted changes in the working tree and index — unrecoverable |
+| `git reset --hard` | Destroys all uncommitted changes in the working tree and index - unrecoverable |
 | `git checkout .` / `git restore .` | Same as above for working-tree files |
 | `git clean -f` / `git clean -fd` | Deletes untracked files/directories permanently |
-| `git push --force` / `git push -f` | Overwrites remote history — loses others' commits |
+| `git push --force` / `git push -f` | Overwrites remote history - loses others' commits |
 | `git branch -D` | Force-deletes a branch even if unmerged |
 
 **Rule:** before running any of these, describe the intended outcome to the user and wait for approval. If the goal is to undo a bad commit, use `git revert` (safe, adds a new commit) instead of `git reset --hard` (unsafe, destroys history).
@@ -111,8 +103,6 @@ Irreversible git operations can silently destroy uncommitted work. The following
 1. Identify what was partially done (`git log --oneline -3`, `git tag -l`)
 2. Fix forward: delete only the conflicting tag, or adjust the version, or push what was already committed
 3. Ask the user if the path is unclear
-
----
 
 ## Release workflow
 
@@ -140,11 +130,11 @@ npm run release:github
 - Tags that commit as `vx.y.z`
 - Pushes commit and tag
 
-This ensures the tag always points at the release commit — no manual tag moves needed.
+This ensures the tag always points at the release commit - no manual tag moves needed.
 
-**`deps:update`** runs `npm-check-updates -u` across all workspaces then `npm install`. Run it deliberately before a release — not on every build. Dependency bumps are a conscious decision; CI always installs from the lockfile.
+**`deps:update`** runs `npm-check-updates -u` across all workspaces then `npm install`. Run it deliberately before a release - not on every build. Dependency bumps are a conscious decision; CI always installs from the lockfile.
 
-After running `deps:update`, pin all version specifiers to exact versions before committing (see [Dependency pinning](#dependency-pinning)). `npm-check-updates` writes ranges (`^`), and `npm install` may also restore `^` on freshly resolved packages — strip them manually or with:
+After running `deps:update`, pin all version specifiers to exact versions before committing (see [Dependency pinning](#dependency-pinning)). `npm-check-updates` writes ranges (`^`), and `npm install` may also restore `^` on freshly resolved packages - strip them manually or with:
 ```bash
 node -e "
 const fs = require('fs');
@@ -163,32 +153,30 @@ npm install --ignore-scripts
 
 The `prepack` guard prevents publishing without a version tag on HEAD.
 
-`prepublishOnly` runs `npm run lint` then `scripts/smoke-test.js` before every `npm publish`. The smoke-test packs a tarball, installs it in a fresh bare temp directory using `--foreground-scripts` (exercising the real postinstall pipeline: `apply-patches.js` → `verify-playwright-patches.js`), then runs `szkrabok --version` and `szkrabok doctor`. Chromium download is **not** part of postinstall — `postinstall.js` is retained for manual use but excluded from the chain. Install Chromium separately with `szkrabok doctor install` or `doctor detect --write-config`. Publish fails loudly if any step fails — catching lint errors, missing files, broken postinstall, or binary resolution issues before they reach npm.
+`prepublishOnly` runs `npm run lint` then `scripts/smoke-test.js` before every `npm publish`. The smoke-test packs a tarball, installs it in a fresh bare temp directory using `--foreground-scripts` (exercising the real postinstall pipeline: `apply-patches.js` -> `verify-playwright-patches.js`), then runs `szkrabok --version` and `szkrabok doctor`. Chromium download is **not** part of postinstall - `postinstall.js` is retained for manual use but excluded from the chain. Install Chromium separately with `szkrabok doctor install` or `doctor detect --write-config`. Publish fails loudly if any step fails - catching lint errors, missing files, broken postinstall, or binary resolution issues before they reach npm.
 
 `release:publish` checks `npm whoami` and fails with a clear message if not logged in. Run `npm login` then re-run.
 
-**`release:github`** creates a GitHub release for the current package version using the `gh` CLI with auto-generated notes from commits since the previous tag. Completely independent from npm — run it any time after a release, or skip it entirely.
+**`release:github`** creates a GitHub release for the current package version using the `gh` CLI with auto-generated notes from commits since the previous tag. Completely independent from npm - run it any time after a release, or skip it entirely.
 
-Auth (pick one — `GH_TOKEN` avoids keyring prompts):
+Auth (pick one - `GH_TOKEN` avoids keyring prompts):
 ```bash
 GH_TOKEN=<token> npm run release:github   # inline, no keyring
 gh auth login && npm run release:github   # persistent gh session
 ```
 
-Scaffolded consumer projects do **not** depend on `@pablovitasso/szkrabok` locally —
+Scaffolded consumer projects do **not** depend on `@pablovitasso/szkrabok` locally -
 szkrabok runs as a global MCP server (via `npx` or `claude mcp add`). The scaffolded
 `package.json` only adds `@playwright/test` and `smol-toml` as devDependencies.
 Projects that also want standalone Playwright runs (Path B in `fixtures.js`) need to
-`npm install @pablovitasso/szkrabok` manually — the dynamic import will fail with a
+`npm install @pablovitasso/szkrabok` manually - the dynamic import will fail with a
 clear error if the package is absent.
-
----
 
 ## Upgrading playwright-core
 
 playwright-core is pinned to an exact version (no `^`) and patched via `patch-package`. The patch file lives in `patches/playwright-core+<version>.patch` and is committed to the repo. When upgrading:
 
-1. Bump the version in `package.json` (both `playwright` and `playwright-core`). Use exact versions — no `^`:
+1. Bump the version in `package.json` (both `playwright` and `playwright-core`). Use exact versions - no `^`:
    ```json
    "playwright": "1.59.1",
    "playwright-core": "1.59.1"
@@ -205,7 +193,7 @@ playwright-core is pinned to an exact version (no `^`) and patched via `patch-pa
    ```bash
    node packages/runtime/scripts/patch-playwright.js
    ```
-   All 8 entries must report `patched`. If any fail, the script rolls back and exits 1 — the anchor string changed upstream and the patch script needs updating first.
+   All 8 entries must report `patched`. If any fail, the script rolls back and exits 1 - the anchor string changed upstream and the patch script needs updating first.
 
    **Patch locations (as of 1.59.1):**
 
@@ -250,7 +238,7 @@ playwright-core is pinned to an exact version (no `^`) and patched via `patch-pa
    ```bash
    npm run codegen:mcp
    ```
-   The registry hash embeds the tool schema — it must be regenerated whenever the SDK or tool definitions change.
+   The registry hash embeds the tool schema - it must be regenerated whenever the SDK or tool definitions change.
 
 8. Commit:
    ```bash
@@ -260,19 +248,17 @@ playwright-core is pinned to an exact version (no `^`) and patched via `patch-pa
 
    Old patch files are kept in the repo as a historical record (useful for diffing what changed between versions).
 
----
-
 ## Dependency pinning
 
 All dependencies in `package.json` and `packages/runtime/package.json` are pinned to exact versions (no `^` or `~`). This is a deliberate security measure:
 
-- **Supply-chain integrity** — a semver range (`^1.2.3`) silently installs newer patch/minor releases without review. An exact pin (`1.2.3`) means every install everywhere uses the identical tarball. Combined with `package-lock.json` committed to the repo, the full dependency tree is reproducible and auditable.
-- **Patch safety** — playwright-core patches are written against a specific compiled output. A silent minor bump can move the anchor strings the patch script relies on, causing patching to silently fail or produce wrong output.
-- **Deliberate upgrades** — dependency bumps are a conscious decision, not a background event. New versions are tested before they land.
+- **Supply-chain integrity** - a semver range (`^1.2.3`) silently installs newer patch/minor releases without review. An exact pin (`1.2.3`) means every install everywhere uses the identical tarball. Combined with `package-lock.json` committed to the repo, the full dependency tree is reproducible and auditable.
+- **Patch safety** - playwright-core patches are written against a specific compiled output. A silent minor bump can move the anchor strings the patch script relies on, causing patching to silently fail or produce wrong output.
+- **Deliberate upgrades** - dependency bumps are a conscious decision, not a background event. New versions are tested before they land.
 
 ### Rules
 
-1. **No `^`, `~`, `>=`, or `*` in `dependencies` or `devDependencies`** — exact version only.
+1. **No `^`, `~`, `>=`, or `*` in `dependencies` or `devDependencies`** - exact version only.
 2. `peerDependencies` may use ranges (`>=`) since they express compatibility, not a resolved version.
 3. After any `npm install` that touches `package.json`, verify no range specifiers were re-introduced:
    ```bash
@@ -281,8 +267,6 @@ All dependencies in `package.json` and `packages/runtime/package.json` are pinne
    That command should produce no output (only `engines.node` and `peerDependencies` ranges are acceptable).
 4. When bumping a package, always update **both** `package.json` and `packages/runtime/package.json` if the package appears in both (e.g. `playwright`, `playwright-core`, `smol-toml`, `@modelcontextprotocol/sdk`).
 
----
-
 ## Consumer projects
 
 | Project | Location | What it uses |
@@ -290,8 +274,6 @@ All dependencies in `package.json` and `packages/runtime/package.json` are pinne
 | `szkrabok-p4n` | `../szkrabok-p4n/` | `@szkrabok/runtime`, `@szkrabok/runtime` |
 
 When releasing, update the dependency path in each consumer project's `package.json` and run `npm install`.
-
----
 
 ## ESLint
 
@@ -302,7 +284,7 @@ npm run lint        # runs standalone
 npm run test:self   # lint runs as the first step before Playwright + node tests
 ```
 
-**Prefer code rewrites over `eslint-disable`.** If a lint rule fires, the first instinct should be to restructure the code so the rule no longer applies — not to suppress it. Suppressions hide real issues and accumulate silently. `reportUnusedDisableDirectives` is enabled and will error on any stale suppression.
+**Prefer code rewrites over `eslint-disable`.** If a lint rule fires, the first instinct should be to restructure the code so the rule no longer applies - not to suppress it. Suppressions hide real issues and accumulate silently. `reportUnusedDisableDirectives` is enabled and will error on any stale suppression.
 
 If suppression is genuinely unavoidable (e.g. a rule misfires on intentional code with no clean rewrite), use the `-- <reason>` format so the intent is explicit and reviewable:
 
@@ -313,28 +295,24 @@ catch {}
 
 Never suppress without an explanation.
 
----
-
 ## Coding Style
 
 - **No repeated string literals for dispatch.** If a string (tool name, event type, key) controls branching in more than one place, put it in a registry/map keyed by that string. The string appears once as the key; behaviour is a value. Adding a new case = adding one entry, not touching multiple `if`/`switch` blocks
 - **No ANSI codes in programmatic output.** Subprocess output piped into structured data must be clean text. Set `FORCE_COLOR=0` (or equivalent) when spawning CLI tools whose output is parsed or logged
-- **Fail fast — no silent fallbacks.** Do not substitute empty values (`?? 0`, `?? []`, `?? 'unknown'`) for data that should always be present. If a field is unexpectedly missing, let it throw — that is a real bug and should surface immediately. Only use fallbacks for fields that are genuinely optional by design (e.g. `error` on a passing test result). Masking missing data with defaults hides bugs and produces silently wrong output
-
----
+- **Fail fast - no silent fallbacks.** Do not substitute empty values (`?? 0`, `?? []`, `?? 'unknown'`) for data that should always be present. If a field is unexpectedly missing, let it throw - that is a real bug and should surface immediately. Only use fallbacks for fields that are genuinely optional by design (e.g. `error` on a passing test result). Masking missing data with defaults hides bugs and produces silently wrong output
 
 ## Config modules (`config/`)
 
-TypeScript modules used only by `playwright.config.js` — not by the runtime or MCP server.
+TypeScript modules used only by `playwright.config.js` - not by the runtime or MCP server.
 
 | Module | Purpose |
 |--------|---------|
 | `env.ts` | Single reader for all relevant `process.env` vars |
 | `paths.ts` | All filesystem paths (sessions dir, config file, test dirs) |
-| `toml.ts` | `loadToml()` — loads + deep-merges base and local TOML |
-| `preset.ts` | `resolvePreset()` — for playwright.config.js use only |
-| `session.ts` | `resolveSession()` — session paths from env + paths |
-| `browser.ts` | `resolveExecutable()` — finds bundled or system Chromium |
+| `toml.ts` | `loadToml()` - loads + deep-merges base and local TOML |
+| `preset.ts` | `resolvePreset()` - for playwright.config.js use only |
+| `session.ts` | `resolveSession()` - session paths from env + paths |
+| `browser.ts` | `resolveExecutable()` - finds bundled or system Chromium |
 | `projects.ts` | `integration`, `e2e` project definitions |
 
-Do not import these in `src/` or `packages/runtime/` — the runtime has its own `config.js`.
+Do not import these in `src/` or `packages/runtime/` - the runtime has its own `config.js`.

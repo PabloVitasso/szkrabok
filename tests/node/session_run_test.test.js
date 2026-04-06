@@ -5,8 +5,8 @@
  * 21 test cases: clone/template lifecycle, navigation policies,
  * failure propagation, templateConflict, enforceLaunchOptionsMatch, workers:1.
  *
- * Removed: EX-1.7–1.9 (postPolicy keep — brittle throwNth counting, better as e2e)
- *          EX-1.19–1.20 (concurrency — withLock only in session_run_test wrapper, not _run)
+ * Removed: EX-1.7-1.9 (postPolicy keep - brittle throwNth counting, better as e2e)
+ *          EX-1.19-1.20 (concurrency - withLock only in session_run_test wrapper, not _run)
  */
 
 import { test, describe } from 'node:test';
@@ -22,19 +22,19 @@ const noopPage = (url = 'about:blank') => ({
   goto: async () => {},
 });
 
-/** Spy for sessionOpen — records the single call args. */
+/** Spy for sessionOpen - records the single call args. */
 const spyOpen = (calls) => async ({ sessionName, launchOptions }) => {
   calls.push({ sessionName, launchOptions });
   return { sessionName, ...SESSION_OPEN };
 };
 
-/** Spy for sessionClose — records each { sessionName } call. */
+/** Spy for sessionClose - records each { sessionName } call. */
 const spyClose = (calls) => async ({ sessionName }) => {
   calls.push({ sessionName });
   return { success: true };
 };
 
-/** Spy for run_test — records opts, returns a fixed result. */
+/** Spy for run_test - records opts, returns a fixed result. */
 const spyRun = (calls, result = {}) => async (opts) => {
   calls.push(opts);
   return { passed: 1, failed: 0, skipped: 0, tests: [], ...result };
@@ -245,7 +245,7 @@ describe('EX-1 — failure phase propagation', () => {
   });
 
   test('EX-1.18 postPolicy failure → phase:postPolicy, test result included', async () => {
-    // Template mode: run_test succeeds, sessionClose throws → postPolicy error with test data.
+    // Template mode: run_test succeeds, sessionClose throws -> postPolicy error with test data.
     const testResult = { passed: 5, failed: 0, tests: [{ title: 't', status: 'expected' }] };
     const deps = {
       ...base(),
@@ -292,7 +292,7 @@ describe('EX-1 — templateConflict', () => {
     const closeCalls = [];
     const cloneCalls = [];
     const page = noopPage();
-    // getSession always returns → template appears open on first call (templateOpen check).
+    // getSession always returns -> template appears open on first call (templateOpen check).
     const deps = {
       ...base(),
       getSession:    () => ({ page, ...SESSION_OPEN, configHash: null }),
@@ -315,7 +315,7 @@ describe('EX-1 — templateConflict', () => {
 describe('EX-1 — enforceLaunchOptionsMatch', () => {
 
   test('EX-1.24 enforceLaunchOptionsMatch true + mismatch → session error', async () => {
-    // Pool entry has configHash: null; computeConfigHash returns 'hash_caller' → mismatch.
+    // Pool entry has configHash: null; computeConfigHash returns 'hash_caller' -> mismatch.
     const deps = {
       ...base(),
       getSession:        () => ({ page: noopPage(), ...SESSION_OPEN, configHash: null }),

@@ -1,5 +1,5 @@
 /*
- * rebrowser-check — bot-detection test (bot-detector.rebrowser.net)
+ * rebrowser-check - bot-detection test (bot-detector.rebrowser.net)
  *
  * Opens the rebrowser bot detector page, runs the required triggers, and
  * asserts that each check shows a passing result.
@@ -10,10 +10,10 @@
  *   useragent
  *
  * Required triggers (per the page instructions):
- *   - page.evaluate(() => window.dummyFn())          — dummyFn
- *   - page.exposeFunction('exposedFn', fn)            — exposeFunctionLeak
- *   - page.evaluate(() => document.getElementById('detections-json')) — sourceUrlLeak
- *   - page.evaluate(() => document.getElementsByClassName('div'))     — mainWorldExecution
+ *   - page.evaluate(() => window.dummyFn())          - dummyFn
+ *   - page.exposeFunction('exposedFn', fn)            - exposeFunctionLeak
+ *   - page.evaluate(() => document.getElementById('detections-json')) - sourceUrlLeak
+ *   - page.evaluate(() => document.getElementsByClassName('div'))     - mainWorldExecution
  *
  * ── HEADED ONLY ──────────────────────────────────────────────────────────────
  *
@@ -39,7 +39,7 @@
  *
  *   Expected score standalone: 7/10. The useragent check additionally fails because
  *   applyStealthToExistingPage (which injects the userAgentData.brands JS override)
- *   is only called by wrapper.js after launchPersistentContext — it does not run
+ *   is only called by wrapper.js after launchPersistentContext - it does not run
  *   in the standalone browser.launch() path. The user-agent-override stealth plugin
  *   spoofs navigator.userAgent (old string API) but not userAgentData.brands.
  *
@@ -65,7 +65,7 @@ const EXPECTED_PASS = [
   'useragent',
 ];
 
-// Permanent failures — unfixable without rebrowser-patches or browser changes.
+// Permanent failures - unfixable without rebrowser-patches or browser changes.
 // Tracked here so regressions in currently-passing checks are caught.
 const KNOWN_FAILURES = new Set([
   'mainWorldExecution', // needs rebrowser-patches alwaysIsolated mode (conflicts with dummyFn)
@@ -83,11 +83,11 @@ test('rebrowser-check', async ({ page }, testInfo) => {
   await page.goto(BASE_URL);
 
   console.log('step 3. trigger required checks');
-  // dummyFn — call main-world object
+  // dummyFn - call main-world object
   await page.evaluate(() => window.dummyFn());
-  // sourceUrlLeak — getElementById call that leaks sourceURL
+  // sourceUrlLeak - getElementById call that leaks sourceURL
   await page.evaluate(() => document.getElementById('detections-json'));
-  // mainWorldExecution — getElementsByClassName in main world
+  // mainWorldExecution - getElementsByClassName in main world
   await page.evaluate(() => document.getElementsByClassName('div'));
 
   console.log('step 4. wait for results to settle');

@@ -1,5 +1,5 @@
 /**
- * PC-6 — real browser integration tests
+ * PC-6 - real browser integration tests
  *
  * Launches a real Chromium-family browser with --remote-debugging-port=0.
  * Verifies DevToolsActivePort is written and the port is live.
@@ -57,7 +57,7 @@ const launchHeadlessBrowser = async executablePath => {
 
   const cleanup = async () => {
     try { proc.kill('SIGKILL'); } catch { /* process already gone */ }
-    // Retry rm — Chrome may still be releasing file locks after SIGKILL.
+    // Retry rm - Chrome may still be releasing file locks after SIGKILL.
     for (let attempt = 0; attempt < 5; attempt++) {
       try {
         await rm(userDataDir, { recursive: true, force: true });
@@ -69,7 +69,7 @@ const launchHeadlessBrowser = async executablePath => {
         await new Promise(r => setTimeout(r, 200));
       }
     }
-    // Last attempt — let it throw if still locked.
+    // Last attempt - let it throw if still locked.
     await rm(userDataDir, { recursive: true, force: true });
   };
 
@@ -78,7 +78,7 @@ const launchHeadlessBrowser = async executablePath => {
 
 // ── Browser discovery ─────────────────────────────────────────────────────────
 
-// Use Playwright's bundled Chromium — same binary as e2e tests, guaranteed real.
+// Use Playwright's bundled Chromium - same binary as e2e tests, guaranteed real.
 // chrome-launcher is NOT used here: on Ubuntu it detects /usr/bin/chromium-browser
 // which is a snap stub that exits immediately (see docs/bugs/bug1-chrome-launcher-problem.md).
 const detectBrowsers = async () => {
@@ -169,7 +169,7 @@ const runPortTests = executablePath => {
         http.get({ hostname: '127.0.0.1', port, path: '/json' }, res => {
           console.log('PC-6.4 step 4: HTTP statusCode:', res.statusCode);
           console.log('PC-6.4 step 4: Content-Type:', res.headers['content-type']);
-          // Accumulate chunks — handles both Content-Length and chunked Transfer-Encoding.
+          // Accumulate chunks - handles both Content-Length and chunked Transfer-Encoding.
           let body = '';
           res.on('data', chunk => { body += chunk; });
           res.on('end', () => {

@@ -1,10 +1,8 @@
-# Feature: Managed fixtures — `@pablovitasso/szkrabok/fixtures` export
+# Feature: Managed fixtures - `@pablovitasso/szkrabok/fixtures` export
 
 **Status:** done (v1.1.6)
 **Depends on:** scaffold staged-write (.new sidecar, already shipped)
 **Fixes:** signalAttach signal never written from sk-skills (and structural root cause)
-
----
 
 ## Problem
 
@@ -13,13 +11,13 @@
 
 This creates two distinct failure modes:
 
-### Failure mode 1 — logic drift
+### Failure mode 1 - logic drift
 
 When sk-skills extended `fixtures.js` with `RuntimeWrapper` support it diverged from the template.
 The `SZKRABOK_ATTACH_SIGNAL` write was never carried over. Every `session_run_test` call returned a
 spurious error even though the test passed.
 
-### Failure mode 2 — hidden protocol coupling
+### Failure mode 2 - hidden protocol coupling
 
 `SZKRABOK_CDP_ENDPOINT`, `SESSIONMODE`, `SZKRABOK_ATTACH_SIGNAL` are:
 - implicit (env vars, no schema)
@@ -30,11 +28,9 @@ The signal write was also non-atomic and silently failing. Moving the write into
 **location** but not **coupling** unless the write is hardened and the env var reads are
 consolidated.
 
----
-
 ## Solution
 
-### Part 1 — `./fixtures` export
+### Part 1 - `./fixtures` export
 
 Move the authoritative fixture implementation into a versioned export:
 
@@ -45,17 +41,17 @@ Move the authoritative fixture implementation into a versioned export:
 `scaffold_init --preset full` writes a thin shim instead of a copy. Projects that need custom
 fixtures extend on top. Signal protocol logic lives in the package and cannot drift.
 
-### Part 2 — Signal write hardened and moved to attach time
+### Part 2 - Signal write hardened and moved to attach time
 
-`writeAttachSignal` is extracted as a named function: best-effort atomic (tmp→rename), fail-fast
-(throws, no silent catch). Written **before** `await use(session)` — i.e., at the moment CDP
+`writeAttachSignal` is extracted as a named function: best-effort atomic (tmp->rename), fail-fast
+(throws, no silent catch). Written **before** `await use(session)` - i.e., at the moment CDP
 attach is confirmed, not at teardown. This is the correct semantic: the signal means "attached",
 not "tests complete".
 
-### Part 3 — Env vars bridged to Playwright options via fixture defaults
+### Part 3 - Env vars bridged to Playwright options via fixture defaults
 
 Fixture option defaults read subprocess env vars directly. `playwright.config.js` stays
-user-only config — no transport boilerplate.
+user-only config - no transport boilerplate.
 
 ```
 browser_run_test sets SZKRABOK_CDP_ENDPOINT → subprocess env
@@ -67,12 +63,10 @@ User-set values in `playwright.config.js` `use:` always override the env-var def
 (standard Playwright option precedence). Debug logging of the resolved mode is available
 via `DEBUG=szkrabok*`.
 
-### Part 4 — Explicit configuration validation
+### Part 4 - Explicit configuration validation
 
 A `resolveConfig()` step runs before session creation and rejects invalid option combinations
 explicitly rather than allowing silent misbehaviour via implicit branching.
-
----
 
 ## API design
 
@@ -85,7 +79,7 @@ export const test;   // Playwright Test instance pre-extended with szkrabok fixt
 
 ### Fixture options
 
-The three options below are **not equivalent** — they belong to different concern layers:
+The three options below are **not equivalent** - they belong to different concern layers:
 
 | Option | Category | Default | Set by |
 |---|---|---|---|
@@ -95,19 +89,19 @@ The three options below are **not equivalent** — they belong to different conc
 | `szkrabokAttachSignal` | side-channel signal | `process.env.SZKRABOK_ATTACH_SIGNAL \|\| ''` | fixture default (env var), or user in `playwright.config.js` |
 
 All are worker-scoped. Flat (not a single object option) because Playwright replaces object
-options at the project level rather than deep-merging — flat options allow per-project overrides
+options at the project level rather than deep-merging - flat options allow per-project overrides
 of individual fields without repeating the others.
 
 ### Fixture surface
 
 | Fixture | Scope | Description |
 |---|---|---|
-| `session` | worker | `{ browser, context, mode, ownsBrowser }` — the live session |
+| `session` | worker | `{ browser, context, mode, ownsBrowser }` - the live session |
 | `browser` | **worker** | Proxy to `session.browser` |
 | `page` | test | First page of context, or new page |
 
 `browser` is worker-scoped (matches Playwright's built-in scope). `context` is intentionally
-**not** overridden — Playwright 1.55+ disallows changing the scope of built-in fixtures, and
+**not** overridden - Playwright 1.55+ disallows changing the scope of built-in fixtures, and
 `context` is built-in test-scoped. Use `session.context` directly when the session context is
 needed. `page` routes through `session.context` and works correctly in both modes.
 
@@ -140,11 +134,9 @@ export const test = szkrabokTest.extend({
 });
 ```
 
----
-
 ## Implementation
 
-### `src/attach-signal.js` (new — extracted primitive)
+### `src/attach-signal.js` (new - extracted primitive)
 
 Extracted so it can be imported and unit-tested without pulling in `@playwright/test`.
 
@@ -262,7 +254,7 @@ export const test = base.extend({
 });
 ```
 
-### `package.json` — add `./fixtures` export and optional peer dep
+### `package.json` - add `./fixtures` export and optional peer dep
 
 ```json
 "exports": {
@@ -282,10 +274,10 @@ export const test = base.extend({
 
 `@playwright/test` is absent from szkrabok's own `node_modules` (`playwright` and `@playwright/test`
 are separate packages). `src/fixtures.js` resolves it from the consumer's `node_modules` at
-runtime — which works because `full` preset projects have it via scaffold devDeps. Declared as an
+runtime - which works because `full` preset projects have it via scaffold devDeps. Declared as an
 optional peer dep so `minimal` users (who never import `./fixtures`) see no warning.
 
-### `src/tools/templates/playwright.config.js` — user config only, no env bridging
+### `src/tools/templates/playwright.config.js` - user config only, no env bridging
 
 ```js
 import { defineConfig } from '@playwright/test';
@@ -303,11 +295,11 @@ export default defineConfig({
 });
 ```
 
-Env var bridging (`SZKRABOK_CDP_ENDPOINT` → `szkrabokCdpEndpoint` etc.) is now handled by
+Env var bridging (`SZKRABOK_CDP_ENDPOINT` -> `szkrabokCdpEndpoint` etc.) is now handled by
 fixture option defaults in `src/fixtures.js`. The config template only exposes what the user
 should actually configure.
 
-### `src/tools/templates/automation/fixtures.js` — becomes the shim
+### `src/tools/templates/automation/fixtures.js` - becomes the shim
 
 ```js
 /**
@@ -324,7 +316,7 @@ should actually configure.
 export { test, expect } from '@pablovitasso/szkrabok/fixtures';
 ```
 
-### `sk-skills/automation/fixtures.js` — migrate to extend pattern
+### `sk-skills/automation/fixtures.js` - migrate to extend pattern
 
 ```js
 import { test as szkrabokTest, expect } from '@pablovitasso/szkrabok/fixtures';
@@ -341,11 +333,9 @@ export const test = szkrabokTest.extend({
 });
 ```
 
----
-
 ## Phases and tests
 
-### Phase A — `writeAttachSignal` primitive
+### Phase A - `writeAttachSignal` primitive
 
 **Files:** `src/attach-signal.js`
 
@@ -373,11 +363,9 @@ test('throws on unwritable path (fail-fast)', async () => {
 });
 ```
 
-Same `mkdtemp` pattern as `scaffold.test.js` — no separate sandbox.
+Same `mkdtemp` pattern as `scaffold.test.js` - no separate sandbox.
 
----
-
-### Phase B — `src/fixtures.js` contracts
+### Phase B - `src/fixtures.js` contracts
 
 **Files:** `src/fixtures.js`, `package.json`
 
@@ -397,7 +385,7 @@ Invariant N: src/fixtures.js
 ```
 
 All `readFile` + string/regex checks. The source-order check for signal-before-use is a line
-number comparison on the raw source — crude but sufficient for a contract test.
+number comparison on the raw source - crude but sufficient for a contract test.
 
 **package.json peer dep check:**
 
@@ -410,9 +398,7 @@ test('package.json declares @playwright/test as optional peer dep', async () => 
 });
 ```
 
----
-
-### Phase C — scaffold template assertions
+### Phase C - scaffold template assertions
 
 **Files:** template `fixtures.js`, template `playwright.config.js`
 
@@ -447,40 +433,34 @@ test('scaffolded playwright.config.js bridges env vars to options', async () => 
 });
 ```
 
----
-
-### Phase D — sk-skills migration + smoke
+### Phase D - sk-skills migration + smoke
 
 **Files:** `sk-skills/automation/fixtures.js`
 
 No new unit test needed. The existing smoke test (`tests/playwright/integration/scaffold-smoke.spec.js`)
 runs `browser_run_test` against sk-skills and asserts `passed > 0, failed === 0`. It exercises the
 full CDP path including `writeAttachSignal` at attach time. If the signal write is broken the smoke
-test fails with the known error message — meaningful coverage without a synthetic fixture test.
+test fails with the known error message - meaningful coverage without a synthetic fixture test.
 
 Standalone path and real CDP timing are not covered by node tests and not worth a synthetic unit
 test. If needed: e2e fixture test with a real browser. Deferred.
 
----
-
 ## Migration path for existing projects
 
 1. User re-runs `scaffold_init` on an existing `full` project.
-2. `fixtures.js` differs from shim → staged as `fixtures.js.new`.
-3. `playwright.config.js` differs (new option keys) → staged as `playwright.config.js.new`.
+2. `fixtures.js` differs from shim -> staged as `fixtures.js.new`.
+3. `playwright.config.js` differs (new option keys) -> staged as `playwright.config.js.new`.
 4. User applies `playwright.config.js.new` (add the three option lines to `use:`).
 5. User inspects `fixtures.js.new`: replace entirely (no custom fixtures), or migrate custom
    fixtures to `test.extend({ session })` pattern.
 
 Both `.new` files are offered atomically on re-run. Applied independently.
 
----
-
 ## Known limitations
 
 **File-based signaling is the wrong abstraction.** All improvements above optimize a mechanism
 that should not exist. The correct primitive for inter-process coordination at attach time is a
-named pipe, Unix socket, or similar IPC channel — not a file whose presence is polled. The current
+named pipe, Unix socket, or similar IPC channel - not a file whose presence is polled. The current
 design survives because `browser_run_test` checks for the signal file after the subprocess has
 already exited, so timing is not actually critical. Any future requirement for true attach-time
 lock release (releasing the `session_run_test` lock before tests complete) cannot be satisfied
@@ -488,12 +468,10 @@ by file polling without fundamental redesign. Noted here so this limitation is n
 otherwise clean code.
 
 **`writeAttachSignal` atomicity is best-effort.** `rename()` is atomic on POSIX when source and
-destination are on the same filesystem. Cross-filesystem moves (e.g. tmpfs tmp → ext4 session
-dir) degrade to a non-atomic copy+delete on some systems. No `fsync` is issued — the write is not
+destination are on the same filesystem. Cross-filesystem moves (e.g. tmpfs tmp -> ext4 session
+dir) degrade to a non-atomic copy+delete on some systems. No `fsync` is issued - the write is not
 durable against a crash. Both are acceptable for a test coordination signal but must not be
 mistaken for a persistence guarantee.
-
----
 
 ## What is NOT addressed
 
@@ -501,25 +479,23 @@ mistaken for a persistence guarantee.
 local package install. Correct.
 
 **User `params` env vars.** `browser_run_test` sets user params (e.g. `QUERY`, `LIMIT`) as
-uppercased env vars. These are dynamic per-call and spec-specific — not option-izable. Stays
+uppercased env vars. These are dynamic per-call and spec-specific - not option-izable. Stays
 env-based intentionally.
-
----
 
 ## Definition of done
 
-- [x] `src/attach-signal.js` — `writeAttachSignal`: best-effort atomic, fail-fast, no-op on empty
-- [x] `src/fixtures.js` — `resolveConfig()` validates options; `session` fixture with `ownsBrowser`;
+- [x] `src/attach-signal.js` - `writeAttachSignal`: best-effort atomic, fail-fast, no-op on empty
+- [x] `src/fixtures.js` - `resolveConfig()` validates options; `session` fixture with `ownsBrowser`;
       signal written before `await use()`; `browser` worker-scoped; `context` not overridden (Playwright scope conflict); no `process.env` calls
-- [x] `package.json` exports: `./fixtures` → `./src/fixtures.js`
+- [x] `package.json` exports: `./fixtures` -> `./src/fixtures.js`
 - [x] `package.json` peer deps: `@playwright/test >=1.49.1` declared as optional peer dep
-- [x] `src/tools/templates/automation/fixtures.js` → three-line shim
-- [x] `src/tools/templates/playwright.config.js` → user config only (`szkrabokProfile`); env→option bridging in fixture defaults
-- [x] `sk-skills/automation/fixtures.js` → extend pattern using `session`
-- [x] `tests/node/attach-signal.test.js` — 3 tests (write, no-op, fail-fast)
-- [x] `tests/node/contracts.test.js` — invariant for `src/fixtures.js` (resolveConfig, ownsBrowser,
+- [x] `src/tools/templates/automation/fixtures.js` -> three-line shim
+- [x] `src/tools/templates/playwright.config.js` -> user config only (`szkrabokProfile`); env->option bridging in fixture defaults
+- [x] `sk-skills/automation/fixtures.js` -> extend pattern using `session`
+- [x] `tests/node/attach-signal.test.js` - 3 tests (write, no-op, fail-fast)
+- [x] `tests/node/contracts.test.js` - invariant for `src/fixtures.js` (resolveConfig, ownsBrowser,
       signal before use, worker scopes, no silent catch)
-- [x] `tests/node/scaffold.test.js` — shim shape + config has `szkrabokProfile`, no env bridging
+- [x] `tests/node/scaffold.test.js` - shim shape + config has `szkrabokProfile`, no env bridging
 - [x] `npm run test:node` green
-- [ ] Smoke test (`scaffold-smoke.spec.js`) passing — signalAttach end-to-end at attach time
+- [ ] Smoke test (`scaffold-smoke.spec.js`) passing - signalAttach end-to-end at attach time
 - [x] `scaffold_init` re-run on existing `full` project stages both `.new` files

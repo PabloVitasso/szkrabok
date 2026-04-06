@@ -1,5 +1,5 @@
 /*
- * navigator-properties — external site view of navigator properties
+ * navigator-properties - external site view of navigator properties
  *
  * Navigates to whatismybrowser.com's navigator properties page and reads
  * every property the site detects and displays. Useful as a complement to
