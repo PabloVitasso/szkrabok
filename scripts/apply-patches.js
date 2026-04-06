@@ -26,7 +26,7 @@ import { spawnSync } from 'node:child_process';
 import { join, relative, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
-import { existsSync, readFileSync, writeFileSync, unlinkSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync, unlinkSync, mkdirSync, copyFileSync, readdirSync, rmSync } from 'node:fs';
 
 const pkgDir = join(dirname(fileURLToPath(import.meta.url)), '..');
 const patchesDir = join(pkgDir, 'patches');
@@ -130,7 +130,37 @@ const ppDir = dirname(ppPkg);
 const ppIndex = join(ppDir, 'index.js');
 
 const pwVersion = JSON.parse(readFileSync(pwCorePkg, 'utf8')).version;
-const patchDir = relative(targetRoot, patchesDir);
+
+// Build a temp patches dir containing only the patch that matches the installed
+// playwright-core version. The patches/ directory may contain historical patches
+// for older versions; passing all of them to patch-package causes failures when
+// the installed version doesn't match a patch filename.
+const matchingPatch = `playwright-core+${pwVersion}.patch`;
+const allPatches = existsSync(patchesDir) ? readdirSync(patchesDir) : [];
+const versionedPatches = allPatches.filter(f => f === matchingPatch);
+
+let activePatchesDir;
+let tempPatchDir = null;
+
+if (versionedPatches.length === 0) {
+  // No patch for this version — nothing to apply.
+  console.log(`[apply-patches] No patch file for playwright-core@${pwVersion} — skipping.`);
+  process.exit(0);
+} else if (allPatches.length === versionedPatches.length) {
+  // Only one patch file and it matches — use patchesDir directly.
+  activePatchesDir = patchesDir;
+} else {
+  // Multiple patch files present; copy only the matching one to a temp dir to
+  // prevent patch-package from attempting to apply mismatched historical patches.
+  tempPatchDir = join(patchesDir, '.tmp-apply');
+  if (existsSync(tempPatchDir)) rmSync(tempPatchDir, { recursive: true });
+  mkdirSync(tempPatchDir);
+  copyFileSync(join(patchesDir, matchingPatch), join(tempPatchDir, matchingPatch));
+  console.log(`[apply-patches] Multiple patch files found; using only ${matchingPatch}`);
+  activePatchesDir = tempPatchDir;
+}
+
+const patchDir = relative(targetRoot, activePatchesDir);
 
 console.log('[apply-patches] playwright-core:', pwCoreDir, `(v${pwVersion})`);
 console.log('[apply-patches] targetRoot     :', targetRoot);
@@ -160,6 +190,14 @@ if (wroteTempPkg) {
     console.log('[apply-patches] temp stub removed');
   } catch (e) {
     console.log('[apply-patches] WARNING: could not remove temp stub:', e.message);
+  }
+}
+
+if (tempPatchDir) {
+  try {
+    rmSync(tempPatchDir, { recursive: true });
+  } catch {
+    // best-effort cleanup
   }
 }
 
