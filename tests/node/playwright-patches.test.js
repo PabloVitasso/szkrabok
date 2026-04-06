@@ -12,7 +12,7 @@ const require = createRequire(import.meta.url)
 const PATCHES = [
   { file: 'lib/server/chromium/crConnection.js',   marker: '__re__emitExecutionContext' },
   { file: 'lib/server/chromium/crDevTools.js',      marker: 'REBROWSER_PATCHES_RUNTIME_FIX_MODE' },
-  { file: 'lib/server/chromium/crPage.js',          marker: 'szkrabok: greasy brands' },
+  { file: 'lib/server/browserContext.js',            marker: 'szkrabok: greasy brands' },
   { file: 'lib/server/chromium/crServiceWorker.js', marker: 'REBROWSER_PATCHES_RUNTIME_FIX_MODE' },
   { file: 'lib/server/frames.js',                   marker: '__re__emitExecutionContext' },
   { file: 'lib/server/page.js',                     marker: 'getExecutionContext' },

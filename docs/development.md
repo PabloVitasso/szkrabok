@@ -93,6 +93,27 @@ Run `szkrabok doctor` to get the correct path for your machine. Both commands wr
 
 ---
 
+## Git safety
+
+Irreversible git operations can silently destroy uncommitted work. The following commands are **forbidden** without explicit user confirmation:
+
+| Command | Risk |
+|---------|------|
+| `git reset --hard` | Destroys all uncommitted changes in the working tree and index — unrecoverable |
+| `git checkout .` / `git restore .` | Same as above for working-tree files |
+| `git clean -f` / `git clean -fd` | Deletes untracked files/directories permanently |
+| `git push --force` / `git push -f` | Overwrites remote history — loses others' commits |
+| `git branch -D` | Force-deletes a branch even if unmerged |
+
+**Rule:** before running any of these, describe the intended outcome to the user and wait for approval. If the goal is to undo a bad commit, use `git revert` (safe, adds a new commit) instead of `git reset --hard` (unsafe, destroys history).
+
+**When a release script fails mid-way** (e.g. tag already exists), do NOT reset. Instead:
+1. Identify what was partially done (`git log --oneline -3`, `git tag -l`)
+2. Fix forward: delete only the conflicting tag, or adjust the version, or push what was already committed
+3. Ask the user if the path is unclear
+
+---
+
 ## Release workflow
 
 ```bash
@@ -123,6 +144,23 @@ This ensures the tag always points at the release commit — no manual tag moves
 
 **`deps:update`** runs `npm-check-updates -u` across all workspaces then `npm install`. Run it deliberately before a release — not on every build. Dependency bumps are a conscious decision; CI always installs from the lockfile.
 
+After running `deps:update`, pin all version specifiers to exact versions before committing (see [Dependency pinning](#dependency-pinning)). `npm-check-updates` writes ranges (`^`), and `npm install` may also restore `^` on freshly resolved packages — strip them manually or with:
+```bash
+node -e "
+const fs = require('fs');
+['package.json', 'packages/runtime/package.json'].forEach(f => {
+  const p = JSON.parse(fs.readFileSync(f, 'utf8'));
+  ['dependencies','devDependencies','peerDependencies'].forEach(k => {
+    if (!p[k]) return;
+    for (const [n, v] of Object.entries(p[k]))
+      if (typeof v === 'string') p[k][n] = v.replace(/^[\^~>=]+/, '');
+  });
+  fs.writeFileSync(f, JSON.stringify(p, null, 2) + '\n');
+});
+"
+npm install --ignore-scripts
+```
+
 The `prepack` guard prevents publishing without a version tag on HEAD.
 
 `prepublishOnly` runs `npm run lint` then `scripts/smoke-test.js` before every `npm publish`. The smoke-test packs a tarball, installs it in a fresh bare temp directory using `--foreground-scripts` (exercising the real postinstall pipeline: `apply-patches.js` → `verify-playwright-patches.js`), then runs `szkrabok --version` and `szkrabok doctor`. Chromium download is **not** part of postinstall — `postinstall.js` is retained for manual use but excluded from the chain. Install Chromium separately with `szkrabok doctor install` or `doctor detect --write-config`. Publish fails loudly if any step fails — catching lint errors, missing files, broken postinstall, or binary resolution issues before they reach npm.
@@ -148,53 +186,100 @@ clear error if the package is absent.
 
 ## Upgrading playwright-core
 
-playwright-core is pinned to an exact version and patched via `patch-package`. The patch file lives in `patches/playwright-core+<version>.patch` and is committed to the repo. When upgrading:
+playwright-core is pinned to an exact version (no `^`) and patched via `patch-package`. The patch file lives in `patches/playwright-core+<version>.patch` and is committed to the repo. When upgrading:
 
-1. Bump the version in `package.json` (both `playwright` and `playwright-core`):
+1. Bump the version in `package.json` (both `playwright` and `playwright-core`). Use exact versions — no `^`:
    ```json
-   "playwright": "1.59.0",
-   "playwright-core": "1.59.0"
+   "playwright": "1.59.1",
+   "playwright-core": "1.59.1"
    ```
+   Do the same in `packages/runtime/package.json`.
 
 2. Install fresh files without running postinstall:
    ```bash
    npm install --ignore-scripts
    ```
+   > **Note:** `npm install` may re-add `^` to the version specifier. After install, confirm both files still have exact pins (no `^`). Fix manually if needed.
 
 3. Apply patches to the new version using the patch script:
    ```bash
    node packages/runtime/scripts/patch-playwright.js
    ```
-   All 7 entries must report `patched`. If any fail, the script rolls back and exits 1 — the anchor string changed upstream and the patch script needs updating first.
+   All 8 entries must report `patched`. If any fail, the script rolls back and exits 1 — the anchor string changed upstream and the patch script needs updating first.
+
+   **Patch locations (as of 1.59.1):**
+
+   | Patch | File | What it does |
+   |-------|------|-------------|
+   | crConnection | `lib/server/chromium/crConnection.js` | Injects `__re__` Runtime.enable helpers |
+   | crDevTools | `lib/server/chromium/crDevTools.js` | Suppresses `Runtime.enable` (AST) |
+   | crPage | `lib/server/chromium/crPage.js` | Worker constructor + suppresses `Runtime.enable` (AST) |
+   | browserContext | `lib/server/browserContext.js` | Greasy brands injection (moved from crPage.js in 1.59.1) |
+   | crServiceWorker | `lib/server/chromium/crServiceWorker.js` | Suppresses `Runtime.enable` (AST) |
+   | frames | `lib/server/frames.js` | `executionContextsCleared` + rewires `_context()` |
+   | page | `lib/server/page.js` | Worker constructor + guards `PageBinding.dispatch` |
+   | utilityScriptSource | `lib/generated/utilityScriptSource.js` | Renames `UtilityScript` class |
+
+   If the greasy brands patch fails (anchor not found in `browserContext.js`), check whether `calculateUserAgentEmulation` moved again. Search with:
+   ```bash
+   grep -rn "szkrabok: greasy brands\|calculateUserAgent" node_modules/playwright-core/lib/server/
+   ```
+   Update the `file` key and anchor string in `patch-playwright.js`, `verify-playwright-patches.js`, and `tests/node/playwright-patches.test.js` to match the new location.
 
 4. Regenerate the patch file for the new version:
    ```bash
    npx patch-package playwright-core
    ```
-   This diffs the patched files against the clean npm tarball and writes `patches/playwright-core+1.59.0.patch`.
+   This diffs the patched files against the clean npm tarball and writes `patches/playwright-core+1.59.1.patch`.
 
 5. Verify the full postinstall chain works on a clean install:
    ```bash
    rm -rf node_modules/playwright-core
-   npm install playwright-core
+   npm install playwright-core --ignore-scripts
+   node packages/runtime/scripts/patch-playwright.js
+   node scripts/verify-playwright-patches.js
    ```
-   Expected output: `patch-package` reports ✔, verify script reports all PASS.
+   Expected: patch script reports all `patched`, verify script reports all `PASS`.
 
 6. Run the patch tests:
    ```bash
    node --test tests/node/playwright-patches.test.js
    ```
 
-7. Commit:
+7. If `@modelcontextprotocol/sdk` was also bumped, regenerate the MCP client:
    ```bash
-   git add package.json package-lock.json patches/
-   git commit -m "chore: upgrade playwright-core to 1.59.0"
+   npm run codegen:mcp
+   ```
+   The registry hash embeds the tool schema — it must be regenerated whenever the SDK or tool definitions change.
+
+8. Commit:
+   ```bash
+   git add package.json packages/runtime/package.json package-lock.json patches/ packages/runtime/mcp-client/
+   git commit -m "chore: upgrade playwright-core to 1.59.1"
    ```
 
-   Delete the old patch file if it is still present:
+   Old patch files are kept in the repo as a historical record (useful for diffing what changed between versions).
+
+---
+
+## Dependency pinning
+
+All dependencies in `package.json` and `packages/runtime/package.json` are pinned to exact versions (no `^` or `~`). This is a deliberate security measure:
+
+- **Supply-chain integrity** — a semver range (`^1.2.3`) silently installs newer patch/minor releases without review. An exact pin (`1.2.3`) means every install everywhere uses the identical tarball. Combined with `package-lock.json` committed to the repo, the full dependency tree is reproducible and auditable.
+- **Patch safety** — playwright-core patches are written against a specific compiled output. A silent minor bump can move the anchor strings the patch script relies on, causing patching to silently fail or produce wrong output.
+- **Deliberate upgrades** — dependency bumps are a conscious decision, not a background event. New versions are tested before they land.
+
+### Rules
+
+1. **No `^`, `~`, `>=`, or `*` in `dependencies` or `devDependencies`** — exact version only.
+2. `peerDependencies` may use ranges (`>=`) since they express compatibility, not a resolved version.
+3. After any `npm install` that touches `package.json`, verify no range specifiers were re-introduced:
    ```bash
-   git rm patches/playwright-core+1.58.2.patch
+   grep -E '"\^|"~|"\*|">=' package.json packages/runtime/package.json
    ```
+   That command should produce no output (only `engines.node` and `peerDependencies` ranges are acceptable).
+4. When bumping a package, always update **both** `package.json` and `packages/runtime/package.json` if the package appears in both (e.g. `playwright`, `playwright-core`, `smol-toml`, `@modelcontextprotocol/sdk`).
 
 ---
 

@@ -1,6 +1,6 @@
 {
   "name": "@szkrabok/runtime",
-  "version": "1.1.10",
+  "version": "2.0.9",
   "description": "szkrabok — browser bootstrap, stealth, session pool, MCP client.",
   "type": "module",
   "main": "index.js",
@@ -15,12 +15,12 @@
     "node": ">=20.0.0"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": ">=1.27.1",
-    "chrome-launcher": "*",
-    "playwright": "*",
-    "playwright-core": "*",
-    "playwright-extra": "*",
-    "puppeteer-extra-plugin-stealth": "*",
-    "smol-toml": "*"
+    "@modelcontextprotocol/sdk": "1.29.0",
+    "chrome-launcher": "1.2.1",
+    "playwright": "1.59.1",
+    "playwright-core": "1.59.1",
+    "playwright-extra": "4.3.6",
+    "puppeteer-extra-plugin-stealth": "2.11.2",
+    "smol-toml": "1.6.1"
   }
 }

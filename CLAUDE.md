@@ -13,6 +13,7 @@
 
 - **Always ask before committing or pushing.** Never commit or push without explicit user approval
 - **Test after every change.** Run the relevant test before considering work done. If a test cannot be run, say so explicitly and ask how to proceed
+- **`git reset --hard` is FORBIDDEN.** Never run `git reset --hard` (or any destructive variant: `git checkout .`, `git restore .`, `git clean -f`). If you need to undo a commit, tell the user what you want to do and ask them to approve first. These commands silently destroy uncommitted work and cannot be undone.
 
 ## MCP Server
 

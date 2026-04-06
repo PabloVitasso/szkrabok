@@ -299,13 +299,9 @@ class CDPSession`,
     steps: src => astSuppressRuntimeEnable(src, 'crDevTools.js'),
   },
 
-  // ── 3+8. crPage.js — all changes in ONE step ─────────────────────────────────
-  // String replacements must run BEFORE astSuppressRuntimeEnable because Babel's
+  // ── 3. crPage.js — Worker + Runtime.enable ───────────────────────────────────
+  // String replacement must run BEFORE astSuppressRuntimeEnable because Babel's
   // emit() reformats the entire file, making string anchors unmatchable afterward.
-  // Order within this step:
-  //   1. Worker call-site string replace (on original source)
-  //   2. Greasy brands string inject (on original source)
-  //   3. AST suppress Runtime.enable (last — reformats the whole file via emit())
   {
     file: 'server/chromium/crPage.js',
     steps: src => {
@@ -316,16 +312,23 @@ class CDPSession`,
         `    const worker = new import_page.Worker(this._page, url, event.targetInfo.targetId, session);`,
         'pass targetId+session to Worker constructor'
       )
-      // 8. greasy brands injection into calculateUserAgentMetadata
-      src = strReplace(
-        'crPage.js', src,
-        `  if (ua.includes("ARM"))
-    metadata.architecture = "arm";
-  return metadata;
-}`,
-        `  if (ua.includes("ARM"))
-    metadata.architecture = "arm";
-  // ── szkrabok: greasy brands ───────────────────────────────────────────────
+      // 3a. AST suppress Runtime.enable — runs last since emit() reformats the file
+      src = astSuppressRuntimeEnable(src, 'crPage.js')
+      return src
+    },
+  },
+
+  // ── 8. browserContext.js — greasy brands (moved from crPage.js in 1.59.1) ────
+  // calculateUserAgentEmulation was refactored out of crPage.js into browserContext.js.
+  // Inject greasy brands before the final return statement.
+  {
+    file: 'server/browserContext.js',
+    steps: src => strReplace(
+      'server/browserContext.js', src,
+      `  return { navigatorPlatform, userAgentMetadata };
+}
+const paramsThatAllowContextReuse = [`,
+      `  // ── szkrabok: greasy brands ───────────────────────────────────────────────
   const chromeMatch = ua.match(/Chrome\\/(\\d+)/);
   if (chromeMatch) {
     const seed = parseInt(chromeMatch[1], 10);
@@ -336,17 +339,14 @@ class CDPSession`,
     brands[order[0]] = { brand: grease, version: '99' };
     brands[order[1]] = { brand: 'Chromium', version: String(seed) };
     brands[order[2]] = { brand: 'Google Chrome', version: String(seed) };
-    metadata.brands = brands;
+    userAgentMetadata.brands = brands;
   }
   // ── end szkrabok greasy brands ────────────────────────────────────────────
-  return metadata;
-}`,
-        'inject greasy brands into calculateUserAgentMetadata'
-      )
-      // 3a. AST suppress Runtime.enable — runs last since emit() reformats the file
-      src = astSuppressRuntimeEnable(src, 'crPage.js')
-      return src
-    },
+  return { navigatorPlatform, userAgentMetadata };
+}
+const paramsThatAllowContextReuse = [`,
+      'inject greasy brands into calculateUserAgentEmulation'
+    ),
   },
 
   // ── 4. crServiceWorker.js — suppress Runtime.enable (AST) ────────────────────
@@ -482,7 +482,7 @@ class CDPSession`,
 
 const PATCH_MARKERS = [
   { file: 'server/chromium/crConnection.js', marker: '__re__emitExecutionContext' },
-  { file: 'server/chromium/crPage.js',       marker: 'szkrabok: greasy brands' },
+  { file: 'server/browserContext.js',        marker: 'szkrabok: greasy brands' },
 ]
 const STAMP_FILE = '.szkrabok-patched'
 

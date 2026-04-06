@@ -1,6 +1,6 @@
 {
   "name": "@pablovitasso/szkrabok",
-  "version": "2.0.1",
+  "version": "2.0.9",
   "description": "Production-grade MCP browser automation layer with persistent sessions and stealth capabilities",
   "type": "module",
   "main": "src/index.js",
@@ -73,20 +73,20 @@
     "url": "git+https://github.com/PabloVitasso/szkrabok.git"
   },
   "dependencies": {
-    "@babel/generator": "^7.29.1",
-    "@babel/parser": "^7.29.0",
-    "@babel/traverse": "^7.29.0",
-    "@modelcontextprotocol/sdk": "^1.27.1",
-    "patch-package": "^8.0.1",
-    "commander": "^14.0.3",
-    "dotenv": "^17.3.1",
-    "playwright": "1.58.2",
-    "playwright-core": "1.58.2",
-    "playwright-extra": "^4.3.6",
-    "puppeteer-core": "^24.39.0",
-    "puppeteer-extra-plugin-stealth": "^2.11.2",
-    "smol-toml": "^1.6.0",
-    "zod": "^4.3.6"
+    "@babel/generator": "7.29.1",
+    "@babel/parser": "7.29.2",
+    "@babel/traverse": "7.29.0",
+    "@modelcontextprotocol/sdk": "1.29.0",
+    "patch-package": "8.0.1",
+    "commander": "14.0.3",
+    "dotenv": "17.4.1",
+    "playwright": "1.59.1",
+    "playwright-core": "1.59.1",
+    "playwright-extra": "4.3.6",
+    "puppeteer-core": "24.40.0",
+    "puppeteer-extra-plugin-stealth": "2.11.2",
+    "smol-toml": "1.6.1",
+    "zod": "4.3.6"
   },
   "peerDependencies": {
     "@playwright/test": ">=1.49.1"
@@ -97,15 +97,15 @@
     }
   },
   "devDependencies": {
-    "@eslint/js": "^10.0.1",
-    "ajv": "^8.18.0",
-    "ajv-formats": "^3.0.1",
-    "eslint": "^10.0.3",
-    "eslint-config-prettier": "^10.1.8",
-    "eslint-plugin-node": "^11.1.0",
-    "globals": "^17.4.0",
-    "prettier": "^3.8.1",
-    "puppeteer-extra": "^3.3.6"
+    "@eslint/js": "10.0.1",
+    "ajv": "8.18.0",
+    "ajv-formats": "3.0.1",
+    "eslint": "10.2.0",
+    "eslint-config-prettier": "10.1.8",
+    "eslint-plugin-node": "11.1.0",
+    "globals": "17.4.0",
+    "prettier": "3.8.1",
+    "puppeteer-extra": "3.3.6"
   },
   "eslintConfig": {
     "_comment": "Ignored by ESLint 9+ — rules live in eslint.config.js"
