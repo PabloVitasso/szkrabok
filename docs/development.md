@@ -8,6 +8,7 @@
 - [Upgrading playwright-core](#upgrading-playwright-core)
 - [Consumer projects](#consumer-projects)
 - [Config modules](#config-modules-config)
+- [Claude Code pitfalls](#claude-code-pitfalls)
 
 ## Adding a new MCP tool
 
@@ -300,6 +301,65 @@ Never suppress without an explanation.
 - **No repeated string literals for dispatch.** If a string (tool name, event type, key) controls branching in more than one place, put it in a registry/map keyed by that string. The string appears once as the key; behaviour is a value. Adding a new case = adding one entry, not touching multiple `if`/`switch` blocks
 - **No ANSI codes in programmatic output.** Subprocess output piped into structured data must be clean text. Set `FORCE_COLOR=0` (or equivalent) when spawning CLI tools whose output is parsed or logged
 - **Fail fast - no silent fallbacks.** Do not substitute empty values (`?? 0`, `?? []`, `?? 'unknown'`) for data that should always be present. If a field is unexpectedly missing, let it throw - that is a real bug and should surface immediately. Only use fallbacks for fields that are genuinely optional by design (e.g. `error` on a passing test result). Masking missing data with defaults hides bugs and produces silently wrong output
+
+## Claude Code pitfalls
+
+Known Claude Code behaviours that affect development quality in this repo,
+with mitigations as installable hooks.
+
+### Simplicity bias — complexity underestimation mid-turn
+
+**Problem:** Claude frequently uses the words "simple" or "simplest" in its
+chain of thought or text output. When this happens, it silently lowers the
+quality bar for the rest of the turn: edge cases are skipped, existing code
+is not read, assumptions replace investigation. By the time the user sees the
+output, multiple tool calls have already executed under the oversimplified
+framing.
+
+Upstream report: [anthropics/claude-code#42796](https://github.com/anthropics/claude-code/issues/42796)
+
+Feature spec: [docs/features/20260407-simplicity-guard-hook-proposal.md](./features/20260407-simplicity-guard-hook-proposal.md)
+
+**Mitigation:** `hooks/simplicity-guard.sh` — a `PreToolUse` hook that scans
+the transcript delta for the trigger words and blocks the next tool call,
+forcing a user interaction point.
+
+Install:
+
+```bash
+# Option A: symlink (hook picks up source changes automatically)
+mkdir -p ~/.claude/hooks
+ln -s "$(pwd)/hooks/simplicity-guard.sh" ~/.claude/hooks/simplicity-guard.sh
+
+# Option B: copy
+cp hooks/simplicity-guard.sh ~/.claude/hooks/simplicity-guard.sh
+chmod +x ~/.claude/hooks/simplicity-guard.sh
+```
+
+Register in `~/.claude/settings.json`:
+
+```json
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/simplicity-guard.sh"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+The hook uses `(device, inode, offset)` state tracking (state file at
+`$transcript.simplecheck.state`) so it reads only new transcript bytes on
+each invocation — I/O stays O(delta) regardless of session length. See the
+script header for full design rationale.
 
 ## Config modules (`config/`)
 

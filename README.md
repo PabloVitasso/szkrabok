@@ -258,6 +258,12 @@ szkrabok doctor install              # Install Playwright's Chromium (idempotent
 * **Config**: `szkrabok.config.toml` (defaults) deep-merged with `szkrabok.config.local.toml` (machine-specific, gitignored).
 * **Release**: `npm run deps:update` updates dependencies, `npm run release:patch` bumps version + tags, then `npm run release:publish`.
 
+## Claude Code - pitfalls
+
+**Simplicity bias** — Claude underestimates task complexity mid-turn, silently skipping edge cases and code reads. ([anthropics/claude-code#42796](https://github.com/anthropics/claude-code/issues/42796))
+
+See [docs/development.md — Claude Code pitfalls](./docs/development.md#claude-code-pitfalls) for a `PreToolUse` hook that detects the trigger words in the transcript delta and blocks execution before the next tool call runs.
+
 ## Documentation
 
 | Doc | Contents |
