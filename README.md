@@ -34,7 +34,9 @@ Manage browser sessions. Actions: open (launch/resume), close (save/delete), lis
   - With explicit fields: `{ userAgent: "...", viewport: { width: 1280, height: 800 }, locale: "en-US", timezone: "America/New_York", headless: false }`
   - **Note:** `preset` is mutually exclusive with `userAgent`, `viewport`, `locale`, `timezone`. `headless` and `stealth` are always allowed alongside either.
 
-Returns: `{ success, sessionName, url, reused, preset, label, isClone, templateSession, cdpEndpoint }`
+Returns: `{ success, sessionName, url, reused, preset, label, isClone, templateSession, cdpEndpoint, configSource }` — `configSource` is the config discovery source string (e.g. `"mcp-root (/path/to/project)"`, `"xdg (...)"`, `"none (...)"`).
+
+`list` returns `{ sessions, server: { version, source, sourceGuess }, config: { phase, source, previousSource, searched } }` — `searched` is an array of `{ step, paths, found }` entries showing every location checked during config discovery. Use this to diagnose misconfigured or missing config files.
 
 When `isClone: true` is set in `launchOptions`, the returned `sessionName` is a generated id (e.g. `myprofile-1748234205-a3f2c1b0`). Use that id for all subsequent calls. On close, the clone dir is deleted and no state is saved.
 
@@ -204,16 +206,18 @@ userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML
 log_level = "debug"
 ```
 
-**Config discovery** - the server finds your TOML automatically. Priority order:
+**Config discovery** - the server finds your TOML automatically. Priority order (first match wins):
 
 1. `SZKRABOK_CONFIG` env var (absolute path to a `.toml` file)
-2. `SZKRABOK_ROOT` env var (walk-up within that dir)
-3. MCP roots sent by the client at handshake (walk-up within each root)
-4. `process.cwd()` walk-up (CLI / fallback)
-5. `~/.config/szkrabok/config.toml`
+2. `SZKRABOK_ROOT` env var (walk-up bounded by that dir)
+3. MCP roots sent by the client at handshake (walk-up bounded by each root)
+4. `process.cwd()` — exact dir only, no walk-up
+5. `~/.config/szkrabok/config.toml` (Linux/macOS) or `%APPDATA%\szkrabok\config.toml` (Windows)
 6. empty defaults
 
-Place `szkrabok.config.toml` or `szkrabok.config.local.toml` anywhere in your project tree and it will be found as long as the MCP client sends that project's directory as a root.
+Both `szkrabok.config.toml` and `szkrabok.config.local.toml` are loaded and deep-merged (local overrides base). Place either file in your project root or any ancestor dir bounded by a root.
+
+**Diagnose config discovery** — call `session_manage { "action": "list" }` and inspect `config.source` and `config.searched`. Each entry shows the step name, exact file paths checked, and whether any was found. Also see `server.sourceGuess` (`"npx-cache"` | `"global-npm"` | `"local-dev"`) to verify which szkrabok install is active. Alternatively run `szkrabok doctor` from the CLI.
 
 ## Usage
 

@@ -129,44 +129,70 @@ const _discover = ({ roots = [], explicitConfigPath = null } = {}) => {
   let toml = null;
   let source = null;
 
+  // Each step appends one entry to `searched` via spread (no .push — lint rule).
+  let searched = [];
+
   // 0. Explicit path injected by caller (replaces process.env write from CLI)
-  if (!toml && explicitConfigPath && existsSync(explicitConfigPath)) {
-    toml = parse(readFileSync(explicitConfigPath, 'utf8'));
-    source = `explicit (${explicitConfigPath})`;
+  if (explicitConfigPath) {
+    const found = existsSync(explicitConfigPath);
+    searched = [...searched, { step: 'explicit', paths: [explicitConfigPath], found }];
+    if (!toml && found) {
+      toml = parse(readFileSync(explicitConfigPath, 'utf8'));
+      source = `explicit (${explicitConfigPath})`;
+    }
   }
 
   // 1. SZKRABOK_CONFIG env var (absolute path)
   const configEnv = process.env.SZKRABOK_CONFIG;
-  if (!toml && configEnv && existsSync(configEnv)) {
-    toml = parse(readFileSync(configEnv, 'utf8'));
-    source = `env:SZKRABOK_CONFIG (${configEnv})`;
+  if (configEnv) {
+    const found = existsSync(configEnv);
+    searched = [...searched, { step: 'env:SZKRABOK_CONFIG', paths: [configEnv], found }];
+    if (!toml && found) {
+      toml = parse(readFileSync(configEnv, 'utf8'));
+      source = `env:SZKRABOK_CONFIG (${configEnv})`;
+    }
   }
 
   // 2. SZKRABOK_ROOT env var — walk-up bounded by root
-  if (!toml) {
-    const rootEnv = process.env.SZKRABOK_ROOT;
-    if (rootEnv) {
-      toml = walkUp(rootEnv, rootEnv);
-      if (toml) source = `env:SZKRABOK_ROOT (${rootEnv})`;
-    }
+  const rootEnv = process.env.SZKRABOK_ROOT;
+  if (rootEnv) {
+    const data = !toml && walkUp(rootEnv, rootEnv);
+    searched = [...searched, {
+      step: 'env:SZKRABOK_ROOT',
+      paths: [join(rootEnv, 'szkrabok.config.toml'), join(rootEnv, 'szkrabok.config.local.toml')],
+      found: !!data,
+    }];
+    if (!toml && data) { toml = data; source = `env:SZKRABOK_ROOT (${rootEnv})`; }
   }
 
   // 3. MCP roots — check each independently, use first hit
-  if (!toml && roots.length > 0) {
-    for (const root of roots) {
-      const found = walkUp(root, root);
-      if (found) { toml = found; source = `mcp-root (${root})`; break; }
-    }
-  }
+  searched = [
+    ...searched,
+    ...roots.map(root => {
+      const data = !toml && walkUp(root, root);
+      if (!toml && data) { toml = data; source = `mcp-root (${root})`; }
+      return {
+        step: 'mcp-root',
+        paths: [join(root, 'szkrabok.config.toml'), join(root, 'szkrabok.config.local.toml')],
+        found: !!data,
+      };
+    }),
+  ];
 
   // 4. process.cwd() — exact dir only, no walk-up (§2: unbounded walk-up removed)
-  if (!toml) {
-    const data = loadTomlFromDir(process.cwd());
-    if (data) { toml = data; source = `cwd (${process.cwd()})`; }
+  {
+    const cwd = process.cwd();
+    const data = !toml && loadTomlFromDir(cwd);
+    searched = [...searched, {
+      step: 'cwd',
+      paths: [join(cwd, 'szkrabok.config.toml'), join(cwd, 'szkrabok.config.local.toml')],
+      found: !!data,
+    }];
+    if (!toml && data) { toml = data; source = `cwd (${cwd})`; }
   }
 
   // 5. User config dir (XDG on Linux/macOS, %APPDATA% on Windows)
-  if (!toml) {
+  {
     const configDir = process.platform === 'win32'
       ? join(process.env.APPDATA ?? join(homedir(), 'AppData', 'Roaming'), 'szkrabok')
       : join(process.env.XDG_CONFIG_HOME ?? join(homedir(), '.config'), 'szkrabok');
@@ -174,7 +200,8 @@ const _discover = ({ roots = [], explicitConfigPath = null } = {}) => {
     const xdgLocal = join(configDir, 'config.local.toml');
     const hasBase = existsSync(xdgBase);
     const hasLocal = existsSync(xdgLocal);
-    if (hasBase || hasLocal) {
+    searched = [...searched, { step: 'xdg', paths: [xdgBase, xdgLocal], found: hasBase || hasLocal }];
+    if (!toml && (hasBase || hasLocal)) {
       const baseData = hasBase ? parse(readFileSync(xdgBase, 'utf8')) : {};
       const localData = hasLocal ? parse(readFileSync(xdgLocal, 'utf8')) : {};
       toml = deepMerge(baseData, localData);
@@ -182,7 +209,7 @@ const _discover = ({ roots = [], explicitConfigPath = null } = {}) => {
     }
   }
 
-  return { toml, source: source ?? 'none (no config file found — using built-in defaults)' };
+  return { toml, source: source ?? 'none (no config file found — using built-in defaults)', searched };
 };
 
 // ── Test seam ──────────────────────────────────────────────────────────────────
@@ -198,28 +225,28 @@ export const _resetConfigForTesting = () => {
 // Backward-compat one-shot init. Sets phase to 'final' directly.
 // Used by tests, CLI commands, and any code doing a single-step initialization.
 export const initConfig = (roots = [], { explicitConfigPath = null } = {}) => {
-  const { toml, source } = _discover({ roots, explicitConfigPath });
+  const { toml, source, searched } = _discover({ roots, explicitConfigPath });
   const previous = _configMeta?.source ?? null;
   _config = Object.freeze(buildConfig(toml ?? {}));
   _phase = 'final';
-  _configMeta = { phase: 'final', source, previousSource: previous };
+  _configMeta = { phase: 'final', source, previousSource: previous, searched };
 };
 
 // Server provisional phase — runs immediately on startup, before MCP roots arrive.
 export const initConfigProvisional = ({ explicitConfigPath = null } = {}) => {
-  const { toml, source } = _discover({ roots: [], explicitConfigPath });
+  const { toml, source, searched } = _discover({ roots: [], explicitConfigPath });
   _config = Object.freeze(buildConfig(toml ?? {}));
   _phase = 'provisional';
-  _configMeta = { phase: 'provisional', source, previousSource: null };
+  _configMeta = { phase: 'provisional', source, previousSource: null, searched };
 };
 
 // Server finalize phase — runs after MCP roots arrive via oninitialized.
 export const finalizeConfig = (roots = [], { explicitConfigPath = null } = {}) => {
-  const { toml, source } = _discover({ roots, explicitConfigPath });
+  const { toml, source, searched } = _discover({ roots, explicitConfigPath });
   const previous = _configMeta?.source ?? null;
   _config = Object.freeze(buildConfig(toml ?? {}));
   _phase = 'final';
-  _configMeta = { phase: 'final', source, previousSource: previous };
+  _configMeta = { phase: 'final', source, previousSource: previous, searched };
 };
 
 // Default blocks provisional reads. Pass { allowProvisional: true } only for

@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { resolvePlaywrightCore } from '../../../scripts/resolve-playwright-core.js';
 import { szkrabokCacheDir } from '../../utils/platform.js';
 import { runDetect, runInstall, writeExecPath } from '../lib/browser-actions.js';
+import { getConfigMeta } from '../../config.js';
 
 const pass = (label, detail = '') => {
   let detailStr;
@@ -171,7 +172,23 @@ async function runFullDoctor(opts) {
     console.error('\n  No valid browser found. Run: szkrabok doctor install');
   }
 
-  // 5. MCP server imports
+  // 5. Config discovery (initConfig called by runDetect above)
+  console.log('\nConfig discovery:');
+  const meta = getConfigMeta();
+  if (meta) {
+    const foundStep = (meta.searched ?? []).find(s => s.found);
+    if (foundStep) {
+      console.log(`  [PASS  ] source       ${meta.source}`);
+    } else {
+      console.log(`  [warn] source: ${meta.source}`);
+    }
+    for (const s of (meta.searched ?? [])) {
+      const tag = s.found ? '[PASS  ]' : '[ABSENT]';
+      console.log(`  ${tag} ${s.step.padEnd(20)} ${s.paths.join(', ')}`);
+    }
+  }
+
+  // 7. MCP server imports
   try {
     await import('../../server.js');
     pass('server.js imports');
@@ -185,12 +202,12 @@ async function runFullDoctor(opts) {
     failed = fail('server.js imports', errMessage);
   }
 
-  // 6. Startup log
+  // 8. Startup log
   const logFile = join(szkrabokCacheDir(), 'startup.log');
   if (existsSync(logFile)) pass('startup log exists', logFile);
   else pass('startup log', `will be created at ${logFile}`);
 
-  // 7. Dev MCP config hint (only when running from source repo)
+  // 9. Dev MCP config hint (only when running from source repo)
   // Note: Claude Code does NOT honor the `cwd` field in MCP server config.
   // Use `bash -c "cd <testNpxDir> && npx ..."` to force npx to resolve the
   // published package from test/npx (which has no local workspace) instead

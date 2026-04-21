@@ -1,5 +1,8 @@
 # Config Meta Exposure in MCP Tools
-## Feature (Proposal — 2026-04-21)
+## Feature (Done — 2026-04-21)
+
+Implemented in: `src/tools/szkrabok_session.js`, `packages/runtime/config.js`,
+`src/cli/commands/doctor.js`.
 
 ---
 
@@ -17,100 +20,71 @@ step 4 (CWD) resolved to Claude Code's working directory, not the user's project
 `szkrabok.config.local.toml` was invisible. Browser launched with built-in defaults instead of
 the configured preset.
 
-Workaround applied: `bash -c "cd /path/to/project && npx -y @pablovitasso/szkrabok"`. This
-works but:
-- hard-codes a single project path in a user-level entry (breaks multi-project setups)
-- hides the real question: **are MCP roots being sent by Claude Code to user-level MCP servers?**
-
-If MCP roots (step 3) worked correctly, the CWD workaround would be unnecessary — the server
-would find the config regardless of where it was started from.
-
-### Why we can't diagnose this today
-
-`getConfigMeta()` exists in `packages/runtime/config.js` and returns
-`{ phase, source, previousSource }`. The `source` string is exactly what we need
-(e.g. `"mcp-root (/home/jones2/mega/research/szkrabok)"` vs `"cwd (/usr/local)"` vs
-`"none (no config file found — using built-in defaults)"`).
-
-But none of the MCP tools expose it. The user has to guess.
+Follow-up finding: MCP roots (step 3) do not reach user-level MCP servers in Claude Code —
+confirmed by `config.source: "none"` when testing from the estate project with no `cd` workaround.
 
 ---
 
-## Goal
+## What was implemented
 
-Expose `configMeta` in `session_manage` tool responses so any MCP client can see which config
-source was used without access to server logs.
+### `session_manage list`
 
----
-
-## Scope
-
-Two actions in `session_manage`:
-
-### `list`
-
-Add a top-level `config` field alongside the existing `server` field:
+Added top-level `config` and updated `server`:
 
 ```json
 {
   "sessions": [...],
-  "server": { "version": "2.0.10", "source": "..." },
+  "server": {
+    "version": "2.0.12",
+    "source": "/home/jones2/.nvm/.../bin/szkrabok",
+    "sourceGuess": "global-npm"
+  },
   "config": {
     "phase": "final",
-    "source": "mcp-root (/home/jones2/mega/research/szkrabok)",
-    "previousSource": "cwd (/usr/local/bin)"
+    "source": "none (no config file found — using built-in defaults)",
+    "previousSource": null,
+    "searched": [
+      { "step": "env:SZKRABOK_CONFIG", "paths": ["/abs/path.toml"], "found": false },
+      { "step": "mcp-root", "paths": ["/project/szkrabok.config.toml", "/project/szkrabok.config.local.toml"], "found": false },
+      { "step": "cwd", "paths": ["/usr/local/szkrabok.config.toml", "/usr/local/szkrabok.config.local.toml"], "found": false },
+      { "step": "xdg", "paths": ["/home/jones2/.config/szkrabok/config.toml", "/home/jones2/.config/szkrabok/config.local.toml"], "found": false }
+    ]
   }
 }
 ```
 
-### `open`
+`server.sourceGuess` — best-effort heuristic from `process.argv[1]`:
+- `"npx-cache"` — path contains `/_npx/`
+- `"local-dev"` — path ends with `/src/index.js`
+- `"global-npm"` — path contains nvm/volta/fnm/AppData patterns or `/bin/szkrabok`
+- `"unknown"` — none of the above matched
 
-Add `configSource` to the success response (the `source` string only — enough for a quick
-sanity check after opening a session):
+Cross-platform: normalizes backslashes before matching.
 
-```json
-{
-  "success": true,
-  "sessionName": "dev",
-  "preset": "chromium-honest",
-  "label": "Ungoogled Chromium",
-  "configSource": "mcp-root (/home/jones2/mega/research/szkrabok)"
-}
-```
+### `session_manage open`
 
----
+Added `configSource` (the `source` string) to all success return paths — template launch,
+reuse, and clone.
 
-## What this enables
+### `packages/runtime/config.js` — `_discover()`
 
-1. **Immediate diagnosis**: call `session_manage { action: "list" }` from any external Claude
-   Code instance → see at a glance if the user-level server is picking up the right config.
+Collects a `searched` array during discovery: one entry per step actually attempted, with the
+exact file paths checked and a boolean `found`. Stored in `_configMeta` and returned by
+`getConfigMeta()`. Uses spread accumulation (no `.push` — lint rule).
 
-2. **Confirm the roots question**: without the `cd` workaround, if `source` says `mcp-root`
-   → MCP roots work and the workaround can be removed. If `source` says `cwd` or `none` →
-   roots are not being sent by the client to user-level servers → needs a different fix.
+Note: for MCP roots, only the first hit is walked; subsequent roots that were not checked
+show `found: false`.
 
-3. **Ongoing debuggability**: misconfigured presets, wrong browser, unexpected defaults — all
-   diagnosable from the tool response without touching logs.
+### `szkrabok doctor`
 
----
-
-## Implementation
-
-Files to change:
-
-- `src/tools/szkrabok_session.js` — `list()`: add `config: getConfigMeta()` to return value.
-  `open()`: add `configSource: getConfigMeta()?.source` to both template and reuse return paths.
-- `src/config.js` — re-export `getConfigMeta` from `#runtime` if not already (it is).
-
-No schema changes needed — MCP tool descriptions are prose, not typed. No new exports required.
-`getConfigMeta()` is already part of the runtime public API.
+Added "Config discovery" section (step 5 in the output) after browser resolution. Prints
+`source` and one line per searched step showing paths and `[PASS]`/`[ABSENT]` status.
+`initConfig` is already called by `runDetect()` so `getConfigMeta()` is available immediately.
 
 ---
 
-## Out of scope
+## Out of scope (unchanged)
 
-- Fixing the root cause (if MCP roots don't reach user-level servers, that is a Claude Code
-  client issue or requires a different mitigation like `SZKRABOK_ROOT` env var guidance).
-- Adding config meta to other tools (`browser_run`, `browser_scrape`, etc.) — `session_manage`
-  is the natural diagnostic entry point.
-- Structured `source` object (deferred in the determinism refactor, §3) — keep it as a string.
+- Root cause of MCP roots not reaching user-level servers — Claude Code client behavior.
+- Structured `source` object (deferred in the determinism refactor, §3) — kept as string.
+- Config meta in other tools (`browser_run`, `browser_scrape`) — `session_manage` is enough.
