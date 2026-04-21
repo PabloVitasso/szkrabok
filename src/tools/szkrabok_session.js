@@ -259,6 +259,22 @@ export const deleteSession = async ({ sessionName }) => {
 
 /* ───────────────────────────────────────── */
 
+const guessSourceKind = argv1 => {
+  if (!argv1) return 'unknown';
+  const p = argv1.replace(/\\/g, '/');
+  if (p.includes('/_npx/')) return 'npx-cache';
+  if (p.endsWith('/src/index.js')) return 'local-dev';
+  // version managers and global bin dirs (cross-platform)
+  if (p.includes('/.nvm/') || p.includes('/.volta/') || p.includes('/.fnm/') ||
+      p.includes('/AppData/Roaming/nvm/') || p.includes('/AppData/Local/Volta/') ||
+      p.includes('/AppData/Roaming/npm/') || p.includes('/bin/szkrabok') ||
+      p.endsWith('/szkrabok') || p.endsWith('/szkrabok.js'))
+    return 'global-npm';
+  return 'unknown';
+};
+
+/* ───────────────────────────────────────── */
+
 export const list = async () => {
   log('[INFO] list sessions');
 
@@ -295,7 +311,7 @@ export const list = async () => {
 
   return {
     sessions: [...templateSessions, ...cloneSessions],
-    server:   { version, source: process.argv[1] },
+    server:   { version, source: process.argv[1], sourceGuess: guessSourceKind(process.argv[1]) },
     config:   getConfigMeta(),
   };
 };
