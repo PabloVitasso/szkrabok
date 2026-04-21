@@ -18,7 +18,7 @@ const { version } = JSON.parse(
 );
 
 import { log } from '../utils/logger.js';
-import { getConfig } from '../config.js';
+import { getConfig, getConfigMeta } from '../config.js';
 import { withLock } from '../utils/lock.js';
 
 /* ───────────────────────────────────────── */
@@ -104,6 +104,7 @@ export const open = ({ sessionName, url, launchOptions = {} }) => {
         isClone:         true,
         url,
         cdpEndpoint:     handle.cdpEndpoint,
+        configSource:    getConfigMeta()?.source,
       };
     }
 
@@ -152,13 +153,14 @@ export const open = ({ sessionName, url, launchOptions = {} }) => {
       }
 
       return {
-        success:     true,
+        success:      true,
         sessionName,
         url,
-        isClone:     false,
-        preset:      session.preset,
-        label:       session.label,
-        cdpEndpoint: handle.cdpEndpoint,
+        isClone:      false,
+        preset:       session.preset,
+        label:        session.label,
+        cdpEndpoint:  handle.cdpEndpoint,
+        configSource: getConfigMeta()?.source,
       };
     }
 
@@ -168,13 +170,14 @@ export const open = ({ sessionName, url, launchOptions = {} }) => {
     }
 
     return {
-      success:  true,
+      success:      true,
       sessionName,
       url,
-      isClone:  false,
+      isClone:      false,
       reused,
-      preset:   session.preset,
-      label:    session.label,
+      preset:       session.preset,
+      label:        session.label,
+      configSource: getConfigMeta()?.source,
     };
   });
 };
@@ -293,6 +296,7 @@ export const list = async () => {
   return {
     sessions: [...templateSessions, ...cloneSessions],
     server:   { version, source: process.argv[1] },
+    config:   getConfigMeta(),
   };
 };
 
