@@ -2,8 +2,8 @@
 // Browser launch config (presets, stealth, headless, UA, viewport) lives in
 // @szkrabok/runtime. Do not re-add browser concerns here.
 
-// Config is discovered lazily: initConfig(roots) must be called before getConfig().
-// src/index.js calls initConfig([]) on startup and again after MCP roots arrive.
-export { initConfig, getConfig } from '#runtime';
+// Config lifecycle: initConfigProvisional() on startup, finalizeConfig(roots) after MCP handshake.
+// Use initConfig(roots) for one-shot initialization (tests, CLI).
+export { initConfig, initConfigProvisional, finalizeConfig, getConfig, getConfigMeta } from '#runtime';
 
 export const DEFAULT_TIMEOUT = 30000;

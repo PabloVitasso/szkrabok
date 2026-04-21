@@ -130,33 +130,34 @@ export const isFunctionalBrowser = (path) => {
 
 /**
  * Populate null system/playwright candidates via async probes.
- * Mutates candidates in-place. Only probes sources that are still null.
- * Short-circuits: if a higher-priority candidate already has a path, lower ones
- * are still probed so the full chain is available for doctor diagnostics.
+ * Returns a new frozen array of frozen entries — does not mutate input.
  *
  * @param {Array<{source: string, path: string|null}>} candidates
- * @returns {Promise<void>}
+ * @returns {Promise<ReadonlyArray<Readonly<{source: string, path: string|null}>>>}
  */
 export const populateCandidates = async (candidates) => {
-  for (const c of candidates) {
-    if (c.source === 'system' && c.path === null) {
+  const out = await Promise.all(candidates.map(async c => {
+    let path = c.path;
+    if (c.source === 'system' && path === null) {
       try {
         const { Launcher } = await import('chrome-launcher');
         const installs = await Launcher.getInstallations();
-        for (const path of installs) {
-          if (isFunctionalBrowser(path)) { c.path = path; break; }
+        for (const p of installs) {
+          if (isFunctionalBrowser(p)) { path = p; break; }
         }
       } catch {
         // chrome-launcher unavailable
       }
     }
-    if (c.source === 'playwright' && c.path === null) {
+    if (c.source === 'playwright' && path === null) {
       try {
         const { chromium } = await import('playwright');
-        c.path = chromium.executablePath();
+        path = chromium.executablePath();
       } catch {
         // playwright unavailable
       }
     }
-  }
+    return Object.freeze({ ...c, path });
+  }));
+  return Object.freeze(out);
 };

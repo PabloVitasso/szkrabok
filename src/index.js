@@ -22,6 +22,12 @@ if (args.includes('--no-headless') || args.includes('--headful')) {
   process.env.HEADLESS = 'false';
 }
 
+// --config <path> passed directly to createServer — no env mutation.
+const configFlagIdx = args.indexOf('--config');
+const explicitConfigPath = (configFlagIdx !== -1 && args[configFlagIdx + 1])
+  ? args[configFlagIdx + 1]
+  : null;
+
 // Always write fatal startup errors to a fixed log so they survive MCP client restarts.
 const _logDir = szkrabokCacheDir();
 const _logFile = join(_logDir, 'startup.log');
@@ -38,7 +44,7 @@ const { log, logError } = await import('./utils/logger.js');
 
 _writeStartupLog(`starting szkrabok pid=${process.pid} source=${process.argv[1]}`);
 
-const server = createServer();
+const server = createServer({ explicitConfigPath });
 
 process.on('SIGINT', async () => {
   log('Shutting down gracefully...');

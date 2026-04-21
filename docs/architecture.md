@@ -55,12 +55,14 @@ sessions/{id}/
 packages/runtime/
   index.js          Public API: launch, connect, checkBrowser, closeSession, getSession,
                     listRuntimeSessions, updateSessionMeta, deleteStoredSession,
-                    resolvePreset, getPresets, closeAllSessions, initConfig, getConfig,
+                    resolvePreset, getPresets, closeAllSessions,
+  initConfig, initConfigProvisional, finalizeConfig, getConfig, getConfigMeta,
                     mcpConnect, spawnClient
   launch.js         The one true launchPersistentContext call; launch() and connect()
   sessions.js       closeSession, getSession, listSessions helpers
   pool.js           In-memory session registry { context, page, cdpPort, pid, isClone, cloneDir, templateName, leaseHandle, ... }
-  config.js         Config discovery: initConfig(roots), getConfig(), resolvePreset(), getPresets(), findChromiumPath()
+  config.js         Config discovery: initConfigProvisional(), finalizeConfig(roots), initConfig(roots) [compat],
+                    getConfig({allowProvisional?}), getConfigMeta(), resolvePreset(), getPresets(), findChromiumPath()
   stealth.js        enhanceWithStealth, applyStealthToExistingPage
   storage.js        Profile dirs, state.json save/restore;
                     FD lease (acquireLease, leaseFree); iterative BFS cloneDir;
@@ -85,7 +87,7 @@ packages/runtime/
 src/
   index.js          MCP entry point, stdio transport; routes non-'--' first args to CLI (Commander handles unknown commands)
                     Always writes fatal startup errors to ~/.cache/szkrabok/startup.log
-  config.js         Re-exports initConfig/getConfig from @szkrabok/runtime; DEFAULT_TIMEOUT constant
+  config.js         Re-exports initConfig/initConfigProvisional/finalizeConfig/getConfig/getConfigMeta from @szkrabok/runtime; DEFAULT_TIMEOUT constant
   attach-signal.js  writeAttachSignal(path) — best-effort atomic tmp→rename, fail-fast, no-op on falsy
   fixtures.js       @pablovitasso/szkrabok/fixtures export — resolveConfig, session/browser/page fixtures
                     with ownsBrowser; signal written at CDP attach time; context not overridden (Playwright scope conflict)
@@ -195,8 +197,12 @@ import {
   updateSessionMeta,      // update session metadata
   deleteStoredSession,    // delete persisted session storage
   closeAllSessions,       // close all open sessions
-  initConfig,             // discover and load config (call before any getConfig() use)
-  getConfig,              // returns resolved config object (throws if initConfig not called)
+  initConfig,             // one-shot init → final (tests, CLI); backward compat
+  initConfigProvisional,  // server startup — provisional phase (before MCP roots arrive)
+  finalizeConfig,         // server — promote to final phase (call in oninitialized)
+  getConfig,              // returns final config; throws CONFIG_NOT_FINAL if provisional
+                          // getConfig({ allowProvisional: true }) opts in to provisional reads
+  getConfigMeta,          // returns { phase, source, previousSource }
   resolvePreset,          // resolve a named preset from config
   getPresets,             // returns array of available preset names
 } from '@szkrabok/runtime';
@@ -395,22 +401,29 @@ Use `szkrabok doctor` to verify patch status at any time. For upgrading playwrig
 
 ## Config discovery
 
-`initConfig(roots?)` must be called before any `getConfig()` use. It runs the discovery algorithm once and caches the result. `roots` is an array of absolute paths from the MCP handshake (may be empty).
+Config has two lifecycle phases: **provisional** (before MCP roots arrive) and **final** (after).
 
-Priority order (first match wins):
+`getConfig()` throws `CONFIG_NOT_FINAL` in the provisional phase. Pass `{ allowProvisional: true }` only for code explicitly designed to tolerate provisional config (e.g. logger).
+
+Discovery priority (first match wins):
 
 ```
+0. explicitConfigPath arg   → absolute path passed by CLI --config flag (no env write)
 1. SZKRABOK_CONFIG env var  → absolute path to a .toml file
 2. SZKRABOK_ROOT env var    → walk-up within that root (bounded)
 3. MCP roots                → for each root: walk-up within that root (bounded, first hit wins)
-4. process.cwd()            → unbounded walk-up (CLI / test fallback)
+4. process.cwd()            → exact dir only, no walk-up
 5. ~/.config/szkrabok/config.toml
 6. empty defaults
 ```
 
-Walk-up: at each dir load `szkrabok.config.toml` then merge `szkrabok.config.local.toml` on top. Stop when a config is found or the boundary root is reached.
+Walk-up: at each dir load `szkrabok.config.toml` then merge `szkrabok.config.local.toml` on top. Stop when a config is found or the boundary root is reached. Config objects are frozen on creation.
 
-`src/server.js` calls `initConfig([])` on startup (cwd fallback active immediately), then re-calls `initConfig(rootPaths)` via `server.oninitialized` -> `server.listRoots()` after the MCP handshake completes.
+**Server lifecycle** (`src/server.js`):
+1. `initConfigProvisional({ explicitConfigPath })` on startup — provisional phase, no MCP roots yet
+2. `finalizeConfig(rootPaths, { explicitConfigPath })` in `server.oninitialized` — always called, promotes to final
+
+**Tests and CLI**: use `initConfig(roots)` — one-shot, sets phase to final directly.
 
 ## Chromium resolution
 

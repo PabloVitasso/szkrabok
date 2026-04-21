@@ -3,7 +3,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { getSession, listRuntimeSessions, resolvePreset } from '@szkrabok/runtime';
+import { getSession, listRuntimeSessions, resolvePreset, initConfig } from '@szkrabok/runtime';
 
 test('getSession throws for missing session', () => {
   assert.throws(() => getSession('nonexistent'), /Session not found/);
@@ -15,6 +15,7 @@ test('listRuntimeSessions returns empty array initially', () => {
 });
 
 test('resolvePreset returns a valid preset object', () => {
+  initConfig([]);
   const preset = resolvePreset('default');
   assert.ok(typeof preset.label === 'string');
   assert.ok(typeof preset.preset === 'string');

@@ -18,21 +18,24 @@ import { tmpdir } from 'os';
 
 describe('resolvePreset', () => {
   test('returns default preset for null name', async () => {
-    const { resolvePreset } = await import('../../../packages/runtime/config.js');
+    const { initConfig, resolvePreset } = await import('../../../packages/runtime/config.js');
+    initConfig([]);
     const result = resolvePreset(null);
     assert.ok(result.preset, 'preset field present');
     assert.ok(typeof result.label === 'string', 'label is string');
   });
 
   test('returns default preset for "default"', async () => {
-    const { resolvePreset } = await import('../../../packages/runtime/config.js');
+    const { initConfig, resolvePreset } = await import('../../../packages/runtime/config.js');
+    initConfig([]);
     const a = resolvePreset(null);
     const b = resolvePreset('default');
     assert.deepEqual(a, b);
   });
 
   test('unknown preset falls back gracefully without throwing', async () => {
-    const { resolvePreset } = await import('../../../packages/runtime/config.js');
+    const { initConfig, resolvePreset } = await import('../../../packages/runtime/config.js');
+    initConfig([]);
     const result = resolvePreset('this-preset-does-not-exist');
     assert.ok(result, 'returned a result');
     assert.ok(typeof result.label === 'string');

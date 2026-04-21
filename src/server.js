@@ -3,14 +3,14 @@ import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { registerTools, handleToolCall } from './tools/registry.js';
-import { closeAllSessions, initConfig } from '#runtime';
+import { closeAllSessions, initConfigProvisional, finalizeConfig } from '#runtime';
 import { log } from './utils/logger.js';
 
 const { version } = JSON.parse(readFileSync(new URL('../package.json', import.meta.url)));
 
-export const createServer = () => {
-  // Initialize config with cwd fallback immediately — roots will re-init after handshake.
-  initConfig([]);
+export const createServer = ({ explicitConfigPath = null } = {}) => {
+  // Provisional init immediately — roots will finalize after MCP handshake.
+  initConfigProvisional({ explicitConfigPath });
 
   const server = new Server(
     {
@@ -33,17 +33,19 @@ export const createServer = () => {
     handleToolCall(request.params.name, request.params.arguments)
   );
 
-  // Re-initialize config when MCP client sends roots.
+  // Finalize config with MCP roots. Always called, even when roots are empty
+  // or the client does not support roots — ensures phase transitions to 'final'.
   server.oninitialized = async () => {
+    let rootPaths = [];
     try {
       const { roots } = await server.listRoots();
-      const rootPaths = (roots ?? []).map(r => r.uri.replace(/^file:\/\//, ''));
-      if (rootPaths.length > 0) {
-        initConfig(rootPaths);
-        log('Config re-initialized with MCP roots', { roots: rootPaths });
-      }
+      rootPaths = (roots ?? []).map(r => r.uri.replace(/^file:\/\//, ''));
     } catch {
-      // Client does not support roots — cwd-based config remains active.
+      // Client does not support roots — finalize with provisional discovery results.
+    }
+    finalizeConfig(rootPaths, { explicitConfigPath });
+    if (rootPaths.length > 0) {
+      log('Config finalized with MCP roots', { roots: rootPaths });
     }
   };
 

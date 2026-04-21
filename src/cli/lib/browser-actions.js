@@ -19,18 +19,13 @@ export function getGlobalConfigPath() {
 
 export async function runDetect() {
   initConfig([]);
-  let cfg;
-  try {
-    cfg = getConfig();
-  } catch {
-    cfg = {};
-  }
+  const cfg = getConfig();
   const candidates = buildCandidates({ executablePath: cfg.executablePath });
-  await populateCandidates(candidates);
-  const results = candidates.map(c => ({
+  const populated = await populateCandidates(candidates);
+  const results = populated.map(c => ({
     source: c.source, path: c.path, ...validateCandidate(c.path),
   }));
-  const resolved = resolveChromium(candidates);
+  const resolved = resolveChromium(populated);
   const winner = resolved.found
     ? { found: true, path: resolved.path, source: resolved.source }
     : { found: false };

@@ -5,6 +5,7 @@ import { chromium } from 'playwright';
 import {
   resolvePreset,
   getConfig,
+  getConfigSource,
 } from './config.js';
 import { resolveChromium, buildCandidates, populateCandidates } from './resolve.js';
 import { BrowserNotFoundError } from './errors.js';
@@ -207,18 +208,16 @@ const _launchPersistentContext = async (userDataDir, options = {}) => {
  * @returns {Promise<{ browser: import('playwright').Browser, context: import('playwright').BrowserContext, cdpEndpoint: string, close(): Promise<void> }>}
  */
 export const checkBrowser = async () => {
-  // getConfig() throws if initConfig() was never called (e.g., in tests).
-  // Fall back to empty config — env and system/playwright probes still work.
-  let config;
-  try { config = getConfig(); } catch { config = {}; }
+  const config = getConfig();
+  const configSource = getConfigSource();
   const candidates = buildCandidates(config);
-  await populateCandidates(candidates);
-  const result = resolveChromium(candidates);
+  const populated = await populateCandidates(candidates);
+  const result = resolveChromium(populated);
 
   if (!result.found) {
     throw new BrowserNotFoundError(
       undefined,
-      { candidates: result.candidates },
+      { candidates: result.candidates, configSource },
     );
   }
   return result.path;

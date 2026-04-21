@@ -5,7 +5,7 @@ import { join } from 'path';
 import { tmpdir } from 'os';
 
 // Import the module under test directly so we reset _config between tests.
-import { initConfig, getConfig } from '../../packages/runtime/config.js';
+import { initConfig, getConfig, getConfigSource } from '../../packages/runtime/config.js';
 
 let tmpDirs = [];
 let savedEnv = {};
@@ -154,4 +154,62 @@ test('getConfig after initConfig does not throw', () => {
   initConfig([]);
   assert.doesNotThrow(() => getConfig());
   assert.ok(getConfig().timeout > 0);
+});
+
+// ── getConfigSource() tracking ────────────────────────────────────────────────
+
+test('getConfigSource: mcp-root when config found via roots', () => {
+  const root = makeTmp();
+  writeToml(root, 'szkrabok.config.toml', '[default]\ntimeout = 5000\n');
+  initConfig([root]);
+  const src = getConfigSource();
+  assert.ok(src.startsWith('mcp-root'), `expected mcp-root prefix, got: ${src}`);
+  assert.ok(src.includes(root), `expected root path in source, got: ${src}`);
+});
+
+test('getConfigSource: env:SZKRABOK_ROOT prefix when found via SZKRABOK_ROOT', () => {
+  const root = makeTmp();
+  writeToml(root, 'szkrabok.config.toml', '[default]\ntimeout = 7000\n');
+  const orig = process.env.SZKRABOK_ROOT;
+  process.env.SZKRABOK_ROOT = root;
+  try {
+    initConfig([]);
+    const src = getConfigSource();
+    assert.ok(src.startsWith('env:SZKRABOK_ROOT'), `expected env:SZKRABOK_ROOT prefix, got: ${src}`);
+    assert.ok(src.includes(root), `expected root path in source, got: ${src}`);
+  } finally {
+    if (orig === undefined) delete process.env.SZKRABOK_ROOT;
+    else process.env.SZKRABOK_ROOT = orig;
+  }
+});
+
+test('getConfigSource: env:SZKRABOK_CONFIG when that env var is set', () => {
+  const dir = makeTmp();
+  const cfgPath = join(dir, 'my.config.toml');
+  writeFileSync(cfgPath, '[default]\ntimeout = 9999\n');
+  const orig = process.env.SZKRABOK_CONFIG;
+  process.env.SZKRABOK_CONFIG = cfgPath;
+  try {
+    initConfig([]);
+    const src = getConfigSource();
+    assert.ok(src.startsWith('env:SZKRABOK_CONFIG'), `expected env:SZKRABOK_CONFIG prefix, got: ${src}`);
+    assert.ok(src.includes(cfgPath), `expected config path in source, got: ${src}`);
+  } finally {
+    if (orig === undefined) delete process.env.SZKRABOK_CONFIG;
+    else process.env.SZKRABOK_CONFIG = orig;
+  }
+});
+
+test('getConfigSource: resets on each initConfig call', () => {
+  const a = makeTmp();
+  const b = makeTmp();
+  writeToml(a, 'szkrabok.config.toml', '[default]\ntimeout = 1000\n');
+  writeToml(b, 'szkrabok.config.toml', '[default]\ntimeout = 2000\n');
+  initConfig([a]);
+  const src1 = getConfigSource();
+  initConfig([b]);
+  const src2 = getConfigSource();
+  assert.ok(src1.includes(a), `first source should include path a: ${src1}`);
+  assert.ok(src2.includes(b), `second source should include path b: ${src2}`);
+  assert.notEqual(src1, src2);
 });

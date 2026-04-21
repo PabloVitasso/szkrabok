@@ -33,6 +33,7 @@ import {
   validateCandidate,
   resolveChromium,
   buildCandidates,
+  populateCandidates,
   isFunctionalBrowser,
 } from '../../../packages/runtime/resolve.js';
 import { checkBrowser } from '../../../packages/runtime/launch.js';
@@ -802,6 +803,82 @@ describe('BrowserNotFoundError serialization and MCP error contract', () => {
     assert.strictEqual(serialized.code, 'BROWSER_NOT_FOUND');
   });
 
+  test('toJSON includes configSource field', () => {
+    const err = new BrowserNotFoundError(undefined, {
+      candidates: [{ source: 'env', path: null, ok: false, reason: 'not set' }],
+      configSource: 'mcp-root (/some/project)',
+    });
+    const json = err.toJSON();
+    assert.strictEqual(json.configSource, 'mcp-root (/some/project)');
+  });
+
+  test('toJSON configSource is null when not provided', () => {
+    const err = new BrowserNotFoundError(undefined, { candidates: [] });
+    const json = err.toJSON();
+    assert.strictEqual(json.configSource, null);
+  });
+
+  test('message is a single line — no newline characters', () => {
+    const candidates = [
+      { source: 'env', path: null, ok: false, reason: 'not set' },
+      { source: 'config', path: null, ok: false, reason: 'not set' },
+      { source: 'playwright', path: '/some/chrome', ok: false, reason: 'file not found' },
+      { source: 'system', path: null, ok: false, reason: 'not set' },
+    ];
+    const err = new BrowserNotFoundError(undefined, {
+      candidates,
+      configSource: 'none (no config file found — using built-in defaults)',
+    });
+    assert.ok(!err.message.includes('\n'), `message must be single-line, got:\n${err.message}`);
+  });
+
+  test('message includes configSource when provided', () => {
+    const err = new BrowserNotFoundError(undefined, {
+      candidates: [],
+      configSource: 'xdg (/home/user/.config/szkrabok)',
+    });
+    assert.ok(
+      err.message.includes('xdg (/home/user/.config/szkrabok)'),
+      `message must include configSource, got: ${err.message}`
+    );
+  });
+
+  test('message includes "none" when no config found', () => {
+    const err = new BrowserNotFoundError(undefined, {
+      candidates: [],
+      configSource: null,
+    });
+    assert.ok(err.message.includes('none'), `message must indicate no config, got: ${err.message}`);
+  });
+
+  test('message contains all candidate sources', () => {
+    const candidates = [
+      { source: 'env', path: null, ok: false, reason: 'not set' },
+      { source: 'config', path: null, ok: false, reason: 'not set' },
+      { source: 'playwright', path: '/p', ok: false, reason: 'file not found' },
+      { source: 'system', path: null, ok: false, reason: 'not set' },
+    ];
+    const err = new BrowserNotFoundError(undefined, { candidates, configSource: null });
+    for (const c of candidates) {
+      assert.ok(err.message.includes(c.source), `message must include source '${c.source}'`);
+    }
+  });
+
+  test('message does not mention claude-specific commands', () => {
+    const err = new BrowserNotFoundError(undefined, { candidates: [], configSource: null });
+    assert.ok(
+      !err.message.includes('claude mcp add'),
+      `message must not be Claude Code-specific, got: ${err.message}`
+    );
+  });
+
+  test('JSON.stringify via toJSON is stable across two calls', () => {
+    const candidates = [{ source: 'env', path: null, ok: false, reason: 'not set' }];
+    const err1 = new BrowserNotFoundError(undefined, { candidates, configSource: 'cwd (/foo)' });
+    const err2 = new BrowserNotFoundError(undefined, { candidates, configSource: 'cwd (/foo)' });
+    assert.strictEqual(JSON.stringify(err1), JSON.stringify(err2));
+  });
+
   test('resolve.js pure functions do not spawn processes', async () => {
     // Proves invariant I6: pure core never spawns.
     // child_process may be imported for isFunctionalBrowser (system candidate probe).
@@ -1517,5 +1594,47 @@ describe('removed commands rejected', () => {
       out.toLowerCase().includes('unknown') || out.toLowerCase().includes('error'),
       `expected error/unknown in output:\n${out}`
     );
+  });
+});
+
+// ── Category 17: populateCandidates immutability ──────────────────────────────
+
+describe('populateCandidates immutability', () => {
+  test('returns a new array (does not return the input)', async () => {
+    const candidates = buildCandidates({ executablePath: '/bin/ls' });
+    const populated = await populateCandidates(candidates);
+    assert.notStrictEqual(populated, candidates);
+  });
+
+  test('returned array is frozen', async () => {
+    const candidates = buildCandidates({ executablePath: '/bin/ls' });
+    const populated = await populateCandidates(candidates);
+    assert.ok(Object.isFrozen(populated));
+  });
+
+  test('each candidate entry is frozen', async () => {
+    const candidates = buildCandidates({ executablePath: '/bin/ls' });
+    const populated = await populateCandidates(candidates);
+    for (const entry of populated) {
+      assert.ok(Object.isFrozen(entry), `entry for source=${entry.source} is not frozen`);
+    }
+  });
+
+  test('mutating an entry after populate throws in strict mode', async () => {
+    const candidates = buildCandidates({ executablePath: '/bin/ls' });
+    const populated = await populateCandidates(candidates);
+    assert.throws(() => {
+      populated[0].path = '/bad/path';
+    }, TypeError);
+  });
+
+  test('input candidates are not mutated by populateCandidates', async () => {
+    const candidates = buildCandidates({});
+    const origPaths = candidates.map(c => c.path);
+    await populateCandidates(candidates);
+    for (let i = 0; i < candidates.length; i++) {
+      assert.strictEqual(candidates[i].path, origPaths[i],
+        `candidate[${i}].path was mutated`);
+    }
   });
 });
