@@ -3,7 +3,7 @@ import { initConfig, resolvePreset } from '@szkrabok/runtime';
 // Prints the resolved browser preset to console before automation tests run.
 // Visible in both `browser_run_test` log output and CLI runs.
 export default async function globalSetup() {
-  initConfig([]);
+  initConfig();
   const presetName = process.env.SZKRABOK_PRESET || 'default';
   const resolved = resolvePreset(presetName);
 
