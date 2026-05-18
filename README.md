@@ -36,7 +36,7 @@ Manage browser sessions. Actions: open (launch/resume), close (save/delete), lis
 
 Returns: `{ success, sessionName, url, reused, preset, label, isClone, templateSession, cdpEndpoint, configSource }` — `configSource` is the config discovery source string (e.g. `"mcp-root (/path/to/project)"`, `"xdg (...)"`, `"none (...)"`).
 
-`list` returns `{ sessions, server: { version, source, sourceGuess }, config: { phase, source, previousSource, searched } }` — `searched` is an array of `{ step, paths, found }` entries showing every location checked during config discovery. Use this to diagnose misconfigured or missing config files.
+`list` returns `{ sessions, server: { version, source, sourceGuess }, config: { phase, source, loadedAt, previousSource, searched } }` — `searched` is an array of `{ step, paths, found }` entries showing every location checked during config discovery. `loadedAt` is an ISO timestamp (seconds precision) of when config was last loaded — compare with `fileModifiedAt` in `BROWSER_NOT_FOUND` errors to detect stale server state. Use this to diagnose misconfigured or missing config files.
 
 When `isClone: true` is set in `launchOptions`, the returned `sessionName` is a generated id (e.g. `myprofile-1748234205-a3f2c1b0`). Use that id for all subsequent calls. On close, the clone dir is deleted and no state is saved.
 

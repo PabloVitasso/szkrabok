@@ -7,10 +7,10 @@
  * Smoke tests run against the real system.
  */
 
-import { test, describe } from 'node:test';
+import { test, describe, before } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync } from 'fs';
-import { resolveBrowserPath, findChromiumPath } from '../../../packages/runtime/config.js';
+import { resolveBrowserPath, findChromiumPath, initConfig } from '../../../packages/runtime/config.js';
 import { checkBrowser } from '../../../packages/runtime/launch.js';
 import { BrowserNotFoundError } from '../../../packages/runtime/index.js';
 
@@ -80,20 +80,20 @@ describe('findChromiumPath smoke (real system)', () => {
 });
 
 describe('checkBrowser smoke (real system)', () => {
+  before(() => initConfig([]));
+
   test('resolves or throws BrowserNotFoundError — never hangs', async () => {
     const result = await checkBrowser().catch(e => e);
     if (result instanceof BrowserNotFoundError) {
-      assert.ok(
-        result.message.includes('szkrabok doctor install'),
-        `expected doctor install hint:\n${result.message}`
-      );
-      if (result.candidates) {
-        assert.ok(Array.isArray(result.candidates), 'candidates must be array');
-        for (const c of result.candidates) {
-          assert.ok('source' in c, `candidate missing source: ${JSON.stringify(c)}`);
-          assert.ok('ok' in c, `candidate missing ok: ${JSON.stringify(c)}`);
-        }
+      assert.strictEqual(result.message, 'browser executable not found');
+      assert.ok(Array.isArray(result.candidates), 'candidates must be array on instance');
+      for (const c of result.candidates) {
+        assert.ok('source' in c, `candidate missing source: ${JSON.stringify(c)}`);
+        assert.ok('ok' in c, `candidate missing ok: ${JSON.stringify(c)}`);
       }
+      const json = result.toJSON();
+      assert.ok(json.context?.attempted, 'toJSON must include context.attempted');
+      assert.ok(typeof json.hint === 'string', 'toJSON must include hint');
     } else {
       assert.strictEqual(typeof result, 'string', 'resolved path must be a string');
     }

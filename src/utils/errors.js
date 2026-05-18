@@ -1,11 +1,4 @@
-export class SessionNotFoundError extends Error {
-  constructor(id, customMessage = null) {
-    super(customMessage || `Session not found: ${id}`);
-    this.name = 'SessionNotFoundError';
-    this.code = 'SESSION_NOT_FOUND';
-    this.sessionId = id;
-  }
-}
+export { SessionNotFoundError } from '#runtime';
 
 export class SessionExistsError extends Error {
   constructor(id) {
@@ -26,8 +19,17 @@ export class ValidationError extends Error {
 }
 
 export const wrapError = err => {
-  if (err.code) return err;
-
+  if (typeof err.toJSON === 'function') return err.toJSON();
+  if (err.code) {
+    return {
+      code: err.code,
+      message: err.message,
+      ...(err.hint && { hint: err.hint }),
+      ...(err.restartNeeded && { restartNeeded: true }),
+      ...(err.context && { context: err.context }),
+      ...(err.sessionId && { sessionId: err.sessionId }),
+    };
+  }
   return {
     code: 'UNKNOWN_ERROR',
     message: err.message || String(err),

@@ -15,9 +15,9 @@
 
 ## Configuration for tests
 
-Config is discovered at runtime via `initConfig()`. Priority order: `SZKRABOK_CONFIG` env var -> `SZKRABOK_ROOT` env var -> MCP roots -> `process.cwd()` walk-up -> `~/.config/szkrabok/config.toml` -> empty defaults.
+Config is discovered at runtime via `initConfig()`. Priority order: `SZKRABOK_CONFIG` env var -> `SZKRABOK_ROOT` env var -> MCP roots -> `process.cwd()` (exact dir, no walk-up) -> `~/.config/szkrabok/config.toml` -> empty defaults.
 
-For tests, `process.cwd()` walk-up finds `szkrabok.config.toml` (committed repo defaults) and deep-merges `szkrabok.config.local.toml` (gitignored, machine-specific) on top.
+For tests, `process.cwd()` finds `szkrabok.config.toml` (committed repo defaults) and deep-merges `szkrabok.config.local.toml` (gitignored, machine-specific) on top.
 
 **Minimum required for any browser test** - set `executablePath` in your local TOML:
 
@@ -79,17 +79,23 @@ tests/
     contracts.test.js         architecture invariant checks (static analysis)
     config-discovery.test.js  initConfig() discovery algorithm (all 6 priority steps)
     config-values.test.js     getConfig() field defaults, TOML mapping, resolvePreset
+    config-lifecycle.test.js  provisional→final phase transitions, error class contract, getConfigMeta
     playwright-patches.test.js verifies all 7 playwright-core patch markers present
     session_run_test.test.js  session_run_test — 21 unit tests (EX-1); all deps injected, no browser
     runtime/
+      helpers.js              shared test utilities: resolveTestBrowser(), launchHeadlessBrowser()
       unit.test.js            config, storage, stealth evasions
       integration.test.js     cookie persistence across two launches
+      browser-detection.test.js  checkBrowser() smoke — resolves or throws BrowserNotFoundError
+      resolve.test.js         buildCandidates, validateCandidate, resolveChromium, isFunctionalBrowser, doctor CLI
+      error-diagnostics.test.js  structured error contract: BrowserNotFoundError.toJSON(), SessionNotFoundError, wrapError()
+      devtools-port.test.js   DevToolsActivePort written and port live (real browser, direct spawn)
       pc-layer1.test.js       Profile cloning — storage unit (readDevToolsPort, cloneDir, cleanupClones)
       pc-layer2.test.js       Profile cloning — pool (isClone, cloneDir fields)
       pc-layer3.test.js       Profile cloning — destroyClone unit
       pc-layer4.test.js       Profile cloning — launchClone unit (mocked launch)
       pc-layer5.test.js       Profile cloning — MCP tool routing
-      pc-layer6.test.js       Profile cloning — real browser integration
+      pc-layer6.test.js       Profile cloning — real browser integration (DevToolsActivePort via CDP)
 
   playwright/
     integration/              Playwright, MCP over stdio, headless
@@ -112,15 +118,18 @@ tests/
 
 ## Node tests
 
-No browser. Fast.
-
 ```bash
-npm run test:node              # all tests/node/*.test.js (basic, schema, contracts, config-discovery, config-values, playwright-patches)
-npm run test:runtime:unit      # config, storage, stealth
-npm run test:runtime:integration  # cookie persistence (launches real browser)
+node --test tests/node/*.test.js                    # base suite: basic, schema, contracts, config-discovery, config-values, playwright-patches, session_run_test, …
+node --test tests/node/runtime/*.test.js            # runtime suite: unit, integration, resolve, error-diagnostics, devtools-port, pc-layer1…6, …
+node --test tests/node/*.test.js tests/node/runtime/*.test.js  # both together (what CI runs)
+
+npm run test:runtime:unit        # config, storage, stealth (focused shortcut)
+npm run test:runtime:integration # cookie persistence — launches real browser
 ```
 
-`npm run test:contracts` is a focused alias for `tests/node/contracts.test.js` only - useful for quick invariant checks, but it is already included in `test:node`.
+`npm run test:contracts` is a focused alias for `tests/node/contracts.test.js` only — useful for quick invariant checks, but already included in the base suite above.
+
+The `tests/node/runtime/` tests that require a browser (`integration.test.js`, `devtools-port.test.js`, `pc-layer6.test.js`, `browser-detection.test.js`) skip gracefully when no browser is found. Browser resolution uses szkrabok's own pipeline (`buildCandidates → populateCandidates → resolveChromium`), which probes `CHROMIUM_PATH`, config `executablePath`, playwright-bundled binary, and system browsers (chrome-launcher + `which` fallback for variants like `ungoogled-chromium`).
 
 ### `basic.test.js`
 `getSession` throws for missing session, `listRuntimeSessions` returns empty array, `resolvePreset` returns a valid object.
@@ -331,11 +340,14 @@ Commit the updated `packages/runtime/mcp-client/mcp-tools.js`.
 
 ```bash
 npm run lint                        # static analysis (also runs as first step of test:self)
-npm run test:node                   # all tests/node/*.test.js suites
-npm run test:runtime:unit           # runtime unit tests
+npm run test:self                   # lint + Playwright integration + tests/node/*.test.js (pre-publish gate)
+npm run test:auto                   # e2e (live sites, headed browser)
+npm test                            # test:self + test:auto
+
+# Run runtime tests separately (not included in test:self):
+node --test tests/node/runtime/*.test.js
+npm run test:runtime:unit           # config, storage, stealth (focused shortcut)
 npm run test:runtime:integration    # cookie persistence (launches real browser)
-npm run test:playwright             # Playwright integration (headless, MCP over stdio)
-npm run test:self                   # lint + integration + node tests (pre-publish gate)
 ```
 
 For e2e (live sites, headed browser) - open a session first, then use `browser_run_test` or the standalone CLI (see [E2E paths](#e2e--stealth-health-checks) above).
@@ -348,8 +360,8 @@ For e2e (live sites, headed browser) - open a session first, then use `browser_r
 | `run_test` fails "no CDP port" | Session opened before CDP support - close and reopen |
 | `rebrowser` ERR_ABORTED | Site blocks headless - open session with `headless: false` |
 | intoli timeout (headed) | Intermittent - rerun |
-| `Executable doesn't exist` | `npx playwright install chromium` |
-| Wrong browser | Run `szkrabok doctor detect` to see the resolution chain; `doctor detect --write-config` pins the path |
+| `Executable doesn't exist` | Run `szkrabok doctor detect` — resolution probes `CHROMIUM_PATH`, config `executablePath`, playwright-bundled binary, then system browsers via chrome-launcher and `which` (covers `ungoogled-chromium`, `chromium`, `google-chrome-stable`, etc.). If nothing is found, `npx playwright install chromium` downloads a bundled binary. |
+| Wrong browser | Run `szkrabok doctor detect` to see the full resolution chain; `doctor detect --write-config` pins the path |
 | Project TOML not picked up by MCP server | Server reads config from MCP roots - ensure the client sends roots pointing at the project directory |
 | `getConfig() called before initConfig()` | Call `initConfig([])` before any config read; MCP server does this automatically |
 | `context.browser(...).process is not a function` | Playwright build does not expose `browser.process()` - `tryBrowserPid()` handles this gracefully, returning `null`. This error means the running code is stale. Restart the MCP server to pick up the source. |

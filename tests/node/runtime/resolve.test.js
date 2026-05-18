@@ -284,8 +284,8 @@ describe('buildCandidates', () => {
     assert.strictEqual(candidates.length, 4);
     assert.strictEqual(candidates[0].source, 'env');
     assert.strictEqual(candidates[1].source, 'config');
-    assert.strictEqual(candidates[2].source, 'playwright');
-    assert.strictEqual(candidates[3].source, 'system');
+    assert.strictEqual(candidates[2].source, 'system');
+    assert.strictEqual(candidates[3].source, 'playwright');
   });
 
   test('passes through config.executablePath', () => {
@@ -361,29 +361,12 @@ describe('checkBrowser + error contract', () => {
       { source: 'system', path: null, ok: false, reason: 'not set' },
       { source: 'playwright', path: null, ok: false, reason: 'not set' },
     ];
-    const lines = candidates
-      .map(c => {
-        const pathDisplay = c.path ?? '(not set)';
-        return `  ${c.source.padEnd(12)} ${pathDisplay} — ${c.reason}`;
-      })
-      .join('\n');
-    const err = new BrowserNotFoundError(
-      'Chromium not found.\n\n' +
-        'Options (choose one):\n' +
-        '  1. szkrabok doctor install\n' +
-        '  2. export CHROMIUM_PATH=/usr/bin/google-chrome\n' +
-        '  3. Set executablePath in szkrabok.config.toml\n\n' +
-        'Candidates checked:\n' +
-        lines,
-      { candidates }
-    );
+    const err = new BrowserNotFoundError({ candidates });
     assert.ok(err instanceof Error);
     assert.ok(err instanceof BrowserNotFoundError);
     assert.ok(Array.isArray(err.candidates));
     assert.strictEqual(err.candidates.length, 4);
-    assert.ok(err.message.includes('szkrabok doctor install'));
-    assert.ok(err.message.includes('CHROMIUM_PATH'));
-    assert.ok(err.message.includes('executablePath'));
+    assert.strictEqual(err.message, 'browser executable not found');
   });
 
   test('BrowserNotFoundError message is deterministic', () => {
@@ -393,8 +376,8 @@ describe('checkBrowser + error contract', () => {
       { source: 'system', path: null, ok: false, reason: 'not set' },
       { source: 'playwright', path: null, ok: false, reason: 'not set' },
     ];
-    const err1 = new BrowserNotFoundError('test', { candidates });
-    const err2 = new BrowserNotFoundError('test', { candidates });
+    const err1 = new BrowserNotFoundError({ candidates });
+    const err2 = new BrowserNotFoundError({ candidates });
     assert.strictEqual(err1.message, err2.message);
   });
 
@@ -778,44 +761,47 @@ describe('doctor install: mock-npx integration', () => {
 
 describe('BrowserNotFoundError serialization and MCP error contract', () => {
   test('has code = BROWSER_NOT_FOUND', () => {
-    const err = new BrowserNotFoundError(undefined, { candidates: [] });
+    const err = new BrowserNotFoundError({ candidates: [] });
     assert.strictEqual(err.code, 'BROWSER_NOT_FOUND');
   });
 
-  test('toJSON includes code, message, and candidates', () => {
+  test('toJSON has required fields — no candidates in output', () => {
     const candidates = [
       { source: 'env', path: null, ok: false, reason: 'not set' },
+      { source: 'config', path: null, ok: false, reason: 'not set' },
+      { source: 'system', path: null, ok: false, reason: 'not found' },
+      { source: 'playwright', path: null, ok: false, reason: 'not found' },
     ];
-    const err = new BrowserNotFoundError(undefined, { candidates });
+    const err = new BrowserNotFoundError({ candidates });
     const json = err.toJSON();
     assert.strictEqual(json.code, 'BROWSER_NOT_FOUND');
-    assert.ok(typeof json.message === 'string' && json.message.length > 0);
-    assert.deepEqual(json.candidates, candidates);
+    assert.strictEqual(json.message, 'browser executable not found');
+    assert.ok(typeof json.hint === 'string' && json.hint.length > 0);
+    assert.ok(json.context, 'toJSON must include context');
+    assert.ok(!('candidates' in json), 'candidates must not appear in toJSON output');
   });
 
-  test('JSON.stringify preserves message — not empty object', () => {
-    const err = new BrowserNotFoundError(undefined, { candidates: [] });
+  test('JSON.stringify emits code, message, hint via toJSON', () => {
+    const err = new BrowserNotFoundError({ candidates: [] });
     const serialized = JSON.parse(JSON.stringify(err));
-    assert.ok(
-      serialized.message && serialized.message.includes('szkrabok doctor install'),
-      `JSON.stringify must preserve message with install instructions:\n${JSON.stringify(serialized)}`
-    );
     assert.strictEqual(serialized.code, 'BROWSER_NOT_FOUND');
+    assert.strictEqual(serialized.message, 'browser executable not found');
+    assert.ok(typeof serialized.hint === 'string');
   });
 
-  test('toJSON includes configSource field', () => {
-    const err = new BrowserNotFoundError(undefined, {
+  test('context.config.source set from configSource', () => {
+    const err = new BrowserNotFoundError({
       candidates: [{ source: 'env', path: null, ok: false, reason: 'not set' }],
       configSource: 'mcp-root (/some/project)',
     });
     const json = err.toJSON();
-    assert.strictEqual(json.configSource, 'mcp-root (/some/project)');
+    assert.strictEqual(json.context.config.source, 'mcp-root (/some/project)');
   });
 
-  test('toJSON configSource is null when not provided', () => {
-    const err = new BrowserNotFoundError(undefined, { candidates: [] });
+  test('context.config.source is "none" when configSource not provided', () => {
+    const err = new BrowserNotFoundError({ candidates: [] });
     const json = err.toJSON();
-    assert.strictEqual(json.configSource, null);
+    assert.strictEqual(json.context.config.source, 'none');
   });
 
   test('message is a single line — no newline characters', () => {
@@ -825,57 +811,55 @@ describe('BrowserNotFoundError serialization and MCP error contract', () => {
       { source: 'playwright', path: '/some/chrome', ok: false, reason: 'file not found' },
       { source: 'system', path: null, ok: false, reason: 'not set' },
     ];
-    const err = new BrowserNotFoundError(undefined, {
+    const err = new BrowserNotFoundError({
       candidates,
       configSource: 'none (no config file found — using built-in defaults)',
     });
     assert.ok(!err.message.includes('\n'), `message must be single-line, got:\n${err.message}`);
   });
 
-  test('message includes configSource when provided', () => {
-    const err = new BrowserNotFoundError(undefined, {
-      candidates: [],
-      configSource: 'xdg (/home/user/.config/szkrabok)',
-    });
-    assert.ok(
-      err.message.includes('xdg (/home/user/.config/szkrabok)'),
-      `message must include configSource, got: ${err.message}`
-    );
-  });
-
-  test('message includes "none" when no config found', () => {
-    const err = new BrowserNotFoundError(undefined, {
-      candidates: [],
-      configSource: null,
-    });
-    assert.ok(err.message.includes('none'), `message must indicate no config, got: ${err.message}`);
-  });
-
-  test('message contains all candidate sources', () => {
+  test('attempted has all four normalized keys', () => {
     const candidates = [
       { source: 'env', path: null, ok: false, reason: 'not set' },
       { source: 'config', path: null, ok: false, reason: 'not set' },
-      { source: 'playwright', path: '/p', ok: false, reason: 'file not found' },
-      { source: 'system', path: null, ok: false, reason: 'not set' },
+      { source: 'system', path: null, ok: false, reason: 'not found' },
+      { source: 'playwright', path: null, ok: false, reason: 'not found' },
     ];
-    const err = new BrowserNotFoundError(undefined, { candidates, configSource: null });
-    for (const c of candidates) {
-      assert.ok(err.message.includes(c.source), `message must include source '${c.source}'`);
-    }
+    const err = new BrowserNotFoundError({ candidates });
+    const { attempted } = err.toJSON().context;
+    assert.ok('CHROMIUM_PATH' in attempted);
+    assert.ok('executablePath' in attempted);
+    assert.ok('system' in attempted);
+    assert.ok('playwrightBundled' in attempted);
   });
 
-  test('message does not mention claude-specific commands', () => {
-    const err = new BrowserNotFoundError(undefined, { candidates: [], configSource: null });
+  test('"not found" never applies to user-provided keys', () => {
+    const candidates = [
+      { source: 'env', path: '/bad/path', ok: false, reason: 'file not found' },
+      { source: 'config', path: '/also/bad', ok: false, reason: 'file not found' },
+      { source: 'system', path: null, ok: false, reason: 'not found' },
+      { source: 'playwright', path: null, ok: false, reason: 'not found' },
+    ];
+    const err = new BrowserNotFoundError({ candidates });
+    const { attempted } = err.toJSON().context;
+    assert.notStrictEqual(attempted.CHROMIUM_PATH, 'not found');
+    assert.notStrictEqual(attempted.executablePath, 'not found');
+    assert.strictEqual(attempted.CHROMIUM_PATH, 'set_invalid');
+    assert.strictEqual(attempted.executablePath, 'set_invalid');
+  });
+
+  test('hint does not mention claude-specific commands', () => {
+    const err = new BrowserNotFoundError({ candidates: [], configSource: null });
     assert.ok(
-      !err.message.includes('claude mcp add'),
-      `message must not be Claude Code-specific, got: ${err.message}`
+      !err.toJSON().hint.includes('claude mcp add'),
+      `hint must not be Claude Code-specific, got: ${err.toJSON().hint}`
     );
   });
 
   test('JSON.stringify via toJSON is stable across two calls', () => {
     const candidates = [{ source: 'env', path: null, ok: false, reason: 'not set' }];
-    const err1 = new BrowserNotFoundError(undefined, { candidates, configSource: 'cwd (/foo)' });
-    const err2 = new BrowserNotFoundError(undefined, { candidates, configSource: 'cwd (/foo)' });
+    const err1 = new BrowserNotFoundError({ candidates, configSource: 'cwd (/foo)' });
+    const err2 = new BrowserNotFoundError({ candidates, configSource: 'cwd (/foo)' });
     assert.strictEqual(JSON.stringify(err1), JSON.stringify(err2));
   });
 

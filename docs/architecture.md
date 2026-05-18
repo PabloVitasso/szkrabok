@@ -105,7 +105,7 @@ src/
 
   utils/
     logger.js             log() — structured JSONL output
-    errors.js             SessionNotFoundError, SessionExistsError, ValidationError
+    errors.js             SessionNotFoundError, SessionExistsError, ValidationError, wrapError
     platform.js           platformCacheDir() — OS-aware cache path
     lock.js               acquireLock/releaseLock/withLock — blocking file lock, cross-process safe,
                           stale-TTL cleanup, Windows-safe filename sanitizer
@@ -202,7 +202,7 @@ import {
   finalizeConfig,         // server — promote to final phase (call in oninitialized)
   getConfig,              // returns final config; throws CONFIG_NOT_FINAL if provisional
                           // getConfig({ allowProvisional: true }) opts in to provisional reads
-  getConfigMeta,          // returns { phase, source, previousSource }
+  getConfigMeta,          // returns { phase, source, previousSource, searched, loadedAt }
   resolvePreset,          // resolve a named preset from config
   getPresets,             // returns array of available preset names
 } from '@szkrabok/runtime';
@@ -434,24 +434,29 @@ Strict precedence (first valid candidate wins):
 3. `chrome-launcher` - `Launcher.getInstallations()` finds system Chrome, Chromium, Brave, Edge across all standard install locations on Linux/macOS/Windows. `isFunctionalBrowser(path)` probe filters stub/broken paths before selection
 4. Playwright bundled binary - `chromium.executablePath()` from the playwright package
 
-`checkBrowser()` in `packages/runtime/launch.js` runs the full resolution chain via `resolveChromium()` (from `packages/runtime/resolve.js`). Each candidate is validated: exists, is a file, is executable. `null` - `checkBrowser()` throws a structured `BrowserNotFoundError` with install instructions.
+`checkBrowser()` in `packages/runtime/launch.js` runs the full resolution chain via `resolveChromium()` (from `packages/runtime/resolve.js`). Each candidate is validated: exists, is a file, is executable. If none passes, `checkBrowser()` throws `BrowserNotFoundError`.
 
-If no browser is found, `launch()` throws a structured `BrowserNotFoundError` listing all four candidates (env, config, system, playwright) with their individual status:
+If no browser is found, `launch()` throws `BrowserNotFoundError`. Its `toJSON()` (called by `wrapError()` in MCP error paths) emits structured JSON:
 
+```json
+{
+  "code": "BROWSER_NOT_FOUND",
+  "message": "browser executable not found",
+  "hint": "run szkrabok doctor install to install a bundled browser",
+  "context": {
+    "config": { "source": "none" },
+    "failureSource": "playwrightBundled",
+    "attempted": {
+      "CHROMIUM_PATH": "not set",
+      "executablePath": "not set",
+      "system": "not found",
+      "playwrightBundled": "not found"
+    }
+  }
+}
 ```
-Chromium not found.
 
-Options (choose one):
-  1. szkrabok doctor install          -- install Playwright's Chromium (idempotent)
-  2. export CHROMIUM_PATH=/usr/bin/google-chrome   -- use system Chrome
-  3. Set executablePath in szkrabok.config.toml     -- persistent config
-
-Candidates checked:
-  env:       CHROMIUM_PATH not set
-  config:    executablePath not set
-  system:    no Chrome installation found
-  playwright: not installed
-```
+`hint` targets the highest-precedence failing source (`CHROMIUM_PATH > executablePath > system > playwrightBundled`). `restartNeeded: true` is emitted (and only emitted) when `config.fileModifiedAt > config.loadedAt` and a user-provided source is failing — provably stale server state. `candidates[]` (full per-source detail for `szkrabok doctor`) is on the instance but not in `toJSON()` output.
 
 To inspect what is installed on your system:
 ```bash

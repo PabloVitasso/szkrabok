@@ -15,12 +15,11 @@
 
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, rm, access } from 'fs/promises';
+import { access } from 'fs/promises';
 import { join } from 'path';
-import { tmpdir } from 'os';
-import { spawn } from 'child_process';
 import net from 'net';
 import http from 'node:http';
+import { resolveTestBrowser, launchHeadlessBrowser } from './helpers.js';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -40,63 +39,6 @@ const isPortOpen = (port, host = '127.0.0.1') =>
     sock.once('error',   () => resolve(false));
     sock.setTimeout(3000, () => { sock.destroy(); resolve(false); });
   });
-
-const launchHeadlessBrowser = async executablePath => {
-  const userDataDir = await mkdtemp(join(tmpdir(), 'szkrabok-pc6-browser-'));
-  const proc = spawn(executablePath, [
-    '--headless=new',
-    '--no-sandbox',
-    '--disable-gpu',
-    '--disable-dev-shm-usage',
-    '--no-first-run',
-    '--no-default-browser-check',
-    '--disable-features=TranslateUI',
-    `--user-data-dir=${userDataDir}`,
-    '--remote-debugging-port=0',
-  ], { stdio: 'ignore', detached: false });
-
-  const cleanup = async () => {
-    try { proc.kill('SIGKILL'); } catch { /* process already gone */ }
-    // Retry rm - Chrome may still be releasing file locks after SIGKILL.
-    for (let attempt = 0; attempt < 5; attempt++) {
-      try {
-        await rm(userDataDir, { recursive: true, force: true });
-        console.log('PC-6 cleanup step ' + (attempt + 1) + ': rm succeeded');
-        return;
-      } catch (e) {
-        if (e.code !== 'ENOTEMPTY') throw e;
-        console.log('PC-6 cleanup step ' + (attempt + 1) + ': ENOTEMPTY, retrying in 200ms...');
-        await new Promise(r => setTimeout(r, 200));
-      }
-    }
-    // Last attempt - let it throw if still locked.
-    await rm(userDataDir, { recursive: true, force: true });
-  };
-
-  return { proc, userDataDir, cleanup };
-};
-
-// ── Browser discovery ─────────────────────────────────────────────────────────
-
-// Use Playwright's bundled Chromium - same binary as e2e tests, guaranteed real.
-// chrome-launcher is NOT used here: on Ubuntu it detects /usr/bin/chromium-browser
-// which is a snap stub that exits immediately (see docs/bugs/bug1-chrome-launcher-problem.md).
-const detectBrowsers = async () => {
-  try {
-    const { chromium } = await import('playwright');
-    const { existsSync } = await import('fs');
-    const pwPath = chromium.executablePath();
-    let playwright;
-    if (pwPath && existsSync(pwPath)) {
-      playwright = pwPath;
-    } else {
-      playwright = null;
-    }
-    return { playwright: playwright };
-  } catch {
-    return { playwright: null };
-  }
-};
 
 // ── Shared test body ──────────────────────────────────────────────────────────
 
@@ -226,18 +168,18 @@ const runPortTests = executablePath => {
   });
 };
 
-// ── Per-browser describe blocks ───────────────────────────────────────────────
+// ── Browser detection via szkrabok's own resolution pipeline ─────────────────
 
-const browsers = await detectBrowsers();
+const browserPath = await resolveTestBrowser();
 
-describe('PC-6 DevToolsActivePort — Playwright bundled Chromium', { skip: !browsers.playwright }, () => {
-  if (browsers.playwright) runPortTests(browsers.playwright);
+describe('PC-6 DevToolsActivePort', { skip: !browserPath }, () => {
+  if (browserPath) runPortTests(browserPath);
 });
 
-if (!browsers.playwright) {
+if (!browserPath) {
   describe('PC-6 DevToolsActivePort — no browser found', () => {
     test('PC-6.0: at least one browser must be found', () => {
-      assert.fail('No Playwright Chromium found. Run: npx playwright install chromium');
+      assert.fail('No browser found. Set CHROMIUM_PATH or run: npx playwright install chromium');
     });
   });
 }

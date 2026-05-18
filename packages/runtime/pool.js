@@ -2,6 +2,8 @@
 // Each process (MCP server, CLI, test runner) has its own pool.
 // CDP endpoint is the cross-process identity.
 
+import { SessionNotFoundError } from './errors.js';
+
 const sessions = new Map();
 
 export const add = (id, context, page, cdpPort, preset, label, isClone = false, cloneDir = null, templateName = null, leaseHandle = null, pid = null, configHash = null) => {
@@ -18,12 +20,12 @@ export const get = id => {
 
     if (contextClosed || pageClosed) {
       sessions.delete(id);
-      throw new SessionNotFoundError(id, 'Session was closed. Please reopen the session.');
+      throw new SessionNotFoundError(id, 'session was closed. reopen the session.');
     }
   } catch (err) {
     if (err instanceof SessionNotFoundError) throw err;
     sessions.delete(id);
-    throw new SessionNotFoundError(id, 'Session appears to be closed. Please reopen the session.');
+    throw new SessionNotFoundError(id, 'session appears to be closed. reopen the session.');
   }
 
   return session;
@@ -54,11 +56,3 @@ export const closeAll = async () => {
   sessions.clear();
 };
 
-class SessionNotFoundError extends Error {
-  constructor(id, customMessage = null) {
-    super(customMessage || `Session not found: ${id}`);
-    this.name = 'SessionNotFoundError';
-    this.code = 'SESSION_NOT_FOUND';
-    this.sessionId = id;
-  }
-}

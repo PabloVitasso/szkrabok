@@ -56,17 +56,21 @@ afterEach(() => {
 
 // ── Error classes ──────────────────────────────────────────────────────────────
 
-test('ConfigNotInitializedError has correct code and name', () => {
+test('ConfigNotInitializedError has correct code, name, message, hint', () => {
   const e = new ConfigNotInitializedError();
   assert.equal(e.code, 'CONFIG_NOT_INITIALIZED');
   assert.equal(e.name, 'ConfigNotInitializedError');
+  assert.equal(e.message, 'config not initialized');
+  assert.equal(e.hint, 'restart MCP server');
   assert.ok(e instanceof Error);
 });
 
-test('ConfigNotFinalError has correct code and name', () => {
+test('ConfigNotFinalError has correct code, name, message, hint', () => {
   const e = new ConfigNotFinalError();
   assert.equal(e.code, 'CONFIG_NOT_FINAL');
   assert.equal(e.name, 'ConfigNotFinalError');
+  assert.equal(e.message, 'config not finalized');
+  assert.equal(e.hint, 'retry the call');
   assert.ok(e instanceof Error);
 });
 
@@ -233,4 +237,31 @@ test('cwd step finds toml in exactly cwd, not a parent', () => {
   } finally {
     process.chdir(origCwd);
   }
+});
+
+// ── loadedAt ──────────────────────────────────────────────────────────────────
+
+test('initConfig sets loadedAt to ISO timestamp at seconds precision', () => {
+  initConfig([]);
+  const meta = getConfigMeta();
+  assert.ok(meta.loadedAt, 'loadedAt must be present');
+  assert.ok(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/.test(meta.loadedAt),
+    `loadedAt must be ISO seconds precision, got: ${meta.loadedAt}`);
+});
+
+test('initConfigProvisional sets loadedAt', () => {
+  initConfigProvisional();
+  const meta = getConfigMeta();
+  assert.ok(meta.loadedAt, 'loadedAt must be present in provisional phase');
+});
+
+test('finalizeConfig sets fresh loadedAt', () => {
+  initConfigProvisional();
+  const provisionalLoadedAt = getConfigMeta().loadedAt;
+  finalizeConfig([]);
+  const finalLoadedAt = getConfigMeta().loadedAt;
+  assert.ok(finalLoadedAt, 'loadedAt must be present after finalize');
+  // Both are ISO timestamps; final may equal provisional if called fast, but must be valid
+  assert.ok(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/.test(finalLoadedAt));
+  assert.ok(finalLoadedAt >= provisionalLoadedAt, 'finalLoadedAt must not precede provisional');
 });

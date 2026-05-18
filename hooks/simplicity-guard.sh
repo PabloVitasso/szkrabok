@@ -136,7 +136,7 @@ TRANSCRIPT=$(printf '%s' "$INPUT" | python3 -c \
 # state file co-located with transcript -- persists across restarts
 STATE="${TRANSCRIPT}.simplecheck.state"
 
-PATTERN='\b(simple|simplest)\b'
+PATTERN='\b(simple|simplest|simpler)\b'
 
 # --- load saved state ---
 if [[ -f "$STATE" ]]; then

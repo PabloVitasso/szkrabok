@@ -1,72 +1,144 @@
 // @szkrabok/runtime — structured errors
 
-import { homedir } from 'node:os';
 import { join } from 'node:path';
+import { statSync } from 'node:fs';
+
+const isoSec = (d) => d.toISOString().replace(/\.\d{3}Z$/, 'Z');
+export const isoNow = () => isoSec(new Date());
+
+export class SessionNotFoundError extends Error {
+  constructor (id, customMessage = null) {
+    super(customMessage || `session not found: ${id}`);
+    this.name = 'SessionNotFoundError';
+    this.code = 'SESSION_NOT_FOUND';
+    this.sessionId = id;
+    this.hint = 'reopen the session with session_manage open';
+  }
+}
 
 export class ConfigNotInitializedError extends Error {
   constructor () {
-    super('CONFIG_NOT_INITIALIZED');
+    super('config not initialized');
     this.name = 'ConfigNotInitializedError';
     this.code = 'CONFIG_NOT_INITIALIZED';
+    this.hint = 'restart MCP server';
   }
 }
 
 export class ConfigNotFinalError extends Error {
   constructor () {
-    super('CONFIG_NOT_FINAL');
+    super('config not finalized');
     this.name = 'ConfigNotFinalError';
     this.code = 'CONFIG_NOT_FINAL';
+    this.hint = 'retry the call';
   }
 }
 
-const userConfigDir = () =>
-  process.platform === 'win32'
-    ? join(process.env.APPDATA ?? join(homedir(), 'AppData', 'Roaming'), 'szkrabok')
-    : join(process.env.XDG_CONFIG_HOME ?? join(homedir(), '.config'), 'szkrabok');
+const SOURCE_KEY = {
+  env: 'CHROMIUM_PATH',
+  config: 'executablePath',
+  system: 'system',
+  playwright: 'playwrightBundled',
+};
 
-/**
- * Thrown when browser resolution fails. Carries the full candidate chain
- * and computes its own human-readable message — callers do not format manually.
- */
+const USER_SOURCES = new Set(['env', 'config']);
+
+const HINT_DOCTOR_INSTALL = 'run szkrabok doctor install to install a bundled browser';
+
+const HINT = {
+  CHROMIUM_PATH: 'unset or correct CHROMIUM_PATH env var in your MCP client config; restart MCP server',
+  executablePath: 'run szkrabok doctor detect --write-config to correct the configured path; restart MCP server',
+  system: HINT_DOCTOR_INSTALL,
+  playwrightBundled: HINT_DOCTOR_INSTALL,
+};
+
+const fileMtimeIso = (path) => {
+  try {
+    return isoSec(statSync(path).mtime);
+  } catch {
+    return null;
+  }
+};
+
+const resolveConfigFilePath = (source) => {
+  if (!source || source.startsWith('none')) return null;
+  const m = source.match(/\(([^)]+)\)$/);
+  if (!m) return null;
+  const p = m[1];
+  if (source.startsWith('explicit') || source.startsWith('env:SZKRABOK_CONFIG')) {
+    return p;
+  }
+  if (source.startsWith('xdg')) {
+    return join(p, 'config.local.toml');
+  }
+  return join(p, 'szkrabok.config.local.toml');
+};
+
+const BROWSER_NOT_FOUND_MESSAGE = 'browser executable not found';
+
 export class BrowserNotFoundError extends Error {
-  /**
-   * @param {string} [message]
-   * @param {{ candidates: Array<{source: string, path: string|null, ok: boolean, reason: string|null}>, configSource: string|null }} data
-   */
-  constructor (message, { candidates = [], configSource = null } = {}) {
-    super(message ?? BrowserNotFoundError.formatMessage(candidates, configSource));
+  constructor ({ candidates = [], configSource = null, configMeta = null } = {}) {
+    super(BROWSER_NOT_FOUND_MESSAGE);
     this.name = 'BrowserNotFoundError';
     this.code = 'BROWSER_NOT_FOUND';
     this.candidates = candidates;
     this.configSource = configSource;
+    this.configMeta = configMeta;
   }
 
-  /**
-   * Ensure JSON.stringify produces a useful object, not `{}`.
-   * Error own-properties (message, stack) are non-enumerable so JSON.stringify
-   * silently drops them. toJSON lets callers (registry wrapError, tests) get a
-   * serialisable snapshot without special-casing Error objects everywhere.
-   */
   toJSON () {
+    const attempted = {
+      CHROMIUM_PATH: 'not set',
+      executablePath: 'not set',
+      system: 'not found',
+      playwrightBundled: 'not found',
+    };
+    let failureSource = null;
+
+    for (const c of this.candidates) {
+      const key = SOURCE_KEY[c.source] ?? c.source;
+      let value;
+      if (c.ok) {
+        value = 'resolved';
+      } else if (!c.path) {
+        value = USER_SOURCES.has(c.source) ? 'not set' : 'not found';
+      } else {
+        value = USER_SOURCES.has(c.source) ? 'set_invalid' : 'not found';
+      }
+      attempted[key] = value;
+      if (!failureSource && USER_SOURCES.has(c.source) && value === 'set_invalid') {
+        failureSource = key;
+      }
+    }
+
+    if (!failureSource) {
+      failureSource = 'executablePath';
+    }
+
+    const meta = this.configMeta;
+    const loadedAt = meta?.loadedAt ?? null;
+    const configFilePath = resolveConfigFilePath(meta?.source ?? this.configSource);
+    const fileModifiedAt = configFilePath ? fileMtimeIso(configFilePath) : null;
+
+    const restartNeeded = !!(
+      loadedAt && fileModifiedAt && fileModifiedAt > loadedAt &&
+      (attempted.CHROMIUM_PATH !== 'resolved' || attempted.executablePath !== 'resolved')
+    );
+
     return {
       code: this.code,
-      message: this.message,
-      configSource: this.configSource,
-      candidates: this.candidates,
+      message: BROWSER_NOT_FOUND_MESSAGE,
+      hint: HINT[failureSource] ?? HINT.playwrightBundled,
+      ...(restartNeeded && { restartNeeded: true }),
+      context: {
+        config: {
+          source: meta?.source ?? this.configSource ?? 'none',
+          ...(loadedAt && { loadedAt }),
+          ...(fileModifiedAt && { fileModifiedAt }),
+        },
+        failureSource,
+        attempted,
+      },
     };
-  }
-
-  /** Compact single-line summary for token-efficient MCP responses. */
-  static formatMessage (candidates, configSource = null) {
-    const cfg = configSource ?? 'none';
-    const cands = candidates.map(c => `${c.source}=${c.path ?? 'unset'}(${c.reason})`).join(' ');
-    const configLocalToml = join(userConfigDir(), 'config.local.toml');
-    const fixes = [
-      'szkrabok doctor install',
-      `set env CHROMIUM_PATH=/path/to/chrome in your MCP client server config`,
-      `set executablePath in ${configLocalToml}`,
-      'pass --config /abs/path/to/config.toml as MCP server arg',
-    ].map((f, i) => `(${i + 1}) ${f}`).join(' ');
-    return `BROWSER_NOT_FOUND | config:${cfg} | ${cands} | fix: ${fixes}`;
   }
 }

@@ -2,7 +2,7 @@ import { join, resolve, dirname } from 'path';
 import { existsSync, readFileSync } from 'fs';
 import { homedir } from 'os';
 import { parse } from 'smol-toml';
-import { ConfigNotInitializedError, ConfigNotFinalError } from './errors.js';
+import { ConfigNotInitializedError, ConfigNotFinalError, isoNow } from './errors.js';
 
 const isPlainObject = v => v !== null && typeof v === 'object' && !Array.isArray(v);
 
@@ -121,7 +121,7 @@ const buildConfig = toml => {
 
 let _phase = null;       // null | 'provisional' | 'final'
 let _config = null;
-let _configMeta = null;  // { phase, source, previousSource }
+let _configMeta = null;  // { phase, source, previousSource, loadedAt }
 
 // ── Discovery ─────────────────────────────────────────────────────────────────
 
@@ -229,7 +229,7 @@ export const initConfig = (roots = [], { explicitConfigPath = null } = {}) => {
   const previous = _configMeta?.source ?? null;
   _config = Object.freeze(buildConfig(toml ?? {}));
   _phase = 'final';
-  _configMeta = { phase: 'final', source, previousSource: previous, searched };
+  _configMeta = { phase: 'final', source, previousSource: previous, searched, loadedAt: isoNow() };
 };
 
 // Server provisional phase — runs immediately on startup, before MCP roots arrive.
@@ -237,7 +237,7 @@ export const initConfigProvisional = ({ explicitConfigPath = null } = {}) => {
   const { toml, source, searched } = _discover({ roots: [], explicitConfigPath });
   _config = Object.freeze(buildConfig(toml ?? {}));
   _phase = 'provisional';
-  _configMeta = { phase: 'provisional', source, previousSource: null, searched };
+  _configMeta = { phase: 'provisional', source, previousSource: null, searched, loadedAt: isoNow() };
 };
 
 // Server finalize phase — runs after MCP roots arrive via oninitialized.
@@ -246,7 +246,7 @@ export const finalizeConfig = (roots = [], { explicitConfigPath = null } = {}) =
   const previous = _configMeta?.source ?? null;
   _config = Object.freeze(buildConfig(toml ?? {}));
   _phase = 'final';
-  _configMeta = { phase: 'final', source, previousSource: previous, searched };
+  _configMeta = { phase: 'final', source, previousSource: previous, searched, loadedAt: isoNow() };
 };
 
 // Default blocks provisional reads. Pass { allowProvisional: true } only for

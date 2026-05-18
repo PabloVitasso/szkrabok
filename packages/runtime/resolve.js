@@ -83,7 +83,7 @@ export const resolveChromium = (candidates) => {
 
 // ── Discovery ─────────────────────────────────────────────────────────────────
 
-const SOURCES = ['env', 'config', 'playwright', 'system'];
+const SOURCES = ['env', 'config', 'system', 'playwright'];
 
 /**
  * Build candidate array from env, config, and system. Impure — reads env/config.
@@ -147,6 +147,15 @@ export const populateCandidates = async (candidates) => {
         }
       } catch {
         // chrome-launcher unavailable
+      }
+      if (path === null) {
+        for (const name of ['ungoogled-chromium', 'chromium', 'google-chrome-stable', 'google-chrome', 'chrome']) {
+          const r = spawnSync('which', [name], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
+          if (r.status === 0 && r.stdout.trim() && isFunctionalBrowser(r.stdout.trim())) {
+            path = r.stdout.trim();
+            break;
+          }
+        }
       }
     }
     if (c.source === 'playwright' && path === null) {

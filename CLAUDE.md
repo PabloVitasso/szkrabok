@@ -17,7 +17,7 @@
 
 ## MCP Server
 
-After editing source files: `/mcp` -> **restart** szkrabok
+After editing source files **or config files** (`~/.config/szkrabok/config.toml`, `szkrabok.config.toml`, etc.): `/mcp` -> **restart** szkrabok — config is read at startup, not on demand.
 
 Source changes only take effect when the MCP config points at `node src/index.js`. Add the project-local entry once:
 

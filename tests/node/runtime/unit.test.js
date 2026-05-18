@@ -86,7 +86,7 @@ describe('pool', () => {
 
   test('get throws for missing session', async () => {
     const pool = await import('../../../packages/runtime/pool.js');
-    assert.throws(() => pool.get('does-not-exist'), /Session not found/);
+    assert.throws(() => pool.get('does-not-exist'), /session not found/);
   });
 
   test('list returns array', async () => {

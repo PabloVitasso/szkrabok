@@ -318,7 +318,7 @@ framing.
 
 Upstream report: [anthropics/claude-code#42796](https://github.com/anthropics/claude-code/issues/42796)
 
-Feature spec: [docs/features/20260407-simplicity-guard-hook-proposal.md](./features/20260407-simplicity-guard-hook-proposal.md)
+Feature spec: [docs/features/20260407-simplicity-guard-hook-done.md](./features/20260407-simplicity-guard-hook-done.md)
 
 **Mitigation:** `hooks/simplicity-guard.sh` — a `PreToolUse` hook that scans
 the transcript delta for the trigger words and blocks the next tool call,

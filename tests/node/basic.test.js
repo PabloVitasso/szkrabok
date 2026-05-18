@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { getSession, listRuntimeSessions, resolvePreset, initConfig } from '@szkrabok/runtime';
 
 test('getSession throws for missing session', () => {
-  assert.throws(() => getSession('nonexistent'), /Session not found/);
+  assert.throws(() => getSession('nonexistent'), /session not found/);
 });
 
 test('listRuntimeSessions returns empty array initially', () => {

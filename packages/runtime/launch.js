@@ -6,6 +6,7 @@ import {
   resolvePreset,
   getConfig,
   getConfigSource,
+  getConfigMeta,
 } from './config.js';
 import { resolveChromium, buildCandidates, populateCandidates } from './resolve.js';
 import { BrowserNotFoundError } from './errors.js';
@@ -216,8 +217,7 @@ export const checkBrowser = async () => {
 
   if (!result.found) {
     throw new BrowserNotFoundError(
-      undefined,
-      { candidates: result.candidates, configSource },
+      { candidates: result.candidates, configSource, configMeta: getConfigMeta() },
     );
   }
   return result.path;

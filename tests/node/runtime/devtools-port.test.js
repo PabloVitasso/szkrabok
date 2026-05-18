@@ -13,11 +13,10 @@
 
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, rm, access } from 'fs/promises';
+import { access } from 'fs/promises';
 import { join } from 'path';
-import { tmpdir } from 'os';
-import { spawn, spawnSync } from 'child_process';
 import net from 'net';
+import { resolveTestBrowser, launchHeadlessBrowser } from './helpers.js';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -43,77 +42,6 @@ const isPortOpen = (port, host = '127.0.0.1') =>
     sock.once('error', () => resolve(false));
     sock.setTimeout(3000, () => { sock.destroy(); resolve(false); });
   });
-
-/**
- * Launch a browser with --remote-debugging-port=0 and return { proc, userDataDir, cleanup }.
- * cleanup() kills the process and removes the temp dir.
- */
-const launchHeadlessBrowser = async executablePath => {
-  const userDataDir = await mkdtemp(join(tmpdir(), 'szkrabok-devtools-test-'));
-
-  const proc = spawn(executablePath, [
-    '--headless=new',
-    '--no-sandbox',
-    '--disable-gpu',
-    '--disable-dev-shm-usage',
-    '--no-first-run',
-    '--no-default-browser-check',
-    '--disable-features=TranslateUI',
-    `--user-data-dir=${userDataDir}`,
-    '--remote-debugging-port=0',
-  ], { stdio: 'ignore', detached: false });
-
-  const cleanup = async () => {
-    try { proc.kill('SIGKILL'); } catch { /* process already gone */ }
-    await rm(userDataDir, { recursive: true, force: true });
-  };
-
-  return { proc, userDataDir, cleanup };
-};
-
-// ── Browser discovery ─────────────────────────────────────────────────────────
-
-/**
- * Validate that a browser path actually runs - rejects snap/wrapper stubs.
- * Returns true only if `path --version` exits 0 and produces output.
- *
- * On Ubuntu, chrome-launcher resolves /usr/bin/chromium-browser, which is a
- * 2 KB shell script stub that prints:
- *   "Command '/usr/bin/chromium-browser' requires the chromium snap to be installed."
- * and exits 1. The file IS executable (accessSync passes), so validateCandidate()
- * accepts it, but it is not a real browser. The --version probe catches this.
- */
-const isFunctionalBrowser = path => {
-  if (!path) return false;
-  try {
-    const r = spawnSync(path, ['--version'], { timeout: 5000, encoding: 'utf8' });
-    return r.status === 0 && r.stdout.trim().length > 0;
-  } catch {
-    return false;
-  }
-};
-
-/**
- * Find all installed Chromium-family browsers.
- * Returns { chrome: string|null, chromium: string|null }
- *
- * chrome   - any path containing "google-chrome" or "google/chrome"
- * chromium - any path containing "chromium"
- *
- * Each path is validated with --version to reject snap/wrapper stubs.
- */
-const detectBrowsers = async () => {
-  try {
-    const { Launcher } = await import('chrome-launcher');
-    const all = Launcher.getInstallations().filter(isFunctionalBrowser);
-
-    const chrome = all.find(p => /google.chrome|google\/chrome/i.test(p)) ?? null;
-    const chromium = all.find(p => /chromium/i.test(p)) ?? null;
-    return { chrome, chromium };
-  } catch {
-    return { chrome: null, chromium: null };
-  }
-};
 
 // ── Shared test body ──────────────────────────────────────────────────────────
 
@@ -210,36 +138,18 @@ const runPortTests = executablePath => {
   });
 };
 
-// ── Per-browser describe blocks ───────────────────────────────────────────────
+// ── Browser detection via szkrabok's own resolution pipeline ─────────────────
 
-const browsers = await detectBrowsers();
+const browserPath = await resolveTestBrowser();
 
-describe('DevToolsActivePort — standard Chrome', { skip: !browsers.chrome }, () => {
-  runPortTests(browsers.chrome);
+describe('DevToolsActivePort', { skip: !browserPath }, () => {
+  runPortTests(browserPath);
 });
 
-describe('DevToolsActivePort — Chromium / ungoogled', { skip: !browsers.chromium }, () => {
-  runPortTests(browsers.chromium);
-});
-
-// Fallback: if chrome-launcher found neither, try Playwright bundled binary.
-if (!browsers.chrome && !browsers.chromium) {
-  describe('DevToolsActivePort — Playwright bundled Chromium', async () => {
-    let playwrightPath = null;
-
-    try {
-      const { chromium } = await import('playwright');
-      const p = chromium.executablePath();
-      const { existsSync } = await import('fs');
-      if (p && existsSync(p)) playwrightPath = p;
-    } catch { /* executablePath check failed - use default */ }
-
-    test('at least one browser must be found to run port tests', {
-      skip: !!playwrightPath,
-    }, () => {
-      assert.fail('No Chromium-family browser found. Install one to run these tests.');
+if (!browserPath) {
+  describe('DevToolsActivePort — no browser found', () => {
+    test('at least one browser must be found to run port tests', () => {
+      assert.fail('No browser found. Set CHROMIUM_PATH or run: npx playwright install chromium');
     });
-
-    if (playwrightPath) runPortTests(playwrightPath);
   });
 }

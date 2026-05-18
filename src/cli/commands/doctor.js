@@ -1,5 +1,5 @@
 import fs from 'node:fs/promises';
-import { existsSync } from 'node:fs';
+import { existsSync, statSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -67,6 +67,40 @@ const TAGS = {
   absent: '[ABSENT]',
 };
 
+const isoSec = d => d.toISOString().replace(/\.\d{3}Z$/, 'Z');
+
+const USER_SOURCES = new Set(['env', 'config']);
+
+const printCandidateTable = (results) => {
+  const winnerIdx = results.findIndex(r => r.ok);
+  for (let i = 0; i < results.length; i++) {
+    const r = results[i];
+    const state = candidateState(i, winnerIdx, r);
+    const tag = TAGS[state];
+    let detail;
+    if (state === 'pass') {
+      detail = r.path;
+    } else if (state === 'skip') {
+      detail = `${r.path} — valid, lower priority`;
+    } else {
+      const pathStr = r.path ?? '(not set)';
+      detail = `${pathStr} — ${r.reason}`;
+    }
+    console.log(`  ${tag} ${r.source.padEnd(12)} ${detail}`);
+  }
+};
+
+const deriveRecommendation = (results) => {
+  for (const r of results) {
+    if (USER_SOURCES.has(r.source) && r.path && !r.ok) {
+      return r.source === 'env'
+        ? 'unset or correct CHROMIUM_PATH in your MCP client config, then restart the server'
+        : 'run: szkrabok doctor detect --write-config to correct the configured path';
+    }
+  }
+  return 'run: szkrabok doctor install';
+};
+
 function candidateState(i, winnerIdx, r) {
   if (i === winnerIdx) return 'pass';
   // All candidates are always evaluated — results never suppressed by winner position.
@@ -109,24 +143,7 @@ async function runFullDoctor(opts) {
   console.log('\nBrowser resolution:');
   const { winner, results } = await runDetect();
 
-  const winnerIdx = results.findIndex(r => r.ok);
-
-  for (let i = 0; i < results.length; i++) {
-    const r = results[i];
-    const state = candidateState(i, winnerIdx, r);
-    const tag = TAGS[state];
-    let detail;
-    if (state === 'pass') {
-      detail = r.path;
-    } else if (state === 'skip') {
-      detail = `${r.path} — valid, lower priority`;
-    } else {
-      // fail or absent
-      const pathStr = r.path ?? '(not set)';
-      detail = `${pathStr} — ${r.reason}`;
-    }
-    console.log(`  ${tag} ${r.source.padEnd(12)} ${detail}`);
-  }
+  printCandidateTable(results);
 
   if (winner.found) {
     console.log(`\n  Resolved: ${winner.source} — ${winner.path}`);
@@ -169,7 +186,7 @@ async function runFullDoctor(opts) {
     }
   } else {
     failed = true;
-    console.error('\n  No valid browser found. Run: szkrabok doctor install');
+    console.error(`\n  No valid browser found. ${deriveRecommendation(results)}`);
   }
 
   // 5. Config discovery (initConfig called by runDetect above)
@@ -185,6 +202,19 @@ async function runFullDoctor(opts) {
     for (const s of (meta.searched ?? [])) {
       const tag = s.found ? '[PASS  ]' : '[ABSENT]';
       console.log(`  ${tag} ${s.step.padEnd(20)} ${s.paths.join(', ')}`);
+    }
+    if (foundStep) {
+      const existing = foundStep.paths.filter(p => existsSync(p));
+      for (const p of existing) {
+        try {
+          console.log(`  [note] ${p}: modified ${isoSec(statSync(p).mtime)}`);
+        } catch {
+          // concurrent deletion
+        }
+      }
+      if (existing.length > 0) {
+        console.log('         if MCP server is running and config changed recently, restart it');
+      }
     }
   }
 
@@ -240,23 +270,7 @@ async function runFullDoctor(opts) {
 async function runDoctorDetect({ writeConfig }) {
   const { winner, results } = await runDetect();
 
-  // Print candidate table (same format as doctor step 4)
-  const winnerIdx = results.findIndex(r => r.ok);
-  for (let i = 0; i < results.length; i++) {
-    const r = results[i];
-    const state = candidateState(i, winnerIdx, r);
-    const tag = TAGS[state];
-    let detail;
-    if (state === 'pass') {
-      detail = r.path;
-    } else if (state === 'skip') {
-      detail = `${r.path} — valid, lower priority`;
-    } else {
-      const pathStr = r.path ?? '(not set)';
-      detail = `${pathStr} — ${r.reason}`;
-    }
-    console.log(`  ${tag} ${r.source.padEnd(12)} ${detail}`);
-  }
+  printCandidateTable(results);
 
   if (winner.found) {
     console.log(`\n  Resolved: ${winner.source} — ${winner.path}`);
@@ -268,7 +282,7 @@ async function runDoctorDetect({ writeConfig }) {
       console.log(`  Written to: ${configPath}`);
     }
   } else {
-    console.log('No valid browser found. Run: szkrabok doctor install');
+    console.log(`No valid browser found. ${deriveRecommendation(results)}`);
   }
 }
 
