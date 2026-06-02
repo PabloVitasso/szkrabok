@@ -179,8 +179,8 @@ playwright-core is pinned to an exact version (no `^`) and patched via `patch-pa
 
 1. Bump the version in `package.json` (both `playwright` and `playwright-core`). Use exact versions - no `^`:
    ```json
-   "playwright": "1.59.1",
-   "playwright-core": "1.59.1"
+   "playwright": "<NEW_VERSION>",
+   "playwright-core": "<NEW_VERSION>"
    ```
    Do the same in `packages/runtime/package.json`.
 
@@ -194,32 +194,51 @@ playwright-core is pinned to an exact version (no `^`) and patched via `patch-pa
    ```bash
    node packages/runtime/scripts/patch-playwright.js
    ```
-   All 8 entries must report `patched`. If any fail, the script rolls back and exits 1 - the anchor string changed upstream and the patch script needs updating first.
+   All 12 entries must report `patched`. If any fail, the script rolls back and exits 1 — the anchor string changed upstream and the patch script needs updating first.
 
-   **Patch locations (as of 1.59.1):**
+   **Patch locations (as of 1.60.0):**
 
-   | Patch | File | What it does |
-   |-------|------|-------------|
-   | crConnection | `lib/server/chromium/crConnection.js` | Injects `__re__` Runtime.enable helpers |
-   | crDevTools | `lib/server/chromium/crDevTools.js` | Suppresses `Runtime.enable` (AST) |
-   | crPage | `lib/server/chromium/crPage.js` | Worker constructor + suppresses `Runtime.enable` (AST) |
-   | browserContext | `lib/server/browserContext.js` | Greasy brands injection (moved from crPage.js in 1.59.1) |
-   | crServiceWorker | `lib/server/chromium/crServiceWorker.js` | Suppresses `Runtime.enable` (AST) |
-   | frames | `lib/server/frames.js` | `executionContextsCleared` + rewires `_context()` |
-   | page | `lib/server/page.js` | Worker constructor + guards `PageBinding.dispatch` |
-   | utilityScriptSource | `lib/generated/utilityScriptSource.js` | Renames `UtilityScript` class |
+   Since 1.60.0 all server source is compiled into a single `lib/coreBundle.js` (esbuild). The patch script uses `patchSection(src, sectionPath, fn)` to scope each transform to its source module via esbuild-emitted `// packages/playwright-core/src/<path>` headers.
 
-   If the greasy brands patch fails (anchor not found in `browserContext.js`), check whether `calculateUserAgentEmulation` moved again. Search with:
+   | Patch | Section scoped to | What it does |
+   |-------|------------------|-------------|
+   | crConnection — `__re__` inject | `src/server/chromium/crConnection.ts` | Injects `__re__` Runtime.enable helpers into CRSession |
+   | crDevTools — Runtime.enable | `src/server/chromium/crDevTools.ts` | Suppresses `Runtime.enable` (AST) |
+   | crPage — Worker callsite | `src/server/chromium/crPage.ts` | Passes `targetId`+`session` to Worker constructor |
+   | crPage — greasy brands | `src/server/chromium/crPage.ts` | Injects brands into `_updateUserAgent()` (moved from browserContext in 1.60.0) |
+   | crPage — Runtime.enable | `src/server/chromium/crPage.ts` | Suppresses `Runtime.enable` (AST) |
+   | crServiceWorker — Runtime.enable | `src/server/chromium/crServiceWorker.ts` | Suppresses `Runtime.enable` (AST) |
+   | frames — executionContextsCleared | `src/server/frames.ts` | Emits `executionContextsCleared` on commit |
+   | frames — context() rewire | `src/server/frames.ts` | Rewires `context()` to use `__re__emitExecutionContext` |
+   | page — Worker constructor | `src/server/page.ts` | Adds `targetId`+`session` params (after `onDisconnect`) |
+   | page — evaluateExpression | `src/server/page.ts` | Inserts `getExecutionContext()`, updates `evaluateExpression` |
+   | page — PageBinding.dispatch | `src/server/page.ts` | Guards non-JSON payloads |
+   | utilityScriptSource | `src/generated/utilityScriptSource.ts` | Renames `UtilityScript` class inside embedded string |
+
+   If the greasy brands patch fails, check whether `_updateUserAgent` moved. Search with:
    ```bash
-   grep -rn "szkrabok: greasy brands\|calculateUserAgent" node_modules/playwright-core/lib/server/
+   grep -n "szkrabok: greasy brands\|_updateUserAgent\|calculateUserAgentMetadata" node_modules/playwright-core/lib/coreBundle.js | head -10
    ```
-   Update the `file` key and anchor string in `patch-playwright.js`, `verify-playwright-patches.js`, and `tests/node/playwright-patches.test.js` to match the new location.
+   Update the anchor string in `patch-playwright.js`, `verify-playwright-patches.js`, and `tests/node/playwright-patches.test.js`.
 
-4. Regenerate the patch file for the new version:
+4. Regenerate the patch file for the new version using `npm pack` + `diff`:
    ```bash
-   npx patch-package playwright-core
+   cd /tmp && npm pack playwright-core@<NEW_VERSION> && mkdir -p pw-clean && tar xzf playwright-core-<NEW_VERSION>.tgz -C pw-clean --strip-components=1
+   cd <repo>
+   python3 -c "
+   import subprocess, textwrap
+   ver = '<NEW_VERSION>'
+   header = f'diff --git a/node_modules/playwright-core/lib/coreBundle.js b/node_modules/playwright-core/lib/coreBundle.js\n'
+   r = subprocess.run(['diff', '-u',
+     '--label', 'a/node_modules/playwright-core/lib/coreBundle.js',
+     '--label', 'b/node_modules/playwright-core/lib/coreBundle.js',
+     f'/tmp/pw-clean/lib/coreBundle.js', 'node_modules/playwright-core/lib/coreBundle.js'],
+     capture_output=True, text=True)
+   open(f'patches/playwright-core+{ver}.patch', 'w').write(header + r.stdout)
+   print('done')
+   "
    ```
-   This diffs the patched files against the clean npm tarball and writes `patches/playwright-core+1.59.1.patch`.
+   > **Note:** `npx patch-package playwright-core` will fail if old `.patch` files for previous versions are present in `patches/` — it tries to apply them all to the clean install. Use the `npm pack` + `diff` approach above instead.
 
 5. Verify the full postinstall chain works on a clean install:
    ```bash
@@ -244,7 +263,7 @@ playwright-core is pinned to an exact version (no `^`) and patched via `patch-pa
 8. Commit:
    ```bash
    git add package.json packages/runtime/package.json package-lock.json patches/ packages/runtime/mcp-client/
-   git commit -m "chore: upgrade playwright-core to 1.59.1"
+   git commit -m "chore: upgrade playwright-core to <NEW_VERSION>"
    ```
 
    Old patch files are kept in the repo as a historical record (useful for diffing what changed between versions).

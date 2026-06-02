@@ -9,14 +9,13 @@ import { join } from 'path'
 
 const require = createRequire(import.meta.url)
 
+// Since playwright-core 1.60.0 all server source is bundled into coreBundle.js.
 const PATCHES = [
-  { file: 'lib/server/chromium/crConnection.js',   marker: '__re__emitExecutionContext' },
-  { file: 'lib/server/chromium/crDevTools.js',      marker: 'REBROWSER_PATCHES_RUNTIME_FIX_MODE' },
-  { file: 'lib/server/browserContext.js',            marker: 'szkrabok: greasy brands' },
-  { file: 'lib/server/chromium/crServiceWorker.js', marker: 'REBROWSER_PATCHES_RUNTIME_FIX_MODE' },
-  { file: 'lib/server/frames.js',                   marker: '__re__emitExecutionContext' },
-  { file: 'lib/server/page.js',                     marker: 'getExecutionContext' },
-  { file: 'lib/generated/utilityScriptSource.js',   marker: 'var __pwUs = class' },
+  { file: 'lib/coreBundle.js', marker: '__re__emitExecutionContext' },
+  { file: 'lib/coreBundle.js', marker: 'szkrabok: greasy brands'   },
+  { file: 'lib/coreBundle.js', marker: 'getExecutionContext'        },
+  { file: 'lib/coreBundle.js', marker: 'var __pwUs = class'         },
+  { file: 'lib/coreBundle.js', marker: 'REBROWSER_PATCHES_RUNTIME_FIX_MODE' },
 ]
 
 let pwRoot

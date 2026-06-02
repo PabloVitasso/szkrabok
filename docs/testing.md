@@ -80,7 +80,7 @@ tests/
     config-discovery.test.js  initConfig() discovery algorithm (all 6 priority steps)
     config-values.test.js     getConfig() field defaults, TOML mapping, resolvePreset
     config-lifecycle.test.js  provisional→final phase transitions, error class contract, getConfigMeta
-    playwright-patches.test.js verifies all 7 playwright-core patch markers present
+    playwright-patches.test.js verifies all 5 playwright-core patch markers present
     session_run_test.test.js  session_run_test — 21 unit tests (EX-1); all deps injected, no browser
     runtime/
       helpers.js              shared test utilities: resolveTestBrowser(), launchHeadlessBrowser()
