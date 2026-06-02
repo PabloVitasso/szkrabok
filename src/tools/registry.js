@@ -88,7 +88,7 @@ const tools = {
         preset: {
           type: 'string',
           enum: ['minimal', 'full'],
-          description: 'minimal (default): playwright.config.js + package.json (devDeps only, no local szkrabok install needed) + szkrabok.config.local.toml.example. Use this when running specs via MCP (browser_run_test). full: everything in minimal + automation/fixtures.js + automation/example.spec.js + automation/example.mcp.spec.js — use when you also want to run Playwright locally without MCP (standalone mode, e.g. npx playwright test).',
+          description: 'minimal (default): playwright.config.js + package.json (devDeps only, no local szkrabok install needed) + szkrabok.config.toml (committed defaults) + szkrabok.config.local.toml (gitignored machine overrides). Use this when running specs via MCP (browser_run_test). full: everything in minimal + automation/fixtures.js + automation/example.spec.js + automation/example.mcp.spec.js — use when you also want to run Playwright locally without MCP (standalone mode, e.g. npx playwright test).',
         },
         install: {
           type: 'boolean',

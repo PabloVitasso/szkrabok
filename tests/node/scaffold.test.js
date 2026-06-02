@@ -16,15 +16,47 @@ test('scaffold_init creates expected files in empty dir (minimal)', async () => 
     assert.deepEqual(result.created.sort(), [
       'package.json',
       'playwright.config.js',
-      'szkrabok.config.local.toml.example',
+      'szkrabok.config.local.toml',
+      'szkrabok.config.toml',
     ].sort());
     assert.deepEqual(result.skipped, []);
     assert.deepEqual(result.warnings, []);
 
     assert.ok(existsSync(join(dir, 'playwright.config.js')));
     assert.ok(existsSync(join(dir, 'package.json')));
-    assert.ok(existsSync(join(dir, 'szkrabok.config.local.toml.example')));
+    assert.ok(existsSync(join(dir, 'szkrabok.config.toml')));
+    assert.ok(existsSync(join(dir, 'szkrabok.config.local.toml')));
     assert.ok(!existsSync(join(dir, 'automation/fixtures.js')));
+  } finally {
+    await rm(dir, { recursive: true });
+  }
+});
+
+test('scaffold_init creates .gitignore with szkrabok.config.local.toml entry', async () => {
+  const dir = await makeTmp();
+  try {
+    await init({ dir });
+    const gitignore = await readFile(join(dir, '.gitignore'), 'utf8');
+    assert.ok(gitignore.includes('szkrabok.config.local.toml'), '.gitignore must contain entry');
+  } finally {
+    await rm(dir, { recursive: true });
+  }
+});
+
+test('scaffold_init appends to existing .gitignore without duplicating', async () => {
+  const dir = await makeTmp();
+  try {
+    await writeFile(join(dir, '.gitignore'), 'node_modules\n', 'utf8');
+    await init({ dir });
+    const gitignore = await readFile(join(dir, '.gitignore'), 'utf8');
+    assert.ok(gitignore.includes('node_modules'), 'existing entries preserved');
+    assert.ok(gitignore.includes('szkrabok.config.local.toml'), 'new entry appended');
+
+    // idempotent — second run must not duplicate
+    await init({ dir });
+    const gitignore2 = await readFile(join(dir, '.gitignore'), 'utf8');
+    const count = gitignore2.split('\n').filter(l => l.trim() === 'szkrabok.config.local.toml').length;
+    assert.equal(count, 1, 'entry must appear exactly once');
   } finally {
     await rm(dir, { recursive: true });
   }
@@ -120,6 +152,31 @@ test('scaffold_init package.json has type:module', async () => {
     await init({ dir });
     const pkg = JSON.parse(await readFile(join(dir, 'package.json'), 'utf8'));
     assert.equal(pkg.type, 'module');
+  } finally {
+    await rm(dir, { recursive: true });
+  }
+});
+
+test('scaffolded szkrabok.config.toml is committed skeleton', async () => {
+  const dir = await makeTmp();
+  try {
+    await init({ dir });
+    const src = await readFile(join(dir, 'szkrabok.config.toml'), 'utf8');
+    assert.ok(src.includes('commit this file'), 'must say commit this file');
+    assert.ok(src.includes('szkrabok.config.local.toml'), 'must reference local file');
+  } finally {
+    await rm(dir, { recursive: true });
+  }
+});
+
+test('scaffolded szkrabok.config.local.toml is gitignored machine override', async () => {
+  const dir = await makeTmp();
+  try {
+    await init({ dir });
+    const src = await readFile(join(dir, 'szkrabok.config.local.toml'), 'utf8');
+    assert.ok(src.includes('do not commit'), 'must say do not commit');
+    assert.ok(src.includes('executablePath'), 'must show executablePath');
+    assert.ok(src.includes('szkrabok doctor detect'), 'must reference doctor detect');
   } finally {
     await rm(dir, { recursive: true });
   }

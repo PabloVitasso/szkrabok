@@ -136,9 +136,8 @@ scripts/
 
 playwright.config.js      Root config — pure composition, no logic
 
-szkrabok.config.toml          Browser identity presets — repo defaults (committed)
-szkrabok.config.local.toml    Machine-specific overrides (gitignored)
-szkrabok.config.local.toml.example  Template for local overrides
+szkrabok.config.toml          Browser identity presets — repo defaults (committed, scaffolded)
+szkrabok.config.local.toml    Machine-specific overrides (gitignored, scaffolded)
 
 tests/
   node/               node:test specs — no browser

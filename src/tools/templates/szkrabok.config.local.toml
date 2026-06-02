@@ -1,0 +1,6 @@
+# szkrabok local config — do not commit (gitignored)
+# Overrides settings from szkrabok.config.toml for this machine.
+# Run: szkrabok doctor detect   to find your Chrome/Chromium path.
+
+[default]
+# executablePath = "/path/to/chrome"

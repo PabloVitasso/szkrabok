@@ -196,14 +196,17 @@ npx @pablovitasso/szkrabok init
 
 **Configure**
 
-Optionally create `szkrabok.config.local.toml` in your project root to set a custom browser binary or user agent:
+`scaffold_init` creates two config files — commit one, gitignore the other:
+
+| File | Purpose |
+|------|---------|
+| `szkrabok.config.toml` | Project defaults — presets, userAgent. **Commit this.** |
+| `szkrabok.config.local.toml` | Machine-specific overrides — `executablePath`, log level. **Gitignored.** |
 
 ```toml
+# szkrabok.config.local.toml
 [default]
 executablePath = "/path/to/your/chrome"
-overrideUserAgent = true
-userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
-log_level = "debug"
 ```
 
 **Config discovery** - the server finds your TOML automatically. Priority order (first match wins):
