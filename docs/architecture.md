@@ -132,7 +132,7 @@ patches/
 
 scripts/
   patch-playwright.js          upgrade tool — generates new patch for a new pw version
-  verify-playwright-patches.js postinstall verifier — checks all 7 patch markers, exits 1 on failure
+  verify-playwright-patches.js postinstall verifier — checks all 5 patch markers, exits 1 on failure
 
 playwright.config.js      Root config — pure composition, no logic
 
@@ -144,7 +144,7 @@ tests/
     basic.test.js              public API smoke tests
     schema.test.js             tool schema validation
     contracts.test.js          architecture invariant checks (static analysis)
-    playwright-patches.test.js verifies all 7 playwright-core patch markers are present
+    playwright-patches.test.js verifies all 5 playwright-core patch markers are present
     session_run_test.test.js   session_run_test — 21 unit tests (EX-1); injected deps, no browser
     runtime/
       unit.test.js           config, storage, stealth without MCP
@@ -382,19 +382,17 @@ scripts/apply-patches.js  →  scripts/verify-playwright-patches.js
 
 `apply-patches.js` locates `playwright-core` and `patch-package` via Node's module resolution (works for hoisted, nested, and npx installs), then invokes `patch-package --patch-dir <path>`. It writes a minimal temporary `package.json` to `targetRoot` before invoking patch-package when none exists (bare temp dirs, npx), and removes it afterwards - patch-package requires a `package.json` to locate its app root.
 
-`verify-playwright-patches.js` checks all 7 patched files for their markers and exits 1 (hard failure) if any are missing - the postinstall chain screams loudly rather than silently leaving the browser unpatched.
+`verify-playwright-patches.js` checks all 5 patch markers in `lib/coreBundle.js` and exits 1 (hard failure) if any are missing - the postinstall chain screams loudly rather than silently leaving the browser unpatched.
 
-The 7 patched files and their detection markers:
+Since playwright-core 1.60.0 all server source is compiled into a single `lib/coreBundle.js` (esbuild). The 5 detection markers:
 
 | File | Marker |
 |---|---|
-| `lib/server/chromium/crConnection.js` | `__re__emitExecutionContext` |
-| `lib/server/chromium/crDevTools.js` | `REBROWSER_PATCHES_RUNTIME_FIX_MODE` |
-| `lib/server/chromium/crPage.js` | `szkrabok: greasy brands` |
-| `lib/server/chromium/crServiceWorker.js` | `REBROWSER_PATCHES_RUNTIME_FIX_MODE` |
-| `lib/server/frames.js` | `__re__emitExecutionContext` |
-| `lib/server/page.js` | `getExecutionContext` |
-| `lib/generated/utilityScriptSource.js` | `var __pwUs = class` |
+| `lib/coreBundle.js` | `__re__emitExecutionContext` |
+| `lib/coreBundle.js` | `szkrabok: greasy brands` |
+| `lib/coreBundle.js` | `getExecutionContext` |
+| `lib/coreBundle.js` | `var __pwUs = class` |
+| `lib/coreBundle.js` | `REBROWSER_PATCHES_RUNTIME_FIX_MODE` |
 
 Use `szkrabok doctor` to verify patch status at any time. For upgrading playwright-core to a new version, see [docs/development.md - Upgrading playwright-core](./development.md#upgrading-playwright-core). The patch script used to generate a new diff lives in `packages/runtime/scripts/patch-playwright.js`.
 
