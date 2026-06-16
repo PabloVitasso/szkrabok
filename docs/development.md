@@ -196,7 +196,7 @@ playwright-core is pinned to an exact version (no `^`) and patched via `patch-pa
    ```
    All 12 entries must report `patched`. If any fail, the script rolls back and exits 1 — the anchor string changed upstream and the patch script needs updating first.
 
-   **Patch locations (as of 1.60.0):**
+   **Patch locations (as of 1.61.0):**
 
    Since 1.60.0 all server source is compiled into a single `lib/coreBundle.js` (esbuild). The patch script uses `patchSection(src, sectionPath, fn)` to scope each transform to its source module via esbuild-emitted `// packages/playwright-core/src/<path>` headers.
 
@@ -209,17 +209,23 @@ playwright-core is pinned to an exact version (no `^`) and patched via `patch-pa
    | crPage — Runtime.enable | `src/server/chromium/crPage.ts` | Suppresses `Runtime.enable` (AST) |
    | crServiceWorker — Runtime.enable | `src/server/chromium/crServiceWorker.ts` | Suppresses `Runtime.enable` (AST) |
    | frames — executionContextsCleared | `src/server/frames.ts` | Emits `executionContextsCleared` on commit |
-   | frames — context() rewire | `src/server/frames.ts` | Rewires `context()` to use `__re__emitExecutionContext` |
+   | frames — context() rewire | `src/server/frames.ts` | Rewires `context()` to use `__re__emitExecutionContext` (preserves any `noUtilityWorld` guard) |
    | page — Worker constructor | `src/server/page.ts` | Adds `targetId`+`session` params (after `onDisconnect`) |
    | page — evaluateExpression | `src/server/page.ts` | Inserts `getExecutionContext()`, updates `evaluateExpression` |
    | page — PageBinding.dispatch | `src/server/page.ts` | Guards non-JSON payloads |
    | utilityScriptSource | `src/generated/utilityScriptSource.ts` | Renames `UtilityScript` class inside embedded string |
 
-   If the greasy brands patch fails, check whether `_updateUserAgent` moved. Search with:
+   **Known drift between versions:**
+
+   | Version | What changed |
+   |---------|-------------|
+   | 1.61.0 | `_updateUserAgent` local var renamed `options2` → `options`; `context()` in frames gained a `noUtilityWorld?.()` guard at the top |
+
+   If a patch fails, the script rolls back and prints which anchor wasn't found. For the greasy brands patch, check whether the local variable name changed or `_updateUserAgent` moved:
    ```bash
    grep -n "szkrabok: greasy brands\|_updateUserAgent\|calculateUserAgentMetadata" node_modules/playwright-core/lib/coreBundle.js | head -10
    ```
-   Update the anchor string in `patch-playwright.js`, `verify-playwright-patches.js`, and `tests/node/playwright-patches.test.js`.
+   Update the anchor string in `patch-playwright.js`. The verify script and patch tests only check markers, not anchors — no changes needed there unless you add or remove a patch.
 
 4. Regenerate the patch file for the new version using `npm pack` + `diff`:
    ```bash
@@ -260,9 +266,13 @@ playwright-core is pinned to an exact version (no `^`) and patched via `patch-pa
    ```
    The registry hash embeds the tool schema - it must be regenerated whenever the SDK or tool definitions change.
 
-8. Commit:
+8. Update `docs/development.md`:
+   - Change the "Patch locations (as of X)" heading version number.
+   - Add a row to the "Known drift between versions" table for any anchor strings that changed.
+
+9. Commit:
    ```bash
-   git add package.json packages/runtime/package.json package-lock.json patches/ packages/runtime/mcp-client/
+   git add package.json packages/runtime/package.json package-lock.json patches/ packages/runtime/mcp-client/ docs/development.md
    git commit -m "chore: upgrade playwright-core to <NEW_VERSION>"
    ```
 
