@@ -52,7 +52,7 @@ const CONSUMER_FILES = ['src/**/*.js', 'tests/**/*.js', 'packages/mcp-client/**/
 
 export default [
   {
-    ignores: ['node_modules/**'],
+    ignores: ['node_modules/**', '.claude/**', 'vendor/**'],
   },
 
   // ── Lint directive hygiene ─────────────────────────────────────────────────

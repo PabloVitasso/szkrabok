@@ -292,6 +292,7 @@ const patches = [
   // ── 4. crPage — greasy brands in _updateUserAgent ──────────────────────────
   // In 1.60.0 calculateUserAgentMetadata() no longer returns brands.
   // Inject brands at the CDP callsite in _updateUserAgent().
+  // In 1.61.0 the local variable was renamed options2 → options.
   {
     name: 'crPage: greasy brands in _updateUserAgent',
     section: 'packages/playwright-core/src/server/chromium/crPage.ts',
@@ -299,18 +300,18 @@ const patches = [
       'crPage: greasy brands in _updateUserAgent',
       sec,
       `async _updateUserAgent() {
-        const options2 = this._crPage._browserContext._options;
+        const options = this._crPage._browserContext._options;
         await this._client.send("Emulation.setUserAgentOverride", {
-          userAgent: options2.userAgent || "",
-          acceptLanguage: options2.locale,
-          userAgentMetadata: calculateUserAgentMetadata(options2)
+          userAgent: options.userAgent || "",
+          acceptLanguage: options.locale,
+          userAgentMetadata: calculateUserAgentMetadata(options)
         });
       }`,
       `async _updateUserAgent() {
-        const options2 = this._crPage._browserContext._options;
+        const options = this._crPage._browserContext._options;
         // ── szkrabok: greasy brands ──────────────────────────────────────────────
-        const _uaMeta = calculateUserAgentMetadata(options2);
-        const _chromeMatch = (options2.userAgent || '').match(/Chrome\\/(\\.d+)/);
+        const _uaMeta = calculateUserAgentMetadata(options);
+        const _chromeMatch = (options.userAgent || '').match(/Chrome\\/(\\.d+)/);
         if (_uaMeta && _chromeMatch) {
           const seed = parseInt(_chromeMatch[1], 10);
           const order = [[0,1,2],[0,2,1],[1,0,2],[1,2,0],[2,0,1],[2,1,0]][seed % 6];
@@ -324,8 +325,8 @@ const patches = [
         }
         // ── end szkrabok greasy brands ────────────────────────────────────────────
         await this._client.send("Emulation.setUserAgentOverride", {
-          userAgent: options2.userAgent || "",
-          acceptLanguage: options2.locale,
+          userAgent: options.userAgent || "",
+          acceptLanguage: options.locale,
           userAgentMetadata: _uaMeta
         });
       }`
@@ -369,6 +370,7 @@ const patches = [
   // ── 8. frames — rewire context() to use __re__emitExecutionContext ──────────
   // Method renamed _context → context in 1.60.0 esbuild output (underscore dropped).
   // Recursive call must also use context() (not _context()).
+  // In 1.61.0 a noUtilityWorld guard was added at the top — preserve it.
   {
     name: 'frames: rewire context() via __re__emitExecutionContext',
     section: 'packages/playwright-core/src/server/frames.ts',
@@ -376,6 +378,8 @@ const patches = [
       'frames: rewire context() via __re__emitExecutionContext',
       sec,
       `      context(world) {
+        if (this._page.delegate.noUtilityWorld?.())
+          world = "main";
         return this._contextData.get(world).contextPromise.then((contextOrDestroyedReason) => {
           if (contextOrDestroyedReason instanceof ExecutionContext)
             return contextOrDestroyedReason;
@@ -383,6 +387,8 @@ const patches = [
         });
       }`,
       `      context(world, useContextPromise = false) {
+        if (this._page.delegate.noUtilityWorld?.())
+          world = "main";
         if (process.env['REBROWSER_PATCHES_RUNTIME_FIX_MODE'] === '0' || this._contextData.get(world).context || useContextPromise) {
           return this._contextData.get(world).contextPromise.then((contextOrDestroyedReason) => {
             if (contextOrDestroyedReason instanceof ExecutionContext)
