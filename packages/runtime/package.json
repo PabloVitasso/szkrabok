@@ -17,8 +17,8 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.29.0",
     "chrome-launcher": "1.2.1",
-    "playwright": "1.61.0",
-    "playwright-core": "1.61.0",
+    "playwright": "1.61.1",
+    "playwright-core": "1.61.1",
     "playwright-extra": "4.3.6",
     "puppeteer-extra-plugin-stealth": "2.11.2",
     "smol-toml": "1.6.1"
