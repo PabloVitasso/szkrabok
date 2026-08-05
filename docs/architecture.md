@@ -485,7 +485,20 @@ executable_path = "/path/to/firefox"
 - `session_manage endpoint` — requires a CDP WebSocket endpoint; Firefox has none
 - `browser_run_test` — requires `connectOverCDP`; not available for Firefox
 - `session_run_test` — calls `browser_run_test` internally; fails the same way
-- Stealth shims are skipped for Firefox (no-op)
+
+**Stealth:** the JS-level stealth shims (`playwright-extra` + stealth plugin, CDP
+anti-bot patches) are a no-op for Firefox — they only apply to Chromium. Evasion for
+Firefox comes entirely from the binary itself. `session_manage open`'s `stealth` option
+has no effect when `engine = "firefox"`.
+
+**What "stealth works" means here:** szkrabok's own test suite
+(`tests/node/runtime/firefox-live.test.js`) confirms exactly one signal —
+`navigator.webdriver` is not `true` on `invisible_playwright`'s patched Firefox, versus
+`=== true` on stock Playwright Firefox. It does not independently verify
+`invisible_playwright`'s broader fingerprint/detection-evasion claims (those are
+upstream's own numbers). See
+[docs/features/20260526-firefox-engine-support-done.md](./features/20260526-firefox-engine-support-done.md)
+for the full picture.
 
 **Headless note:** `headless: true` with Firefox uses a detectable rendering path. For stealth use, set `headless: false` and provide a `DISPLAY` (e.g. Xvfb on Linux).
 
@@ -496,11 +509,17 @@ executable_path = "/path/to/firefox"
 ```
 0. config executablePath       — explicit user intent (highest priority)
 1. INVISIBLE_PLAYWRIGHT_BINARY — env var override
-2. invisible_playwright cache  — ~/.cache/invisible-playwright/firefox-* (lexicographically latest)
+2. invisible_playwright cache  — ~/.cache/invisible-playwright/firefox-<N>* (highest-numbered N wins)
 3. system firefox              — which firefox
 ```
 
 `invisible_playwright` Firefox is preferred over system Firefox because system Firefox on Linux typically runs in a sandbox (CLONE_NEWPID) that is denied in restricted environments.
+
+Cache dir names are `firefox-<N>` (older invisible_playwright releases) or
+`firefox-<N>_<version>_<build>` (invisible_playwright >=0.5.0). Sorting is numeric on
+`N`, not lexicographic — `firefox-18` must win over `firefox-7` even though `"1" < "7"`
+as strings. See [docs/development.md — Refreshing Firefox binaries](./development.md#refreshing-firefox-binaries-after-a-playwright-core-upgrade)
+for when this cache needs a manual refresh.
 
 ### Pool entries for Firefox
 

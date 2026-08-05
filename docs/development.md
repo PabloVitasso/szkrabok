@@ -6,6 +6,7 @@
 - [CLI](#cli)
 - [Release workflow](#release-workflow)
 - [Upgrading playwright-core](#upgrading-playwright-core)
+- [Refreshing Firefox binaries after a playwright-core upgrade](#refreshing-firefox-binaries-after-a-playwright-core-upgrade)
 - [Consumer projects](#consumer-projects)
 - [Config modules](#config-modules-config)
 - [Claude Code pitfalls](#claude-code-pitfalls)
@@ -177,6 +178,10 @@ clear error if the package is absent.
 
 playwright-core is pinned to an exact version (no `^`) and patched via `patch-package`. The patch file lives in `patches/playwright-core+<version>.patch` and is committed to the repo. When upgrading:
 
+> If the repo uses the Firefox engine (`[browser] engine = "firefox"`), also see
+> [Refreshing Firefox binaries after a playwright-core upgrade](#refreshing-firefox-binaries-after-a-playwright-core-upgrade) —
+> cached Firefox binaries can silently stop working after this upgrade.
+
 1. Bump the version in `package.json` (both `playwright` and `playwright-core`). Use exact versions - no `^`:
    ```json
    "playwright": "<NEW_VERSION>",
@@ -278,6 +283,65 @@ playwright-core is pinned to an exact version (no `^`) and patched via `patch-pa
    ```
 
    Old patch files are kept in the repo as a historical record (useful for diffing what changed between versions).
+
+## Refreshing Firefox binaries after a playwright-core upgrade
+
+Unlike Chromium (auto-resolved, version-tolerant within a range), both stock Playwright
+Firefox and `invisible_playwright`'s patched Firefox are pinned to a specific Juggler
+wire-protocol revision baked into the binary. Bumping `playwright-core` can silently
+break Firefox launches against an already-cached binary.
+
+**Symptom:**
+
+```
+browserType.launchPersistentContext: Protocol error (Browser.setDefaultViewport):
+ERROR: failed to call method 'Browser.setDefaultViewport' with parameters {...}
+Found property "<root>.viewport.isMobile" - false which is not described in this scheme
+```
+
+Playwright 1.61 added an `isMobile` field to the Firefox `Browser.setDefaultViewport`
+Juggler command. A Firefox binary built before that protocol revision rejects the call
+outright and the session never launches. This is not specific to `isMobile` — any
+future Juggler protocol addition can break the same way. Confirmed upstream at
+[invisible_playwright#48](https://github.com/feder-cr/invisible_playwright/issues/48).
+
+**Fix — stock Playwright Firefox:**
+
+```bash
+npx playwright install firefox
+```
+
+Downloads the Firefox revision matching the installed `playwright-core` version to
+`~/.cache/ms-playwright/firefox-<rev>/`. Old revisions are not auto-removed — prune
+manually if disk space matters.
+
+**Fix — invisible_playwright patched Firefox:**
+
+The wrapper that owns `~/.cache/invisible-playwright/` moved from a bare
+`pip install git+https://github.com/feder-cr/invisible_playwright.git` (this repo
+vendors that state as of `v0.1.8`, binary `firefox-7`) to a published, sealed package
+with a different cache-dir naming scheme (`v0.6.0`+, binary `firefox-18`+). Use the
+current package, not the vendored one, to get a build with a compatible protocol:
+
+```bash
+python3 -m venv /tmp/invpw-venv   # or reuse an existing venv
+/tmp/invpw-venv/bin/pip install invisible-playwright
+/tmp/invpw-venv/bin/python -m invisible_playwright fetch
+/tmp/invpw-venv/bin/python -m invisible_playwright version   # prints the resolved cache path
+```
+
+`fetch` checks the installed package's playwright pin against a "seal" and refuses (and
+tells you) if the cached tree doesn't match — no silent stale-binary use. Cache dir
+naming changed from bare `firefox-<N>` to `firefox-<N>_<version>_<build>`;
+`resolveFirefox()` in `packages/runtime/resolve.js` handles both (see
+[docs/architecture.md — Firefox resolution](./architecture.md#firefox-resolution) —
+sorting is numeric on `N`, not lexicographic, specifically so a two-digit revision like
+`firefox-18` is correctly preferred over `firefox-7`).
+
+**After fetching either binary:** re-run `tests/node/runtime/firefox-live.test.js`
+(skips gracefully if a binary is absent) and update any test file that pins an exact
+cached revision path (e.g. `PW_FIREFOX`, `INV_FIREFOX` constants in that file) to match
+what's now on disk.
 
 ## Dependency pinning
 
