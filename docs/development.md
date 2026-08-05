@@ -196,7 +196,7 @@ playwright-core is pinned to an exact version (no `^`) and patched via `patch-pa
    ```
    All 12 entries must report `patched`. If any fail, the script rolls back and exits 1 — the anchor string changed upstream and the patch script needs updating first.
 
-   **Patch locations (as of 1.61.0):**
+   **Patch locations (as of 1.62.1):**
 
    Since 1.60.0 all server source is compiled into a single `lib/coreBundle.js` (esbuild). The patch script uses `patchSection(src, sectionPath, fn)` to scope each transform to its source module via esbuild-emitted `// packages/playwright-core/src/<path>` headers.
 
@@ -220,6 +220,7 @@ playwright-core is pinned to an exact version (no `^`) and patched via `patch-pa
    | Version | What changed |
    |---------|-------------|
    | 1.61.0 | `_updateUserAgent` local var renamed `options2` → `options`; `context()` in frames gained a `noUtilityWorld?.()` guard at the top |
+   | 1.62.1 | Worker constructor/callsite param renamed `url2` → `url3` in both `crPage.ts` and `page.ts` sections |
 
    If a patch fails, the script rolls back and prints which anchor wasn't found. For the greasy brands patch, check whether the local variable name changed or `_updateUserAgent` moved:
    ```bash

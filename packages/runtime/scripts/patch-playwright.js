@@ -284,8 +284,8 @@ const patches = [
     apply: sec => strReplace(
       'crPage: Worker callsite pass targetId+session',
       sec,
-      `const worker = new Worker(this._page, url2);`,
-      `const worker = new Worker(this._page, url2, undefined, event.targetInfo.targetId, session2);`
+      `const worker = new Worker(this._page, url3);`,
+      `const worker = new Worker(this._page, url3, undefined, event.targetInfo.targetId, session2);`
     ),
   },
 
@@ -415,24 +415,24 @@ const patches = [
     apply: sec => strReplace(
       'page: Worker constructor add targetId+session',
       sec,
-      `constructor(parent, url2, onDisconnect) {
+      `constructor(parent, url3, onDisconnect) {
         super(parent, "worker");
         this._executionContextPromise = new ManualPromise();
         this._workerScriptLoaded = false;
         this.existingExecutionContext = null;
         this.openScope = new LongStandingScope();
         this.attribution.worker = this;
-        this.url = url2;
+        this.url = url3;
         this._onDisconnect = onDisconnect;
       }`,
-      `constructor(parent, url2, onDisconnect, targetId, session) {
+      `constructor(parent, url3, onDisconnect, targetId, session) {
         super(parent, "worker");
         this._executionContextPromise = new ManualPromise();
         this._workerScriptLoaded = false;
         this.existingExecutionContext = null;
         this.openScope = new LongStandingScope();
         this.attribution.worker = this;
-        this.url = url2;
+        this.url = url3;
         this._onDisconnect = onDisconnect;
         this._targetId = targetId;
         this._session = session;
