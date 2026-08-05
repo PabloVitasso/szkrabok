@@ -35,17 +35,20 @@ function makeTmp() {
 
 test.afterAll(() => {
   for (const d of tmpDirs) {
-    try { rmSync(d, { recursive: true, force: true }); } catch (e) { console.warn('[cleanup] rmSync failed:', e.message); }
+    try {
+      rmSync(d, { recursive: true, force: true });
+    } catch (e) {
+      console.warn('[cleanup] rmSync failed:', e.message);
+    }
   }
 });
 
 async function spawnWithFirefox() {
   const dir = makeTmp();
-  writeFileSync(join(dir, 'szkrabok.config.toml'), [
-    '[browser]',
-    'engine = "firefox"',
-    `executable_path = "${INV_FIREFOX}"`,
-  ].join('\n') + '\n');
+  writeFileSync(
+    join(dir, 'szkrabok.config.toml'),
+    ['[browser]', 'engine = "firefox"', `executable_path = "${INV_FIREFOX}"`].join('\n') + '\n'
+  );
 
   const transport = new StdioClientTransport({
     command: 'node',
@@ -58,7 +61,7 @@ async function spawnWithFirefox() {
 
   const client = new Client(
     { name: 'firefox-engine-test', version: '1.0.0' },
-    { capabilities: {} },
+    { capabilities: {} }
   );
 
   await client.connect(transport);
@@ -84,7 +87,9 @@ test.describe('Firefox engine — MCP guards', () => {
       const body = JSON.parse(res.content[0].text);
       expect(body.browserEngine).toBe('firefox');
     } finally {
-      await client.callTool({ name: 'session_manage', arguments: { action: 'close', sessionName } }).catch(() => {});
+      await client
+        .callTool({ name: 'session_manage', arguments: { action: 'close', sessionName } })
+        .catch(() => {});
       await client.close().catch(() => {});
     }
   });
@@ -99,13 +104,18 @@ test.describe('Firefox engine — MCP guards', () => {
         arguments: { action: 'open', sessionName, launchOptions: { headless: true } },
       });
 
-      const listRes = await client.callTool({ name: 'session_manage', arguments: { action: 'list' } });
+      const listRes = await client.callTool({
+        name: 'session_manage',
+        arguments: { action: 'list' },
+      });
       const { sessions } = JSON.parse(listRes.content[0].text);
       const entry = sessions.find(s => s.id === sessionName);
       expect(entry, 'session should appear in list').toBeDefined();
       expect(entry.browserEngine).toBe('firefox');
     } finally {
-      await client.callTool({ name: 'session_manage', arguments: { action: 'close', sessionName } }).catch(() => {});
+      await client
+        .callTool({ name: 'session_manage', arguments: { action: 'close', sessionName } })
+        .catch(() => {});
       await client.close().catch(() => {});
     }
   });
@@ -128,7 +138,9 @@ test.describe('Firefox engine — MCP guards', () => {
       const body = JSON.parse(res.content[0].text);
       expect(body.code).toBe('ENGINE_NOT_SUPPORTED');
     } finally {
-      await client.callTool({ name: 'session_manage', arguments: { action: 'close', sessionName } }).catch(() => {});
+      await client
+        .callTool({ name: 'session_manage', arguments: { action: 'close', sessionName } })
+        .catch(() => {});
       await client.close().catch(() => {});
     }
   });
@@ -151,7 +163,9 @@ test.describe('Firefox engine — MCP guards', () => {
       const body = JSON.parse(res.content[0].text);
       expect(body.code).toBe('ENGINE_NOT_SUPPORTED');
     } finally {
-      await client.callTool({ name: 'session_manage', arguments: { action: 'close', sessionName } }).catch(() => {});
+      await client
+        .callTool({ name: 'session_manage', arguments: { action: 'close', sessionName } })
+        .catch(() => {});
       await client.close().catch(() => {});
     }
   });

@@ -32,14 +32,20 @@ const SESSION_FF = 'ff-guard-test';
 const fakePage = () => ({ isClosed: () => false });
 const fakeContext = () => ({ _closed: false });
 
-const addFirefoxSession = (id) => {
+const addFirefoxSession = id => {
   pool.add(
     id,
-    fakeContext(), fakePage(),
-    null,   // cdpPort = null for Firefox
-    null,   // preset
-    null,   // label
-    false, null, null, null, null, null,
+    fakeContext(),
+    fakePage(),
+    null, // cdpPort = null for Firefox
+    null, // preset
+    null, // label
+    false,
+    null,
+    null,
+    null,
+    null,
+    null,
     'firefox'
   );
 };
@@ -62,7 +68,10 @@ test('endpoint() throws EngineNotSupportedError for Firefox session', async () =
   await assert.rejects(
     () => endpoint({ sessionName: SESSION_FF }),
     err => {
-      assert.ok(err instanceof EngineNotSupportedError, `expected EngineNotSupportedError, got ${err.constructor.name}: ${err.message}`);
+      assert.ok(
+        err instanceof EngineNotSupportedError,
+        `expected EngineNotSupportedError, got ${err.constructor.name}: ${err.message}`
+      );
       assert.equal(err.code, 'ENGINE_NOT_SUPPORTED');
       assert.equal(err.engine, 'firefox');
       return true;
@@ -82,7 +91,10 @@ test('run_test throws EngineNotSupportedError for Firefox session', async () => 
   await assert.rejects(
     () => run_test({ sessionName: SESSION_FF, config: configPath }),
     err => {
-      assert.ok(err instanceof EngineNotSupportedError, `expected EngineNotSupportedError, got ${err.constructor.name}: ${err.message}`);
+      assert.ok(
+        err instanceof EngineNotSupportedError,
+        `expected EngineNotSupportedError, got ${err.constructor.name}: ${err.message}`
+      );
       assert.equal(err.code, 'ENGINE_NOT_SUPPORTED');
       assert.equal(err.engine, 'firefox');
       return true;
@@ -117,7 +129,11 @@ test('open() response includes browserEngine: firefox', async () => {
     });
 
     assert.equal(result.success, true);
-    assert.equal(result.browserEngine, 'firefox', 'open response must include browserEngine: firefox');
+    assert.equal(
+      result.browserEngine,
+      'firefox',
+      'open response must include browserEngine: firefox'
+    );
     assert.equal(result.cdpEndpoint, null, 'cdpEndpoint must be null for Firefox');
   } finally {
     pool.remove(profile);
@@ -132,12 +148,30 @@ test('list() includes browserEngine for active template session', async () => {
   const id = 'ff-list-template-test';
   try {
     await storage.ensureProfileDir(id);
-    pool.add(id, fakeContext(), fakePage(), null, null, null, false, null, null, null, null, null, 'firefox');
+    pool.add(
+      id,
+      fakeContext(),
+      fakePage(),
+      null,
+      null,
+      null,
+      false,
+      null,
+      null,
+      null,
+      null,
+      null,
+      'firefox'
+    );
 
     const result = await list();
     const entry = result.sessions.find(s => s.id === id);
     assert.ok(entry, `session ${id} must appear in list()`);
-    assert.equal(entry.browserEngine, 'firefox', 'list() must include browserEngine: firefox for template');
+    assert.equal(
+      entry.browserEngine,
+      'firefox',
+      'list() must include browserEngine: firefox for template'
+    );
   } finally {
     pool.remove(id);
     await storage.deleteSession(id).catch(() => {});
@@ -147,13 +181,30 @@ test('list() includes browserEngine for active template session', async () => {
 test('list() includes browserEngine for active clone session', async () => {
   const id = 'ff-list-clone-test';
   try {
-    pool.add(id, fakeContext(), fakePage(), null, null, null,
-      true, '/tmp/fake-clone-dir', 'ff-template', null, null, null, 'firefox');
+    pool.add(
+      id,
+      fakeContext(),
+      fakePage(),
+      null,
+      null,
+      null,
+      true,
+      '/tmp/fake-clone-dir',
+      'ff-template',
+      null,
+      null,
+      null,
+      'firefox'
+    );
 
     const result = await list();
     const entry = result.sessions.find(s => s.id === id);
     assert.ok(entry, `clone ${id} must appear in list()`);
-    assert.equal(entry.browserEngine, 'firefox', 'list() must include browserEngine: firefox for clone');
+    assert.equal(
+      entry.browserEngine,
+      'firefox',
+      'list() must include browserEngine: firefox for clone'
+    );
   } finally {
     pool.remove(id);
   }

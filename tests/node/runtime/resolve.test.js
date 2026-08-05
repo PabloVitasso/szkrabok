@@ -1505,4 +1505,3 @@ describe('populateCandidates immutability', () => {
     }
   });
 });
-

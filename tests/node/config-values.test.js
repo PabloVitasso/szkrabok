@@ -156,32 +156,41 @@ test('defaults: browserEngine is chromium', () => {
 });
 
 test('[browser] engine = "firefox" parses to browserEngine: firefox', () => {
-  withTmpToml(`
+  withTmpToml(
+    `
 [browser]
 engine = "firefox"
-`, () => {
-    const cfg = getConfig();
-    assert.equal(cfg.browserEngine, 'firefox');
-  });
+`,
+    () => {
+      const cfg = getConfig();
+      assert.equal(cfg.browserEngine, 'firefox');
+    }
+  );
 });
 
 test('[browser] executable_path overrides default.executablePath', () => {
-  withTmpToml(`
+  withTmpToml(
+    `
 [browser]
 engine = "firefox"
 executable_path = "/usr/bin/firefox-stealth"
-`, () => {
-    const cfg = getConfig();
-    assert.equal(cfg.executablePath, '/usr/bin/firefox-stealth');
-  });
+`,
+    () => {
+      const cfg = getConfig();
+      assert.equal(cfg.executablePath, '/usr/bin/firefox-stealth');
+    }
+  );
 });
 
 test('default.executablePath still works as fallback', () => {
-  withTmpToml(`
+  withTmpToml(
+    `
 [default]
 executablePath = "/usr/bin/chromium-fallback"
-`, () => {
-    const cfg = getConfig();
-    assert.equal(cfg.executablePath, '/usr/bin/chromium-fallback');
-  });
+`,
+    () => {
+      const cfg = getConfig();
+      assert.equal(cfg.executablePath, '/usr/bin/chromium-fallback');
+    }
+  );
 });

@@ -28,13 +28,20 @@ import { endpoint } from '../../../src/tools/szkrabok_session.js';
 // denies the usernamespace clone Playwright needs (CLONE_NEWPID EPERM).
 // Chromium: walk cache for latest installed version (see resolve.js fallback).
 
-const PW_CHROMIUM = join(homedir(), '.cache/ms-playwright/chromium-1200/chrome-linux64/chrome');
-const PW_FIREFOX  = join(homedir(), '.cache/ms-playwright/firefox-1489/firefox/firefox');
-const INV_FIREFOX = join(homedir(), '.cache/invisible-playwright/firefox-7/firefox');
+const PW_CHROMIUM = join(homedir(), '.cache/ms-playwright/chromium-1234/chrome-linux64/chrome');
+const PW_FIREFOX = join(homedir(), '.cache/ms-playwright/firefox-1538/firefox/firefox');
+// invisible_playwright >=0.5.0 names cache dirs firefox-<N>_<version>_<build>
+// instead of the old bare firefox-<N> — pinned to the currently fetched build.
+// resolveFirefox() (see resolve.js) is the code path that must stay generic;
+// this constant is deliberately pinned for reproducible test binaries.
+const INV_FIREFOX = join(
+  homedir(),
+  '.cache/invisible-playwright/firefox-18_151.0_20260724001829/firefox'
+);
 
 const SKIP_PW_CHROME = !existsSync(PW_CHROMIUM);
-const SKIP_PW        = !existsSync(PW_FIREFOX);
-const SKIP_INV       = !existsSync(INV_FIREFOX);
+const SKIP_PW = !existsSync(PW_FIREFOX);
+const SKIP_INV = !existsSync(INV_FIREFOX);
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -51,11 +58,10 @@ afterEach(() => {
 });
 
 const withBrowserConfig = (engine, executablePath) => {
-  writeFileSync(join(tmpDir, 'szkrabok.config.toml'), [
-    '[browser]',
-    `engine = "${engine}"`,
-    `executable_path = "${executablePath}"`,
-  ].join('\n'));
+  writeFileSync(
+    join(tmpDir, 'szkrabok.config.toml'),
+    ['[browser]', `engine = "${engine}"`, `executable_path = "${executablePath}"`].join('\n')
+  );
   initConfig([tmpDir]);
 };
 
@@ -64,7 +70,7 @@ const withBrowserConfig = (engine, executablePath) => {
 // Called inside each browser describe block. Avoids duplicating the same
 // launch / navigate / close assertions for every engine.
 
-const runLifecycleTests = ({ executablePath, engine, hasCdp, skipNavigate = false }) => {
+const runLifecycleTests = ({ engine, hasCdp, skipNavigate = false }) => {
   test('launch() opens a browser session', async () => {
     const profile = `live-launch-${engine}-${Date.now()}`;
     try {
@@ -116,7 +122,7 @@ const runLifecycleTests = ({ executablePath, engine, hasCdp, skipNavigate = fals
             assert.ok(err instanceof EngineNotSupportedError);
             assert.equal(err.code, 'ENGINE_NOT_SUPPORTED');
             return true;
-          },
+          }
         );
       } finally {
         await closeSession(profile).catch(() => {});
@@ -127,98 +133,122 @@ const runLifecycleTests = ({ executablePath, engine, hasCdp, skipNavigate = fals
 
 // ── Playwright bundled Chromium ───────────────────────────────────────────────
 
-describe('Playwright bundled Chromium (chromium-1200)', { timeout: 30_000, skip: SKIP_PW_CHROME }, () => {
-  beforeEach(() => withBrowserConfig('chromium', PW_CHROMIUM));
+describe(
+  'Playwright bundled Chromium (chromium-1234)',
+  { timeout: 30_000, skip: SKIP_PW_CHROME },
+  () => {
+    beforeEach(() => withBrowserConfig('chromium', PW_CHROMIUM));
 
-  test('checkBrowser() resolves the configured executable_path', async () => {
-    const path = await checkBrowser();
-    assert.equal(path, PW_CHROMIUM);
-  });
+    test('checkBrowser() resolves the configured executable_path', async () => {
+      const path = await checkBrowser();
+      assert.equal(path, PW_CHROMIUM);
+    });
 
-  runLifecycleTests({ executablePath: PW_CHROMIUM, engine: 'chromium', hasCdp: true });
-});
+    runLifecycleTests({ engine: 'chromium', hasCdp: true });
+  }
+);
 
 // ── Playwright bundled Firefox ────────────────────────────────────────────────
 
-describe('Playwright bundled Firefox (firefox-1489, stock)', { timeout: 30_000, skip: SKIP_PW }, () => {
-  beforeEach(() => withBrowserConfig('firefox', PW_FIREFOX));
+describe(
+  'Playwright bundled Firefox (firefox-1489, stock)',
+  { timeout: 30_000, skip: SKIP_PW },
+  () => {
+    beforeEach(() => withBrowserConfig('firefox', PW_FIREFOX));
 
-  test('checkBrowser() resolves the configured executable_path', async () => {
-    const path = await checkBrowser();
-    assert.equal(path, PW_FIREFOX);
-  });
+    test('checkBrowser() resolves the configured executable_path', async () => {
+      const path = await checkBrowser();
+      assert.equal(path, PW_FIREFOX);
+    });
 
-  runLifecycleTests({ executablePath: PW_FIREFOX, engine: 'firefox', hasCdp: false });
+    runLifecycleTests({ engine: 'firefox', hasCdp: false });
 
-  test('navigator.webdriver is true (stock Playwright Firefox, automation visible)', async () => {
-    const profile = `live-baseline-wd-${Date.now()}`;
-    try {
-      await launch({ profile, headless: true });
-      const session = getSession(profile);
-      const webdriver = await session.page.evaluate(() => navigator.webdriver);
-      assert.equal(webdriver, true, `stock Playwright Firefox must expose webdriver=true (got: ${webdriver})`);
-    } finally {
-      await closeSession(profile).catch(() => {});
-    }
-  });
-});
+    test('navigator.webdriver is true (stock Playwright Firefox, automation visible)', async () => {
+      const profile = `live-baseline-wd-${Date.now()}`;
+      try {
+        await launch({ profile, headless: true });
+        const session = getSession(profile);
+        const webdriver = await session.page.evaluate(() => navigator.webdriver);
+        assert.equal(
+          webdriver,
+          true,
+          `stock Playwright Firefox must expose webdriver=true (got: ${webdriver})`
+        );
+      } finally {
+        await closeSession(profile).catch(() => {});
+      }
+    });
+  }
+);
 
 // ── invisible_playwright patched Firefox ──────────────────────────────────────
 
-describe('invisible_playwright patched Firefox (150.0.1)', { timeout: 30_000, skip: SKIP_INV }, () => {
-  beforeEach(() => withBrowserConfig('firefox', INV_FIREFOX));
+describe(
+  'invisible_playwright patched Firefox (150.0.1)',
+  { timeout: 30_000, skip: SKIP_INV },
+  () => {
+    beforeEach(() => withBrowserConfig('firefox', INV_FIREFOX));
 
-  runLifecycleTests({ executablePath: INV_FIREFOX, engine: 'firefox', hasCdp: false, skipNavigate: true });
+    runLifecycleTests({
+      engine: 'firefox',
+      hasCdp: false,
+      skipNavigate: true,
+    });
 
-  test('navigator.webdriver is not true — patch suppresses automation flag', async () => {
-    const profile = `live-inv-wd-${Date.now()}`;
-    // invisible_playwright patches the binary so the flag is suppressed to false
-    // (Playwright's own protocol prevents full removal to undefined, but false
-    // is far less detectable than true for bot fingerprinting checks).
-    try {
-      await launch({ profile, headless: true });
-      const session = getSession(profile);
-      // session.page may be at about:newtab which has a CSP blocking eval.
-      // Open a fresh page (about:blank has no CSP) to read navigator.webdriver.
-      const page = await session.context.newPage();
+    test('navigator.webdriver is not true — patch suppresses automation flag', async () => {
+      const profile = `live-inv-wd-${Date.now()}`;
+      // invisible_playwright patches the binary so the flag is suppressed to false
+      // (Playwright's own protocol prevents full removal to undefined, but false
+      // is far less detectable than true for bot fingerprinting checks).
       try {
-        const webdriver = await page.evaluate(() => navigator.webdriver);
-        assert.notEqual(
-          webdriver,
-          true,
-          `navigator.webdriver must not be true for invisible_playwright Firefox (got: ${webdriver})`,
-        );
+        await launch({ profile, headless: true });
+        const session = getSession(profile);
+        // session.page may be at about:newtab which has a CSP blocking eval.
+        // Open a fresh page (about:blank has no CSP) to read navigator.webdriver.
+        const page = await session.context.newPage();
+        try {
+          const webdriver = await page.evaluate(() => navigator.webdriver);
+          assert.notEqual(
+            webdriver,
+            true,
+            `navigator.webdriver must not be true for invisible_playwright Firefox (got: ${webdriver})`
+          );
+        } finally {
+          await page.close().catch(() => {});
+        }
       } finally {
-        await page.close().catch(() => {});
+        await closeSession(profile).catch(() => {});
       }
-    } finally {
-      await closeSession(profile).catch(() => {});
-    }
-  });
+    });
 
-  test('auto-detect: launch() uses invisible_playwright binary without explicit executable_path', async () => {
-    // Config only sets engine, no executable_path — resolveFirefox should find cache
-    writeFileSync(join(tmpDir, 'szkrabok.config.toml'), '[browser]\nengine = "firefox"\n');
-    initConfig([tmpDir]);
-    const profile = `live-inv-autodetect-${Date.now()}`;
-    try {
-      await launch({ profile, headless: true });
-      const session = getSession(profile);
-      assert.equal(session.browserEngine, 'firefox');
-    } finally {
-      await closeSession(profile).catch(() => {});
-    }
-  });
-});
+    test('auto-detect: launch() uses invisible_playwright binary without explicit executable_path', async () => {
+      // Config only sets engine, no executable_path — resolveFirefox should find cache
+      writeFileSync(join(tmpDir, 'szkrabok.config.toml'), '[browser]\nengine = "firefox"\n');
+      initConfig([tmpDir]);
+      const profile = `live-inv-autodetect-${Date.now()}`;
+      try {
+        await launch({ profile, headless: true });
+        const session = getSession(profile);
+        assert.equal(session.browserEngine, 'firefox');
+      } finally {
+        await closeSession(profile).catch(() => {});
+      }
+    });
+  }
+);
 
 // ── auto-detection ────────────────────────────────────────────────────────────
 
-test('resolveFirefox() auto-detects invisible_playwright binary from cache', { skip: SKIP_INV }, async () => {
-  const result = await resolveFirefox();
-  assert.equal(result.found, true, `expected found=true, got: ${JSON.stringify(result)}`);
-  assert.ok(
-    result.path.includes('invisible-playwright'),
-    `expected invisible-playwright path, got: ${result.path}`,
-  );
-  assert.equal(result.source, 'invisiblePlaywright');
-});
+test(
+  'resolveFirefox() auto-detects invisible_playwright binary from cache',
+  { skip: SKIP_INV },
+  async () => {
+    const result = await resolveFirefox();
+    assert.equal(result.found, true, `expected found=true, got: ${JSON.stringify(result)}`);
+    assert.ok(
+      result.path.includes('invisible-playwright'),
+      `expected invisible-playwright path, got: ${result.path}`
+    );
+    assert.equal(result.source, 'invisiblePlaywright');
+  }
+);

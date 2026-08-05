@@ -29,18 +29,21 @@ afterEach(() => {
   else process.env.HEADLESS = savedEnv.HEADLESS;
 });
 
-const makeFakeFirefox = (dir) => {
+const makeFakeFirefox = dir => {
   const p = join(dir, 'firefox');
   writeFileSync(p, '#!/bin/sh\necho "Firefox 150.0.1"');
   return p;
 };
 
 const withFirefoxConfig = (executablePath, fn) => {
-  writeFileSync(join(tmpDir, 'szkrabok.config.toml'), `
+  writeFileSync(
+    join(tmpDir, 'szkrabok.config.toml'),
+    `
 [browser]
 engine = "firefox"
 executable_path = "${executablePath}"
-`);
+`
+  );
   initConfig([tmpDir]);
   return fn();
 };
@@ -77,6 +80,7 @@ describe('launch() with Firefox engine', () => {
         // cdpPort read fails for fake context — opts are already captured
       }
       assert.ok(capturedOpts, '_launchImpl was not called');
+      assert.ok(capturedDir, '_launchImpl must receive a userDataDir');
       assert.equal(capturedOpts.stealth, false, 'stealth must be false for Firefox');
       assert.equal(capturedOpts.cdpPort, undefined, 'cdpPort must not be passed for Firefox');
       assert.equal(capturedOpts.browserEngine, 'firefox', 'browserEngine must be passed through');
