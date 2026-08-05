@@ -61,7 +61,9 @@ Files created:
 |------|---------|
 | `playwright.config.js` | Playwright config pointing at `./automation`, workers=1, headless=false. Sets `szkrabokProfile` (user-configurable). Env var bridging (`SZKRABOK_CDP_ENDPOINT`, `SZKRABOK_ATTACH_SIGNAL`, `SESSIONMODE`) is handled automatically by fixture option defaults - no config boilerplate needed. |
 | `package.json` | Merged - adds `@playwright/test` + `smol-toml` as devDependencies, sets `"type":"module"` |
-| `szkrabok.config.local.toml.example` | Template for machine-specific config (Chrome path, UA, log level) |
+| `szkrabok.config.toml` | Committed project defaults — presets, userAgent, overrideUserAgent. Commit this file. |
+| `szkrabok.config.local.toml` | Machine-specific overrides (Chrome path, log level). Gitignored — set `executablePath` here. |
+| `.gitignore` | Created or appended — ensures `szkrabok.config.local.toml` is excluded from git. |
 
 ### `full`
 
@@ -116,7 +118,8 @@ reads them at runtime.
 ```
 src/tools/templates/
   playwright.config.js
-  szkrabok.config.local.toml.example
+  szkrabok.config.toml
+  szkrabok.config.local.toml
   automation/
     fixtures.js
     example.spec.js
@@ -128,4 +131,3 @@ src/tools/templates/
 - Not a full project generator (no ESLint, Prettier, CI config)
 - Not interactive / no prompts
 - Does not install Chrome/Playwright browsers (`playwright install` is separate)
-- Does not write `szkrabok.config.local.toml` - only the `.example` (credentials are never auto-generated)

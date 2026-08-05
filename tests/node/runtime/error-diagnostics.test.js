@@ -30,7 +30,11 @@ beforeEach(() => {
 afterEach(() => {
   _resetConfigForTesting();
   for (const d of tmpDirs) {
-    try { rmSync(d, { recursive: true, force: true }); } catch { /* ignored */ }
+    try {
+      rmSync(d, { recursive: true, force: true });
+    } catch {
+      /* ignored */
+    }
   }
 });
 
@@ -180,7 +184,10 @@ describe('failureSource and hint derivation', () => {
     ];
     const json = new BrowserNotFoundError({ candidates }).toJSON();
     assert.strictEqual(json.context.failureSource, 'executablePath');
-    assert.ok(json.hint.includes('--write-config'), `hint must target executablePath: ${json.hint}`);
+    assert.ok(
+      json.hint.includes('--write-config'),
+      `hint must target executablePath: ${json.hint}`
+    );
   });
 
   test('both user sources not set → failureSource = executablePath (persistent preferred)', () => {
@@ -202,7 +209,10 @@ describe('failureSource and hint derivation', () => {
       { source: 'playwright', path: null, ok: false, reason: 'not found' },
     ];
     const json = new BrowserNotFoundError({ candidates }).toJSON();
-    assert.ok(json.hint.includes('restart MCP server'), `CHROMIUM_PATH hint must mention restart: ${json.hint}`);
+    assert.ok(
+      json.hint.includes('restart MCP server'),
+      `CHROMIUM_PATH hint must mention restart: ${json.hint}`
+    );
   });
 });
 
@@ -263,7 +273,10 @@ describe('restartNeeded computation', () => {
       configMeta,
     }).toJSON();
 
-    assert.ok(!json.restartNeeded, 'restartNeeded must be absent when file not newer than loadedAt');
+    assert.ok(
+      !json.restartNeeded,
+      'restartNeeded must be absent when file not newer than loadedAt'
+    );
   });
 
   test('context.config.loadedAt present when in configMeta', () => {
@@ -295,7 +308,10 @@ describe('restartNeeded computation', () => {
 describe('SessionNotFoundError contract', () => {
   test('message is lowercase', () => {
     const err = new SessionNotFoundError('my-session');
-    assert.ok(err.message.startsWith('session not found'), `message must be lowercase: ${err.message}`);
+    assert.ok(
+      err.message.startsWith('session not found'),
+      `message must be lowercase: ${err.message}`
+    );
   });
 
   test('hint is present', () => {

@@ -6,7 +6,11 @@ import { tmpdir } from 'node:os';
 const levels = { error: 0, warn: 1, info: 2, debug: 3 };
 
 const getLogLevel = () => {
-  try { return getConfig().logLevel; } catch { return 'info'; }
+  try {
+    return getConfig().logLevel;
+  } catch {
+    return 'info';
+  }
 };
 
 // "none", empty string, or unset → levels[level] is undefined → always false.
@@ -18,11 +22,19 @@ const getFileStream = () => {
   if (!_fileStream) {
     const ts = new Date();
     const pad = n => String(n).padStart(2, '0');
-    const logFile = join(tmpdir(), `${ts.getFullYear()}${pad(ts.getMonth() + 1)}${pad(ts.getDate())}${pad(ts.getHours())}${pad(ts.getMinutes())}szkrabok-mcp.log`);
+    const logFile = join(
+      tmpdir(),
+      `${ts.getFullYear()}${pad(ts.getMonth() + 1)}${pad(ts.getDate())}${pad(ts.getHours())}${pad(ts.getMinutes())}szkrabok-mcp.log`
+    );
     _fileStream = createWriteStream(logFile, { flags: 'a' });
     const _origConsoleError = console.error.bind(console);
     console.error = (...args) => {
-      const line = args.map(a => { if (typeof a === 'string') return a; return JSON.stringify(a); }).join(' ');
+      const line = args
+        .map(a => {
+          if (typeof a === 'string') return a;
+          return JSON.stringify(a);
+        })
+        .join(' ');
       _origConsoleError(...args);
       _fileStream.write(line + '\n');
     };
@@ -43,7 +55,10 @@ const format = (level, msg, meta) => {
 };
 
 export const log = (msg, meta) => {
-  if (shouldLog('info')) { getFileStream(); console.error(format('info', msg, meta)); }
+  if (shouldLog('info')) {
+    getFileStream();
+    console.error(format('info', msg, meta));
+  }
 };
 
 export const logError = (msg, err, meta) => {
@@ -65,9 +80,15 @@ export const logError = (msg, err, meta) => {
 };
 
 export const logDebug = (msg, meta) => {
-  if (shouldLog('debug')) { getFileStream(); console.error(format('debug', msg, meta)); }
+  if (shouldLog('debug')) {
+    getFileStream();
+    console.error(format('debug', msg, meta));
+  }
 };
 
 export const logWarn = (msg, meta) => {
-  if (shouldLog('warn')) { getFileStream(); console.error(format('warn', msg, meta)); }
+  if (shouldLog('warn')) {
+    getFileStream();
+    console.error(format('warn', msg, meta));
+  }
 };

@@ -52,12 +52,8 @@ test('waitForAttach resolves when signal file appears after a delay', async () =
     clearTimeout(timer);
 
     // Should resolve shortly after the file is written (~150ms), well before the 30s timeout.
-    assert.ok(
-      elapsed < 5000,
-      `should resolve after file appears, took ${elapsed}ms`
-    );
+    assert.ok(elapsed < 5000, `should resolve after file appears, took ${elapsed}ms`);
   } finally {
     await rm(dir, { recursive: true });
   }
 });
-

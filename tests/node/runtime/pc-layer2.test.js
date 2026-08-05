@@ -55,7 +55,16 @@ describe('PC-2 pool — isClone and cloneDir fields', () => {
     const pool = await import('../../../packages/runtime/pool.js');
     const id = uid('clone');
     console.log('PC-2.2 step 1: pool.add("' + id + '", isClone=true)');
-    pool.add(id, mockCtx(), mockPage(), 9001, 'default', 'Default', true, '/tmp/szkrabok-clone-test');
+    pool.add(
+      id,
+      mockCtx(),
+      mockPage(),
+      9001,
+      'default',
+      'Default',
+      true,
+      '/tmp/szkrabok-clone-test'
+    );
     console.log('PC-2.2 step 2: pool.get("' + id + '")');
     const entry = pool.get(id);
     console.log('PC-2.2 step 2 returned entry.isClone:', entry.isClone);
@@ -84,23 +93,36 @@ describe('PC-2 pool — isClone and cloneDir fields', () => {
     console.log('PC-2.4 step 2 returned', entries.length, 'entries');
     // Every entry in list must have both fields (even pre-existing entries from other tests).
     for (const e of entries) {
-      console.log('PC-2.4 step 3: checking entry', e.id, '→ isClone:', e.isClone, 'cloneDir:', e.cloneDir);
+      console.log(
+        'PC-2.4 step 3: checking entry',
+        e.id,
+        '→ isClone:',
+        e.isClone,
+        'cloneDir:',
+        e.cloneDir
+      );
       assert.ok('isClone' in e, `entry ${e.id} missing isClone`);
       assert.ok('cloneDir' in e, `entry ${e.id} missing cloneDir`);
-      assert.ok(typeof e.isClone === 'boolean', `entry ${e.id} isClone must be boolean, got ${typeof e.isClone}`);
-      assert.ok(e.cloneDir === null || typeof e.cloneDir === 'string', `entry ${e.id} cloneDir must be null|string, got ${typeof e.cloneDir}`);
+      assert.ok(
+        typeof e.isClone === 'boolean',
+        `entry ${e.id} isClone must be boolean, got ${typeof e.isClone}`
+      );
+      assert.ok(
+        e.cloneDir === null || typeof e.cloneDir === 'string',
+        `entry ${e.id} cloneDir must be null|string, got ${typeof e.cloneDir}`
+      );
     }
   });
 
   test('PC-2.5: list() returns clone entries alongside template entries', async () => {
     const pool = await import('../../../packages/runtime/pool.js');
     const templateId = uid('mixed-template');
-    const cloneId    = uid('mixed-clone');
+    const cloneId = uid('mixed-clone');
 
     console.log('PC-2.5 step 1: pool.add template "' + templateId + '" (isClone=false)');
     pool.add(templateId, mockCtx(), mockPage(), 9004, 'default', 'Default', false, null);
     console.log('PC-2.5 step 2: pool.add clone "' + cloneId + '" (isClone=true)');
-    pool.add(cloneId,    mockCtx(), mockPage(), 9005, 'default', 'Default', true, '/tmp/clone-dir');
+    pool.add(cloneId, mockCtx(), mockPage(), 9005, 'default', 'Default', true, '/tmp/clone-dir');
 
     console.log('PC-2.5 step 3: pool.list()');
     const entries = pool.list();

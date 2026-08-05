@@ -23,8 +23,16 @@ const withLock = (name, fn) => {
   const gate = new Promise(r => (release = r));
   locks.set(name, gate);
   return prev.then(fn).then(
-    result => { release(); if (locks.get(name) === gate) locks.delete(name); return result; },
-    err    => { release(); if (locks.get(name) === gate) locks.delete(name); throw err; }
+    result => {
+      release();
+      if (locks.get(name) === gate) locks.delete(name);
+      return result;
+    },
+    err => {
+      release();
+      if (locks.get(name) === gate) locks.delete(name);
+      throw err;
+    }
   );
 };
 
@@ -59,18 +67,18 @@ export const session_run_test = args =>
  */
 export const _run = async (args, deps) => {
   const {
-    sessionOpen:   _sessionOpen   = sessionOpen,
-    sessionClose:   _sessionClose  = sessionClose,
-    run_test:       _run_test     = run_test,
-    getSession:     _getSession    = getSession,
+    sessionOpen: _sessionOpen = sessionOpen,
+    sessionClose: _sessionClose = sessionClose,
+    run_test: _run_test = run_test,
+    getSession: _getSession = getSession,
     computeConfigHash: _computeConfigHash = computeConfigHash,
-    cloneFromLive:  _cloneFromLive = cloneFromLive,
+    cloneFromLive: _cloneFromLive = cloneFromLive,
   } = deps;
 
   const { session, test, postPolicy = {} } = args;
   const logicalName = session.name;
-  const mode        = session.mode ?? 'clone';
-  const nav         = session.navigation ?? { policy: 'never' };
+  const mode = session.mode ?? 'clone';
+  const nav = session.navigation ?? { policy: 'never' };
 
   // ── 1. Validation ───────────────────────────────────────────────────────────
   if (nav.policy !== 'never' && !nav.url) {
@@ -83,7 +91,12 @@ export const _run = async (args, deps) => {
   try {
     if (mode === 'clone') {
       let templateOpen = false;
-      try { _getSession(logicalName); templateOpen = true; } catch { /* not open */ }
+      try {
+        _getSession(logicalName);
+        templateOpen = true;
+      } catch {
+        /* not open */
+      }
 
       if (templateOpen) {
         const conflict = session.templateConflict ?? 'fail';
@@ -100,33 +113,37 @@ export const _run = async (args, deps) => {
 
       if (!runtimeName) {
         const r = await _sessionOpen({
-          sessionName:   logicalName,
+          sessionName: logicalName,
           launchOptions: { ...session.launchOptions, isClone: true },
         });
         runtimeName = r.sessionName;
       }
-
     } else {
       // template mode
       let alreadyOpen = false;
-      try { _getSession(logicalName); alreadyOpen = true; } catch { /* not open */ }
+      try {
+        _getSession(logicalName);
+        alreadyOpen = true;
+      } catch {
+        /* not open */
+      }
 
       if (alreadyOpen && session.launchOptions) {
-        const poolEntry   = _getSession(logicalName);
-        const storedHash  = poolEntry.configHash;
-        const callerHash  = _computeConfigHash(session.launchOptions) ?? null;
-        const mismatch    = storedHash !== callerHash;
+        const poolEntry = _getSession(logicalName);
+        const storedHash = poolEntry.configHash;
+        const callerHash = _computeConfigHash(session.launchOptions) ?? null;
+        const mismatch = storedHash !== callerHash;
 
         if (mismatch) {
           if (session.enforceLaunchOptionsMatch) {
             throw new Error(
               `launchOptions mismatch for session "${logicalName}". ` +
-              `Stored config hash: ${storedHash ?? '(none)'}, caller hash: ${callerHash ?? '(none)'}`
+                `Stored config hash: ${storedHash ?? '(none)'}, caller hash: ${callerHash ?? '(none)'}`
             );
           }
           console.warn(
             `[session_run_test] launchOptions mismatch for session "${logicalName}" — ` +
-            `stored: ${storedHash ?? '(none)'}, caller: ${callerHash ?? '(none)'}`
+              `stored: ${storedHash ?? '(none)'}, caller: ${callerHash ?? '(none)'}`
           );
         }
       }
@@ -143,13 +160,12 @@ export const _run = async (args, deps) => {
     if (nav.policy !== 'never') {
       const s = _getSession(runtimeName);
       const shouldNav =
-        nav.policy === 'always' ||
-        (nav.policy === 'ifBlank' && s.page.url() === 'about:blank');
+        nav.policy === 'always' || (nav.policy === 'ifBlank' && s.page.url() === 'about:blank');
 
       if (shouldNav) {
         await s.page.goto(nav.url, {
           waitUntil: 'networkidle',
-          timeout:   nav.timeout ?? 30_000,
+          timeout: nav.timeout ?? 30_000,
         });
       }
     }
@@ -161,15 +177,15 @@ export const _run = async (args, deps) => {
   let testResult;
   try {
     testResult = await _run_test({
-      sessionName:  runtimeName,
-      files:        Array.isArray(test.spec) ? test.spec : test.spec ? [test.spec] : [],
-      grep:         test.grep,
-      params:       test.params,
-      config:       test.config,
-      project:      test.project,
-      workers:      1,
-      reportFile:   test.reportFile,
-      keepOpen:     false,
+      sessionName: runtimeName,
+      files: Array.isArray(test.spec) ? test.spec : test.spec ? [test.spec] : [],
+      grep: test.grep,
+      params: test.params,
+      config: test.config,
+      project: test.project,
+      workers: 1,
+      reportFile: test.reportFile,
+      keepOpen: false,
       signalAttach: true,
     });
   } catch (e) {
@@ -198,15 +214,15 @@ export const _run = async (args, deps) => {
   } catch (e) {
     return {
       session: { logicalName, runtimeName, mode },
-      test:    testResult,
-      error:   e.message,
-      phase:   'postPolicy',
+      test: testResult,
+      error: e.message,
+      phase: 'postPolicy',
     };
   }
 
   // ── 6. Response ─────────────────────────────────────────────────────────────
   return {
     session: { logicalName, runtimeName, mode },
-    test:    testResult,
+    test: testResult,
   };
 };

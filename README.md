@@ -4,10 +4,10 @@ MCP server supplementing [microsoft/playwright-mcp](https://github.com/microsoft
 
 **Core Enhancements:**
 
-* **Named Sessions:** Persistent cookies, localStorage, and Chromium profiles.
-* **Profile Cloning:** Ephemeral session clones - template profile is deep-cloned to `$TMPDIR`, browser runs against the clone, clone is destroyed on close. Zero contamination of the template.
-* **Stealth:** Integrated `playwright-extra` + stealth plugin and anti-bot CDP patches.
-* **Deterministic Ports:** Fixed CDP ports per session for `connectOverCDP()`.
+- **Named Sessions:** Persistent cookies, localStorage, and Chromium profiles.
+- **Profile Cloning:** Ephemeral session clones - template profile is deep-cloned to `$TMPDIR`, browser runs against the clone, clone is destroyed on close. Zero contamination of the template.
+- **Stealth:** Integrated `playwright-extra` + stealth plugin and anti-bot CDP patches.
+- **Deterministic Ports:** Fixed CDP ports per session for `connectOverCDP()`.
 
 ## Tools & Capabilities
 
@@ -135,7 +135,9 @@ const SESSION = 'rebrowser-mcp-harness';
 test('rebrowser-check via MCP', async () => {
   const mcp = await mcpConnect(SESSION, { launchOptions: { headless: true } });
   try {
-    const result = await mcp.browser_run_test({ files: ['tests/playwright/e2e/rebrowser.spec.js'] });
+    const result = await mcp.browser_run_test({
+      files: ['tests/playwright/e2e/rebrowser.spec.js'],
+    });
     expect(result.passed).toBe(8);
   } finally {
     await mcp.close();
@@ -150,19 +152,23 @@ Full example: [tests/playwright/e2e/rebrowser-mcp.spec.js](./tests/playwright/e2
 **Install**
 
 Global (all projects):
+
 ```bash
 claude mcp add --scope user szkrabok -- npx -y @pablovitasso/szkrabok
 gemini mcp add --scope user szkrabok npx -y @pablovitasso/szkrabok
 kilo mcp add szkrabok npx -y @pablovitasso/szkrabok
 ```
+
 (Cursor: use UI -> Features -> MCP)
 
 This project only:
+
 ```bash
 claude mcp add szkrabok -- npx -y @pablovitasso/szkrabok
 ```
 
 Shared config (Claude Desktop / Gemini / Kilo / Cursor) - add to config file:
+
 ```json
 {
   "mcpServers": {
@@ -173,14 +179,25 @@ Shared config (Claude Desktop / Gemini / Kilo / Cursor) - add to config file:
   }
 }
 ```
+
 Locations: Claude Desktop -> `claude_desktop_config.json`, Gemini -> `~/.gemini/settings.json`, Kilo -> `mcp_settings.json`, Cursor -> UI
 
 OpenCode:
+
 ```json
-{ "mcp": { "szkrabok": { "type": "local", "command": ["npx", "-y", "@pablovitasso/szkrabok"], "enabled": true } } }
+{
+  "mcp": {
+    "szkrabok": {
+      "type": "local",
+      "command": ["npx", "-y", "@pablovitasso/szkrabok"],
+      "enabled": true
+    }
+  }
+}
 ```
 
 Codex (TOML):
+
 ```toml
 [mcp_servers.szkrabok]
 command = "npx"
@@ -188,6 +205,7 @@ args = ["-y", "@pablovitasso/szkrabok"]
 ```
 
 New project:
+
 ```bash
 npx @pablovitasso/szkrabok init
 ```
@@ -196,14 +214,17 @@ npx @pablovitasso/szkrabok init
 
 **Configure**
 
-Optionally create `szkrabok.config.local.toml` in your project root to set a custom browser binary or user agent:
+`scaffold_init` creates two config files — commit one, gitignore the other:
+
+| File                         | Purpose                                                                   |
+| ---------------------------- | ------------------------------------------------------------------------- |
+| `szkrabok.config.toml`       | Project defaults — presets, userAgent. **Commit this.**                   |
+| `szkrabok.config.local.toml` | Machine-specific overrides — `executablePath`, log level. **Gitignored.** |
 
 ```toml
+# szkrabok.config.local.toml
 [default]
 executablePath = "/path/to/your/chrome"
-overrideUserAgent = true
-userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
-log_level = "debug"
 ```
 
 **Config discovery** - the server finds your TOML automatically. Priority order (first match wins):
@@ -257,10 +278,10 @@ szkrabok doctor install              # Install Playwright's Chromium (idempotent
 
 ## Project Structure
 
-* **`@szkrabok/runtime`** (`packages/runtime/`): Browser bootstrap, stealth, session pool, MCP client (`mcpConnect`, `spawnClient`, codegen).
-* **`@pablovitasso/szkrabok/fixtures`** (`src/fixtures.js`): Versioned Playwright fixture export - CDP attach path, standalone launch path, `writeAttachSignal` at attach time. Import from this in automation specs; `scaffold_init --preset full` writes a thin shim that re-exports it.
-* **Config**: `szkrabok.config.toml` (defaults) deep-merged with `szkrabok.config.local.toml` (machine-specific, gitignored).
-* **Release**: `npm run deps:update` updates dependencies, `npm run release:patch` bumps version + tags, then `npm run release:publish`.
+- **`@szkrabok/runtime`** (`packages/runtime/`): Browser bootstrap, stealth, session pool, MCP client (`mcpConnect`, `spawnClient`, codegen).
+- **`@pablovitasso/szkrabok/fixtures`** (`src/fixtures.js`): Versioned Playwright fixture export - CDP attach path, standalone launch path, `writeAttachSignal` at attach time. Import from this in automation specs; `scaffold_init --preset full` writes a thin shim that re-exports it.
+- **Config**: `szkrabok.config.toml` (defaults) deep-merged with `szkrabok.config.local.toml` (machine-specific, gitignored).
+- **Release**: `npm run deps:update` updates dependencies, `npm run release:patch` bumps version + tags, then `npm run release:publish`.
 
 ## Claude Code - pitfalls
 
@@ -270,10 +291,10 @@ See [docs/development.md — Claude Code pitfalls](./docs/development.md#claude-
 
 ## Documentation
 
-| Doc | Contents |
-|-----|----------|
-| [docs/architecture.md](./docs/architecture.md) | Layer map, file layout, session lifecycle, invariants |
-| [docs/development.md](./docs/development.md) | Adding tools, CLI design, release workflow |
-| [docs/testing.md](./docs/testing.md) | Test categories, how to run, writing specs |
-| [docs/mcp-client-library.md](./docs/mcp-client-library.md) | MCP client library and codegen |
-| [docs/scaffold-init.md](./docs/scaffold-init.md) | scaffold_init presets and template structure |
+| Doc                                                        | Contents                                              |
+| ---------------------------------------------------------- | ----------------------------------------------------- |
+| [docs/architecture.md](./docs/architecture.md)             | Layer map, file layout, session lifecycle, invariants |
+| [docs/development.md](./docs/development.md)               | Adding tools, CLI design, release workflow            |
+| [docs/testing.md](./docs/testing.md)                       | Test categories, how to run, writing specs            |
+| [docs/mcp-client-library.md](./docs/mcp-client-library.md) | MCP client library and codegen                        |
+| [docs/scaffold-init.md](./docs/scaffold-init.md)           | scaffold_init presets and template structure          |

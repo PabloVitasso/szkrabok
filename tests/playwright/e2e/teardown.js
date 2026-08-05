@@ -13,7 +13,15 @@ export default async function globalTeardown(_config) {
   } else {
     sessionId = 'playwright-default';
   }
-  const stateFile = path.resolve(__dirname, '..', '..', '..', 'sessions', sessionId, 'storageState.json');
+  const stateFile = path.resolve(
+    __dirname,
+    '..',
+    '..',
+    '..',
+    'sessions',
+    sessionId,
+    'storageState.json'
+  );
 
   // Teardown gets no page - we launch a fresh browser just to export context state.
   // If there's an existing state file (written by a test via page.context().storageState()),

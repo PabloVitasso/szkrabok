@@ -23,7 +23,16 @@
 
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { writeFileSync, readFileSync, mkdirSync, mkdtempSync, rmSync, chmodSync, symlinkSync, existsSync } from 'fs';
+import {
+  writeFileSync,
+  readFileSync,
+  mkdirSync,
+  mkdtempSync,
+  rmSync,
+  chmodSync,
+  symlinkSync,
+  existsSync,
+} from 'fs';
 import { readFile } from 'fs/promises';
 import { tmpdir } from 'os';
 import { join, dirname } from 'path';
@@ -468,80 +477,52 @@ describe('doctor CLI output', () => {
   const CLI = join(REPO_ROOT, 'src', 'index.js');
 
   test('env wins — [PASS  ] env shown, lower-priority candidates shown', () => {
-    const result = spawnSync(
-      process.execPath,
-      [CLI, 'doctor'],
-      {
-        env: { ...process.env, CHROMIUM_PATH: '/bin/ls' },
-        encoding: 'utf8',
-        timeout: 10000,
-      }
-    );
+    const result = spawnSync(process.execPath, [CLI, 'doctor'], {
+      env: { ...process.env, CHROMIUM_PATH: '/bin/ls' },
+      encoding: 'utf8',
+      timeout: 10000,
+    });
     const out = result.stdout + result.stderr;
-    assert.ok(
-      out.includes('[PASS  ] env'),
-      `expected "[PASS  ] env" in output:\n${out}`
-    );
+    assert.ok(out.includes('[PASS  ] env'), `expected "[PASS  ] env" in output:\n${out}`);
   });
 
   test('output lines with browser tags are fixed-width — [(PASS  |FAIL  |SKIP  |ABSENT|      )]', () => {
-    const result = spawnSync(
-      process.execPath,
-      [CLI, 'doctor'],
-      {
-        env: { ...process.env, CHROMIUM_PATH: '/bin/ls' },
-        encoding: 'utf8',
-        timeout: 10000,
-      }
-    );
+    const result = spawnSync(process.execPath, [CLI, 'doctor'], {
+      env: { ...process.env, CHROMIUM_PATH: '/bin/ls' },
+      encoding: 'utf8',
+      timeout: 10000,
+    });
     const out = result.stdout + result.stderr;
     // Match the fixed-width 8-char bracket format
     const tagPattern = /\[(PASS {2}|FAIL {2}|SKIP {2}|ABSENT| {6})\]/;
     const tagLines = out.split('\n').filter(l => tagPattern.test(l));
     assert.ok(tagLines.length >= 1, `expected at least one fixed-width tag line:\n${out}`);
     for (const line of tagLines) {
-      assert.ok(
-        tagPattern.test(line),
-        `line does not match fixed-width tag format:\n  ${line}`
-      );
+      assert.ok(tagPattern.test(line), `line does not match fixed-width tag format:\n  ${line}`);
     }
   });
 
   test('valid browser — Resolved line present, exits 0', () => {
-    const result = spawnSync(
-      process.execPath,
-      [CLI, 'doctor'],
-      {
-        env: { ...process.env, CHROMIUM_PATH: '/bin/ls' },
-        encoding: 'utf8',
-        timeout: 10000,
-      }
-    );
+    const result = spawnSync(process.execPath, [CLI, 'doctor'], {
+      env: { ...process.env, CHROMIUM_PATH: '/bin/ls' },
+      encoding: 'utf8',
+      timeout: 10000,
+    });
     const out = result.stdout + result.stderr;
-    assert.ok(
-      out.includes('Resolved:'),
-      `expected "Resolved:" in output:\n${out}`
-    );
+    assert.ok(out.includes('Resolved:'), `expected "Resolved:" in output:\n${out}`);
     assert.strictEqual(result.status, 0, `expected exit 0:\n${out}`);
   });
 
   test('invalid CHROMIUM_PATH — env shows as [FAIL  ] (configured but broken, before winner or no winner)', () => {
-    const result = spawnSync(
-      process.execPath,
-      [CLI, 'doctor'],
-      {
-        env: { ...process.env, CHROMIUM_PATH: '/nonexistent/chrome' },
-        encoding: 'utf8',
-        timeout: 10000,
-      }
-    );
+    const result = spawnSync(process.execPath, [CLI, 'doctor'], {
+      env: { ...process.env, CHROMIUM_PATH: '/nonexistent/chrome' },
+      encoding: 'utf8',
+      timeout: 10000,
+    });
     const out = result.stdout + result.stderr;
     // env failed validation - it is before any winner (or there is no winner)
     // -> state is always 'fail' -> [FAIL  ]
-    assert.ok(
-      out.includes('[FAIL  ] env'),
-      `expected "[FAIL  ] env" in output:\n${out}`
-    );
+    assert.ok(out.includes('[FAIL  ] env'), `expected "[FAIL  ] env" in output:\n${out}`);
     // doctor always exits 0 (D1 contract)
     assert.strictEqual(result.status, 0, `doctor must exit 0 by default:\n${out}`);
   });
@@ -601,15 +582,11 @@ describe('doctor CLI output — ABSENT tag and version warning', () => {
     // Its --version output cannot be parsed as a Chromium major version ->
     // extractChromiumMajor returns null -> [note] (not [warn]).
     // A real Chrome binary would produce [warn] on mismatch or nothing on match.
-    const result = spawnSync(
-      process.execPath,
-      [CLI, 'doctor'],
-      {
-        env: { ...process.env, CHROMIUM_PATH: '/bin/ls' },
-        encoding: 'utf8',
-        timeout: 10000,
-      }
-    );
+    const result = spawnSync(process.execPath, [CLI, 'doctor'], {
+      env: { ...process.env, CHROMIUM_PATH: '/bin/ls' },
+      encoding: 'utf8',
+      timeout: 10000,
+    });
     const out = result.stdout + result.stderr;
     assert.ok(
       (out.includes('[warn]') || out.includes('[note]')) && out.toLowerCase().includes('cdp'),
@@ -619,20 +596,13 @@ describe('doctor CLI output — ABSENT tag and version warning', () => {
 
   test('non-playwright binary — doctor prints version line', () => {
     // /bin/ls --version exits 0 and prints a version string on Linux
-    const result = spawnSync(
-      process.execPath,
-      [CLI, 'doctor'],
-      {
-        env: { ...process.env, CHROMIUM_PATH: '/bin/ls' },
-        encoding: 'utf8',
-        timeout: 10000,
-      }
-    );
+    const result = spawnSync(process.execPath, [CLI, 'doctor'], {
+      env: { ...process.env, CHROMIUM_PATH: '/bin/ls' },
+      encoding: 'utf8',
+      timeout: 10000,
+    });
     const out = result.stdout + result.stderr;
-    assert.ok(
-      out.includes('Version:'),
-      `expected "Version:" line in doctor output:\n${out}`
-    );
+    assert.ok(out.includes('Version:'), `expected "Version:" line in doctor output:\n${out}`);
   });
 
   test('[ABSENT] vs [FAIL  ]: doctor.js source uses ABSENT_REASONS and fixed-width TAGS', async () => {
@@ -645,18 +615,9 @@ describe('doctor CLI output — ABSENT tag and version warning', () => {
       src.includes('[ABSENT]'),
       'doctor.js must use [ABSENT] tag for not-configured candidates'
     );
-    assert.ok(
-      src.includes('[FAIL  ]'),
-      'doctor.js must use fixed-width [FAIL  ] tag (8 chars)'
-    );
-    assert.ok(
-      src.includes('[PASS  ]'),
-      'doctor.js must use fixed-width [PASS  ] tag (8 chars)'
-    );
-    assert.ok(
-      src.includes('[SKIP  ]'),
-      'doctor.js must use fixed-width [SKIP  ] tag (8 chars)'
-    );
+    assert.ok(src.includes('[FAIL  ]'), 'doctor.js must use fixed-width [FAIL  ] tag (8 chars)');
+    assert.ok(src.includes('[PASS  ]'), 'doctor.js must use fixed-width [PASS  ] tag (8 chars)');
+    assert.ok(src.includes('[SKIP  ]'), 'doctor.js must use fixed-width [SKIP  ] tag (8 chars)');
     // CHROMIUM_PATH='' must NOT be in ABSENT_REASONS - it is a fail, not absent
     assert.ok(
       !src.includes("'empty path'") || src.indexOf('ABSENT_REASONS') > src.indexOf("'empty path'"),
@@ -675,7 +636,7 @@ describe('doctor install: mock-npx integration', () => {
   const CLI = join(REPO_ROOT, 'src', 'index.js');
 
   // Helper: create a temp dir with a fake `npx` script, return { dir, cleanup }
-  const makeFakeNpx = (exitCode) => {
+  const makeFakeNpx = exitCode => {
     const dir = mkdtempSync(join(tmpdir(), 'szkrabok-test-npx-'));
     const fakeNpx = join(dir, 'npx');
     writeFileSync(fakeNpx, `#!/bin/sh\nexit ${exitCode}\n`);
@@ -686,21 +647,14 @@ describe('doctor install: mock-npx integration', () => {
   test('fake npx exits 0 → prints doctor detect --write-config tip and CHROMIUM_PATH hint, exits 0', () => {
     const { dir, cleanup } = makeFakeNpx(0);
     try {
-      const result = spawnSync(
-        process.execPath,
-        [CLI, 'doctor', 'install', '--force'],
-        {
-          env: { ...process.env, CHROMIUM_PATH: '/bin/ls', PATH: `${dir}:${process.env.PATH}` },
-          encoding: 'utf8',
-          timeout: 15000,
-        }
-      );
+      const result = spawnSync(process.execPath, [CLI, 'doctor', 'install', '--force'], {
+        env: { ...process.env, CHROMIUM_PATH: '/bin/ls', PATH: `${dir}:${process.env.PATH}` },
+        encoding: 'utf8',
+        timeout: 15000,
+      });
       assert.strictEqual(result.status, 0, `expected exit 0:\n${result.stderr}`);
       const out = result.stdout + result.stderr;
-      assert.ok(
-        out.includes('CHROMIUM_PATH'),
-        `expected "CHROMIUM_PATH" hint in output:\n${out}`
-      );
+      assert.ok(out.includes('CHROMIUM_PATH'), `expected "CHROMIUM_PATH" hint in output:\n${out}`);
       assert.ok(
         out.includes('doctor detect --write-config'),
         `expected "doctor detect --write-config" tip in output:\n${out}`
@@ -713,15 +667,11 @@ describe('doctor install: mock-npx integration', () => {
   test('fake npx exits 2 → actionable stderr message, exits non-zero', () => {
     const { dir, cleanup } = makeFakeNpx(2);
     try {
-      const result = spawnSync(
-        process.execPath,
-        [CLI, 'doctor', 'install', '--force'],
-        {
-          env: { ...process.env, CHROMIUM_PATH: '/bin/ls', PATH: `${dir}:${process.env.PATH}` },
-          encoding: 'utf8',
-          timeout: 5000,
-        }
-      );
+      const result = spawnSync(process.execPath, [CLI, 'doctor', 'install', '--force'], {
+        env: { ...process.env, CHROMIUM_PATH: '/bin/ls', PATH: `${dir}:${process.env.PATH}` },
+        encoding: 'utf8',
+        timeout: 5000,
+      });
       assert.notStrictEqual(result.status, 0, 'should exit with non-zero code on install failure');
       assert.ok(
         result.stderr.includes('szkrabok doctor'),
@@ -735,22 +685,15 @@ describe('doctor install: mock-npx integration', () => {
   test('fake npx exits 0 → post-install prints resolved path', () => {
     const { dir, cleanup } = makeFakeNpx(0);
     try {
-      const result = spawnSync(
-        process.execPath,
-        [CLI, 'doctor', 'install', '--force'],
-        {
-          env: { ...process.env, CHROMIUM_PATH: '/bin/ls', PATH: `${dir}:${process.env.PATH}` },
-          encoding: 'utf8',
-          timeout: 15000,
-        }
-      );
+      const result = spawnSync(process.execPath, [CLI, 'doctor', 'install', '--force'], {
+        env: { ...process.env, CHROMIUM_PATH: '/bin/ls', PATH: `${dir}:${process.env.PATH}` },
+        encoding: 'utf8',
+        timeout: 15000,
+      });
       const out = result.stdout + result.stderr;
       const hasPath = out.includes('Path:') || out.includes('playwright-managed');
       const hasWarn = out.includes('not found after install') || out.includes('szkrabok doctor');
-      assert.ok(
-        hasPath || hasWarn,
-        `expected path or warning in doctor install output:\n${out}`
-      );
+      assert.ok(hasPath || hasWarn, `expected path or warning in doctor install output:\n${out}`);
     } finally {
       cleanup();
     }
@@ -871,8 +814,10 @@ describe('BrowserNotFoundError serialization and MCP error contract', () => {
     const validateStart = src.indexOf('export const validateCandidate');
     const resolveStart = src.indexOf('export const resolveChromium');
     const buildStart = src.indexOf('export const buildCandidates');
-    assert.ok(validateStart >= 0 && resolveStart > validateStart && buildStart > resolveStart,
-      'expected validateCandidate < resolveChromium < buildCandidates in file order');
+    assert.ok(
+      validateStart >= 0 && resolveStart > validateStart && buildStart > resolveStart,
+      'expected validateCandidate < resolveChromium < buildCandidates in file order'
+    );
     const validateBody = src.slice(validateStart, resolveStart);
     const resolveBody = src.slice(resolveStart, buildStart);
     assert.ok(
@@ -894,73 +839,62 @@ describe('Stage 6 — D1: doctor exit code contract', () => {
   test('default: exits 0 even when checks fail (no browser)', () => {
     // Use a clearly invalid CHROMIUM_PATH and SZKRABOK_CONFIG pointing nowhere
     // so browser section fails. Doctor must still exit 0 without --strict.
-    const result = spawnSync(
-      process.execPath,
-      [CLI, 'doctor'],
-      {
-        env: { ...process.env, CHROMIUM_PATH: '/nonexistent/chrome' },
-        encoding: 'utf8',
-        timeout: 15000,
-      }
-    );
+    const result = spawnSync(process.execPath, [CLI, 'doctor'], {
+      env: { ...process.env, CHROMIUM_PATH: '/nonexistent/chrome' },
+      encoding: 'utf8',
+      timeout: 15000,
+    });
     // Exit 0 regardless of check outcome - this is the public API contract
     assert.strictEqual(
-      result.status, 0,
+      result.status,
+      0,
       `doctor must exit 0 by default (execution success), got ${result.status}:\n${result.stdout}${result.stderr}`
     );
   });
 
   test('--strict: exits 1 when checks fail', () => {
-    const result = spawnSync(
-      process.execPath,
-      [CLI, 'doctor', '--strict'],
-      {
-        env: { ...process.env, CHROMIUM_PATH: '/nonexistent/chrome' },
-        encoding: 'utf8',
-        timeout: 15000,
-      }
-    );
+    const result = spawnSync(process.execPath, [CLI, 'doctor', '--strict'], {
+      env: { ...process.env, CHROMIUM_PATH: '/nonexistent/chrome' },
+      encoding: 'utf8',
+      timeout: 15000,
+    });
     // With --strict, doctor exits 1 when any check fails.
     // On this machine the TOML may resolve a browser - so we check the output
     // and only assert exit 1 if "Some checks failed" is present.
     if ((result.stdout + result.stderr).includes('Some checks failed')) {
       assert.strictEqual(
-        result.status, 1,
+        result.status,
+        1,
         `doctor --strict must exit 1 when checks fail:\n${result.stdout}${result.stderr}`
       );
     } else {
       // All checks passed (e.g. TOML resolved a browser) - --strict exits 0
       assert.strictEqual(
-        result.status, 0,
+        result.status,
+        0,
         `doctor --strict exits 0 when all checks pass:\n${result.stdout}${result.stderr}`
       );
     }
   });
 
   test('--strict: exits 0 when all checks pass', () => {
-    const result = spawnSync(
-      process.execPath,
-      [CLI, 'doctor', '--strict'],
-      {
-        env: { ...process.env, CHROMIUM_PATH: '/bin/ls' },
-        encoding: 'utf8',
-        timeout: 15000,
-      }
-    );
+    const result = spawnSync(process.execPath, [CLI, 'doctor', '--strict'], {
+      env: { ...process.env, CHROMIUM_PATH: '/bin/ls' },
+      encoding: 'utf8',
+      timeout: 15000,
+    });
     // /bin/ls is a valid executable - browser check passes, so all checks pass
     // (assuming node version >=20 and playwright-core is installed)
     assert.strictEqual(
-      result.status, 0,
+      result.status,
+      0,
       `doctor --strict must exit 0 when all checks pass:\n${result.stdout}${result.stderr}`
     );
   });
 
   test('doctor.js source defines --strict option', async () => {
     const src = await readFile(join(REPO_ROOT, 'src', 'cli', 'commands', 'doctor.js'), 'utf8');
-    assert.ok(
-      src.includes('--strict'),
-      'doctor.js must define --strict option'
-    );
+    assert.ok(src.includes('--strict'), 'doctor.js must define --strict option');
   });
 });
 
@@ -989,15 +923,11 @@ describe('Stage 6 — D3: CDP version check via lookup table', () => {
   test('non-playwright binary with unparseable version → [note] CDP', () => {
     // /bin/ls --version output cannot be parsed as "Chromium X.Y.Z.W" ->
     // extractChromiumMajor returns null -> [note], not [warn]
-    const result = spawnSync(
-      process.execPath,
-      [CLI, 'doctor'],
-      {
-        env: { ...process.env, CHROMIUM_PATH: '/bin/ls' },
-        encoding: 'utf8',
-        timeout: 15000,
-      }
-    );
+    const result = spawnSync(process.execPath, [CLI, 'doctor'], {
+      env: { ...process.env, CHROMIUM_PATH: '/bin/ls' },
+      encoding: 'utf8',
+      timeout: 15000,
+    });
     const out = result.stdout + result.stderr;
     assert.ok(
       out.includes('[note] CDP'),
@@ -1011,11 +941,11 @@ describe('Stage 6 — D3: CDP version check via lookup table', () => {
     const orig = process.env.CHROMIUM_PATH;
     const env = { ...process.env };
     delete env.CHROMIUM_PATH;
-    const result = spawnSync(
-      process.execPath,
-      [CLI, 'doctor'],
-      { env, encoding: 'utf8', timeout: 15000 }
-    );
+    const result = spawnSync(process.execPath, [CLI, 'doctor'], {
+      env,
+      encoding: 'utf8',
+      timeout: 15000,
+    });
     // restore (not needed since subprocess, but good form to document)
     void orig;
     const out = result.stdout + result.stderr;
@@ -1034,15 +964,11 @@ describe('Stage 6 — D2/D4: tag format and state model', () => {
   const CLI = join(REPO_ROOT, 'src', 'index.js');
 
   test('CHROMIUM_PATH="" renders [FAIL  ] not [ABSENT]', () => {
-    const result = spawnSync(
-      process.execPath,
-      [CLI, 'doctor'],
-      {
-        env: { ...process.env, CHROMIUM_PATH: '' },
-        encoding: 'utf8',
-        timeout: 15000,
-      }
-    );
+    const result = spawnSync(process.execPath, [CLI, 'doctor'], {
+      env: { ...process.env, CHROMIUM_PATH: '' },
+      encoding: 'utf8',
+      timeout: 15000,
+    });
     const out = result.stdout + result.stderr;
     // empty string is a configured-but-invalid value -> [FAIL  ], not [ABSENT]
     assert.ok(
@@ -1059,22 +985,15 @@ describe('Stage 6 — D2/D4: tag format and state model', () => {
     // env wins, system is also valid (populated by chrome-launcher if present)
     // We can only verify this on machines where system Chrome exists.
     // This test verifies the tag is present when applicable.
-    const result = spawnSync(
-      process.execPath,
-      [CLI, 'doctor'],
-      {
-        env: { ...process.env, CHROMIUM_PATH: '/bin/ls' },
-        encoding: 'utf8',
-        timeout: 15000,
-      }
-    );
+    const result = spawnSync(process.execPath, [CLI, 'doctor'], {
+      env: { ...process.env, CHROMIUM_PATH: '/bin/ls' },
+      encoding: 'utf8',
+      timeout: 15000,
+    });
     const out = result.stdout + result.stderr;
     // [SKIP  ] must be used (not [SKIP] without padding) if any skip-state candidate is shown
     if (out.includes('[SKIP')) {
-      assert.ok(
-        out.includes('[SKIP  ]'),
-        `[SKIP] tags must be fixed-width [SKIP  ]:\n${out}`
-      );
+      assert.ok(out.includes('[SKIP  ]'), `[SKIP] tags must be fixed-width [SKIP  ]:\n${out}`);
     }
     // post-winner candidates render their true evaluation state (never suppressed)
     // skip -> [SKIP  ], absent -> [ABSENT], fail -> [FAIL  ]; no [      ] suppression
@@ -1085,15 +1004,11 @@ describe('Stage 6 — D2/D4: tag format and state model', () => {
   });
 
   test('state model: no old variable-width tags present', () => {
-    const result = spawnSync(
-      process.execPath,
-      [CLI, 'doctor'],
-      {
-        env: { ...process.env, CHROMIUM_PATH: '/bin/ls' },
-        encoding: 'utf8',
-        timeout: 15000,
-      }
-    );
+    const result = spawnSync(process.execPath, [CLI, 'doctor'], {
+      env: { ...process.env, CHROMIUM_PATH: '/bin/ls' },
+      encoding: 'utf8',
+      timeout: 15000,
+    });
     const out = result.stdout + result.stderr;
     // Old tags without padding must not appear in browser resolution section
     assert.ok(!out.includes('[PASS]'), `old variable-width [PASS] must not appear:\n${out}`);
@@ -1106,7 +1021,7 @@ describe('Stage 6 — D2/D4: tag format and state model', () => {
 
 describe('isFunctionalBrowser probe', () => {
   // Helper: create a temp stub script
-  const makeStub = (body) => {
+  const makeStub = body => {
     const dir = mkdtempSync(join(tmpdir(), 'szkrabok-test-stub-'));
     const stub = join(dir, 'stub');
     writeFileSync(stub, `#!/bin/sh\n${body}\n`);
@@ -1157,18 +1072,24 @@ describe('cross-platform path handling', () => {
     assert.strictEqual(result.reason, 'not a file');
   });
 
-  test('Windows-style backslash path — skipped on non-Windows', { skip: process.platform !== 'win32' }, () => {
-    // On win32, backslash paths must validate without internal errors.
-    // validateCandidate normalises via statSync which handles win32 separators.
-    const result = validateCandidate('C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe');
-    // File won't exist in CI - just assert no unexpected internal error
-    assert.ok(
-      result.reason !== 'cannot stat path: undefined',
-      `unexpected internal error for win32 path: ${result.reason}`
-    );
-    // Must be false (file won't exist), but with a recognisable reason
-    assert.strictEqual(result.ok, false);
-  });
+  test(
+    'Windows-style backslash path — skipped on non-Windows',
+    { skip: process.platform !== 'win32' },
+    () => {
+      // On win32, backslash paths must validate without internal errors.
+      // validateCandidate normalises via statSync which handles win32 separators.
+      const result = validateCandidate(
+        'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'
+      );
+      // File won't exist in CI - just assert no unexpected internal error
+      assert.ok(
+        result.reason !== 'cannot stat path: undefined',
+        `unexpected internal error for win32 path: ${result.reason}`
+      );
+      // Must be false (file won't exist), but with a recognisable reason
+      assert.strictEqual(result.ok, false);
+    }
+  );
 });
 
 // ── Category 13: browser-actions unit tests ───────────────────────────────────
@@ -1259,10 +1180,7 @@ describe('browser-actions unit', () => {
 
   test('writeExecPath — multiple executablePath keys in [default] — throws without writing', async () => {
     const existing = '[default]\nexecutablePath = "/a"\nexecutablePath = "/b"\n';
-    await assert.rejects(
-      () => writeExecPathInTemp(existing, '/new'),
-      /multiple executablePath/
-    );
+    await assert.rejects(() => writeExecPathInTemp(existing, '/new'), /multiple executablePath/);
   });
 
   test('writeExecPath — multiple [default] sections — throws without writing', async () => {
@@ -1294,15 +1212,11 @@ describe('doctor CLI output — write-config hint', () => {
   const CLI = join(REPO_ROOT, 'src', 'index.js');
 
   test('doctor (no subcommand) shows --write-config hint when winner source is not config', () => {
-    const result = spawnSync(
-      process.execPath,
-      [CLI, 'doctor'],
-      {
-        env: { ...process.env, CHROMIUM_PATH: '/bin/ls' },
-        encoding: 'utf8',
-        timeout: 15000,
-      }
-    );
+    const result = spawnSync(process.execPath, [CLI, 'doctor'], {
+      env: { ...process.env, CHROMIUM_PATH: '/bin/ls' },
+      encoding: 'utf8',
+      timeout: 15000,
+    });
     const out = result.stdout + result.stderr;
     // env is the winner source - not 'config' - hint must appear
     assert.ok(
@@ -1318,34 +1232,26 @@ describe('doctor detect CLI', () => {
   const CLI = join(REPO_ROOT, 'src', 'index.js');
 
   test('valid browser found — stdout contains Resolved:, exits 0', () => {
-    const result = spawnSync(
-      process.execPath,
-      [CLI, 'doctor', 'detect'],
-      {
-        env: { ...process.env, CHROMIUM_PATH: '/bin/ls' },
-        encoding: 'utf8',
-        timeout: 15000,
-      }
-    );
+    const result = spawnSync(process.execPath, [CLI, 'doctor', 'detect'], {
+      env: { ...process.env, CHROMIUM_PATH: '/bin/ls' },
+      encoding: 'utf8',
+      timeout: 15000,
+    });
     const out = result.stdout + result.stderr;
     assert.ok(out.includes('Resolved:'), `expected "Resolved:" in output:\n${out}`);
     assert.strictEqual(result.status, 0, `expected exit 0:\n${out}`);
   });
 
   test('no browser found — stdout contains install hint, exits 0', () => {
-    const result = spawnSync(
-      process.execPath,
-      [CLI, 'doctor', 'detect'],
-      {
-        env: {
-          ...process.env,
-          CHROMIUM_PATH: '/nonexistent/chrome',
-          SZKRABOK_CONFIG: '/nonexistent/config.toml',
-        },
-        encoding: 'utf8',
-        timeout: 15000,
-      }
-    );
+    const result = spawnSync(process.execPath, [CLI, 'doctor', 'detect'], {
+      env: {
+        ...process.env,
+        CHROMIUM_PATH: '/nonexistent/chrome',
+        SZKRABOK_CONFIG: '/nonexistent/config.toml',
+      },
+      encoding: 'utf8',
+      timeout: 15000,
+    });
     const out = result.stdout + result.stderr;
     // May still find playwright or system - test is best-effort on CI
     // If no browser: must mention install
@@ -1359,15 +1265,11 @@ describe('doctor detect CLI', () => {
   });
 
   test('hint shown — source is env, not config — --write-config hint appears', () => {
-    const result = spawnSync(
-      process.execPath,
-      [CLI, 'doctor', 'detect'],
-      {
-        env: { ...process.env, CHROMIUM_PATH: '/bin/ls' },
-        encoding: 'utf8',
-        timeout: 15000,
-      }
-    );
+    const result = spawnSync(process.execPath, [CLI, 'doctor', 'detect'], {
+      env: { ...process.env, CHROMIUM_PATH: '/bin/ls' },
+      encoding: 'utf8',
+      timeout: 15000,
+    });
     const out = result.stdout + result.stderr;
     assert.ok(
       out.includes('--write-config'),
@@ -1378,15 +1280,11 @@ describe('doctor detect CLI', () => {
   test('--write-config writes executablePath to config file', () => {
     const tmpXdg = mkdtempSync(join(tmpdir(), 'szkrabok-test-xdg-'));
     try {
-      const result = spawnSync(
-        process.execPath,
-        [CLI, 'doctor', 'detect', '--write-config'],
-        {
-          env: { ...process.env, CHROMIUM_PATH: '/bin/ls', XDG_CONFIG_HOME: tmpXdg },
-          encoding: 'utf8',
-          timeout: 15000,
-        }
-      );
+      const result = spawnSync(process.execPath, [CLI, 'doctor', 'detect', '--write-config'], {
+        env: { ...process.env, CHROMIUM_PATH: '/bin/ls', XDG_CONFIG_HOME: tmpXdg },
+        encoding: 'utf8',
+        timeout: 15000,
+      });
       const out = result.stdout + result.stderr;
       const configFile = join(tmpXdg, 'szkrabok', 'config.toml');
       assert.ok(existsSync(configFile), `config file must be created:\n${out}`);
@@ -1403,20 +1301,13 @@ describe('doctor detect CLI', () => {
   test('--write-config prints "Written to:" in output', () => {
     const tmpXdg = mkdtempSync(join(tmpdir(), 'szkrabok-test-xdg2-'));
     try {
-      const result = spawnSync(
-        process.execPath,
-        [CLI, 'doctor', 'detect', '--write-config'],
-        {
-          env: { ...process.env, CHROMIUM_PATH: '/bin/ls', XDG_CONFIG_HOME: tmpXdg },
-          encoding: 'utf8',
-          timeout: 15000,
-        }
-      );
+      const result = spawnSync(process.execPath, [CLI, 'doctor', 'detect', '--write-config'], {
+        env: { ...process.env, CHROMIUM_PATH: '/bin/ls', XDG_CONFIG_HOME: tmpXdg },
+        encoding: 'utf8',
+        timeout: 15000,
+      });
       const out = result.stdout + result.stderr;
-      assert.ok(
-        out.includes('Written to:'),
-        `expected "Written to:" in output:\n${out}`
-      );
+      assert.ok(out.includes('Written to:'), `expected "Written to:" in output:\n${out}`);
     } finally {
       rmSync(tmpXdg, { recursive: true, force: true });
     }
@@ -1447,20 +1338,20 @@ describe('doctor install CLI', () => {
       // Find real playwright chromium path
       // eslint-disable-next-line no-unused-vars
       const { chromium: _chromium } = (() => {
-        try { return require('playwright'); } catch { return {}; }
+        try {
+          return require('playwright');
+        } catch {
+          return {};
+        }
       })();
       // Use /bin/ls as a stand-in for playwright source since we can't easily fake source=playwright
       // Instead, test the force guard: if browser already found via any source + no force, no download
       // We rely on the idempotency logic in runInstall: found && source !== playwright && !force -> no download
-      const result = spawnSync(
-        process.execPath,
-        [CLI, 'doctor', 'install'],
-        {
-          env: { ...process.env, CHROMIUM_PATH: '/bin/ls', PATH: `${dir}:${process.env.PATH}` },
-          encoding: 'utf8',
-          timeout: 15000,
-        }
-      );
+      const result = spawnSync(process.execPath, [CLI, 'doctor', 'install'], {
+        env: { ...process.env, CHROMIUM_PATH: '/bin/ls', PATH: `${dir}:${process.env.PATH}` },
+        encoding: 'utf8',
+        timeout: 15000,
+      });
       const out = result.stdout + result.stderr;
       assert.strictEqual(result.status, 0, `expected exit 0:\n${out}`);
       // no-op path: browser found via env, no force -> npx must NOT be called
@@ -1474,7 +1365,9 @@ describe('doctor install CLI', () => {
       );
     } finally {
       cleanup();
-      try { rmSync(sentinelFile); } catch {} // eslint-disable-line no-empty -- best-effort cleanup
+      try {
+        rmSync(sentinelFile);
+      } catch {} // eslint-disable-line no-empty -- best-effort cleanup
     }
   });
 
@@ -1482,41 +1375,38 @@ describe('doctor install CLI', () => {
     const sentinelFile = join(tmpdir(), `szkrabok-sentinel2-${Date.now()}`);
     const { dir, cleanup } = makeFakeNpxInstall(0, sentinelFile);
     try {
-      const result = spawnSync(
-        process.execPath,
-        [CLI, 'doctor', 'install'],
-        {
-          env: { ...process.env, CHROMIUM_PATH: '/bin/ls', PATH: `${dir}:${process.env.PATH}` },
-          encoding: 'utf8',
-          timeout: 15000,
-        }
-      );
+      const result = spawnSync(process.execPath, [CLI, 'doctor', 'install'], {
+        env: { ...process.env, CHROMIUM_PATH: '/bin/ls', PATH: `${dir}:${process.env.PATH}` },
+        encoding: 'utf8',
+        timeout: 15000,
+      });
       const out = result.stdout + result.stderr;
       assert.strictEqual(result.status, 0, `expected exit 0:\n${out}`);
       assert.ok(!existsSync(sentinelFile), `npx must not be called:\n${out}`);
     } finally {
       cleanup();
-      try { rmSync(sentinelFile); } catch {} // eslint-disable-line no-empty -- best-effort cleanup
+      try {
+        rmSync(sentinelFile);
+      } catch {} // eslint-disable-line no-empty -- best-effort cleanup
     }
   });
 
   test('no browser — downloads (mock npx exits 0) — exits 0, prints resolution result', () => {
     const { dir, cleanup } = makeFakeNpxInstall(0);
     try {
-      const result = spawnSync(
-        process.execPath,
-        [CLI, 'doctor', 'install', '--force'],
-        {
-          env: { ...process.env, CHROMIUM_PATH: '/bin/ls', PATH: `${dir}:${process.env.PATH}` },
-          encoding: 'utf8',
-          timeout: 15000,
-        }
-      );
+      const result = spawnSync(process.execPath, [CLI, 'doctor', 'install', '--force'], {
+        env: { ...process.env, CHROMIUM_PATH: '/bin/ls', PATH: `${dir}:${process.env.PATH}` },
+        encoding: 'utf8',
+        timeout: 15000,
+      });
       const out = result.stdout + result.stderr;
       assert.strictEqual(result.status, 0, `expected exit 0:\n${out}`);
       // After fake install, playwright path is resolved (playwright IS installed on this machine)
-      const hasOutput = out.includes('playwright-managed') || out.includes('Path:') ||
-        out.includes('resolved via') || out.includes('not found after install') ||
+      const hasOutput =
+        out.includes('playwright-managed') ||
+        out.includes('Path:') ||
+        out.includes('resolved via') ||
+        out.includes('not found after install') ||
         out.includes('szkrabok doctor');
       assert.ok(hasOutput, `expected meaningful output after install:\n${out}`);
     } finally {
@@ -1527,15 +1417,11 @@ describe('doctor install CLI', () => {
   test('install failure (mock npx exits 2) — exits non-zero, stderr contains "szkrabok doctor"', () => {
     const { dir, cleanup } = makeFakeNpxInstall(2);
     try {
-      const result = spawnSync(
-        process.execPath,
-        [CLI, 'doctor', 'install', '--force'],
-        {
-          env: { ...process.env, CHROMIUM_PATH: '/bin/ls', PATH: `${dir}:${process.env.PATH}` },
-          encoding: 'utf8',
-          timeout: 15000,
-        }
-      );
+      const result = spawnSync(process.execPath, [CLI, 'doctor', 'install', '--force'], {
+        env: { ...process.env, CHROMIUM_PATH: '/bin/ls', PATH: `${dir}:${process.env.PATH}` },
+        encoding: 'utf8',
+        timeout: 15000,
+      });
       assert.notStrictEqual(result.status, 0, `expected non-zero exit on install failure`);
       assert.ok(
         result.stderr.includes('szkrabok doctor'),
@@ -1553,11 +1439,10 @@ describe('removed commands rejected', () => {
   const CLI = join(REPO_ROOT, 'src', 'index.js');
 
   test('detect-browser → unknown command error, exits non-zero', () => {
-    const result = spawnSync(
-      process.execPath,
-      [CLI, 'detect-browser'],
-      { encoding: 'utf8', timeout: 5000 }
-    );
+    const result = spawnSync(process.execPath, [CLI, 'detect-browser'], {
+      encoding: 'utf8',
+      timeout: 5000,
+    });
     assert.notStrictEqual(result.status, 0, 'detect-browser must exit non-zero (removed command)');
     const out = result.stdout + result.stderr;
     assert.ok(
@@ -1567,11 +1452,10 @@ describe('removed commands rejected', () => {
   });
 
   test('install-browser → unknown command error, exits non-zero', () => {
-    const result = spawnSync(
-      process.execPath,
-      [CLI, 'install-browser'],
-      { encoding: 'utf8', timeout: 5000 }
-    );
+    const result = spawnSync(process.execPath, [CLI, 'install-browser'], {
+      encoding: 'utf8',
+      timeout: 5000,
+    });
     assert.notStrictEqual(result.status, 0, 'install-browser must exit non-zero (removed command)');
     const out = result.stdout + result.stderr;
     assert.ok(
@@ -1617,8 +1501,7 @@ describe('populateCandidates immutability', () => {
     const origPaths = candidates.map(c => c.path);
     await populateCandidates(candidates);
     for (let i = 0; i < candidates.length; i++) {
-      assert.strictEqual(candidates[i].path, origPaths[i],
-        `candidate[${i}].path was mutated`);
+      assert.strictEqual(candidates[i].path, origPaths[i], `candidate[${i}].path was mutated`);
     }
   });
 });

@@ -20,21 +20,22 @@ const ensureLockDir = async () => {
 // never share the same lock file.
 const WINDOWS_INVALID = new Set([...'<>:"/\\|?*']);
 
-const sanitizeLockId = (id) => {
-  const safe = id.split('').map(c =>
-    (c.charCodeAt(0) <= 0x1f || WINDOWS_INVALID.has(c)) ? '_' : c
-  ).join('');
+const sanitizeLockId = id => {
+  const safe = id
+    .split('')
+    .map(c => (c.charCodeAt(0) <= 0x1f || WINDOWS_INVALID.has(c) ? '_' : c))
+    .join('');
   const suffix = createHash('sha1').update(id).digest('hex').slice(0, 8);
   return `${safe}-${suffix}`;
 };
 
-const lockPath = (id) => path.join(LOCK_DIR, `${sanitizeLockId(id)}.lock`);
+const lockPath = id => path.join(LOCK_DIR, `${sanitizeLockId(id)}.lock`);
 
 /**
  * Blocking per-id file lock with retry. Cross-process safe.
  * Throws on timeout (default 10s).
  */
-export const acquireLock = async (id) => {
+export const acquireLock = async id => {
   await ensureLockDir();
 
   const start = Date.now();
@@ -61,13 +62,19 @@ export const acquireLock = async (id) => {
 
       if (stale) {
         log(`[WARN] stale lock detected: ${id}`);
-        try { await fs.unlink(lockPath(id)); } catch { /* already removed */ }
+        try {
+          await fs.unlink(lockPath(id));
+        } catch {
+          /* already removed */
+        }
         continue;
       }
 
       if (Date.now() - start > LOCK_MAX_WAIT) {
         log(`[ERROR] lock timeout: ${id}`);
-        throw new Error(`Lock timeout for "${id}" — another process may be holding it`, { cause: err });
+        throw new Error(`Lock timeout for "${id}" — another process may be holding it`, {
+          cause: err,
+        });
       }
 
       await new Promise(r => setTimeout(r, LOCK_RETRY_DELAY));
@@ -87,7 +94,7 @@ export const withLock = async (id, fn) => {
   }
 };
 
-export const releaseLock = async (id) => {
+export const releaseLock = async id => {
   try {
     await fs.unlink(lockPath(id));
     log(`[LOCK] released: ${id}`);

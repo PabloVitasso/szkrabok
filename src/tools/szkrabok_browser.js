@@ -53,11 +53,14 @@ const flattenTests = report =>
           .filter(Boolean);
 
         return {
-          title:  spec.title,
+          title: spec.title,
           status: result.status,
-          error:  result.error ? result.error.message : null,
-          result: attachments.length === 1 ? attachments[0]
-                : attachments.length > 1   ? attachments
+          error: result.error ? result.error.message : null,
+          result:
+            attachments.length === 1
+              ? attachments[0]
+              : attachments.length > 1
+                ? attachments
                 : undefined,
         };
       })
@@ -118,9 +121,7 @@ export const run_test = async args => {
     SZKRABOK_SESSION: sessionName,
     PLAYWRIGHT_JSON_OUTPUT_NAME: jsonFile,
     SZKRABOK_CDP_ENDPOINT: `http://localhost:${session.cdpPort}`,
-    ...Object.fromEntries(
-      Object.entries(params).map(([k, v]) => [k.toUpperCase(), String(v)])
-    ),
+    ...Object.fromEntries(Object.entries(params).map(([k, v]) => [k.toUpperCase(), String(v)])),
   };
 
   const logFile = join(sessionDir, 'last-run.log');
@@ -188,7 +189,8 @@ export const run_test = async args => {
       return {
         exitCode: 1,
         log,
-        error: 'signalAttach: fixture did not write CDP attach signal — check log for startup errors',
+        error:
+          'signalAttach: fixture did not write CDP attach signal — check log for startup errors',
       };
     }
     await waitForAttach(attachSignalFile);
@@ -208,7 +210,11 @@ export const run_test = async args => {
   let report;
   try {
     if (reportRaw) {
-      try { report = JSON.parse(reportRaw); } catch { report = null; }
+      try {
+        report = JSON.parse(reportRaw);
+      } catch {
+        report = null;
+      }
     } else {
       report = null;
     }
@@ -240,8 +246,8 @@ export const run_test = async args => {
 
   return {
     log,
-    passed:  stats.expected,
-    failed:  stats.unexpected,
+    passed: stats.expected,
+    failed: stats.unexpected,
     skipped: stats.skipped,
     tests: flattenTests(report),
     reportFile: jsonFile,
@@ -282,9 +288,7 @@ export const run_file = async args => {
       .filter(k => typeof mod[k] === 'function')
       .join(', ');
 
-    throw new Error(
-      `Export "${fn}" not found in "${absolute}". Available: [${available}]`
-    );
+    throw new Error(`Export "${fn}" not found in "${absolute}". Available: [${available}]`);
   }
 
   const result = await target(session.page, scriptArgs);

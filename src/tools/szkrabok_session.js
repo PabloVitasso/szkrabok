@@ -14,9 +14,7 @@ import {
   EngineNotSupportedError,
 } from '#runtime';
 
-const { version } = JSON.parse(
-  readFileSync(new URL('../../package.json', import.meta.url))
-);
+const { version } = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url)));
 
 import { log } from '../utils/logger.js';
 import { getConfig, getConfigMeta } from '../config.js';
@@ -28,7 +26,7 @@ const PRESET_EXCLUSIVE = new Set(['userAgent', 'viewport', 'locale', 'timezone']
 
 /* ───────────────────────────────────────── */
 
-const safeGetSession = (id) => {
+const safeGetSession = id => {
   try {
     return getSession(id);
   } catch {
@@ -44,11 +42,7 @@ const navigate = (page, url) =>
 
 const matchGlob = (name, pattern) => {
   const regex = new RegExp(
-    '^' +
-      pattern
-        .replace(/[.+?^${}()|[\]\\]/g, '\\$&')
-        .replace(/\*/g, '.*') +
-      '$'
+    '^' + pattern.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*') + '$'
   );
   return regex.test(name);
 };
@@ -59,9 +53,7 @@ function validateLaunchOptions(opts = {}) {
   const conflicts = [...PRESET_EXCLUSIVE].filter(k => opts[k] !== undefined);
 
   if (conflicts.length) {
-    throw new Error(
-      `launchOptions: preset is mutually exclusive with ${conflicts.join(', ')}`
-    );
+    throw new Error(`launchOptions: preset is mutually exclusive with ${conflicts.join(', ')}`);
   }
 }
 
@@ -81,9 +73,7 @@ export const open = ({ sessionName, url, launchOptions = {} }) => {
 
       const active = safeGetSession(sessionName);
       if (active) {
-        throw new Error(
-          `cannot clone "${sessionName}" while it is open`
-        );
+        throw new Error(`cannot clone "${sessionName}" while it is open`);
       }
 
       const handle = await launchClone({
@@ -100,14 +90,14 @@ export const open = ({ sessionName, url, launchOptions = {} }) => {
       }
 
       return {
-        success:         true,
-        sessionName:     handle.cloneId,
+        success: true,
+        sessionName: handle.cloneId,
         templateSession: sessionName,
-        isClone:         true,
+        isClone: true,
         url,
-        cdpEndpoint:     handle.cdpEndpoint,
-        browserEngine:   cloneSession.browserEngine,
-        configSource:    getConfigMeta()?.source,
+        cdpEndpoint: handle.cdpEndpoint,
+        browserEngine: cloneSession.browserEngine,
+        configSource: getConfigMeta()?.source,
       };
     }
 
@@ -127,15 +117,15 @@ export const open = ({ sessionName, url, launchOptions = {} }) => {
       let handle;
       try {
         handle = await launch({
-          profile:      sessionName,
-          preset:       launchOptions.preset,
+          profile: sessionName,
+          preset: launchOptions.preset,
           headless,
           stealth,
-          userAgent:    launchOptions.userAgent,
-          viewport:     launchOptions.viewport,
-          locale:       launchOptions.locale,
-          timezone:     launchOptions.timezone,
-          reuse:        false,
+          userAgent: launchOptions.userAgent,
+          viewport: launchOptions.viewport,
+          locale: launchOptions.locale,
+          timezone: launchOptions.timezone,
+          reuse: false,
           _launchImpl,
         });
       } catch (err) {
@@ -156,15 +146,15 @@ export const open = ({ sessionName, url, launchOptions = {} }) => {
       }
 
       return {
-        success:       true,
+        success: true,
         sessionName,
         url,
-        isClone:       false,
-        preset:        session.preset,
-        label:         session.label,
-        cdpEndpoint:   handle.cdpEndpoint,
+        isClone: false,
+        preset: session.preset,
+        label: session.label,
+        cdpEndpoint: handle.cdpEndpoint,
         browserEngine: session.browserEngine,
-        configSource:  getConfigMeta()?.source,
+        configSource: getConfigMeta()?.source,
       };
     }
 
@@ -174,13 +164,13 @@ export const open = ({ sessionName, url, launchOptions = {} }) => {
     }
 
     return {
-      success:      true,
+      success: true,
       sessionName,
       url,
-      isClone:      false,
+      isClone: false,
       reused,
-      preset:       session.preset,
-      label:        session.label,
+      preset: session.preset,
+      label: session.label,
       configSource: getConfigMeta()?.source,
     };
   });
@@ -274,10 +264,17 @@ const guessSourceKind = argv1 => {
   if (p.includes('/_npx/')) return 'npx-cache';
   if (p.endsWith('/src/index.js')) return 'local-dev';
   // version managers and global bin dirs (cross-platform)
-  if (p.includes('/.nvm/') || p.includes('/.volta/') || p.includes('/.fnm/') ||
-      p.includes('/AppData/Roaming/nvm/') || p.includes('/AppData/Local/Volta/') ||
-      p.includes('/AppData/Roaming/npm/') || p.includes('/bin/szkrabok') ||
-      p.endsWith('/szkrabok') || p.endsWith('/szkrabok.js'))
+  if (
+    p.includes('/.nvm/') ||
+    p.includes('/.volta/') ||
+    p.includes('/.fnm/') ||
+    p.includes('/AppData/Roaming/nvm/') ||
+    p.includes('/AppData/Local/Volta/') ||
+    p.includes('/AppData/Roaming/npm/') ||
+    p.includes('/bin/szkrabok') ||
+    p.endsWith('/szkrabok') ||
+    p.endsWith('/szkrabok.js')
+  )
     return 'global-npm';
   return 'unknown';
 };
@@ -287,9 +284,7 @@ const guessSourceKind = argv1 => {
 export const list = async () => {
   log('[INFO] list sessions');
 
-  const activeMap = new Map(
-    listRuntimeSessions().map(s => [s.id, s])
-  );
+  const activeMap = new Map(listRuntimeSessions().map(s => [s.id, s]));
 
   const stored = await listStoredSessions();
   const storedSet = new Set(stored);
@@ -298,10 +293,10 @@ export const list = async () => {
     const a = activeMap.get(id);
     return {
       id,
-      active:        !!a,
-      isClone:       false,
-      preset:        a?.preset ?? null,
-      label:         a?.label ?? null,
+      active: !!a,
+      isClone: false,
+      preset: a?.preset ?? null,
+      label: a?.label ?? null,
       browserEngine: a?.browserEngine ?? null,
     };
   });
@@ -309,35 +304,35 @@ export const list = async () => {
   const cloneSessions = listRuntimeSessions()
     .filter(s => s.isClone && !storedSet.has(s.id))
     .map(s => ({
-      id:              s.id,
-      active:          true,
-      isClone:         true,
+      id: s.id,
+      active: true,
+      isClone: true,
       templateSession: s.templateName,
-      preset:          s.preset,
-      label:           s.label,
-      browserEngine:   s.browserEngine,
+      preset: s.preset,
+      label: s.label,
+      browserEngine: s.browserEngine,
     }));
 
   log(`[INFO] list(): ${templateSessions.length} templates, ${cloneSessions.length} clones`);
 
   return {
     sessions: [...templateSessions, ...cloneSessions],
-    server:   { version, source: process.argv[1], sourceGuess: guessSourceKind(process.argv[1]) },
-    config:   getConfigMeta(),
+    server: { version, source: process.argv[1], sourceGuess: guessSourceKind(process.argv[1]) },
+    config: getConfigMeta(),
   };
 };
 
 /* ───────────────────────────────────────── */
 
 const ACTION_MAP = {
-  open:     ({ action: _, ...rest }) => open(rest),
-  close:    ({ action: _, ...rest }) => close(rest),
-  list:     () => list(),
-  delete:   ({ action: _, ...rest }) => deleteSession(rest),
+  open: ({ action: _, ...rest }) => open(rest),
+  close: ({ action: _, ...rest }) => close(rest),
+  list: () => list(),
+  delete: ({ action: _, ...rest }) => deleteSession(rest),
   endpoint: ({ action: _, ...rest }) => endpoint(rest),
 };
 
-export const manage = async (args) => {
+export const manage = async args => {
   const { action } = args;
   const handler = ACTION_MAP[action];
   if (!handler) throw new Error(`Unknown session action: ${action}`);

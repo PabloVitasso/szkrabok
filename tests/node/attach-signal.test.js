@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os';
 import { writeAttachSignal } from '../../src/attach-signal.js';
 
 test('writes signal file with content ok', async () => {
-  const dir  = await mkdtemp(join(tmpdir(), 'signal-'));
+  const dir = await mkdtemp(join(tmpdir(), 'signal-'));
   const path = join(dir, '.attach-signal');
   await writeAttachSignal(path);
   assert.equal(await readFile(path, 'utf8'), 'ok');

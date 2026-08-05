@@ -17,15 +17,16 @@ export const scrape = async ({ sessionName, selectors = [] }) => {
     const seenText = new Set();
 
     targets.forEach(root => {
-      root.querySelectorAll('nav, footer, script, style, .ads, #cookies')
-        .forEach(n => n.remove());
+      root.querySelectorAll('nav, footer, script, style, .ads, #cookies').forEach(n => n.remove());
 
       root.querySelectorAll('p, li, h1, h2, h3, table').forEach(el => {
         const text = norm(el.innerText || '');
         if (text.length < 20 || seenText.has(text)) return;
 
-        const linkChars = [...el.querySelectorAll('a')]
-          .reduce((sum, a) => sum + a.innerText.length, 0);
+        const linkChars = [...el.querySelectorAll('a')].reduce(
+          (sum, a) => sum + a.innerText.length,
+          0
+        );
         const linkRatio = linkChars / (text.length || 1);
 
         if (linkRatio < 0.6) {

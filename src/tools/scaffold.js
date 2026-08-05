@@ -1,4 +1,4 @@
-import { readFile, writeFile, mkdir, rename } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, rename, appendFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { resolve, basename, join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -48,10 +48,35 @@ function mergePackageJson(existing, name) {
 
   return {
     ...existing,
-    type: (() => { if (existing.type != null) return existing.type; return base.type; })(),
+    type: (() => {
+      if (existing.type != null) return existing.type;
+      return base.type;
+    })(),
     scripts: { ...base.scripts, ...existing.scripts },
-    devDependencies: { ...base.devDependencies, ...(existing.devDependencies != null ? existing.devDependencies : {}) },
+    devDependencies: {
+      ...base.devDependencies,
+      ...(existing.devDependencies != null ? existing.devDependencies : {}),
+    },
   };
+}
+
+function track(status, name, created, staged, skipped) {
+  if (status === 'created') created.push(name);
+  else if (status === 'staged') staged.push(name);
+  else skipped.push(name);
+}
+
+async function ensureGitignore(dir, entry) {
+  const gitignorePath = join(dir, '.gitignore');
+  if (existsSync(gitignorePath)) {
+    const content = await readFile(gitignorePath, 'utf8');
+    const lines = content.split('\n').map(l => l.trim());
+    if (lines.includes(entry)) return;
+    const suffix = content.endsWith('\n') ? '' : '\n';
+    await appendFile(gitignorePath, `${suffix}${entry}\n`);
+  } else {
+    await writeFile(gitignorePath, `${entry}\n`);
+  }
 }
 
 function npmInstall(dir) {
@@ -100,10 +125,13 @@ export async function init(args = {}) {
 
   // playwright.config.js
   const configDest = join(dir, 'playwright.config.js');
-  const configStatus = await writeOrStage(configDest, await tpl('playwright.config.js'));
-  if (configStatus === 'created') created.push('playwright.config.js');
-  else if (configStatus === 'staged') staged.push('playwright.config.js');
-  else skipped.push('playwright.config.js');
+  track(
+    await writeOrStage(configDest, await tpl('playwright.config.js')),
+    'playwright.config.js',
+    created,
+    staged,
+    skipped
+  );
 
   // package.json — merge if exists
   const pkgDest = join(dir, 'package.json');
@@ -128,12 +156,14 @@ export async function init(args = {}) {
     }
   }
 
-  // szkrabok.config.local.toml.example
-  const tomlDest = join(dir, 'szkrabok.config.local.toml.example');
-  const tomlStatus = await writeOrStage(tomlDest, await tpl('szkrabok.config.local.toml.example'));
-  if (tomlStatus === 'created') created.push('szkrabok.config.local.toml.example');
-  else if (tomlStatus === 'staged') staged.push('szkrabok.config.local.toml.example');
-  else skipped.push('szkrabok.config.local.toml.example');
+  // config files — write in parallel, then ensure .gitignore excludes the local one
+  const [tomlStatus, localTomlStatus] = await Promise.all([
+    writeOrStage(join(dir, 'szkrabok.config.toml'), await tpl('szkrabok.config.toml')),
+    writeOrStage(join(dir, 'szkrabok.config.local.toml'), await tpl('szkrabok.config.local.toml')),
+  ]);
+  track(tomlStatus, 'szkrabok.config.toml', created, staged, skipped);
+  track(localTomlStatus, 'szkrabok.config.local.toml', created, staged, skipped);
+  await ensureGitignore(dir, 'szkrabok.config.local.toml');
 
   // full preset — automation scaffold
   if (preset === 'full') {
@@ -147,11 +177,7 @@ export async function init(args = {}) {
     ];
 
     for (const rel of automationFiles) {
-      const dest = join(dir, rel);
-      const status = await writeOrStage(dest, await tpl(rel));
-      if (status === 'created') created.push(rel);
-      else if (status === 'staged') staged.push(rel);
-      else skipped.push(rel);
+      track(await writeOrStage(join(dir, rel), await tpl(rel)), rel, created, staged, skipped);
     }
   }
 
