@@ -216,7 +216,7 @@ const defaultWhich = (name) => {
  * Search order:
  *   0. Config-specified executablePath (explicit user intent — highest priority)
  *   1. INVISIBLE_PLAYWRIGHT_BINARY env var (if set and file exists)
- *   2. invisible_playwright cache dir — lexicographically latest firefox-* subdir
+ *   2. invisible_playwright cache dir — highest-numbered firefox-<N>* subdir
  *   3. System firefox via `which`
  *
  * Accepts injectable `cacheDir`, `executablePath`, and `which` for testing.
@@ -224,58 +224,49 @@ const defaultWhich = (name) => {
  * @param {{ executablePath?: string|null, cacheDir?: string, which?: (name: string) => string|null }} [opts]
  * @returns {Promise<{ found: boolean, path?: string, source?: string, checked?: string[] }>}
  */
+// Cache dir names are `firefox-<N>` (old) or `firefox-<N>_<version>_<build>` (new,
+// since invisible_playwright 0.5.0). Sort numerically on N — string sort would rank
+// "firefox-18_..." before "firefox-7" ('1' < '7'), picking the older build as "latest".
+const listInvisiblePlaywrightCacheDirs = cacheDir => {
+  try {
+    return readdirSync(cacheDir, { withFileTypes: true })
+      .filter(e => e.isDirectory() && /^firefox-\d+/.test(e.name))
+      .map(e => ({ name: e.name, n: Number(e.name.match(/^firefox-(\d+)/)[1]) }))
+      .sort((a, b) => b.n - a.n)
+      .map(e => e.name);
+  } catch {
+    // cache dir absent — not an error
+    return [];
+  }
+};
+
 export const resolveFirefox = async ({ cacheDir, executablePath, which: whichFn } = {}) => {
-  const checked = [];
   const binaryName = process.platform === 'win32' ? 'firefox.exe' : 'firefox';
   const resolvedCacheDir = cacheDir ?? defaultFirefoxCacheDir();
   const resolvedWhich = whichFn ?? defaultWhich;
-
-  // 0. Config-specified path
-  if (executablePath) {
-    checked.push(executablePath);
-    if (validateCandidate(executablePath).ok) {
-      return { found: true, path: executablePath, source: 'config' };
-    }
-  }
-
-  // 1. Env var
-  const envPath = process.env.INVISIBLE_PLAYWRIGHT_BINARY;
-  if (envPath) {
-    checked.push(envPath);
-    if (validateCandidate(envPath).ok) {
-      return { found: true, path: envPath, source: 'env' };
-    }
-  }
-
-  // 2. invisible_playwright cache — pick latest firefox-* dir
-  try {
-    const entries = readdirSync(resolvedCacheDir, { withFileTypes: true });
-    const dirs = entries
-      .filter(e => e.isDirectory() && /^firefox-/.test(e.name))
-      .map(e => e.name)
-      .sort()
-      .reverse();
-    for (const dir of dirs) {
-      const candidate = join(resolvedCacheDir, dir, binaryName);
-      checked.push(candidate);
-      if (validateCandidate(candidate).ok) {
-        return { found: true, path: candidate, source: 'invisiblePlaywright' };
-      }
-    }
-  } catch {
-    // cache dir absent — not an error
-  }
-
-  // 3. System firefox
   const systemPath = resolvedWhich('firefox');
-  if (systemPath) {
-    checked.push(systemPath);
-    if (validateCandidate(systemPath).ok) {
-      return { found: true, path: systemPath, source: 'system' };
-    }
-  } else {
-    checked.push('firefox (system, not found)');
+
+  // Ordered by priority: 0. config path, 1. env var, 2. invisible_playwright
+  // cache (latest firefox-* dir first), 3. system firefox via `which`.
+  const attempts = [
+    executablePath && { path: executablePath, source: 'config' },
+    process.env.INVISIBLE_PLAYWRIGHT_BINARY && {
+      path: process.env.INVISIBLE_PLAYWRIGHT_BINARY,
+      source: 'env',
+    },
+    ...listInvisiblePlaywrightCacheDirs(resolvedCacheDir).map(dir => ({
+      path: join(resolvedCacheDir, dir, binaryName),
+      source: 'invisiblePlaywright',
+    })),
+    systemPath
+      ? { path: systemPath, source: 'system' }
+      : { path: 'firefox (system, not found)', source: 'system', unchecked: true },
+  ].filter(Boolean);
+
+  const match = attempts.find(a => !a.unchecked && validateCandidate(a.path).ok);
+  if (match) {
+    return { found: true, path: match.path, source: match.source };
   }
 
-  return { found: false, checked };
+  return { found: false, checked: attempts.map(a => a.path) };
 };

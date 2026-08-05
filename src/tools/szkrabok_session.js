@@ -201,7 +201,11 @@ export const endpoint = async ({ sessionName }) => {
   const session = getSession(sessionName);
 
   if (session.browserEngine === 'firefox') {
-    throw new EngineNotSupportedError('endpoint', 'firefox', 'Firefox sessions have no CDP endpoint.');
+    throw new EngineNotSupportedError(
+      'endpoint',
+      'firefox',
+      'Firefox sessions have no CDP endpoint.'
+    );
   }
 
   const cdpEndpoint = `http://localhost:${session.cdpPort}`;

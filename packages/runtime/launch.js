@@ -11,8 +11,6 @@ import {
 import { resolveChromium, buildCandidates, populateCandidates, resolveFirefox } from './resolve.js';
 import { BrowserNotFoundError } from './errors.js';
 import { enhanceWithStealth, applyStealthToExistingPage } from './stealth.js';
-
-const browserTypeFor = engine => engine === 'firefox' ? firefox : chromium;
 import * as storage from './storage.js';
 import { rmWithRetry } from './storage.js';
 import * as pool from './pool.js';

@@ -108,7 +108,11 @@ export const run_test = async args => {
   }
 
   if (session.browserEngine === 'firefox') {
-    throw new EngineNotSupportedError('browser_run_test', 'firefox', 'browser_run_test requires a CDP connection.');
+    throw new EngineNotSupportedError(
+      'browser_run_test',
+      'firefox',
+      'browser_run_test requires a CDP connection.'
+    );
   }
 
   if (!session.cdpPort) {
