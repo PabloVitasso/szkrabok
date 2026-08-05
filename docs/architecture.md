@@ -468,6 +468,12 @@ szkrabok doctor detect --write-config  # detect + pin the path to ~/.config/szkr
 
 Set `[browser] engine = "firefox"` in `szkrabok.config.toml` to use Firefox. An `executable_path` is strongly recommended — see Firefox resolution below.
 
+**Config-only, whole-server, restart-required.** There is no `engine` field on
+`session_manage open`'s `launchOptions` — `browserEngine` is read once from
+`getConfig()` at server startup (config is frozen on load) and applies to every
+session the server opens. Switching engines means editing config and restarting the
+MCP server, not passing a different option per call.
+
 ```toml
 [browser]
 engine = "firefox"

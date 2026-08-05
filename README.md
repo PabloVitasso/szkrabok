@@ -243,7 +243,7 @@ Both `szkrabok.config.toml` and `szkrabok.config.local.toml` are loaded and deep
 
 ### Browser engine (Chromium / Firefox)
 
-Chromium is the default and is auto-resolved (`szkrabok doctor detect`). To use Firefox instead:
+Chromium is the default and is auto-resolved (`szkrabok doctor detect`). **This is a whole-server config setting, not a per-`session_manage open` option** — there is no `engine` field in `launchOptions`. Set it in config and restart the MCP server; every session opened by that server instance then uses the configured engine.
 
 ```toml
 # szkrabok.config.local.toml
@@ -254,7 +254,7 @@ executable_path = "/path/to/firefox"   # strongly recommended — see resolution
 
 Without `executable_path`, `resolveFirefox()` tries, in order: config path → `INVISIBLE_PLAYWRIGHT_BINARY` env var → `~/.cache/invisible-playwright/firefox-<N>*` (highest `N` wins) → system `firefox` on `PATH`.
 
-**Stealth Firefox (optional):** for evasion beyond the default JS-level Chromium stealth shims (which are a no-op for Firefox — evasion moves to the binary itself), point `executable_path` at a source-patched build such as [invisible_playwright](https://github.com/feder-cr/invisible_playwright):
+**Stealth Firefox handle: `invisible_playwright`** — for evasion beyond the default JS-level Chromium stealth shims (which are a no-op for Firefox — evasion moves to the binary itself), point `executable_path` at [invisible_playwright](https://github.com/feder-cr/invisible_playwright):
 
 ```bash
 pip install invisible-playwright

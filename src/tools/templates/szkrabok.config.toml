@@ -11,3 +11,9 @@
 #
 # [presets.ci]
 # headless = true
+
+# [browser]  # whole-server setting, not per-session — needs MCP restart after edit
+# engine = "firefox"           # default: "chromium"
+# executable_path = "..."      # set in szkrabok.config.local.toml instead (machine path)
+# Stealth Firefox handle: invisible_playwright — pip install invisible-playwright && python -m invisible_playwright fetch
+# Docs: README.md#browser-engine-chromium--firefox

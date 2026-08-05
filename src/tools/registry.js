@@ -32,7 +32,12 @@ const tools = {
             'open only. Use preset OR individual fields (userAgent, viewport, locale, timezone). isClone creates an ephemeral clone. headless and stealth always allowed',
           properties: {
             preset: { type: 'string', description: 'Preset name from szkrabok.config.toml' },
-            stealth: { type: 'boolean', default: true },
+            stealth: {
+              type: 'boolean',
+              default: true,
+              description:
+                'Chromium JS-level stealth; no-op for Firefox engine. Stealth Firefox = invisible_playwright binary, set via [browser] engine/executable_path in szkrabok.config.toml — config-only (not per-session), needs MCP restart',
+            },
             disableWebGL: { type: 'boolean', default: false },
             headless: { type: 'boolean' },
             userAgent: { type: 'string' },
