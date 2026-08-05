@@ -163,7 +163,16 @@ describe('PC-5 session_manage open — isClone:true guard', () => {
 
     // Simulate template session being open by adding it to the pool.
     console.log('PC-5.4 step 1: pool.add("' + sessionName + '") to simulate open template');
-    pool.add(sessionName, makeCtx(), makePage(), 20010, 'default', 'Default', false, null);
+    pool.add({
+      id: sessionName,
+      context: makeCtx(),
+      page: makePage(),
+      cdpPort: 20010,
+      preset: 'default',
+      label: 'Default',
+      isClone: false,
+      cloneDir: null,
+    });
 
     console.log(
       'PC-5.4 step 2: open({ sessionName: "' +
@@ -242,7 +251,16 @@ describe('PC-5 session_manage close — routing', () => {
     console.log(
       'PC-5.7 step 1: pool.add("' + cloneId + '", isClone=true, cloneDir="' + cloneDir + '")'
     );
-    pool.add(cloneId, makeCtx(), makePage(), 20020, 'default', 'Default', true, cloneDir);
+    pool.add({
+      id: cloneId,
+      context: makeCtx(),
+      page: makePage(),
+      cdpPort: 20020,
+      preset: 'default',
+      label: 'Default',
+      isClone: true,
+      cloneDir: cloneDir,
+    });
 
     console.log('PC-5.7 step 2: close({ sessionName: "' + cloneId + '" })');
     const result = await close({ sessionName: cloneId });
@@ -264,7 +282,16 @@ describe('PC-5 session_manage close — routing', () => {
     await storage.saveMeta(sessionName, { sessionName, created: Date.now() });
 
     console.log('PC-5.8 step 1: pool.add("' + sessionName + '", isClone=false)');
-    pool.add(sessionName, makeCtx(), makePage(), 20021, 'default', 'Default', false, null);
+    pool.add({
+      id: sessionName,
+      context: makeCtx(),
+      page: makePage(),
+      cdpPort: 20021,
+      preset: 'default',
+      label: 'Default',
+      isClone: false,
+      cloneDir: null,
+    });
 
     console.log('PC-5.8 step 2: close({ sessionName: "' + sessionName + '" })');
     const result = await close({ sessionName });
@@ -293,17 +320,17 @@ describe('PC-5 session_manage list', () => {
         templateName +
         '")'
     );
-    pool.add(
-      cloneId,
-      makeCtx(),
-      makePage(),
-      20030,
-      'default',
-      'Default',
-      true,
-      '/tmp/clone',
-      templateName
-    );
+    pool.add({
+      id: cloneId,
+      context: makeCtx(),
+      page: makePage(),
+      cdpPort: 20030,
+      preset: 'default',
+      label: 'Default',
+      isClone: true,
+      cloneDir: '/tmp/clone',
+      templateName: templateName,
+    });
 
     console.log('PC-5.9 step 2: list()');
     const { sessions } = await list();
@@ -323,17 +350,17 @@ describe('PC-5 session_manage list', () => {
 
     const cloneId = uid('list-no-disk');
     console.log('PC-5.10 step 1: pool.add("' + cloneId + '", isClone=true)');
-    pool.add(
-      cloneId,
-      makeCtx(),
-      makePage(),
-      20031,
-      'default',
-      'Default',
-      true,
-      '/tmp/no-disk',
-      'some-template'
-    );
+    pool.add({
+      id: cloneId,
+      context: makeCtx(),
+      page: makePage(),
+      cdpPort: 20031,
+      preset: 'default',
+      label: 'Default',
+      isClone: true,
+      cloneDir: '/tmp/no-disk',
+      templateName: 'some-template',
+    });
 
     console.log('PC-5.10 step 2: listStoredSessions()');
     const stored = await listStoredSessions();
@@ -354,21 +381,30 @@ describe('PC-5 session_manage list', () => {
     await mkdir(join(sessionsDir, templateName, 'profile'), { recursive: true });
     await storage.saveMeta(templateName, { sessionName: templateName, created: Date.now() });
     console.log('PC-5.11 step 1: pool.add template "' + templateName + '" (isClone=false)');
-    pool.add(templateName, makeCtx(), makePage(), 20032, 'default', 'Default', false, null);
+    pool.add({
+      id: templateName,
+      context: makeCtx(),
+      page: makePage(),
+      cdpPort: 20032,
+      preset: 'default',
+      label: 'Default',
+      isClone: false,
+      cloneDir: null,
+    });
 
     // Active clone (not on disk).
     console.log('PC-5.11 step 2: pool.add clone "' + cloneId + '" (isClone=true)');
-    pool.add(
-      cloneId,
-      makeCtx(),
-      makePage(),
-      20033,
-      'default',
-      'Default',
-      true,
-      '/tmp/mixed-clone',
-      templateName
-    );
+    pool.add({
+      id: cloneId,
+      context: makeCtx(),
+      page: makePage(),
+      cdpPort: 20033,
+      preset: 'default',
+      label: 'Default',
+      isClone: true,
+      cloneDir: '/tmp/mixed-clone',
+      templateName: templateName,
+    });
 
     console.log('PC-5.11 step 3: list()');
     const { sessions } = await list();
@@ -394,17 +430,17 @@ describe('PC-5 session_manage deleteSession — clone guard', () => {
 
     const cloneId = uid('delete-guard');
     console.log('PC-5.12 step 1: pool.add("' + cloneId + '", isClone=true)');
-    pool.add(
-      cloneId,
-      makeCtx(),
-      makePage(),
-      20040,
-      'default',
-      'Default',
-      true,
-      '/tmp/del-guard',
-      'some-template'
-    );
+    pool.add({
+      id: cloneId,
+      context: makeCtx(),
+      page: makePage(),
+      cdpPort: 20040,
+      preset: 'default',
+      label: 'Default',
+      isClone: true,
+      cloneDir: '/tmp/del-guard',
+      templateName: 'some-template',
+    });
 
     console.log(
       'PC-5.12 step 2: deleteSession({ sessionName: "' + cloneId + '" }) (expect rejection)'

@@ -81,16 +81,16 @@ describe('PC-3 destroyClone — happy path', () => {
       closeCalled = true;
     };
     console.log('PC-3.1 step 2: pool.add("' + id + '", isClone=true, cloneDir="' + cloneDir + '")');
-    pool.add(
-      id,
-      entry.context,
-      entry.page,
-      entry.cdpPort,
-      entry.preset,
-      entry.label,
-      true,
-      cloneDir
-    );
+    pool.add({
+      id: id,
+      context: entry.context,
+      page: entry.page,
+      cdpPort: entry.cdpPort,
+      preset: entry.preset,
+      label: entry.label,
+      isClone: true,
+      cloneDir: cloneDir,
+    });
 
     console.log('PC-3.1 step 3: destroyClone("' + id + '")');
     await destroyClone(id);
@@ -107,16 +107,16 @@ describe('PC-3 destroyClone — happy path', () => {
     const entry = makeEntry();
 
     console.log('PC-3.2 step 1: pool.add("' + id + '")');
-    pool.add(
-      id,
-      entry.context,
-      entry.page,
-      entry.cdpPort,
-      entry.preset,
-      entry.label,
-      true,
-      cloneDir
-    );
+    pool.add({
+      id: id,
+      context: entry.context,
+      page: entry.page,
+      cdpPort: entry.cdpPort,
+      preset: entry.preset,
+      label: entry.label,
+      isClone: true,
+      cloneDir: cloneDir,
+    });
     console.log('PC-3.2 step 2: pool.has("' + id + '") =', pool.has(id));
     assert.ok(pool.has(id));
 
@@ -140,16 +140,16 @@ describe('PC-3 destroyClone — happy path', () => {
 
     console.log('PC-3.3 step 2: pool.add("' + id + '")');
     const entry = makeEntry();
-    pool.add(
-      id,
-      entry.context,
-      entry.page,
-      entry.cdpPort,
-      entry.preset,
-      entry.label,
-      true,
-      cloneDir
-    );
+    pool.add({
+      id: id,
+      context: entry.context,
+      page: entry.page,
+      cdpPort: entry.cdpPort,
+      preset: entry.preset,
+      label: entry.label,
+      isClone: true,
+      cloneDir: cloneDir,
+    });
 
     console.log('PC-3.3 step 3: destroyClone("' + id + '")');
     await destroyClone(id);
@@ -166,16 +166,16 @@ describe('PC-3 destroyClone — happy path', () => {
     const entry = makeEntry();
 
     console.log('PC-3.4 step 1: pool.add("' + id + '", isClone=true)');
-    pool.add(
-      id,
-      entry.context,
-      entry.page,
-      entry.cdpPort,
-      entry.preset,
-      entry.label,
-      true,
-      cloneDir
-    );
+    pool.add({
+      id: id,
+      context: entry.context,
+      page: entry.page,
+      cdpPort: entry.cdpPort,
+      preset: entry.preset,
+      label: entry.label,
+      isClone: true,
+      cloneDir: cloneDir,
+    });
 
     console.log('PC-3.4 step 2: destroyClone("' + id + '")');
     await destroyClone(id);
@@ -194,16 +194,16 @@ describe('PC-3 destroyClone — happy path', () => {
     const entry = makeEntry();
 
     console.log('PC-3.5 step 1: pool.add("' + id + '", isClone=true)');
-    pool.add(
-      id,
-      entry.context,
-      entry.page,
-      entry.cdpPort,
-      entry.preset,
-      entry.label,
-      true,
-      cloneDir
-    );
+    pool.add({
+      id: id,
+      context: entry.context,
+      page: entry.page,
+      cdpPort: entry.cdpPort,
+      preset: entry.preset,
+      label: entry.label,
+      isClone: true,
+      cloneDir: cloneDir,
+    });
 
     console.log('PC-3.5 step 2: destroyClone("' + id + '")');
     await destroyClone(id);
@@ -226,7 +226,14 @@ describe('PC-3 destroyClone — guard paths', () => {
 
     console.log('PC-3.6 step 1: pool.add("' + id + '", isClone=false — default)');
     // Add as template (isClone: false - the default).
-    pool.add(id, entry.context, entry.page, entry.cdpPort, entry.preset, entry.label);
+    pool.add({
+      id: id,
+      context: entry.context,
+      page: entry.page,
+      cdpPort: entry.cdpPort,
+      preset: entry.preset,
+      label: entry.label,
+    });
 
     console.log('PC-3.6 step 2: destroyClone("' + id + '") (expect rejection)');
     await assert.rejects(
@@ -263,7 +270,14 @@ describe('PC-3 closeSession — template path unchanged', () => {
     await storage.saveMeta(id, { sessionName: id, created: Date.now() });
 
     console.log('PC-3.8 step 3: pool.add("' + id + '", isClone=false)');
-    pool.add(id, entry.context, entry.page, entry.cdpPort, entry.preset, entry.label);
+    pool.add({
+      id: id,
+      context: entry.context,
+      page: entry.page,
+      cdpPort: entry.cdpPort,
+      preset: entry.preset,
+      label: entry.label,
+    });
 
     console.log('PC-3.8 step 4: closeSession("' + id + '")');
     await closeSession(id);

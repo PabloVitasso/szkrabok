@@ -7,7 +7,11 @@ import { SessionNotFoundError } from './errors.js';
 const sessions = new Map();
 
 // cdpPort is number | null (null for Firefox sessions — no CDP endpoint available)
-export const add = (id, context, page, cdpPort, preset, label, isClone = false, cloneDir = null, templateName = null, leaseHandle = null, pid = null, configHash = null, browserEngine = 'chromium') => {
+export const add = ({
+  id, context, page, cdpPort, preset, label,
+  isClone = false, cloneDir = null, templateName = null, leaseHandle = null,
+  pid = null, configHash = null, browserEngine = 'chromium',
+}) => {
   sessions.set(id, { context, page, cdpPort, preset, label, createdAt: Date.now(), isClone, cloneDir, templateName, leaseHandle, pid, configHash, browserEngine });
 };
 

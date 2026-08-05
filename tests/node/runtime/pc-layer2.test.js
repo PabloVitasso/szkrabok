@@ -43,7 +43,14 @@ describe('PC-2 pool — isClone and cloneDir fields', () => {
     const pool = await import('../../../packages/runtime/pool.js');
     const id = uid('template');
     console.log('PC-2.1 step 1: pool.add("' + id + '") with defaults');
-    pool.add(id, mockCtx(), mockPage(), 9000, 'default', 'Default');
+    pool.add({
+      id: id,
+      context: mockCtx(),
+      page: mockPage(),
+      cdpPort: 9000,
+      preset: 'default',
+      label: 'Default',
+    });
     console.log('PC-2.1 step 2: pool.get("' + id + '")');
     const entry = pool.get(id);
     console.log('PC-2.1 step 2 returned:', { isClone: entry.isClone, cloneDir: entry.cloneDir });
@@ -55,16 +62,16 @@ describe('PC-2 pool — isClone and cloneDir fields', () => {
     const pool = await import('../../../packages/runtime/pool.js');
     const id = uid('clone');
     console.log('PC-2.2 step 1: pool.add("' + id + '", isClone=true)');
-    pool.add(
-      id,
-      mockCtx(),
-      mockPage(),
-      9001,
-      'default',
-      'Default',
-      true,
-      '/tmp/szkrabok-clone-test'
-    );
+    pool.add({
+      id: id,
+      context: mockCtx(),
+      page: mockPage(),
+      cdpPort: 9001,
+      preset: 'default',
+      label: 'Default',
+      isClone: true,
+      cloneDir: '/tmp/szkrabok-clone-test',
+    });
     console.log('PC-2.2 step 2: pool.get("' + id + '")');
     const entry = pool.get(id);
     console.log('PC-2.2 step 2 returned entry.isClone:', entry.isClone);
@@ -76,7 +83,16 @@ describe('PC-2 pool — isClone and cloneDir fields', () => {
     const id = uid('clonedir');
     const cloneDir = '/tmp/szkrabok-clone-pc2-dir';
     console.log('PC-2.3 step 1: pool.add("' + id + '", cloneDir="' + cloneDir + '")');
-    pool.add(id, mockCtx(), mockPage(), 9002, 'default', 'Default', true, cloneDir);
+    pool.add({
+      id: id,
+      context: mockCtx(),
+      page: mockPage(),
+      cdpPort: 9002,
+      preset: 'default',
+      label: 'Default',
+      isClone: true,
+      cloneDir: cloneDir,
+    });
     console.log('PC-2.3 step 2: pool.get("' + id + '").cloneDir');
     const got = pool.get(id).cloneDir;
     console.log('PC-2.3 step 2 returned:', got);
@@ -87,7 +103,14 @@ describe('PC-2 pool — isClone and cloneDir fields', () => {
     const pool = await import('../../../packages/runtime/pool.js');
     const id = uid('listcheck');
     console.log('PC-2.4 step 1: pool.add("' + id + '")');
-    pool.add(id, mockCtx(), mockPage(), 9003, 'default', 'Default');
+    pool.add({
+      id: id,
+      context: mockCtx(),
+      page: mockPage(),
+      cdpPort: 9003,
+      preset: 'default',
+      label: 'Default',
+    });
     console.log('PC-2.4 step 2: pool.list()');
     const entries = pool.list();
     console.log('PC-2.4 step 2 returned', entries.length, 'entries');
@@ -120,9 +143,27 @@ describe('PC-2 pool — isClone and cloneDir fields', () => {
     const cloneId = uid('mixed-clone');
 
     console.log('PC-2.5 step 1: pool.add template "' + templateId + '" (isClone=false)');
-    pool.add(templateId, mockCtx(), mockPage(), 9004, 'default', 'Default', false, null);
+    pool.add({
+      id: templateId,
+      context: mockCtx(),
+      page: mockPage(),
+      cdpPort: 9004,
+      preset: 'default',
+      label: 'Default',
+      isClone: false,
+      cloneDir: null,
+    });
     console.log('PC-2.5 step 2: pool.add clone "' + cloneId + '" (isClone=true)');
-    pool.add(cloneId, mockCtx(), mockPage(), 9005, 'default', 'Default', true, '/tmp/clone-dir');
+    pool.add({
+      id: cloneId,
+      context: mockCtx(),
+      page: mockPage(),
+      cdpPort: 9005,
+      preset: 'default',
+      label: 'Default',
+      isClone: true,
+      cloneDir: '/tmp/clone-dir',
+    });
 
     console.log('PC-2.5 step 3: pool.list()');
     const entries = pool.list();

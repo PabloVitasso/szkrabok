@@ -15,6 +15,7 @@ import * as storage from './storage.js';
 import { rmWithRetry } from './storage.js';
 import * as pool from './pool.js';
 import { computeConfigHash } from './sessions.js';
+import { tryBrowserPid } from './pid.js';
 import { log } from './logger.js';
 
 let _gcRegistered = false;
@@ -24,65 +25,6 @@ const ensureGcOnExit = () => {
   // once: cleanupClones schedules I/O which re-empties the loop — process.on
   // would fire again indefinitely. once fires exactly once then self-removes.
   process.once('beforeExit', () => storage.cleanupClones().catch(() => {}));
-};
-
-// ── tryBrowserPid ─────────────────────────────────────────────────────────────
-//
-// Attempts to extract the real Chromium OS process PID from the Playwright
-// Browser object. This is inherently best-effort — the public API
-// (browser.process()) only exists when the browser was launched via
-// launchServer(); the private API (osProcess()._process.pid) may not exist
-// in all Playwright versions or browser forks.
-//
-// Guards against the Node.js global `process` shadowing a non-existent
-// browser.process method in ES module scope (process is a free variable).
-//
-// Returns a pid number or null.
-
-const tryBrowserPid = browser => {
-  try {
-    if ('process' in browser) {
-      const p = browser.process;
-      if (typeof p === 'function') {
-        let result;
-        try {
-          const ret = p();
-          if (ret !== null && ret !== undefined && ret.pid !== null && ret.pid !== undefined) {
-            result = ret.pid;
-          } else {
-            result = null;
-          }
-        } catch {
-          result = null;
-        }
-        return result;
-      }
-    }
-  } catch { /* not a browser.process() instance */ }
-  try {
-    let osProc;
-    try {
-      osProc = browser.osProcess();
-    } catch {
-      osProc = null;
-    }
-    if (osProc === null || osProc === undefined) {
-      return null;
-    }
-    let proc;
-    if (osProc._process !== null && osProc._process !== undefined) {
-      proc = osProc._process;
-    } else {
-      return null;
-    }
-    if (proc.pid !== null && proc.pid !== undefined) {
-      return proc.pid;
-    } else {
-      return null;
-    }
-  } catch {
-    return null;
-  }
 };
 
 // ── waitForExit ───────────────────────────────────────────────────────────────
@@ -279,6 +221,117 @@ export const checkBrowser = async () => {
   return result.path;
 };
 
+/**
+ * Resolve the effective launch config for a profile: merges per-call overrides,
+ * saved meta from a previous launch, the resolved preset, and TOML defaults
+ * (in that priority order), and derives the mismatch-detection config hash.
+ */
+const resolveEffectiveConfig = (cfg, savedMeta, { presetName, headless, stealth, userAgent, viewport, locale, timezone }) => {
+  const savedConfig = savedMeta?.config ?? {};
+
+  // If an explicit preset is given, it resets the baseline — savedConfig is bypassed
+  // for preset-derived fields. Individual field overrides (userAgent etc.) always win.
+  const presetArg = presetName ?? savedMeta?.preset ?? null;
+  const resolved = resolvePreset(presetArg);
+  const base = presetName ? {} : savedConfig;
+
+  const effectiveViewport = viewport || base.viewport || resolved.viewport || cfg.viewport;
+  const effectiveUserAgent = userAgent || base.userAgent || resolved.userAgent || cfg.userAgent;
+  const effectiveLocale = locale || base.locale || resolved.locale || cfg.locale;
+  const effectiveTimezone = timezone || base.timezone || resolved.timezone || cfg.timezone;
+  const effectiveStealth = stealth ?? savedConfig.stealth ?? cfg.stealthEnabled;
+  const effectiveHeadless = headless ?? savedConfig.headless ?? cfg.headless;
+
+  // Compute stable config hash for mismatch detection (enforceLaunchOptionsMatch).
+  const configHash = computeConfigHash({
+    userAgent: effectiveUserAgent,
+    viewport: effectiveViewport,
+    locale: effectiveLocale,
+    timezone: effectiveTimezone,
+    stealth: effectiveStealth,
+    headless: effectiveHeadless,
+    preset: presetName ?? savedMeta?.preset ?? null,
+  });
+
+  const presetConfig = {
+    userAgent: effectiveUserAgent,
+    locale: effectiveLocale,
+    overrideUserAgent: resolved.overrideUserAgent,
+  };
+
+  return {
+    resolved, presetConfig, configHash,
+    effectiveViewport, effectiveUserAgent, effectiveLocale, effectiveTimezone,
+    effectiveStealth, effectiveHeadless,
+  };
+};
+
+/**
+ * Restore saved cookies and localStorage onto a freshly launched context.
+ * Best-effort: a cookie/localStorage restore failure is logged, not thrown.
+ */
+const restoreSessionState = async (context, profile) => {
+  const savedState = await storage.loadState(profile);
+  if (!savedState) return;
+
+  const cookiesLength = savedState.cookies?.length ?? 0;
+  if (cookiesLength > 0) {
+    try {
+      await context.addCookies(savedState.cookies);
+      log(`Restored ${cookiesLength} cookies for ${profile}`);
+    } catch (err) {
+      // addCookies is all-or-nothing — one malformed/expired cookie fails the
+      // whole batch. Retry individually so the rest of the jar isn't lost.
+      log(`Cookie batch restore failed for ${profile}: ${err.message} — retrying individually`);
+      let restored = 0;
+      for (const cookie of savedState.cookies) {
+        try {
+          await context.addCookies([cookie]);
+          restored++;
+        } catch (cookieErr) {
+          log(`Skipping unrestorable cookie "${cookie.name}" for ${profile}: ${cookieErr.message}`);
+        }
+      }
+      log(`Restored ${restored}/${cookiesLength} cookies individually for ${profile}`);
+    }
+  }
+
+  const originsLength = savedState.origins?.length ?? 0;
+  if (originsLength === 0) return;
+
+  const page = await context.newPage();
+  for (const { origin, localStorage: items } of savedState.origins) {
+    const itemsLength = items?.length ?? 0;
+    if (itemsLength === 0) continue;
+    await page.goto(origin + '/favicon.ico', { waitUntil: 'commit', timeout: 10_000 });
+    await page.evaluate(itms => {
+      for (const { name, value } of itms) {
+        // eslint-disable-next-line no-empty -- cross-origin setItem throws; no Node logging
+        try { localStorage.setItem(name, value); } catch {}
+      }
+    }, items);
+    await new Promise(r => setTimeout(r, 50 + Math.random() * 100));
+  }
+  await page.close();
+  log(`Restored localStorage for ${originsLength} origin(s) in ${profile}`);
+};
+
+/**
+ * Build the close() handle shared by the reuse-path and fresh-launch returns
+ * from launch(). getPid is a thunk (not a value) so the fresh-launch path can
+ * do a live pool lookup at close-time while the reuse path can use its
+ * already-captured pid — preserving each path's original lookup timing.
+ */
+const makeCloseHandle = (profile, context, getPid) => async () => {
+  const state = await context.storageState();
+  await storage.saveState(profile, state);
+  await storage.updateMeta(profile, { lastUsed: Date.now() });
+  const pid = getPid();
+  await context.close();
+  if (pid) await waitForExit(pid);
+  pool.remove(profile);
+};
+
 export const launch = async (options = {}) => {
   const { profile = 'default', preset: presetName, headless, stealth, userAgent, viewport, locale, timezone, reuse = true, _launchImpl } = options;
   const cfg = getConfig();
@@ -297,67 +350,18 @@ export const launch = async (options = {}) => {
       browser: existing.context.browser(),
       context: existing.context,
       cdpEndpoint,
-      close: async () => {
-        const state = await existing.context.storageState();
-        await storage.saveState(profile, state);
-        await storage.updateMeta(profile, { lastUsed: Date.now() });
-        const pid = existing.pid;
-        await existing.context.close();
-        if (pid) await waitForExit(pid);
-        pool.remove(profile);
-      },
+      close: makeCloseHandle(profile, existing.context, () => existing.pid),
     };
   }
 
   await storage.ensureSessionsDir();
 
   const savedMeta = await storage.loadMeta(profile);
-  let savedConfig;
-  if (savedMeta !== null && savedMeta !== undefined && savedMeta.config !== null && savedMeta.config !== undefined) {
-    savedConfig = savedMeta.config;
-  } else {
-    savedConfig = {};
-  }
-
-  // If an explicit preset is given, it resets the baseline — savedConfig is bypassed
-  // for preset-derived fields. Individual field overrides (userAgent etc.) always win.
-  let presetArg;
-  if (presetName !== null && presetName !== undefined) {
-    presetArg = presetName;
-  } else {
-    if (savedMeta !== null && savedMeta !== undefined && savedMeta.preset !== null && savedMeta.preset !== undefined) {
-      presetArg = savedMeta.preset;
-    } else {
-      presetArg = null;
-    }
-  }
-  const resolved = resolvePreset(presetArg);
-  const base = (() => { if (presetName) return {}; return savedConfig; })();
-
-  const effectiveViewport = viewport || base.viewport || resolved.viewport || cfg.viewport;
-  const effectiveUserAgent = userAgent || base.userAgent || resolved.userAgent || cfg.userAgent;
-  const effectiveLocale = locale || base.locale || resolved.locale || cfg.locale;
-  const effectiveTimezone = timezone || base.timezone || resolved.timezone || cfg.timezone;
-  const effectiveStealth = stealth ?? savedConfig.stealth ?? cfg.stealthEnabled;
-  const effectiveHeadless = headless ?? savedConfig.headless ?? cfg.headless;
-
-  // Compute stable config hash for mismatch detection (enforceLaunchOptionsMatch).
-  const effectiveConfig = {
-    userAgent: effectiveUserAgent,
-    viewport: effectiveViewport,
-    locale: effectiveLocale,
-    timezone: effectiveTimezone,
-    stealth: effectiveStealth,
-    headless: effectiveHeadless,
-    preset: presetName ?? savedMeta?.preset ?? null,
-  };
-  const configHash = computeConfigHash(effectiveConfig);
-
-  const presetConfig = {
-    userAgent: effectiveUserAgent,
-    locale: effectiveLocale,
-    overrideUserAgent: resolved.overrideUserAgent,
-  };
+  const {
+    resolved, presetConfig, configHash,
+    effectiveViewport, effectiveUserAgent, effectiveLocale, effectiveTimezone,
+    effectiveStealth, effectiveHeadless,
+  } = resolveEffectiveConfig(cfg, savedMeta, { presetName, headless, stealth, userAgent, viewport, locale, timezone });
 
   const userDataDir = storage.getUserDataDir(profile);
 
@@ -377,52 +381,7 @@ export const launch = async (options = {}) => {
 
   const cdpPort = browserEngine === 'firefox' ? null : await storage.readDevToolsPort(userDataDir);
 
-  // Restore saved state (cookies + localStorage)
-  const savedState = await storage.loadState(profile);
-  if (savedState) {
-    let savedStateCookiesLength;
-    if (savedState.cookies !== null && savedState.cookies !== undefined) {
-      savedStateCookiesLength = savedState.cookies.length;
-    } else {
-      savedStateCookiesLength = 0;
-    }
-    if (savedStateCookiesLength > 0) {
-      try {
-        await context.addCookies(savedState.cookies);
-        log(`Restored ${savedStateCookiesLength} cookies for ${profile}`);
-      } catch (err) {
-        log(`Cookie restore failed for ${profile}: ${err.message}`);
-      }
-    }
-    let savedStateOriginsLength;
-    if (savedState.origins !== null && savedState.origins !== undefined) {
-      savedStateOriginsLength = savedState.origins.length;
-    } else {
-      savedStateOriginsLength = 0;
-    }
-    if (savedStateOriginsLength > 0) {
-      const page = await context.newPage();
-      for (const { origin, localStorage: items } of savedState.origins) {
-        let itemsLength;
-        if (items !== null && items !== undefined) {
-          itemsLength = items.length;
-        } else {
-          itemsLength = 0;
-        }
-        if (itemsLength === 0) continue;
-        await page.goto(origin + '/favicon.ico', { waitUntil: 'commit', timeout: 10_000 });
-        await page.evaluate(itms => {
-          for (const { name, value } of itms) {
-            // eslint-disable-next-line no-empty -- cross-origin setItem throws; no Node logging
-            try { localStorage.setItem(name, value); } catch {}
-          }
-        }, items);
-        await new Promise(r => setTimeout(r, 50 + Math.random() * 100));
-      }
-      await page.close();
-      log(`Restored localStorage for ${savedStateOriginsLength} origin(s) in ${profile}`);
-    }
-  }
+  await restoreSessionState(context, profile);
 
   // Mask iframe fingerprints
   await context.addInitScript(() => {
@@ -445,12 +404,14 @@ export const launch = async (options = {}) => {
     page = await context.newPage();
   }
 
-  pool.add(profile, context, page, cdpPort, resolved.preset, resolved.label, false, null, null, null,
-    tryBrowserPid(context.browser()), configHash, browserEngine);
+  pool.add({
+    id: profile, context, page, cdpPort, preset: resolved.preset, label: resolved.label,
+    pid: tryBrowserPid(context.browser()), configHash, browserEngine,
+  });
 
   const meta = {
     sessionName: profile,
-    created: (savedMeta !== null && savedMeta !== undefined && savedMeta.created !== null && savedMeta.created !== undefined) ? savedMeta.created : Date.now(),
+    created: savedMeta?.created ?? Date.now(),
     lastUsed: Date.now(),
     preset: resolved.preset,
     label: resolved.label,
@@ -472,15 +433,7 @@ export const launch = async (options = {}) => {
     browser: context.browser(),
     context,
     cdpEndpoint,
-    close: async () => {
-      const state = await context.storageState();
-      await storage.saveState(profile, state);
-      await storage.updateMeta(profile, { lastUsed: Date.now() });
-      const pid = pool.get(profile).pid;
-      await context.close();
-      if (pid) await waitForExit(pid);
-      pool.remove(profile);
-    },
+    close: makeCloseHandle(profile, context, () => pool.get(profile).pid),
   };
 };
 
@@ -495,8 +448,11 @@ const _addCloneToPool = async (context, cloneId, cloneDir, templateName, lease, 
   const pages = context.pages();
   const page  = pages.length > 0 ? pages[0] : await context.newPage();
 
-  pool.add(cloneId, context, page, cdpPort, null, null, true, cloneDir, templateName, lease,
-    tryBrowserPid(context.browser()), null, browserEngine);
+  pool.add({
+    id: cloneId, context, page, cdpPort, preset: null, label: null,
+    isClone: true, cloneDir, templateName, leaseHandle: lease,
+    pid: tryBrowserPid(context.browser()), browserEngine,
+  });
 
   return {
     browser: context.browser(),
@@ -518,6 +474,32 @@ const _addCloneToPool = async (context, cloneId, cloneDir, templateName, lease, 
 };
 
 /**
+ * Shared tail for launchClone and cloneFromLive: resolve the browser, copy the
+ * template profile dir, launch a context from the copy, and register it in the pool.
+ */
+const _cloneAndLaunch = async (templateDir, templateName, launchOpts, _launchImpl, storageState) => {
+  const browserEngine = getConfig().browserEngine ?? 'chromium';
+
+  ensureGcOnExit();
+  const executablePath = await checkBrowser();
+  await storage.cleanupClones();
+  await storage.ensureSessionsDir();
+
+  const { cloneId, dir: cloneDir, lease } = await storage.cloneProfileAtomic(templateDir, templateName);
+
+  const launchFn = _launchImpl ?? _launchPersistentContext;
+  const context  = await launchFn(cloneDir, {
+    ...launchOpts,
+    executablePath,
+    browserEngine,
+    cdpPort: browserEngine === 'firefox' ? undefined : 0,
+    ...(storageState !== undefined ? { storageState } : {}),
+  });
+
+  return _addCloneToPool(context, cloneId, cloneDir, templateName, lease, browserEngine);
+};
+
+/**
  * Launch an ephemeral clone of a template session.
  * No state is saved on close; the clone dir is deleted.
  *
@@ -528,26 +510,9 @@ const _addCloneToPool = async (context, cloneId, cloneDir, templateName, lease, 
  */
 export const launchClone = async (options = {}) => {
   const { profile = 'default', _launchImpl, ...launchOpts } = options;
-  const browserEngine = (getConfig().browserEngine) ?? 'chromium';
-
-  ensureGcOnExit();
-  const executablePath = await checkBrowser();
-  await storage.cleanupClones();
-  await storage.ensureSessionsDir();
-
   await storage.ensureProfileDir(profile);
   const templateDir = storage.getUserDataDir(profile);
-  const { cloneId, dir: cloneDir, lease } = await storage.cloneProfileAtomic(templateDir, profile);
-
-  const launchFn = _launchImpl ?? _launchPersistentContext;
-  const context  = await launchFn(cloneDir, {
-    ...launchOpts,
-    executablePath,
-    browserEngine,
-    cdpPort: browserEngine === 'firefox' ? undefined : 0,
-  });
-
-  return _addCloneToPool(context, cloneId, cloneDir, profile, lease, browserEngine);
+  return _cloneAndLaunch(templateDir, profile, launchOpts, _launchImpl);
 };
 
 /**
@@ -570,30 +535,13 @@ export const launchClone = async (options = {}) => {
  */
 export const cloneFromLive = async (templateName, launchOpts = {}, _launchImpl) => {
   const template = pool.get(templateName); // throws if not open
-  const browserEngine = (getConfig().browserEngine) ?? 'chromium';
-
-  ensureGcOnExit();
-  const executablePath = await checkBrowser();
-  await storage.cleanupClones();
-  await storage.ensureSessionsDir();
 
   // Capture in-memory state from the live browser context before copying.
   // This includes cookies and localStorage that may not have been flushed to disk.
   const liveState = await template.context.storageState();
 
   const templateDir = storage.getUserDataDir(templateName);
-  const { cloneId, dir: cloneDir, lease } = await storage.cloneProfileAtomic(templateDir, templateName);
-
-  const launchFn = _launchImpl ?? _launchPersistentContext;
-  const context  = await launchFn(cloneDir, {
-    ...launchOpts,
-    executablePath,
-    browserEngine,
-    cdpPort: browserEngine === 'firefox' ? undefined : 0,
-    storageState: liveState,
-  });
-
-  return _addCloneToPool(context, cloneId, cloneDir, templateName, lease, browserEngine);
+  return _cloneAndLaunch(templateDir, templateName, launchOpts, _launchImpl, liveState);
 };
 
 /**

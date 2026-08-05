@@ -72,7 +72,14 @@ describe('pool', () => {
       url: () => 'about:blank',
     };
 
-    pool.add('unit-test-1', mockContext, mockPage, 20001, 'default', 'Default');
+    pool.add({
+      id: 'unit-test-1',
+      context: mockContext,
+      page: mockPage,
+      cdpPort: 20001,
+      preset: 'default',
+      label: 'Default',
+    });
     assert.ok(pool.has('unit-test-1'));
 
     const entry = pool.get('unit-test-1');

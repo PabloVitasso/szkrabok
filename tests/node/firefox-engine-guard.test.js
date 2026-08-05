@@ -33,21 +33,21 @@ const fakePage = () => ({ isClosed: () => false });
 const fakeContext = () => ({ _closed: false });
 
 const addFirefoxSession = id => {
-  pool.add(
-    id,
-    fakeContext(),
-    fakePage(),
-    null, // cdpPort = null for Firefox
-    null, // preset
-    null, // label
-    false,
-    null,
-    null,
-    null,
-    null,
-    null,
-    'firefox'
-  );
+  pool.add({
+    id: id,
+    context: fakeContext(),
+    page: fakePage(),
+    cdpPort: null,
+    preset: null,
+    label: null,
+    isClone: false,
+    cloneDir: null,
+    templateName: null,
+    leaseHandle: null,
+    pid: null,
+    configHash: null,
+    browserEngine: 'firefox',
+  });
 };
 
 let tmpDir;
@@ -148,21 +148,21 @@ test('list() includes browserEngine for active template session', async () => {
   const id = 'ff-list-template-test';
   try {
     await storage.ensureProfileDir(id);
-    pool.add(
-      id,
-      fakeContext(),
-      fakePage(),
-      null,
-      null,
-      null,
-      false,
-      null,
-      null,
-      null,
-      null,
-      null,
-      'firefox'
-    );
+    pool.add({
+      id: id,
+      context: fakeContext(),
+      page: fakePage(),
+      cdpPort: null,
+      preset: null,
+      label: null,
+      isClone: false,
+      cloneDir: null,
+      templateName: null,
+      leaseHandle: null,
+      pid: null,
+      configHash: null,
+      browserEngine: 'firefox',
+    });
 
     const result = await list();
     const entry = result.sessions.find(s => s.id === id);
@@ -181,21 +181,21 @@ test('list() includes browserEngine for active template session', async () => {
 test('list() includes browserEngine for active clone session', async () => {
   const id = 'ff-list-clone-test';
   try {
-    pool.add(
-      id,
-      fakeContext(),
-      fakePage(),
-      null,
-      null,
-      null,
-      true,
-      '/tmp/fake-clone-dir',
-      'ff-template',
-      null,
-      null,
-      null,
-      'firefox'
-    );
+    pool.add({
+      id: id,
+      context: fakeContext(),
+      page: fakePage(),
+      cdpPort: null,
+      preset: null,
+      label: null,
+      isClone: true,
+      cloneDir: '/tmp/fake-clone-dir',
+      templateName: 'ff-template',
+      leaseHandle: null,
+      pid: null,
+      configHash: null,
+      browserEngine: 'firefox',
+    });
 
     const result = await list();
     const entry = result.sessions.find(s => s.id === id);

@@ -127,7 +127,11 @@ export const destroyClone = async cloneId => {
  */
 export const updateSessionPage = (profile, page) => {
   const session = pool.get(profile);
-  pool.add(profile, session.context, page, session.cdpPort, session.preset, session.label,
-    session.isClone, session.cloneDir, session.templateName, session.leaseHandle, session.pid,
-    session.configHash, session.browserEngine);
+  pool.add({
+    id: profile, context: session.context, page, cdpPort: session.cdpPort,
+    preset: session.preset, label: session.label, isClone: session.isClone,
+    cloneDir: session.cloneDir, templateName: session.templateName,
+    leaseHandle: session.leaseHandle, pid: session.pid,
+    configHash: session.configHash, browserEngine: session.browserEngine,
+  });
 };
