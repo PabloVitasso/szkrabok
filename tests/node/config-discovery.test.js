@@ -36,7 +36,11 @@ afterEach(() => {
     else process.env[k] = v;
   }
   for (const d of tmpDirs) {
-    try { rmSync(d, { recursive: true, force: true }); } catch (e) { console.warn('[cleanup] rmSync failed:', e.message); }
+    try {
+      rmSync(d, { recursive: true, force: true });
+    } catch (e) {
+      console.warn('[cleanup] rmSync failed:', e.message);
+    }
   }
   tmpDirs = [];
 });
@@ -175,7 +179,10 @@ test('getConfigSource: env:SZKRABOK_ROOT prefix when found via SZKRABOK_ROOT', (
   try {
     initConfig([]);
     const src = getConfigSource();
-    assert.ok(src.startsWith('env:SZKRABOK_ROOT'), `expected env:SZKRABOK_ROOT prefix, got: ${src}`);
+    assert.ok(
+      src.startsWith('env:SZKRABOK_ROOT'),
+      `expected env:SZKRABOK_ROOT prefix, got: ${src}`
+    );
     assert.ok(src.includes(root), `expected root path in source, got: ${src}`);
   } finally {
     if (orig === undefined) delete process.env.SZKRABOK_ROOT;
@@ -192,7 +199,10 @@ test('getConfigSource: env:SZKRABOK_CONFIG when that env var is set', () => {
   try {
     initConfig([]);
     const src = getConfigSource();
-    assert.ok(src.startsWith('env:SZKRABOK_CONFIG'), `expected env:SZKRABOK_CONFIG prefix, got: ${src}`);
+    assert.ok(
+      src.startsWith('env:SZKRABOK_CONFIG'),
+      `expected env:SZKRABOK_CONFIG prefix, got: ${src}`
+    );
     assert.ok(src.includes(cfgPath), `expected config path in source, got: ${src}`);
   } finally {
     if (orig === undefined) delete process.env.SZKRABOK_CONFIG;

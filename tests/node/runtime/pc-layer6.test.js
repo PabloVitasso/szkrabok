@@ -26,7 +26,12 @@ import { resolveTestBrowser, launchHeadlessBrowser } from './helpers.js';
 const waitForFile = async (filePath, timeoutMs = 10_000) => {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
-    try { await access(filePath); return; } catch { /* file not ready yet */ }
+    try {
+      await access(filePath);
+      return;
+    } catch {
+      /* file not ready yet */
+    }
     await new Promise(r => setTimeout(r, 100));
   }
   throw new Error(`Timed out waiting for: ${filePath}`);
@@ -35,9 +40,15 @@ const waitForFile = async (filePath, timeoutMs = 10_000) => {
 const isPortOpen = (port, host = '127.0.0.1') =>
   new Promise(resolve => {
     const sock = net.createConnection({ port, host });
-    sock.once('connect', () => { sock.destroy(); resolve(true); });
-    sock.once('error',   () => resolve(false));
-    sock.setTimeout(3000, () => { sock.destroy(); resolve(false); });
+    sock.once('connect', () => {
+      sock.destroy();
+      resolve(true);
+    });
+    sock.once('error', () => resolve(false));
+    sock.setTimeout(3000, () => {
+      sock.destroy();
+      resolve(false);
+    });
   });
 
 // ── Shared test body ──────────────────────────────────────────────────────────
@@ -56,92 +67,132 @@ const runPortTests = executablePath => {
     }
   });
 
-  test('PC-6.2: readDevToolsPort parses port from live DevToolsActivePort', { timeout: 15_000 }, async () => {
-    const { readDevToolsPort } = await import('../../../packages/runtime/storage.js');
-    console.log('PC-6.2 step 1: launchHeadlessBrowser');
-    const { userDataDir, cleanup } = await launchHeadlessBrowser(executablePath);
-    try {
-      const filePath = join(userDataDir, 'DevToolsActivePort');
-      console.log('PC-6.2 step 2: waitForFile("' + filePath + '")');
-      await waitForFile(filePath);
-      console.log('PC-6.2 step 3: readDevToolsPort("' + userDataDir + '")');
-      const port = await readDevToolsPort(userDataDir);
-      console.log('PC-6.2 step 3 returned port:', port, 'typeof:', typeof port);
-      assert.strictEqual(typeof port, 'number');
-      assert.ok(port > 0 && port < 65536, `port out of range: ${port}`);
-    } finally {
-      await cleanup();
-    }
-  });
-
-  test('PC-6.3: port from DevToolsActivePort accepts TCP connections', { timeout: 15_000 }, async () => {
-    const { readDevToolsPort } = await import('../../../packages/runtime/storage.js');
-    console.log('PC-6.3 step 1: launchHeadlessBrowser');
-    const { userDataDir, cleanup } = await launchHeadlessBrowser(executablePath);
-    try {
-      const filePath = join(userDataDir, 'DevToolsActivePort');
-      console.log('PC-6.3 step 2: waitForFile');
-      await waitForFile(filePath);
-      console.log('PC-6.3 step 3: readDevToolsPort');
-      const port = await readDevToolsPort(userDataDir);
-      console.log('PC-6.3 step 3 returned port:', port);
-      console.log('PC-6.3 step 4: isPortOpen(' + port + ')');
-      const open = await isPortOpen(port);
-      console.log('PC-6.3 step 4 returned:', open);
-      assert.ok(open, `CDP port ${port} is not accepting connections`);
-    } finally {
-      await cleanup();
-    }
-  });
-
-  test('PC-6.4: GET /json on CDP port returns a valid JSON array', { timeout: 15_000 }, async () => {
-    const { readDevToolsPort } = await import('../../../packages/runtime/storage.js');
-    console.log('PC-6.4 step 1: launchHeadlessBrowser');
-    const { userDataDir, cleanup } = await launchHeadlessBrowser(executablePath);
-    try {
-      const filePath = join(userDataDir, 'DevToolsActivePort');
-      console.log('PC-6.4 step 2: waitForFile');
-      await waitForFile(filePath);
-      console.log('PC-6.4 step 3: readDevToolsPort');
-      const port = await readDevToolsPort(userDataDir);
-      console.log('PC-6.4 step 3 returned port:', port);
-
-      console.log('PC-6.4 step 4: http.get http://127.0.0.1:' + port + '/json');
-      const parsed = await new Promise((resolve, reject) => {
-        http.get({ hostname: '127.0.0.1', port, path: '/json' }, res => {
-          console.log('PC-6.4 step 4: HTTP statusCode:', res.statusCode);
-          console.log('PC-6.4 step 4: Content-Type:', res.headers['content-type']);
-          // Accumulate chunks - handles both Content-Length and chunked Transfer-Encoding.
-          let body = '';
-          res.on('data', chunk => { body += chunk; });
-          res.on('end', () => {
-            console.log('PC-6.4 step 4: body received, length =', body.length);
-            console.log('PC-6.4 step 4: body preview =', body.slice(0, 200));
-            try { resolve(JSON.parse(body)); }
-            catch (e) { reject(new Error(`Invalid JSON from /json: ${e.message}\n${body}`)); }
-          });
-        }).on('error', reject);
-      });
-
-      console.log('PC-6.4 step 5: assert Array.isArray(parsed), got:', Array.isArray(parsed), 'length:', parsed.length);
-      assert.ok(Array.isArray(parsed), '/json must return an array');
-      console.log('PC-6.4 step 6: assert parsed.length > 0');
-      assert.ok(parsed.length > 0, '/json must return at least one target (the about:blank page)');
-      for (const target of parsed) {
-        console.log('PC-6.4 step 7: checking target id:', target.id, 'type:', target.type, 'ws:', target.webSocketDebuggerUrl);
-        assert.ok(typeof target.id === 'string' && target.id.length > 0, 'each target needs a non-empty id');
-        assert.ok(typeof target.type === 'string' && target.type.length > 0, 'each target needs a non-empty type');
-        assert.ok(
-          typeof target.webSocketDebuggerUrl === 'string' &&
-          target.webSocketDebuggerUrl.startsWith('ws://'),
-          'each target needs a ws:// webSocketDebuggerUrl'
-        );
+  test(
+    'PC-6.2: readDevToolsPort parses port from live DevToolsActivePort',
+    { timeout: 15_000 },
+    async () => {
+      const { readDevToolsPort } = await import('../../../packages/runtime/storage.js');
+      console.log('PC-6.2 step 1: launchHeadlessBrowser');
+      const { userDataDir, cleanup } = await launchHeadlessBrowser(executablePath);
+      try {
+        const filePath = join(userDataDir, 'DevToolsActivePort');
+        console.log('PC-6.2 step 2: waitForFile("' + filePath + '")');
+        await waitForFile(filePath);
+        console.log('PC-6.2 step 3: readDevToolsPort("' + userDataDir + '")');
+        const port = await readDevToolsPort(userDataDir);
+        console.log('PC-6.2 step 3 returned port:', port, 'typeof:', typeof port);
+        assert.strictEqual(typeof port, 'number');
+        assert.ok(port > 0 && port < 65536, `port out of range: ${port}`);
+      } finally {
+        await cleanup();
       }
-      console.log('PC-6.4 step 7: all targets valid');
-    } finally {
-      await cleanup();
     }
-  });
+  );
+
+  test(
+    'PC-6.3: port from DevToolsActivePort accepts TCP connections',
+    { timeout: 15_000 },
+    async () => {
+      const { readDevToolsPort } = await import('../../../packages/runtime/storage.js');
+      console.log('PC-6.3 step 1: launchHeadlessBrowser');
+      const { userDataDir, cleanup } = await launchHeadlessBrowser(executablePath);
+      try {
+        const filePath = join(userDataDir, 'DevToolsActivePort');
+        console.log('PC-6.3 step 2: waitForFile');
+        await waitForFile(filePath);
+        console.log('PC-6.3 step 3: readDevToolsPort');
+        const port = await readDevToolsPort(userDataDir);
+        console.log('PC-6.3 step 3 returned port:', port);
+        console.log('PC-6.3 step 4: isPortOpen(' + port + ')');
+        const open = await isPortOpen(port);
+        console.log('PC-6.3 step 4 returned:', open);
+        assert.ok(open, `CDP port ${port} is not accepting connections`);
+      } finally {
+        await cleanup();
+      }
+    }
+  );
+
+  test(
+    'PC-6.4: GET /json on CDP port returns a valid JSON array',
+    { timeout: 15_000 },
+    async () => {
+      const { readDevToolsPort } = await import('../../../packages/runtime/storage.js');
+      console.log('PC-6.4 step 1: launchHeadlessBrowser');
+      const { userDataDir, cleanup } = await launchHeadlessBrowser(executablePath);
+      try {
+        const filePath = join(userDataDir, 'DevToolsActivePort');
+        console.log('PC-6.4 step 2: waitForFile');
+        await waitForFile(filePath);
+        console.log('PC-6.4 step 3: readDevToolsPort');
+        const port = await readDevToolsPort(userDataDir);
+        console.log('PC-6.4 step 3 returned port:', port);
+
+        console.log('PC-6.4 step 4: http.get http://127.0.0.1:' + port + '/json');
+        const parsed = await new Promise((resolve, reject) => {
+          http
+            .get({ hostname: '127.0.0.1', port, path: '/json' }, res => {
+              console.log('PC-6.4 step 4: HTTP statusCode:', res.statusCode);
+              console.log('PC-6.4 step 4: Content-Type:', res.headers['content-type']);
+              // Accumulate chunks - handles both Content-Length and chunked Transfer-Encoding.
+              let body = '';
+              res.on('data', chunk => {
+                body += chunk;
+              });
+              res.on('end', () => {
+                console.log('PC-6.4 step 4: body received, length =', body.length);
+                console.log('PC-6.4 step 4: body preview =', body.slice(0, 200));
+                try {
+                  resolve(JSON.parse(body));
+                } catch (e) {
+                  reject(new Error(`Invalid JSON from /json: ${e.message}\n${body}`));
+                }
+              });
+            })
+            .on('error', reject);
+        });
+
+        console.log(
+          'PC-6.4 step 5: assert Array.isArray(parsed), got:',
+          Array.isArray(parsed),
+          'length:',
+          parsed.length
+        );
+        assert.ok(Array.isArray(parsed), '/json must return an array');
+        console.log('PC-6.4 step 6: assert parsed.length > 0');
+        assert.ok(
+          parsed.length > 0,
+          '/json must return at least one target (the about:blank page)'
+        );
+        for (const target of parsed) {
+          console.log(
+            'PC-6.4 step 7: checking target id:',
+            target.id,
+            'type:',
+            target.type,
+            'ws:',
+            target.webSocketDebuggerUrl
+          );
+          assert.ok(
+            typeof target.id === 'string' && target.id.length > 0,
+            'each target needs a non-empty id'
+          );
+          assert.ok(
+            typeof target.type === 'string' && target.type.length > 0,
+            'each target needs a non-empty type'
+          );
+          assert.ok(
+            typeof target.webSocketDebuggerUrl === 'string' &&
+              target.webSocketDebuggerUrl.startsWith('ws://'),
+            'each target needs a ws:// webSocketDebuggerUrl'
+          );
+        }
+        console.log('PC-6.4 step 7: all targets valid');
+      } finally {
+        await cleanup();
+      }
+    }
+  );
 
   test('PC-6.5: two simultaneous launches get different ports', { timeout: 20_000 }, async () => {
     const { readDevToolsPort } = await import('../../../packages/runtime/storage.js');

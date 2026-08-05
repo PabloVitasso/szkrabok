@@ -23,7 +23,8 @@ const SERVER_PATH = join(REPO_ROOT, 'src/index.js');
 // Resolve the working browser path on this machine so isolated subprocesses can launch.
 initConfig([]);
 const EXECUTABLE_PATH = await findChromiumPath();
-if (!EXECUTABLE_PATH) throw new Error('config-mcp-roots.spec.js: no browser found — run szkrabok doctor install');
+if (!EXECUTABLE_PATH)
+  throw new Error('config-mcp-roots.spec.js: no browser found — run szkrabok doctor install');
 
 const tmpDirs = [];
 
@@ -36,12 +37,19 @@ function makeTmp() {
 function writeToml(dir, content) {
   mkdirSync(dir, { recursive: true });
   // Always include executablePath so isolated subprocesses can launch the browser.
-  writeFileSync(join(dir, 'szkrabok.config.toml'), content + `\nexecutablePath = ${JSON.stringify(EXECUTABLE_PATH)}\n`);
+  writeFileSync(
+    join(dir, 'szkrabok.config.toml'),
+    content + `\nexecutablePath = ${JSON.stringify(EXECUTABLE_PATH)}\n`
+  );
 }
 
 test.afterAll(() => {
   for (const d of tmpDirs) {
-    try { rmSync(d, { recursive: true, force: true }); } catch (e) { console.warn('[cleanup] rmSync failed:', e.message); }
+    try {
+      rmSync(d, { recursive: true, force: true });
+    } catch (e) {
+      console.warn('[cleanup] rmSync failed:', e.message);
+    }
   }
 });
 
@@ -128,7 +136,12 @@ test('roots sent at init — UA in project toml is used', async () => {
     const actual = await readUA(client, sessionName);
     expect(actual).toBe(ua);
   } finally {
-    await client.callTool({ name: 'session_manage', arguments: { action: 'close', sessionName, save: false } }).catch(() => {});
+    await client
+      .callTool({
+        name: 'session_manage',
+        arguments: { action: 'close', sessionName, save: false },
+      })
+      .catch(() => {});
     await client.close().catch(() => {});
   }
 });
@@ -137,7 +150,10 @@ test('no roots, SZKRABOK_CONFIG set — env var config loaded', async () => {
   const dir = makeTmp();
   const ua = `EnvBot/${randomUUID()}`;
   const cfgPath = join(dir, 'custom.toml');
-  writeFileSync(cfgPath, `[default]\nuserAgent = "${ua}"\nexecutablePath = ${JSON.stringify(EXECUTABLE_PATH)}\n`);
+  writeFileSync(
+    cfgPath,
+    `[default]\nuserAgent = "${ua}"\nexecutablePath = ${JSON.stringify(EXECUTABLE_PATH)}\n`
+  );
 
   const client = await spawnWithRoots([], { SZKRABOK_CONFIG: cfgPath });
   const sessionName = `cfg-env-${randomUUID()}`;
@@ -146,7 +162,12 @@ test('no roots, SZKRABOK_CONFIG set — env var config loaded', async () => {
     const actual = await readUA(client, sessionName);
     expect(actual).toBe(ua);
   } finally {
-    await client.callTool({ name: 'session_manage', arguments: { action: 'close', sessionName, save: false } }).catch(() => {});
+    await client
+      .callTool({
+        name: 'session_manage',
+        arguments: { action: 'close', sessionName, save: false },
+      })
+      .catch(() => {});
     await client.close().catch(() => {});
   }
 });

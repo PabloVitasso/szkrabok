@@ -1,10 +1,15 @@
 export function register(program, { safe, getRuntime, attachShutdown }) {
   program
     .command('open <profile>')
-    .description('Launch persistent browser and print CDP endpoint. With --clone: ephemeral copy, destroyed on exit')
+    .description(
+      'Launch persistent browser and print CDP endpoint. With --clone: ephemeral copy, destroyed on exit'
+    )
     .option('--preset <preset>')
     .option('--headless')
-    .option('--clone', 'clone the template profile into an ephemeral copy; clone dir deleted on exit')
+    .option(
+      '--clone',
+      'clone the template profile into an ephemeral copy; clone dir deleted on exit'
+    )
     .action(
       safe(async (profile, options) => {
         const runtime = await getRuntime();

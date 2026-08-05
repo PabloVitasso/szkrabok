@@ -190,10 +190,15 @@ test('rebrowser-check', async ({ page }, testInfo) => {
 
   // ── assertions ────────────────────────────────────────────────────────────
   const unexpectedFailures = deduped.filter(r => r.failed && !KNOWN_FAILURES.has(r.name));
-  expect(unexpectedFailures.map(r => r.name), 'unexpected rebrowser failures').toHaveLength(0);
+  expect(
+    unexpectedFailures.map(r => r.name),
+    'unexpected rebrowser failures'
+  ).toHaveLength(0);
 
   const passed = deduped.filter(r => r.passed).length;
-  expect(passed, 'expected 8/10 rebrowser checks to pass').toBe(EXPECTED_PASS.length - KNOWN_FAILURES.size);
+  expect(passed, 'expected 8/10 rebrowser checks to pass').toBe(
+    EXPECTED_PASS.length - KNOWN_FAILURES.size
+  );
 
   console.log('step 8. done');
 });

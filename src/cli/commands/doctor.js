@@ -61,9 +61,9 @@ function extractChromiumMajor(versionString) {
 
 // Fixed-width status tags (8 chars each) for machine-parseable output.
 const TAGS = {
-  pass:   '[PASS  ]',
-  fail:   '[FAIL  ]',
-  skip:   '[SKIP  ]',
+  pass: '[PASS  ]',
+  fail: '[FAIL  ]',
+  skip: '[SKIP  ]',
   absent: '[ABSENT]',
 };
 
@@ -71,7 +71,7 @@ const isoSec = d => d.toISOString().replace(/\.\d{3}Z$/, 'Z');
 
 const USER_SOURCES = new Set(['env', 'config']);
 
-const printCandidateTable = (results) => {
+const printCandidateTable = results => {
   const winnerIdx = results.findIndex(r => r.ok);
   for (let i = 0; i < results.length; i++) {
     const r = results[i];
@@ -90,7 +90,7 @@ const printCandidateTable = (results) => {
   }
 };
 
-const deriveRecommendation = (results) => {
+const deriveRecommendation = results => {
   for (const r of results) {
     if (USER_SOURCES.has(r.source) && r.path && !r.ok) {
       return r.source === 'env'
@@ -162,9 +162,8 @@ async function runFullDoctor(opts) {
     // CDP version check — only for non-playwright-managed binaries
     if (winner.source !== 'playwright') {
       const expectedMajor = getExpectedChromiumMajor(pwCoreVersion);
-      const versionStr = vResult.status === 0 && vResult.stdout
-        ? vResult.stdout.trim().split('\n')[0]
-        : null;
+      const versionStr =
+        vResult.status === 0 && vResult.stdout ? vResult.stdout.trim().split('\n')[0] : null;
       const actualMajor = versionStr ? extractChromiumMajor(versionStr) : null;
 
       if (expectedMajor !== null && actualMajor !== null) {
@@ -173,9 +172,10 @@ async function runFullDoctor(opts) {
         }
         // exact match: no warning
       } else {
-        const noteMsg = expectedMajor === null
-          ? 'playwright version not in lookup table — skipping CDP compatibility check'
-          : 'binary version unreadable';
+        const noteMsg =
+          expectedMajor === null
+            ? 'playwright version not in lookup table — skipping CDP compatibility check'
+            : 'binary version unreadable';
         console.log(`  [note] CDP compatibility: ${noteMsg}`);
       }
     }
@@ -199,7 +199,7 @@ async function runFullDoctor(opts) {
     } else {
       console.log(`  [warn] source: ${meta.source}`);
     }
-    for (const s of (meta.searched ?? [])) {
+    for (const s of meta.searched ?? []) {
       const tag = s.found ? '[PASS  ]' : '[ABSENT]';
       console.log(`  ${tag} ${s.step.padEnd(20)} ${s.paths.join(', ')}`);
     }
@@ -253,14 +253,20 @@ async function runFullDoctor(opts) {
       command = 'bash';
       args = ['-c', `cd ${testNpxDir} && npx -y @pablovitasso/szkrabok`];
     }
-    console.log(JSON.stringify({
-      szkrabok: {
-        type: 'stdio',
-        command,
-        args,
-        env: {},
-      }
-    }, null, 2));
+    console.log(
+      JSON.stringify(
+        {
+          szkrabok: {
+            type: 'stdio',
+            command,
+            args,
+            env: {},
+          },
+        },
+        null,
+        2
+      )
+    );
   }
 
   console.log(`\n${failed ? 'Some checks failed.' : 'All checks passed.'}`);
@@ -296,7 +302,7 @@ export function register(program) {
     .command('doctor')
     .description('Check szkrabok environment and dependencies')
     .option('--strict', 'Exit 1 if any check fails (default: exit 0)')
-    .action(async (opts) => {
+    .action(async opts => {
       await runFullDoctor(opts);
     });
 
@@ -304,7 +310,7 @@ export function register(program) {
     .command('detect')
     .description('Detect Chrome/Chromium and show config hint')
     .option('--write-config', 'Write discovered path to ~/.config/szkrabok/config.toml')
-    .action(async (opts) => {
+    .action(async opts => {
       await runDoctorDetect({ writeConfig: opts.writeConfig });
     });
 
@@ -312,7 +318,7 @@ export function register(program) {
     .command('install')
     .description('Install Chromium via Playwright (idempotent)')
     .option('--force', 'Download even if a browser is already available')
-    .action(async (opts) => {
+    .action(async opts => {
       await runDoctorInstall({ force: opts.force });
     });
 }

@@ -19,7 +19,15 @@ import { join } from 'path';
 import { tmpdir } from 'os';
 
 const PROFILE = 'integration-test-profile';
-const TEST_COOKIE = { name: 'szkrabok_test', value: 'persistence_ok', domain: 'example.com', path: '/', httpOnly: false, secure: false, sameSite: 'Lax' };
+const TEST_COOKIE = {
+  name: 'szkrabok_test',
+  value: 'persistence_ok',
+  domain: 'example.com',
+  path: '/',
+  httpOnly: false,
+  secure: false,
+  sameSite: 'Lax',
+};
 
 let tmpSessionsDir;
 
@@ -45,7 +53,9 @@ describe('session persistence across launch/close cycles', () => {
 
     try {
       // Navigate so we have a real origin for cookies
-      await handle.context.pages()[0].goto('https://example.com', { waitUntil: 'domcontentloaded', timeout: 20_000 });
+      await handle.context
+        .pages()[0]
+        .goto('https://example.com', { waitUntil: 'domcontentloaded', timeout: 20_000 });
       await handle.context.addCookies([TEST_COOKIE]);
 
       const state = await handle.context.storageState();
@@ -75,7 +85,9 @@ describe('session persistence across launch/close cycles', () => {
 
     try {
       // Navigate to establish origin
-      await handle.context.pages()[0].goto('https://example.com', { waitUntil: 'domcontentloaded', timeout: 20_000 });
+      await handle.context
+        .pages()[0]
+        .goto('https://example.com', { waitUntil: 'domcontentloaded', timeout: 20_000 });
 
       const state = await handle.context.storageState();
       const restored = state.cookies.find(c => c.name === TEST_COOKIE.name);

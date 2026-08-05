@@ -53,15 +53,15 @@ const makeFakePage = () => ({ isClosed: () => false });
 const makeCtx = () => {
   const page = makeFakePage();
   return {
-    _closed:       false,
-    close:         async () => {},
-    storageState:  async () => ({ cookies: [], origins: [] }),
-    browser:       () => ({}),
-    pages:         () => [page],
-    newPage:       async () => page,
-    addCookies:    async () => {},
+    _closed: false,
+    close: async () => {},
+    storageState: async () => ({ cookies: [], origins: [] }),
+    browser: () => ({}),
+    pages: () => [page],
+    newPage: async () => page,
+    addCookies: async () => {},
     addInitScript: async () => {},
-    on:            () => {},
+    on: () => {},
   };
 };
 
@@ -69,10 +69,12 @@ const makeCtx = () => {
  * Standard _launchImpl mock.
  * Writes DevToolsActivePort with the given port, returns a fake context.
  */
-const makeLaunchImpl = (port = 19999) => async (userDataDir) => {
-  await writeFile(join(userDataDir, 'DevToolsActivePort'), `${port}\n/devtools/browser/mock\n`);
-  return makeCtx();
-};
+const makeLaunchImpl =
+  (port = 19999) =>
+  async userDataDir => {
+    await writeFile(join(userDataDir, 'DevToolsActivePort'), `${port}\n/devtools/browser/mock\n`);
+    return makeCtx();
+  };
 
 /**
  * Create a minimal template profile dir so cloneProfileAtomic has something to copy.
@@ -94,7 +96,7 @@ describe('PC-4 launchClone — pool entry', () => {
 
   test('PC-4.1: pool key is cloneId, not profile name', async () => {
     const { launchClone } = await import('../../../packages/runtime/launch.js');
-    const pool            = await import('../../../packages/runtime/pool.js');
+    const pool = await import('../../../packages/runtime/pool.js');
     const profile = uid('keying');
     await makeTemplateDir(profile);
 
@@ -113,7 +115,7 @@ describe('PC-4 launchClone — pool entry', () => {
 
   test('PC-4.2: pool entry has isClone:true and cloneDir set', async () => {
     const { launchClone } = await import('../../../packages/runtime/launch.js');
-    const pool            = await import('../../../packages/runtime/pool.js');
+    const pool = await import('../../../packages/runtime/pool.js');
     const profile = uid('entry-fields');
     await makeTemplateDir(profile);
 
@@ -184,7 +186,7 @@ describe('PC-4 launchClone — concurrency', () => {
     await makeTemplateDir(profile);
 
     let portCounter = 19010;
-    const launchImpl = async (userDataDir) => {
+    const launchImpl = async userDataDir => {
       const port = portCounter++;
       await writeFile(join(userDataDir, 'DevToolsActivePort'), `${port}\n/devtools/browser/mock\n`);
       return makeCtx();
@@ -201,8 +203,8 @@ describe('PC-4 launchClone — concurrency', () => {
       console.log('PC-4.5 step 2: assert a.cloneId !== b.cloneId');
       assert.notStrictEqual(a.cloneId, b.cloneId);
       const pool = await import('../../../packages/runtime/pool.js');
-      const ea   = pool.get(a.cloneId);
-      const eb   = pool.get(b.cloneId);
+      const ea = pool.get(a.cloneId);
+      const eb = pool.get(b.cloneId);
       console.log('PC-4.5 step 3: ea.cloneDir:', ea.cloneDir, 'eb.cloneDir:', eb.cloneDir);
       assert.notStrictEqual(ea.cloneDir, eb.cloneDir);
     } finally {
@@ -221,13 +223,13 @@ describe('PC-4 launchClone — close() behaviour', () => {
 
   test('PC-4.6: close() removes the cloneDir from filesystem', async () => {
     const { launchClone } = await import('../../../packages/runtime/launch.js');
-    const pool   = await import('../../../packages/runtime/pool.js');
+    const pool = await import('../../../packages/runtime/pool.js');
     const profile = uid('close-dir');
     await makeTemplateDir(profile);
 
     console.log('PC-4.6 step 1: launchClone({ profile: "' + profile + '" })');
     const handle = await launchClone({ profile, _launchImpl: makeLaunchImpl(19020) });
-    const dir    = pool.get(handle.cloneId).cloneDir;
+    const dir = pool.get(handle.cloneId).cloneDir;
     console.log('PC-4.6 step 1 cloneDir:', dir);
 
     console.log('PC-4.6 step 2: existsSync(dir) =', existsSync(dir));
@@ -267,14 +269,16 @@ describe('PC-4 launch (template) — port discovery', () => {
 
   test('PC-4.8: template launch cdpEndpoint uses DevToolsActivePort, not a hash', async () => {
     const { launch } = await import('../../../packages/runtime/launch.js');
-    const storage    = await import('../../../packages/runtime/storage.js');
+    const storage = await import('../../../packages/runtime/storage.js');
     const profile = uid('template-port');
     await makeTemplateDir(profile);
 
     console.log('PC-4.8 step 1: storage.saveMeta for profile "' + profile + '"');
     await storage.saveMeta(profile, { sessionName: profile, created: Date.now() });
 
-    console.log('PC-4.8 step 2: launch({ profile: "' + profile + '", reuse: false }) with port 19030');
+    console.log(
+      'PC-4.8 step 2: launch({ profile: "' + profile + '", reuse: false }) with port 19030'
+    );
     const handle = await launch({
       profile,
       reuse: false,
@@ -309,15 +313,22 @@ describe('PC-4 ensureGcOnExit', () => {
       const profile = uid(`gc-exit-${i}`);
       await makeTemplateDir(profile);
       console.log('PC-4.9 step 2.' + (i + 1) + ': launchClone iteration', i);
-      handles.push(
-        await launchClone({ profile, _launchImpl: makeLaunchImpl(19040 + i) })
-      );
+      handles.push(await launchClone({ profile, _launchImpl: makeLaunchImpl(19040 + i) }));
     }
 
     const after = process.listenerCount('beforeExit');
-    console.log('PC-4.9 step 3: beforeExit listener count after =', after, 'delta =', after - before);
+    console.log(
+      'PC-4.9 step 3: beforeExit listener count after =',
+      after,
+      'delta =',
+      after - before
+    );
     // After _resetGcForTesting + 3 launchClone calls: exactly 1 handler registered (first call only).
-    assert.strictEqual(after - before, 1, `beforeExit listener count should grow by exactly 1, got ${after - before}`);
+    assert.strictEqual(
+      after - before,
+      1,
+      `beforeExit listener count should grow by exactly 1, got ${after - before}`
+    );
 
     await Promise.allSettled(handles.map(h => h.close()));
   });
@@ -335,7 +346,7 @@ describe('PC-4 launchClone — GC on launch', () => {
 
   test('PC-4.10: stale clone dir from dead process is cleaned up during launchClone', async () => {
     const { launchClone } = await import('../../../packages/runtime/launch.js');
-    const { spawnSync }   = await import('child_process');
+    const { spawnSync } = await import('child_process');
 
     console.log('PC-4.10 step 1: spawnSync to get a dead PID');
     const deadPid = spawnSync(process.execPath, ['--eval', '']).pid;
@@ -345,11 +356,14 @@ describe('PC-4 launchClone — GC on launch', () => {
     console.log('PC-4.10 step 2: create stale clone dir with deadPid and created=0');
     const staleDir = join(tmpdir(), `szkrabok-clone-pc4-stale-${Date.now()}`);
     await mkdir(staleDir, { recursive: true });
-    await writeFile(join(staleDir, '.clone'), JSON.stringify({
-      pid:          deadPid,
-      created:      0,          // epoch - always past TTL
-      templateName: 'stale-test',
-    }));
+    await writeFile(
+      join(staleDir, '.clone'),
+      JSON.stringify({
+        pid: deadPid,
+        created: 0, // epoch - always past TTL
+        templateName: 'stale-test',
+      })
+    );
 
     console.log('PC-4.10 step 3: existsSync(staleDir) =', existsSync(staleDir));
     assert.ok(existsSync(staleDir), 'stale dir must exist before launchClone');

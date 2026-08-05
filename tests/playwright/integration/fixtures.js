@@ -14,8 +14,8 @@ const SESSION_DEFAULTS = {
 };
 
 export const test = baseTest.extend({
-  startClient: // eslint-disable-next-line no-empty-pattern -- Playwright fixture API requires destructuring even when no fixtures are used
-async ({}, use) => {
+  // eslint-disable-next-line no-empty-pattern -- Playwright fixture API requires destructuring even when no fixtures are used
+  startClient: async ({}, use) => {
     const clients = [];
 
     await use(async () => {
@@ -42,8 +42,8 @@ async ({}, use) => {
   // openSession(client, id, extraArgs) - wraps session.open with SESSION_DEFAULTS.
   // Use this in all selftests instead of calling session.open directly, so tests
   // are independent of the server's TOML config.
-  openSession: // eslint-disable-next-line no-empty-pattern -- Playwright fixture API requires destructuring even when no fixtures are used
-async ({}, use) => {
+  // eslint-disable-next-line no-empty-pattern -- Playwright fixture API requires destructuring even when no fixtures are used
+  openSession: async ({}, use) => {
     await use(async (client, sessionName, extraArgs = {}) => {
       return client.callTool({
         name: 'session_manage',
@@ -51,7 +51,10 @@ async ({}, use) => {
           action: 'open',
           sessionName,
           ...extraArgs,
-          launchOptions: { ...SESSION_DEFAULTS, ...(extraArgs.launchOptions != null ? extraArgs.launchOptions : {}) },
+          launchOptions: {
+            ...SESSION_DEFAULTS,
+            ...(extraArgs.launchOptions != null ? extraArgs.launchOptions : {}),
+          },
         },
       });
     });

@@ -45,22 +45,24 @@ const makePage = () => ({ isClosed: () => false, url: () => 'about:blank' });
 const makeCtx = () => {
   const page = makePage();
   return {
-    _closed:       false,
-    close:         async () => {},
-    storageState:  async () => ({ cookies: [], origins: [] }),
-    browser:       () => ({}),
-    pages:         () => [page],
-    newPage:       async () => page,
-    addCookies:    async () => {},
+    _closed: false,
+    close: async () => {},
+    storageState: async () => ({ cookies: [], origins: [] }),
+    browser: () => ({}),
+    pages: () => [page],
+    newPage: async () => page,
+    addCookies: async () => {},
     addInitScript: async () => {},
-    on:            () => {},
+    on: () => {},
   };
 };
 
-const makeLaunchImpl = (port = 19999) => async (userDataDir) => {
-  await writeFile(join(userDataDir, 'DevToolsActivePort'), `${port}\n/devtools/browser/mock\n`);
-  return makeCtx();
-};
+const makeLaunchImpl =
+  (port = 19999) =>
+  async userDataDir => {
+    await writeFile(join(userDataDir, 'DevToolsActivePort'), `${port}\n/devtools/browser/mock\n`);
+    return makeCtx();
+  };
 
 const makeTemplateDir = async name => {
   const dir = join(sessionsDir, name, 'profile');
@@ -107,9 +109,19 @@ describe('PC-5 session_manage open — isClone:true response shape', () => {
 
     try {
       console.log('PC-5.2 step 2: result.sessionName !== "' + sessionName + '"');
-      assert.notStrictEqual(result.sessionName, sessionName, 'sessionName in response must be cloneId');
-      console.log('PC-5.2 step 3: result.sessionName.startsWith("' + sessionName + '") =', result.sessionName.startsWith(sessionName));
-      assert.ok(result.sessionName.startsWith(sessionName), 'cloneId should start with template name');
+      assert.notStrictEqual(
+        result.sessionName,
+        sessionName,
+        'sessionName in response must be cloneId'
+      );
+      console.log(
+        'PC-5.2 step 3: result.sessionName.startsWith("' + sessionName + '") =',
+        result.sessionName.startsWith(sessionName)
+      );
+      assert.ok(
+        result.sessionName.startsWith(sessionName),
+        'cloneId should start with template name'
+      );
     } finally {
       const pool = await import('../../../packages/runtime/pool.js');
       if (pool.has(result.sessionName)) pool.remove(result.sessionName);
@@ -129,7 +141,10 @@ describe('PC-5 session_manage open — isClone:true response shape', () => {
     console.log('PC-5.3 step 1 returned:', result);
 
     try {
-      console.log('PC-5.3 step 2: result.templateSession === "' + sessionName + '" =', result.templateSession === sessionName);
+      console.log(
+        'PC-5.3 step 2: result.templateSession === "' + sessionName + '" =',
+        result.templateSession === sessionName
+      );
       assert.strictEqual(result.templateSession, sessionName);
     } finally {
       const pool = await import('../../../packages/runtime/pool.js');
@@ -143,14 +158,18 @@ describe('PC-5 session_manage open — isClone:true response shape', () => {
 describe('PC-5 session_manage open — isClone:true guard', () => {
   test('PC-5.4: throws when template session is currently open', async () => {
     const { open } = await import('../../../src/tools/szkrabok_session.js');
-    const pool      = await import('../../../packages/runtime/pool.js');
+    const pool = await import('../../../packages/runtime/pool.js');
     const sessionName = uid('open-guard');
 
     // Simulate template session being open by adding it to the pool.
     console.log('PC-5.4 step 1: pool.add("' + sessionName + '") to simulate open template');
     pool.add(sessionName, makeCtx(), makePage(), 20010, 'default', 'Default', false, null);
 
-    console.log('PC-5.4 step 2: open({ sessionName: "' + sessionName + '", isClone: true }) (expect rejection)');
+    console.log(
+      'PC-5.4 step 2: open({ sessionName: "' +
+        sessionName +
+        '", isClone: true }) (expect rejection)'
+    );
     await assert.rejects(
       () => open({ sessionName, launchOptions: { isClone: true } }),
       /open|clone/i,
@@ -165,7 +184,7 @@ describe('PC-5 session_manage open — isClone:true guard', () => {
 describe('PC-5 session_manage open — isClone default', () => {
   test('PC-5.5: isClone:false in launchOptions → response has isClone:false', async () => {
     const { open } = await import('../../../src/tools/szkrabok_session.js');
-    const storage   = await import('../../../packages/runtime/storage.js');
+    const storage = await import('../../../packages/runtime/storage.js');
     const sessionName = uid('open-false');
     await makeTemplateDir(sessionName);
     await storage.saveMeta(sessionName, { sessionName, created: Date.now() });
@@ -188,7 +207,7 @@ describe('PC-5 session_manage open — isClone default', () => {
 
   test('PC-5.6: isClone omitted from launchOptions → response has isClone:false', async () => {
     const { open } = await import('../../../src/tools/szkrabok_session.js');
-    const storage   = await import('../../../packages/runtime/storage.js');
+    const storage = await import('../../../packages/runtime/storage.js');
     const sessionName = uid('open-omit');
     await makeTemplateDir(sessionName);
     await storage.saveMeta(sessionName, { sessionName, created: Date.now() });
@@ -214,13 +233,15 @@ describe('PC-5 session_manage open — isClone default', () => {
 
 describe('PC-5 session_manage close — routing', () => {
   test('PC-5.7: close with clone sessionName routes to destroyClone (dir deleted)', async () => {
-    const pool          = await import('../../../packages/runtime/pool.js');
-    const { close }     = await import('../../../src/tools/szkrabok_session.js');
+    const pool = await import('../../../packages/runtime/pool.js');
+    const { close } = await import('../../../src/tools/szkrabok_session.js');
 
-    const cloneId  = uid('close-clone');
+    const cloneId = uid('close-clone');
     const cloneDir = await mkdtemp(join(tmpdir(), 'szkrabok-pc5-clonedir-'));
 
-    console.log('PC-5.7 step 1: pool.add("' + cloneId + '", isClone=true, cloneDir="' + cloneDir + '")');
+    console.log(
+      'PC-5.7 step 1: pool.add("' + cloneId + '", isClone=true, cloneDir="' + cloneDir + '")'
+    );
     pool.add(cloneId, makeCtx(), makePage(), 20020, 'default', 'Default', true, cloneDir);
 
     console.log('PC-5.7 step 2: close({ sessionName: "' + cloneId + '" })');
@@ -234,9 +255,9 @@ describe('PC-5 session_manage close — routing', () => {
   });
 
   test('PC-5.8: close with template sessionName routes to closeSession (state saved)', async () => {
-    const pool          = await import('../../../packages/runtime/pool.js');
-    const { close }     = await import('../../../src/tools/szkrabok_session.js');
-    const storage       = await import('../../../packages/runtime/storage.js');
+    const pool = await import('../../../packages/runtime/pool.js');
+    const { close } = await import('../../../src/tools/szkrabok_session.js');
+    const storage = await import('../../../packages/runtime/storage.js');
 
     const sessionName = uid('close-template');
     await mkdir(join(sessionsDir, sessionName, 'profile'), { recursive: true });
@@ -259,14 +280,30 @@ describe('PC-5 session_manage close — routing', () => {
 
 describe('PC-5 session_manage list', () => {
   test('PC-5.9: list includes active clone with isClone:true and templateSession', async () => {
-    const pool       = await import('../../../packages/runtime/pool.js');
-    const { list }   = await import('../../../src/tools/szkrabok_session.js');
+    const pool = await import('../../../packages/runtime/pool.js');
+    const { list } = await import('../../../src/tools/szkrabok_session.js');
 
-    const cloneId       = uid('list-clone');
-    const templateName  = uid('list-template-src');
+    const cloneId = uid('list-clone');
+    const templateName = uid('list-template-src');
 
-    console.log('PC-5.9 step 1: pool.add("' + cloneId + '", isClone=true, templateName="' + templateName + '")');
-    pool.add(cloneId, makeCtx(), makePage(), 20030, 'default', 'Default', true, '/tmp/clone', templateName);
+    console.log(
+      'PC-5.9 step 1: pool.add("' +
+        cloneId +
+        '", isClone=true, templateName="' +
+        templateName +
+        '")'
+    );
+    pool.add(
+      cloneId,
+      makeCtx(),
+      makePage(),
+      20030,
+      'default',
+      'Default',
+      true,
+      '/tmp/clone',
+      templateName
+    );
 
     console.log('PC-5.9 step 2: list()');
     const { sessions } = await list();
@@ -282,11 +319,21 @@ describe('PC-5 session_manage list', () => {
 
   test('PC-5.10: clone id does not appear in listStoredSessions (no disk entry)', async () => {
     const { listStoredSessions } = await import('../../../packages/runtime/sessions.js');
-    const pool                   = await import('../../../packages/runtime/pool.js');
+    const pool = await import('../../../packages/runtime/pool.js');
 
     const cloneId = uid('list-no-disk');
     console.log('PC-5.10 step 1: pool.add("' + cloneId + '", isClone=true)');
-    pool.add(cloneId, makeCtx(), makePage(), 20031, 'default', 'Default', true, '/tmp/no-disk', 'some-template');
+    pool.add(
+      cloneId,
+      makeCtx(),
+      makePage(),
+      20031,
+      'default',
+      'Default',
+      true,
+      '/tmp/no-disk',
+      'some-template'
+    );
 
     console.log('PC-5.10 step 2: listStoredSessions()');
     const stored = await listStoredSessions();
@@ -296,12 +343,12 @@ describe('PC-5 session_manage list', () => {
   });
 
   test('PC-5.11: list returns both template (isClone:false) and clone (isClone:true) entries', async () => {
-    const pool        = await import('../../../packages/runtime/pool.js');
-    const storage     = await import('../../../packages/runtime/storage.js');
-    const { list }    = await import('../../../src/tools/szkrabok_session.js');
+    const pool = await import('../../../packages/runtime/pool.js');
+    const storage = await import('../../../packages/runtime/storage.js');
+    const { list } = await import('../../../src/tools/szkrabok_session.js');
 
     const templateName = uid('list-mixed-t');
-    const cloneId      = uid('list-mixed-c');
+    const cloneId = uid('list-mixed-c');
 
     // Stored template.
     await mkdir(join(sessionsDir, templateName, 'profile'), { recursive: true });
@@ -311,7 +358,17 @@ describe('PC-5 session_manage list', () => {
 
     // Active clone (not on disk).
     console.log('PC-5.11 step 2: pool.add clone "' + cloneId + '" (isClone=true)');
-    pool.add(cloneId, makeCtx(), makePage(), 20033, 'default', 'Default', true, '/tmp/mixed-clone', templateName);
+    pool.add(
+      cloneId,
+      makeCtx(),
+      makePage(),
+      20033,
+      'default',
+      'Default',
+      true,
+      '/tmp/mixed-clone',
+      templateName
+    );
 
     console.log('PC-5.11 step 3: list()');
     const { sessions } = await list();
@@ -332,14 +389,26 @@ describe('PC-5 session_manage list', () => {
 
 describe('PC-5 session_manage deleteSession — clone guard', () => {
   test('PC-5.12: deleteSession with a clone sessionName throws (use close instead)', async () => {
-    const pool              = await import('../../../packages/runtime/pool.js');
+    const pool = await import('../../../packages/runtime/pool.js');
     const { deleteSession } = await import('../../../src/tools/szkrabok_session.js');
 
     const cloneId = uid('delete-guard');
     console.log('PC-5.12 step 1: pool.add("' + cloneId + '", isClone=true)');
-    pool.add(cloneId, makeCtx(), makePage(), 20040, 'default', 'Default', true, '/tmp/del-guard', 'some-template');
+    pool.add(
+      cloneId,
+      makeCtx(),
+      makePage(),
+      20040,
+      'default',
+      'Default',
+      true,
+      '/tmp/del-guard',
+      'some-template'
+    );
 
-    console.log('PC-5.12 step 2: deleteSession({ sessionName: "' + cloneId + '" }) (expect rejection)');
+    console.log(
+      'PC-5.12 step 2: deleteSession({ sessionName: "' + cloneId + '" }) (expect rejection)'
+    );
     await assert.rejects(
       () => deleteSession({ sessionName: cloneId }),
       /clone|close/i,

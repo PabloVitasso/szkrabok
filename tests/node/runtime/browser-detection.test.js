@@ -10,7 +10,11 @@
 import { test, describe, before } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync } from 'fs';
-import { resolveBrowserPath, findChromiumPath, initConfig } from '../../../packages/runtime/config.js';
+import {
+  resolveBrowserPath,
+  findChromiumPath,
+  initConfig,
+} from '../../../packages/runtime/config.js';
 import { checkBrowser } from '../../../packages/runtime/launch.js';
 import { BrowserNotFoundError } from '../../../packages/runtime/index.js';
 

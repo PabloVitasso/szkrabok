@@ -11,7 +11,14 @@ const firstArg = args[0];
 // Route to CLI if the first arg is a subcommand name (not a '--' flag) or a help/version flag.
 // Unknown subcommand names are handled by Commander with a proper error message.
 // Server-mode flags (--no-headless, --headful, etc.) stay in server mode.
-if (firstArg && (!firstArg.startsWith('--') || firstArg === '--help' || firstArg === '-h' || firstArg === '--version' || firstArg === '-V')) {
+if (
+  firstArg &&
+  (!firstArg.startsWith('--') ||
+    firstArg === '--help' ||
+    firstArg === '-h' ||
+    firstArg === '--version' ||
+    firstArg === '-V')
+) {
   const { runCli } = await import('./cli/index.js');
   const exitCode = await runCli();
   process.exit(exitCode ?? 0);
@@ -24,9 +31,8 @@ if (args.includes('--no-headless') || args.includes('--headful')) {
 
 // --config <path> passed directly to createServer — no env mutation.
 const configFlagIdx = args.indexOf('--config');
-const explicitConfigPath = (configFlagIdx !== -1 && args[configFlagIdx + 1])
-  ? args[configFlagIdx + 1]
-  : null;
+const explicitConfigPath =
+  configFlagIdx !== -1 && args[configFlagIdx + 1] ? args[configFlagIdx + 1] : null;
 
 // Always write fatal startup errors to a fixed log so they survive MCP client restarts.
 const _logDir = szkrabokCacheDir();
@@ -35,7 +41,7 @@ const _writeStartupLog = msg => {
   try {
     mkdirSync(_logDir, { recursive: true });
     appendFileSync(_logFile, `[${new Date().toISOString()}] ${msg}\n`);
-  // eslint-disable-next-line no-empty -- startup log; no logging facility available yet if this fails
+    // eslint-disable-next-line no-empty -- startup log; no logging facility available yet if this fails
   } catch {}
 };
 

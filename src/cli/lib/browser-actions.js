@@ -4,12 +4,7 @@ import { mkdirSync, existsSync, readFileSync } from 'node:fs';
 import { writeFile } from 'node:fs/promises';
 import { spawn } from 'node:child_process';
 import { initConfig, getConfig } from '../../config.js';
-import {
-  buildCandidates,
-  populateCandidates,
-  resolveChromium,
-  validateCandidate,
-} from '#runtime';
+import { buildCandidates, populateCandidates, resolveChromium, validateCandidate } from '#runtime';
 
 export function getGlobalConfigPath() {
   return process.platform === 'win32'
@@ -23,7 +18,9 @@ export async function runDetect() {
   const candidates = buildCandidates({ executablePath: cfg.executablePath });
   const populated = await populateCandidates(candidates);
   const results = populated.map(c => ({
-    source: c.source, path: c.path, ...validateCandidate(c.path),
+    source: c.source,
+    path: c.path,
+    ...validateCandidate(c.path),
   }));
   const resolved = resolveChromium(populated);
   const winner = resolved.found
@@ -34,14 +31,16 @@ export async function runDetect() {
 
 export async function runInstall({ force = false } = {}) {
   // Convergence target: Playwright-managed Chromium is installed and resolvable.
-  const { winner } = await runDetect();                                    // step 1: check current state
+  const { winner } = await runDetect(); // step 1: check current state
 
-  if (winner.found && winner.source === 'playwright' && !force) {         // step 2: target already met
+  if (winner.found && winner.source === 'playwright' && !force) {
+    // step 2: target already met
     console.log(`Playwright Chromium already installed: ${winner.path}`);
     return 0;
   }
 
-  if (winner.found && winner.source !== 'playwright' && !force) {         // step 3: browser found, not target
+  if (winner.found && winner.source !== 'playwright' && !force) {
+    // step 3: browser found, not target
     console.log(`Browser found via ${winner.source}: ${winner.path}`);
     console.log('To install Playwright-managed Chromium anyway: use --force');
     console.log('To pin this browser instead: szkrabok doctor detect --write-config');
@@ -49,20 +48,21 @@ export async function runInstall({ force = false } = {}) {
   }
 
   // step 4: converge toward target — spawn npx playwright install chromium
-  const exitCode = await new Promise((resolve) => {
+  const exitCode = await new Promise(resolve => {
     const proc = spawn('npx', ['playwright', 'install', 'chromium'], { stdio: 'inherit' });
 
-    proc.on('error', (err) => {
+    proc.on('error', err => {
       process.stderr.write(`\nFailed to run npx: ${err.message}\nRun: szkrabok doctor\n`);
       resolve(1);
     });
 
-    proc.on('close', (code) => {
+    proc.on('close', code => {
       resolve(code ?? 1);
     });
   });
 
-  if (exitCode !== 0) {                                                    // step 6: install failed
+  if (exitCode !== 0) {
+    // step 6: install failed
     process.stderr.write(`\nInstallation failed (exit code ${exitCode}). Run: szkrabok doctor\n`);
     return exitCode;
   }
@@ -86,7 +86,7 @@ export async function runInstall({ force = false } = {}) {
   } else {
     process.stderr.write(
       `\nInstallation may have failed — playwright-managed Chromium not found after install.\n` +
-      `Run: szkrabok doctor\n`
+        `Run: szkrabok doctor\n`
     );
     return 1;
   }
@@ -119,7 +119,10 @@ export async function writeExecPath(path) {
   let nextIdx = lines.length;
   if (defIdx >= 0) {
     for (let i = defIdx + 1; i < lines.length; i++) {
-      if (/^\[/.test(lines[i])) { nextIdx = i; break; }
+      if (/^\[/.test(lines[i])) {
+        nextIdx = i;
+        break;
+      }
     }
   }
 

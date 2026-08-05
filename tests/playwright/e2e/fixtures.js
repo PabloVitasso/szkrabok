@@ -19,7 +19,7 @@ const cdpEndpoint = process.env.SZKRABOK_CDP_ENDPOINT || '';
 
 // Memoized per worker - avoids repeated dynamic import evaluation across tests.
 let _runtimeP;
-const getRuntime = () => _runtimeP ??= import('@szkrabok/runtime');
+const getRuntime = () => (_runtimeP ??= import('@szkrabok/runtime'));
 
 export const test = base.extend({
   // Worker-scoped: one browser connection per worker, reused across tests.
@@ -29,9 +29,9 @@ export const test = base.extend({
       if (cdpEndpoint) {
         // Path A: plain CDP connect - no runtime import needed.
         // The MCP session browser already has stealth applied at launch time.
-        const browser  = await chromium.connectOverCDP(cdpEndpoint);
+        const browser = await chromium.connectOverCDP(cdpEndpoint);
         const contexts = browser.contexts();
-        const context  = contexts[0] ?? await browser.newContext();
+        const context = contexts[0] ?? (await browser.newContext());
         await use({ browser, context });
         // Do NOT close - MCP session owns this browser.
         if (process.env.SZKRABOK_ATTACH_SIGNAL) {

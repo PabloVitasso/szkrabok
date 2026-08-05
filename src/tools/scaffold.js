@@ -48,9 +48,15 @@ function mergePackageJson(existing, name) {
 
   return {
     ...existing,
-    type: (() => { if (existing.type != null) return existing.type; return base.type; })(),
+    type: (() => {
+      if (existing.type != null) return existing.type;
+      return base.type;
+    })(),
     scripts: { ...base.scripts, ...existing.scripts },
-    devDependencies: { ...base.devDependencies, ...(existing.devDependencies != null ? existing.devDependencies : {}) },
+    devDependencies: {
+      ...base.devDependencies,
+      ...(existing.devDependencies != null ? existing.devDependencies : {}),
+    },
   };
 }
 
@@ -119,7 +125,13 @@ export async function init(args = {}) {
 
   // playwright.config.js
   const configDest = join(dir, 'playwright.config.js');
-  track(await writeOrStage(configDest, await tpl('playwright.config.js')), 'playwright.config.js', created, staged, skipped);
+  track(
+    await writeOrStage(configDest, await tpl('playwright.config.js')),
+    'playwright.config.js',
+    created,
+    staged,
+    skipped
+  );
 
   // package.json — merge if exists
   const pkgDest = join(dir, 'package.json');

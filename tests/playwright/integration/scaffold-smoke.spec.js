@@ -17,13 +17,23 @@ import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { randomUUID } from 'node:crypto';
 
-const SK_SKILLS = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '..', 'sk-skills');
+const SK_SKILLS = resolve(
+  dirname(fileURLToPath(import.meta.url)),
+  '..',
+  '..',
+  '..',
+  '..',
+  'sk-skills'
+);
 
 // SKIPPED: depends on sk-skills companion project (@pablovitasso/szkrabok must be up-to-date).
 // Enable manually when verifying CDP end-to-end after a release and sk-skills npm update.
 // What this tests: browser_run_test CDP path in a real external project
 // (sk-skills/automation/example.spec.js via connectOverCDP, no runtime import in MCP mode).
-test.skip('browser_run_test uses CDP path in sk-skills project', async ({ client, openSession }) => {
+test.skip('browser_run_test uses CDP path in sk-skills project', async ({
+  client,
+  openSession,
+}) => {
   const sessionName = `smoke-${randomUUID().slice(0, 8)}`;
 
   try {
@@ -35,9 +45,9 @@ test.skip('browser_run_test uses CDP path in sk-skills project', async ({ client
       name: 'browser_run_test',
       arguments: {
         sessionName,
-        config:  `${SK_SKILLS}/playwright.config.js`,
+        config: `${SK_SKILLS}/playwright.config.js`,
         project: 'example',
-        files:   [`${SK_SKILLS}/automation/example.spec.js`],
+        files: [`${SK_SKILLS}/automation/example.spec.js`],
         workers: 1,
       },
     });
@@ -46,9 +56,11 @@ test.skip('browser_run_test uses CDP path in sk-skills project', async ({ client
     expect(result.failed, `CDP path failed:\n${result.log?.slice(-10).join('\n')}`).toBe(0);
     expect(result.passed).toBeGreaterThan(0);
   } finally {
-    await client.callTool({
-      name: 'session_manage',
-      arguments: { action: 'close', sessionName },
-    }).catch(() => {});
+    await client
+      .callTool({
+        name: 'session_manage',
+        arguments: { action: 'close', sessionName },
+      })
+      .catch(() => {});
   }
 });

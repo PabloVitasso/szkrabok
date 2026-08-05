@@ -26,7 +26,12 @@ import { resolveTestBrowser, launchHeadlessBrowser } from './helpers.js';
 const waitForFile = async (filePath, timeoutMs = 10_000) => {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
-    try { await access(filePath); return; } catch { /* file not ready yet */ }
+    try {
+      await access(filePath);
+      return;
+    } catch {
+      /* file not ready yet */
+    }
     await new Promise(r => setTimeout(r, 100));
   }
   throw new Error(`Timed out waiting for: ${filePath}`);
@@ -38,9 +43,15 @@ const waitForFile = async (filePath, timeoutMs = 10_000) => {
 const isPortOpen = (port, host = '127.0.0.1') =>
   new Promise(resolve => {
     const sock = net.createConnection({ port, host });
-    sock.once('connect', () => { sock.destroy(); resolve(true); });
+    sock.once('connect', () => {
+      sock.destroy();
+      resolve(true);
+    });
     sock.once('error', () => resolve(false));
-    sock.setTimeout(3000, () => { sock.destroy(); resolve(false); });
+    sock.setTimeout(3000, () => {
+      sock.destroy();
+      resolve(false);
+    });
   });
 
 // ── Shared test body ──────────────────────────────────────────────────────────
