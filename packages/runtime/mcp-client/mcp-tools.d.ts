@@ -1,6 +1,6 @@
 // AUTO-GENERATED — do not edit manually.
 // Regenerate: npm run codegen:mcp
-// Last generated: 2026-04-06T11:31:21.365Z
+// Last generated: 2026-08-05T11:49:11.978Z
 
 export interface SessionHandle {
   /**
@@ -76,7 +76,7 @@ export interface ScaffoldHandle {
    * [szkrabok] Init a szkrabok client project (idempotent). Run once before using browser_run_test. Two presets: minimal (default) — MCP-only setup, no local Playwright install needed, just config files and devDeps; full — adds automation/fixtures.js + example specs for running Playwright locally without MCP (standalone mode). Re-running is safe: unchanged files are skipped, modified files get a .new sidecar (dpkg-new convention).
    * @param args.dir Target directory. Defaults to cwd.
    * @param args.name Package name. Defaults to dirname.
-   * @param args.preset minimal (default): playwright.config.js + package.json (devDeps only, no local szkrabok install needed) + szkrabok.config.local.toml.example. Use this when running specs via MCP (browser_run_test). full: everything in minimal + automation/fixtures.js + automation/example.spec.js + automation/example.mcp.spec.js — use when you also want to run Playwright locally without MCP (standalone mode, e.g. npx playwright test).
+   * @param args.preset minimal (default): playwright.config.js + package.json (devDeps only, no local szkrabok install needed) + szkrabok.config.toml (committed defaults) + szkrabok.config.local.toml (gitignored machine overrides). Use this when running specs via MCP (browser_run_test). full: everything in minimal + automation/fixtures.js + automation/example.spec.js + automation/example.mcp.spec.js — use when you also want to run Playwright locally without MCP (standalone mode, e.g. npx playwright test).
    * @param args.install Run npm install after writing files. Default false.
    */
   init(args: {
