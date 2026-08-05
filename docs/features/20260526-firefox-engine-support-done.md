@@ -35,6 +35,13 @@ same page does not recover it; a page created after the internal navigation comp
 is unaffected. Fixed in `packages/runtime/launch.js` by swapping the initial page for
 a freshly created one immediately after `launchPersistentContext()`, before any caller
 gets a reference to it. Verified 5/5 on fresh profiles after the fix (was 0/5 before).
+The fix is Firefox-engine-generic (gated on `isFirefox`, not invisible_playwright
+specifically — verified against both stock Playwright Firefox and the patched binary)
+and contains no OS-specific code (`context.pages()`/`newPage()`/`page.close()` only).
+**Verified on Linux only** — this dev environment has no macOS/Windows to test against;
+the OS-independence claim rests on the code having no platform branching and the root
+cause being a Firefox-internal startup race rather than something OS-triggered, not on
+empirical cross-platform testing.
 
 ## Goal
 
