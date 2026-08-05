@@ -1,14 +1,14 @@
 // launch.js — the one true browser bootstrap entry point.
 // Only this file calls launchPersistentContext.
 
-import { chromium } from 'playwright';
+import { chromium, firefox } from 'playwright';
 import {
   resolvePreset,
   getConfig,
   getConfigSource,
   getConfigMeta,
 } from './config.js';
-import { resolveChromium, buildCandidates, populateCandidates } from './resolve.js';
+import { resolveChromium, buildCandidates, populateCandidates, resolveFirefox } from './resolve.js';
 import { BrowserNotFoundError } from './errors.js';
 import { enhanceWithStealth, applyStealthToExistingPage } from './stealth.js';
 import * as storage from './storage.js';
@@ -147,11 +147,23 @@ export const _resetGcForTesting = () => { _gcRegistered = false; };
 // _launchPersistentContext — internal, not exported.
 // executablePath is passed in (resolved by checkBrowser before this is called).
 const _launchPersistentContext = async (userDataDir, options = {}) => {
+  const engine = options.browserEngine ?? 'chromium';
+  const isFirefox = engine === 'firefox';
   const presetConfig = options.presetConfig ?? {};
-  const pw = (() => { if (options.stealth) return enhanceWithStealth(chromium, presetConfig); return chromium; })();
+
+  if (isFirefox && options.headless) {
+    log('WARNING: headless:true with Firefox uses a detectable rendering path. ' +
+        'For stealth use, set headless:false and provide a DISPLAY (Xvfb on Linux).');
+  }
+
+  const pw = (() => {
+    if (isFirefox) return firefox;
+    if (options.stealth) return enhanceWithStealth(chromium, presetConfig);
+    return chromium;
+  })();
 
   if (options.executablePath) {
-    log('Using existing Chromium for persistent context', { path: options.executablePath });
+    log(`Using ${isFirefox ? 'Firefox' : 'Chromium'} for persistent context`, { path: options.executablePath });
   }
 
   const launchOptions = {
@@ -166,28 +178,57 @@ const _launchPersistentContext = async (userDataDir, options = {}) => {
 
   delete launchOptions.stealth;
   delete launchOptions.presetConfig;
+  delete launchOptions.browserEngine;
 
-  launchOptions.args = [
-    '--hide-crash-restore-bubble',
-    '--disable-features=PortalActivationDelegate',
-    ...(launchOptions.args || []),
-  ];
-
-  if (launchOptions.cdpPort !== undefined) {
-    launchOptions.args = [
-      ...launchOptions.args,
-      `--remote-debugging-port=${launchOptions.cdpPort}`,
-    ];
+  if (isFirefox) {
+    // Firefox: no Chromium-specific flags, no CDP port, no stealth shims.
+    // Prefs suppress the about:newtab startup navigation that races with goto()
+    // on invisible_playwright and some Firefox builds.
+    launchOptions.firefoxUserPrefs = {
+      'browser.startup.page': 0,        // blank page (not homepage or last session)
+      'browser.newtabpage.enabled': false,
+    };
     delete launchOptions.cdpPort;
+    delete launchOptions.args;
+  } else {
+    launchOptions.args = [
+      '--hide-crash-restore-bubble',
+      '--disable-features=PortalActivationDelegate',
+      '--password-store=basic',
+      ...(launchOptions.args || []),
+    ];
+    if (launchOptions.cdpPort !== undefined) {
+      launchOptions.args = [
+        ...launchOptions.args,
+        `--remote-debugging-port=${launchOptions.cdpPort}`,
+      ];
+      delete launchOptions.cdpPort;
+    }
   }
 
   const context = await pw.launchPersistentContext(userDataDir, launchOptions);
 
-  if (options.stealth) {
+  if (!isFirefox && options.stealth) {
     const pages = context.pages();
     if (pages.length > 0) {
       await applyStealthToExistingPage(pages[0], presetConfig);
     }
+  }
+
+  if (isFirefox) {
+    // On a fresh (cold-start) profile, invisible_playwright/Firefox 150 fires an
+    // internal about:newtab navigation shortly after launch that tears down the
+    // initial page's browsingContext at the Juggler protocol level — invisible to
+    // Playwright's own page/frame tracking (page.url() still reports "about:blank").
+    // Any goto() on that initial page then fails, permanently, with either
+    // "browsingContext is undefined" or "interrupted by another navigation to
+    // about:newtab" — retrying goto() on the same page object does not recover it.
+    // A page created *after* the race has already torn down the initial one is
+    // unaffected. Swap the initial page out before any caller can get a reference
+    // to it. See docs/features/20260526-firefox-engine-support-done.md.
+    const initialPage = context.pages()[0];
+    await context.newPage();
+    await initialPage?.close().catch(() => {});
   }
 
   return context;
@@ -208,9 +249,24 @@ const _launchPersistentContext = async (userDataDir, options = {}) => {
  * @param {boolean} [options.reuse]     Return existing if profile already open (default: true)
  * @returns {Promise<{ browser: import('playwright').Browser, context: import('playwright').BrowserContext, cdpEndpoint: string, close(): Promise<void> }>}
  */
+/**
+ * Resolve the browser executable path for the configured engine.
+ * For Firefox, uses resolveFirefox(). For Chromium, uses the existing candidate chain.
+ * @returns {Promise<string>} resolved executable path
+ */
 export const checkBrowser = async () => {
   const config = getConfig();
   const configSource = getConfigSource();
+
+  if (config.browserEngine === 'firefox') {
+    const result = await resolveFirefox({ cacheDir: undefined, executablePath: config.executablePath });
+    if (result.found) return result.path;
+    throw new BrowserNotFoundError(
+      { candidates: (result.checked ?? []).map(p => ({ source: 'firefox', path: p, ok: false })),
+        configSource, configMeta: getConfigMeta() },
+    );
+  }
+
   const candidates = buildCandidates(config);
   const populated = await populateCandidates(candidates);
   const result = resolveChromium(populated);
@@ -226,6 +282,7 @@ export const checkBrowser = async () => {
 export const launch = async (options = {}) => {
   const { profile = 'default', preset: presetName, headless, stealth, userAgent, viewport, locale, timezone, reuse = true, _launchImpl } = options;
   const cfg = getConfig();
+  const browserEngine = cfg.browserEngine ?? 'chromium';
 
   ensureGcOnExit();
   const executablePath = await checkBrowser();
@@ -235,7 +292,7 @@ export const launch = async (options = {}) => {
   if (reuse && pool.has(profile)) {
     log(`Reusing existing session: ${profile}`);
     const existing = pool.get(profile);
-    const cdpEndpoint = `http://localhost:${existing.cdpPort}`;
+    const cdpEndpoint = existing.cdpPort !== null ? `http://localhost:${existing.cdpPort}` : null;
     return {
       browser: existing.context.browser(),
       context: existing.context,
@@ -306,7 +363,8 @@ export const launch = async (options = {}) => {
 
   const launchFn = _launchImpl ?? _launchPersistentContext;
   const context = await launchFn(userDataDir, {
-    stealth: effectiveStealth,
+    browserEngine,
+    stealth: browserEngine === 'firefox' ? false : effectiveStealth,
     presetConfig,
     viewport: effectiveViewport,
     userAgent: effectiveUserAgent,
@@ -314,10 +372,10 @@ export const launch = async (options = {}) => {
     timezoneId: effectiveTimezone,
     headless: effectiveHeadless,
     executablePath,
-    cdpPort: 0,
+    cdpPort: browserEngine === 'firefox' ? undefined : 0,
   });
 
-  const cdpPort = await storage.readDevToolsPort(userDataDir);
+  const cdpPort = browserEngine === 'firefox' ? null : await storage.readDevToolsPort(userDataDir);
 
   // Restore saved state (cookies + localStorage)
   const savedState = await storage.loadState(profile);
@@ -388,7 +446,7 @@ export const launch = async (options = {}) => {
   }
 
   pool.add(profile, context, page, cdpPort, resolved.preset, resolved.label, false, null, null, null,
-    tryBrowserPid(context.browser()), configHash);
+    tryBrowserPid(context.browser()), configHash, browserEngine);
 
   const meta = {
     sessionName: profile,
@@ -408,8 +466,7 @@ export const launch = async (options = {}) => {
   };
   await storage.saveMeta(profile, meta);
 
-  const cdpEndpoint = `http://localhost:${cdpPort}`;
-
+  const cdpEndpoint = cdpPort !== null ? `http://localhost:${cdpPort}` : null;
 
   return {
     browser: context.browser(),
@@ -431,15 +488,15 @@ export const launch = async (options = {}) => {
  * Register a launched clone in the pool and return the standard close handle.
  * Shared by both launchClone and cloneFromLive.
  */
-const _addCloneToPool = async (context, cloneId, cloneDir, templateName, lease) => {
-  const cdpPort     = await storage.readDevToolsPort(cloneDir);
-  const cdpEndpoint = `http://localhost:${cdpPort}`;
+const _addCloneToPool = async (context, cloneId, cloneDir, templateName, lease, browserEngine = 'chromium') => {
+  const cdpPort     = browserEngine === 'firefox' ? null : await storage.readDevToolsPort(cloneDir);
+  const cdpEndpoint = cdpPort !== null ? `http://localhost:${cdpPort}` : null;
 
   const pages = context.pages();
   const page  = pages.length > 0 ? pages[0] : await context.newPage();
 
   pool.add(cloneId, context, page, cdpPort, null, null, true, cloneDir, templateName, lease,
-    tryBrowserPid(context.browser()));
+    tryBrowserPid(context.browser()), null, browserEngine);
 
   return {
     browser: context.browser(),
@@ -471,6 +528,7 @@ const _addCloneToPool = async (context, cloneId, cloneDir, templateName, lease) 
  */
 export const launchClone = async (options = {}) => {
   const { profile = 'default', _launchImpl, ...launchOpts } = options;
+  const browserEngine = (getConfig().browserEngine) ?? 'chromium';
 
   ensureGcOnExit();
   const executablePath = await checkBrowser();
@@ -482,9 +540,14 @@ export const launchClone = async (options = {}) => {
   const { cloneId, dir: cloneDir, lease } = await storage.cloneProfileAtomic(templateDir, profile);
 
   const launchFn = _launchImpl ?? _launchPersistentContext;
-  const context  = await launchFn(cloneDir, { ...launchOpts, executablePath, cdpPort: 0 });
+  const context  = await launchFn(cloneDir, {
+    ...launchOpts,
+    executablePath,
+    browserEngine,
+    cdpPort: browserEngine === 'firefox' ? undefined : 0,
+  });
 
-  return _addCloneToPool(context, cloneId, cloneDir, profile, lease);
+  return _addCloneToPool(context, cloneId, cloneDir, profile, lease, browserEngine);
 };
 
 /**
@@ -507,6 +570,7 @@ export const launchClone = async (options = {}) => {
  */
 export const cloneFromLive = async (templateName, launchOpts = {}, _launchImpl) => {
   const template = pool.get(templateName); // throws if not open
+  const browserEngine = (getConfig().browserEngine) ?? 'chromium';
 
   ensureGcOnExit();
   const executablePath = await checkBrowser();
@@ -524,15 +588,16 @@ export const cloneFromLive = async (templateName, launchOpts = {}, _launchImpl) 
   const context  = await launchFn(cloneDir, {
     ...launchOpts,
     executablePath,
-    cdpPort: 0,
+    browserEngine,
+    cdpPort: browserEngine === 'firefox' ? undefined : 0,
     storageState: liveState,
   });
 
-  return _addCloneToPool(context, cloneId, cloneDir, templateName, lease);
+  return _addCloneToPool(context, cloneId, cloneDir, templateName, lease, browserEngine);
 };
 
 /**
- * Connect to an already-running browser via CDP endpoint.
+ * Connect to an already-running browser via CDP endpoint. Chromium only — Firefox has no CDP.
  *
  * @param {string} cdpEndpoint
  * @returns {Promise<{ browser: import('playwright').Browser, context: import('playwright').BrowserContext }>}

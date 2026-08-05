@@ -6,8 +6,9 @@ import { SessionNotFoundError } from './errors.js';
 
 const sessions = new Map();
 
-export const add = (id, context, page, cdpPort, preset, label, isClone = false, cloneDir = null, templateName = null, leaseHandle = null, pid = null, configHash = null) => {
-  sessions.set(id, { context, page, cdpPort, preset, label, createdAt: Date.now(), isClone, cloneDir, templateName, leaseHandle, pid, configHash });
+// cdpPort is number | null (null for Firefox sessions — no CDP endpoint available)
+export const add = (id, context, page, cdpPort, preset, label, isClone = false, cloneDir = null, templateName = null, leaseHandle = null, pid = null, configHash = null, browserEngine = 'chromium') => {
+  sessions.set(id, { context, page, cdpPort, preset, label, createdAt: Date.now(), isClone, cloneDir, templateName, leaseHandle, pid, configHash, browserEngine });
 };
 
 export const get = id => {
@@ -40,14 +41,15 @@ export const remove = id => {
 export const list = () =>
   Array.from(sessions.entries()).map(([id, s]) => ({
     id,
-    preset:       s.preset,
-    label:        s.label,
-    createdAt:    s.createdAt,
-    isClone:      s.isClone,
-    cloneDir:     s.cloneDir,
-    templateName: s.templateName,
-    pid:          s.pid,
-    configHash:   s.configHash,
+    preset:        s.preset,
+    label:         s.label,
+    createdAt:     s.createdAt,
+    isClone:       s.isClone,
+    cloneDir:      s.cloneDir,
+    templateName:  s.templateName,
+    pid:           s.pid,
+    configHash:    s.configHash,
+    browserEngine: s.browserEngine,
   }));
 
 export const closeAll = async () => {

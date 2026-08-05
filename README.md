@@ -8,6 +8,7 @@ MCP server supplementing [microsoft/playwright-mcp](https://github.com/microsoft
 - **Profile Cloning:** Ephemeral session clones - template profile is deep-cloned to `$TMPDIR`, browser runs against the clone, clone is destroyed on close. Zero contamination of the template.
 - **Stealth:** Integrated `playwright-extra` + stealth plugin and anti-bot CDP patches.
 - **Deterministic Ports:** Fixed CDP ports per session for `connectOverCDP()`.
+- **Firefox engine:** `[browser] engine = "firefox"` swaps Chromium for a caller-supplied Firefox binary — a stock install, or a source-patched stealth build like [invisible_playwright](https://github.com/feder-cr/invisible_playwright). No CDP with Firefox: `browser_run_test`/`session_run_test`/`endpoint` are Chromium-only. See [Browser engine](#browser-engine-chromium--firefox) below.
 
 ## Tools & Capabilities
 
@@ -239,6 +240,29 @@ executablePath = "/path/to/your/chrome"
 Both `szkrabok.config.toml` and `szkrabok.config.local.toml` are loaded and deep-merged (local overrides base). Place either file in your project root or any ancestor dir bounded by a root.
 
 **Diagnose config discovery** — call `session_manage { "action": "list" }` and inspect `config.source` and `config.searched`. Each entry shows the step name, exact file paths checked, and whether any was found. Also see `server.sourceGuess` (`"npx-cache"` | `"global-npm"` | `"local-dev"`) to verify which szkrabok install is active. Alternatively run `szkrabok doctor` from the CLI.
+
+### Browser engine (Chromium / Firefox)
+
+Chromium is the default and is auto-resolved (`szkrabok doctor detect`). **This is a whole-server config setting, not a per-`session_manage open` option** — there is no `engine` field in `launchOptions`. Set it in config and restart the MCP server; every session opened by that server instance then uses the configured engine.
+
+```toml
+# szkrabok.config.local.toml
+[browser]
+engine = "firefox"
+executable_path = "/path/to/firefox"   # strongly recommended — see resolution order below
+```
+
+Without `executable_path`, `resolveFirefox()` tries, in order: config path → `INVISIBLE_PLAYWRIGHT_BINARY` env var → `~/.cache/invisible-playwright/firefox-<N>*` (highest `N` wins) → system `firefox` on `PATH`.
+
+**Stealth Firefox handle: `invisible_playwright`** — for evasion beyond the default JS-level Chromium stealth shims (which are a no-op for Firefox — evasion moves to the binary itself), point `executable_path` at [invisible_playwright](https://github.com/feder-cr/invisible_playwright):
+
+```bash
+pip install invisible-playwright
+python -m invisible_playwright fetch      # downloads + verifies the patched binary
+python -m invisible_playwright path       # prints the path for executable_path
+```
+
+szkrabok's own tests confirm `navigator.webdriver` is suppressed on the patched binary (vs. `true` on stock Firefox) — that's the one signal this repo independently verifies. Deeper anti-detection claims are `invisible_playwright`'s own upstream numbers, not re-verified here. Firefox sessions have no CDP: `session_manage endpoint`, `browser_run_test`, and `session_run_test` throw `ENGINE_NOT_SUPPORTED`. For headless Firefox stealth, use `headless: false` with a virtual display (Xvfb) — `headless: true` uses a more detectable rendering path. See [docs/architecture.md — Firefox engine support](./docs/architecture.md#firefox-engine-support) for the full picture, and [docs/development.md — Refreshing Firefox binaries](./docs/development.md#refreshing-firefox-binaries-after-a-playwright-core-upgrade) if Firefox launches start failing after a `playwright-core` upgrade.
 
 ## Usage
 

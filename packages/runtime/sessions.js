@@ -64,7 +64,8 @@ export const closeSession = async profile => {
 
 /**
  * Get a session entry from the pool.
- * Returns { context, page, cdpPort, preset, label, createdAt, isClone, cloneDir, templateName, leaseHandle, pid, configHash }.
+ * Returns { context, page, cdpPort, browserEngine, preset, label, createdAt, isClone, cloneDir, templateName, leaseHandle, pid, configHash }.
+ * cdpPort is null for Firefox sessions.
  */
 export const getSession = profile => pool.get(profile);
 
@@ -128,5 +129,5 @@ export const updateSessionPage = (profile, page) => {
   const session = pool.get(profile);
   pool.add(profile, session.context, page, session.cdpPort, session.preset, session.label,
     session.isClone, session.cloneDir, session.templateName, session.leaseHandle, session.pid,
-    session.configHash);
+    session.configHash, session.browserEngine);
 };

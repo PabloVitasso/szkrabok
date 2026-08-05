@@ -3,7 +3,9 @@
 // Pure, injectable functions. No side effects in validateCandidate / resolveChromium.
 // Production callers use buildCandidates() to construct the real candidate array.
 
-import { statSync, accessSync, constants } from 'fs';
+import { statSync, accessSync, constants, readdirSync } from 'fs';
+import { join } from 'path';
+import { homedir } from 'os';
 import { spawnSync } from 'node:child_process';
 
 // ── Validation ─────────────────────────────────────────────────────────────────
@@ -161,7 +163,30 @@ export const populateCandidates = async (candidates) => {
     if (c.source === 'playwright' && path === null) {
       try {
         const { chromium } = await import('playwright');
-        path = chromium.executablePath();
+        const expectedPath = chromium.executablePath();
+        if (validateCandidate(expectedPath).ok) {
+          path = expectedPath;
+        } else {
+          // Expected version not installed — walk cache for any installed chromium-* version.
+          // Useful when playwright was upgraded but `npx playwright install chromium` hasn't run yet.
+          const playwrightCacheDir = join(homedir(), '.cache', 'ms-playwright');
+          const versionMatch = expectedPath.match(/chromium-\d+[/\\](.+)/);
+          if (versionMatch) {
+            const subPath = versionMatch[1];
+            try {
+              const dirs = readdirSync(playwrightCacheDir, { withFileTypes: true });
+              const sorted = dirs
+                .filter(e => e.isDirectory() && /^chromium-\d+$/.test(e.name))
+                .map(e => e.name)
+                .sort()
+                .reverse();
+              for (const dir of sorted) {
+                const candidate = join(playwrightCacheDir, dir, subPath);
+                if (validateCandidate(candidate).ok) { path = candidate; break; }
+              }
+            } catch { /* cache dir inaccessible */ }
+          }
+        }
       } catch {
         // playwright unavailable
       }
@@ -169,4 +194,79 @@ export const populateCandidates = async (candidates) => {
     return Object.freeze({ ...c, path });
   }));
   return Object.freeze(out);
+};
+
+// ── Firefox resolution ─────────────────────────────────────────────────────────
+
+const defaultFirefoxCacheDir = () => {
+  if (process.platform === 'win32') {
+    return join(process.env.LOCALAPPDATA ?? homedir(), 'invisible-playwright');
+  }
+  return join(homedir(), '.cache', 'invisible-playwright');
+};
+
+const defaultWhich = (name) => {
+  const r = spawnSync('which', [name], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
+  return r.status === 0 && r.stdout.trim() ? r.stdout.trim() : null;
+};
+
+/**
+ * Resolve a Firefox binary for stealth use.
+ *
+ * Search order:
+ *   0. Config-specified executablePath (explicit user intent — highest priority)
+ *   1. INVISIBLE_PLAYWRIGHT_BINARY env var (if set and file exists)
+ *   2. invisible_playwright cache dir — highest-numbered firefox-<N>* subdir
+ *   3. System firefox via `which`
+ *
+ * Accepts injectable `cacheDir`, `executablePath`, and `which` for testing.
+ *
+ * @param {{ executablePath?: string|null, cacheDir?: string, which?: (name: string) => string|null }} [opts]
+ * @returns {Promise<{ found: boolean, path?: string, source?: string, checked?: string[] }>}
+ */
+// Cache dir names are `firefox-<N>` (old) or `firefox-<N>_<version>_<build>` (new,
+// since invisible_playwright 0.5.0). Sort numerically on N — string sort would rank
+// "firefox-18_..." before "firefox-7" ('1' < '7'), picking the older build as "latest".
+const listInvisiblePlaywrightCacheDirs = cacheDir => {
+  try {
+    return readdirSync(cacheDir, { withFileTypes: true })
+      .filter(e => e.isDirectory() && /^firefox-\d+/.test(e.name))
+      .map(e => ({ name: e.name, n: Number(e.name.match(/^firefox-(\d+)/)[1]) }))
+      .sort((a, b) => b.n - a.n)
+      .map(e => e.name);
+  } catch {
+    // cache dir absent — not an error
+    return [];
+  }
+};
+
+export const resolveFirefox = async ({ cacheDir, executablePath, which: whichFn } = {}) => {
+  const binaryName = process.platform === 'win32' ? 'firefox.exe' : 'firefox';
+  const resolvedCacheDir = cacheDir ?? defaultFirefoxCacheDir();
+  const resolvedWhich = whichFn ?? defaultWhich;
+  const systemPath = resolvedWhich('firefox');
+
+  // Ordered by priority: 0. config path, 1. env var, 2. invisible_playwright
+  // cache (latest firefox-* dir first), 3. system firefox via `which`.
+  const attempts = [
+    executablePath && { path: executablePath, source: 'config' },
+    process.env.INVISIBLE_PLAYWRIGHT_BINARY && {
+      path: process.env.INVISIBLE_PLAYWRIGHT_BINARY,
+      source: 'env',
+    },
+    ...listInvisiblePlaywrightCacheDirs(resolvedCacheDir).map(dir => ({
+      path: join(resolvedCacheDir, dir, binaryName),
+      source: 'invisiblePlaywright',
+    })),
+    systemPath
+      ? { path: systemPath, source: 'system' }
+      : { path: 'firefox (system, not found)', source: 'system', unchecked: true },
+  ].filter(Boolean);
+
+  const match = attempts.find(a => !a.unchecked && validateCandidate(a.path).ok);
+  if (match) {
+    return { found: true, path: match.path, source: match.source };
+  }
+
+  return { found: false, checked: attempts.map(a => a.path) };
 };

@@ -52,7 +52,7 @@ const CONSUMER_FILES = ['src/**/*.js', 'tests/**/*.js', 'packages/mcp-client/**/
 
 export default [
   {
-    ignores: ['node_modules/**', '.claude/**', 'vendor/**'],
+    ignores: ['node_modules/**', '.claude/**', 'vendor/**', 'sessions/**'],
   },
 
   // ── Lint directive hygiene ─────────────────────────────────────────────────
@@ -175,6 +175,7 @@ export default [
       'src/tools/workflow.js',
       'tests/playwright/**/*.js',
       'tests/playwright/**/*.mjs',
+      'tests/node/runtime/firefox-live.test.js',
     ],
     languageOptions: {
       globals: { ...globals.browser },

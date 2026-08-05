@@ -74,6 +74,16 @@ const resolveConfigFilePath = (source) => {
   return join(p, 'szkrabok.config.local.toml');
 };
 
+export class EngineNotSupportedError extends Error {
+  constructor (operation, engine, reason) {
+    super(`${operation} requires Chromium (current engine: ${engine}). ${reason}`);
+    this.name = 'EngineNotSupportedError';
+    this.code = 'ENGINE_NOT_SUPPORTED';
+    this.operation = operation;
+    this.engine = engine;
+  }
+}
+
 const BROWSER_NOT_FOUND_MESSAGE = 'browser executable not found';
 
 export class BrowserNotFoundError extends Error {

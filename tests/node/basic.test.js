@@ -20,3 +20,15 @@ test('resolvePreset returns a valid preset object', () => {
   assert.ok(typeof preset.label === 'string');
   assert.ok(typeof preset.preset === 'string');
 });
+
+import { EngineNotSupportedError } from '@szkrabok/runtime';
+
+test('EngineNotSupportedError has correct fields', () => {
+  const err = new EngineNotSupportedError('browser_run_test', 'firefox', 'CDP not available');
+  assert.equal(err.name, 'EngineNotSupportedError');
+  assert.equal(err.code, 'ENGINE_NOT_SUPPORTED');
+  assert.equal(err.operation, 'browser_run_test');
+  assert.equal(err.engine, 'firefox');
+  assert.ok(err.message.includes('browser_run_test'));
+  assert.ok(err.message.includes('firefox'));
+});

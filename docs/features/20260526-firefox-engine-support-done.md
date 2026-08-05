@@ -1,5 +1,48 @@
 # Feature: Firefox engine support
 
+## Status: implemented
+
+PR: [#5](https://github.com/PabloVitasso/szkrabok/pull/5). All items in the checklists
+below are done unless marked otherwise.
+
+**Stealth verification — what's actually confirmed:** the live test suite
+(`tests/node/runtime/firefox-live.test.js`) confirms `navigator.webdriver` is not `true`
+on `invisible_playwright`'s patched Firefox (151.0.1, cache dir `firefox-18_*`), versus
+stock Playwright Firefox where the same test confirms `navigator.webdriver === true`.
+That is the one signal szkrabok's own suite checks. The "Detectability testing note"
+below (live anti-bot-service test against bot.sannysoft.com/CreepJS) was scoped out of
+this feature deliberately and was never built — `invisible_playwright`'s own upstream
+claims (0.90 reCAPTCHA v3, full fingerprint suite) are not independently re-verified
+here. Treat "stealth works" as "the automation flag is suppressed and the binary
+launches/navigates correctly," not as a verified detection-evasion score.
+
+**Binary version coupling — a real operational gotcha, not covered when this was
+written:** both stock Playwright Firefox and invisible_playwright's patched Firefox are
+version-pinned to a specific Juggler protocol revision. Bumping `playwright-core` (e.g.
+1.61+) can break launches against a stale cached Firefox binary with a protocol schema
+mismatch (`Browser.setDefaultViewport` gained an `isMobile` field in Playwright 1.61 —
+see [invisible_playwright#48](https://github.com/feder-cr/invisible_playwright/issues/48)).
+See [docs/development.md — Refreshing Firefox binaries](../development.md#refreshing-firefox-binaries-after-a-playwright-core-upgrade).
+
+**Fixed during this PR — fresh-profile navigation was broken.** On a cold-start
+profile, invisible_playwright/Firefox 150 fires an internal `about:newtab` navigation
+shortly after launch that tears down the initial page's browsingContext at the Juggler
+protocol level, invisible to Playwright's page/frame tracking. Any `goto()` on that
+initial page failed permanently (`browsingContext is undefined` or `interrupted by
+another navigation to "about:newtab"`) — meaning `session_manage open({ url })` on a
+brand-new Firefox session failed on first use, every time. Retrying `goto()` on the
+same page does not recover it; a page created after the internal navigation completes
+is unaffected. Fixed in `packages/runtime/launch.js` by swapping the initial page for
+a freshly created one immediately after `launchPersistentContext()`, before any caller
+gets a reference to it. Verified 5/5 on fresh profiles after the fix (was 0/5 before).
+The fix is Firefox-engine-generic (gated on `isFirefox`, not invisible_playwright
+specifically — verified against both stock Playwright Firefox and the patched binary)
+and contains no OS-specific code (`context.pages()`/`newPage()`/`page.close()` only).
+**Verified on Linux only** — this dev environment has no macOS/Windows to test against;
+the OS-independence claim rests on the code having no platform branching and the root
+cause being a Firefox-internal startup race rather than something OS-triggered, not on
+empirical cross-platform testing.
+
 ## Goal
 
 Add Firefox as a first-class browser engine alongside Chromium. A session opened with

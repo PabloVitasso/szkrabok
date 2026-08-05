@@ -131,6 +131,8 @@ npm run test:runtime:integration # cookie persistence — launches real browser
 
 The `tests/node/runtime/` tests that require a browser (`integration.test.js`, `devtools-port.test.js`, `pc-layer6.test.js`, `browser-detection.test.js`) skip gracefully when no browser is found. Browser resolution uses szkrabok's own pipeline (`buildCandidates → populateCandidates → resolveChromium`), which probes `CHROMIUM_PATH`, config `executablePath`, playwright-bundled binary, and system browsers (chrome-launcher + `which` fallback for variants like `ungoogled-chromium`).
 
+**`runtime/firefox-live.test.js`** launches real browser processes across three engines — Playwright Chromium, stock Playwright Firefox, and `invisible_playwright`'s patched Firefox — via a shared `runLifecycleTests()` helper (launch/navigate/close per engine, plus engine-specific assertions: `navigator.webdriver` is `true` on stock Firefox, not `true` on the patched binary). Each `describe` block skips independently if its binary is absent — no local Firefox setup required to keep the suite green. The three binary paths (`PW_CHROMIUM`, `PW_FIREFOX`, `INV_FIREFOX`) are pinned to exact cached revisions, not auto-detected, so the test is reproducible; see [docs/development.md — Refreshing Firefox binaries](./development.md#refreshing-firefox-binaries-after-a-playwright-core-upgrade) for when those pins need updating.
+
 ### `basic.test.js`
 `getSession` throws for missing session, `listRuntimeSessions` returns empty array, `resolvePreset` returns a valid object.
 
