@@ -11,6 +11,7 @@ import {
   updateSessionMeta,
   deleteStoredSession,
   BrowserNotFoundError,
+  EngineNotSupportedError,
 } from '#runtime';
 
 const { version } = JSON.parse(
@@ -92,8 +93,9 @@ export const open = ({ sessionName, url, launchOptions = {} }) => {
         stealth,
       });
 
+      const cloneSession = getSession(handle.cloneId);
+
       if (url) {
-        const cloneSession = getSession(handle.cloneId);
         await navigate(cloneSession.page, url);
       }
 
@@ -104,6 +106,7 @@ export const open = ({ sessionName, url, launchOptions = {} }) => {
         isClone:         true,
         url,
         cdpEndpoint:     handle.cdpEndpoint,
+        browserEngine:   cloneSession.browserEngine,
         configSource:    getConfigMeta()?.source,
       };
     }
@@ -153,14 +156,15 @@ export const open = ({ sessionName, url, launchOptions = {} }) => {
       }
 
       return {
-        success:      true,
+        success:       true,
         sessionName,
         url,
-        isClone:      false,
-        preset:       session.preset,
-        label:        session.label,
-        cdpEndpoint:  handle.cdpEndpoint,
-        configSource: getConfigMeta()?.source,
+        isClone:       false,
+        preset:        session.preset,
+        label:         session.label,
+        cdpEndpoint:   handle.cdpEndpoint,
+        browserEngine: session.browserEngine,
+        configSource:  getConfigMeta()?.source,
       };
     }
 
@@ -205,6 +209,11 @@ export const close = ({ sessionName }) =>
 
 export const endpoint = async ({ sessionName }) => {
   const session = getSession(sessionName);
+
+  if (session.browserEngine === 'firefox') {
+    throw new EngineNotSupportedError('endpoint', 'firefox', 'Firefox sessions have no CDP endpoint.');
+  }
+
   const cdpEndpoint = `http://localhost:${session.cdpPort}`;
 
   try {
@@ -289,10 +298,11 @@ export const list = async () => {
     const a = activeMap.get(id);
     return {
       id,
-      active:  !!a,
-      isClone: false,
-      preset:  a?.preset ?? null,
-      label:   a?.label ?? null,
+      active:        !!a,
+      isClone:       false,
+      preset:        a?.preset ?? null,
+      label:         a?.label ?? null,
+      browserEngine: a?.browserEngine ?? null,
     };
   });
 
@@ -305,6 +315,7 @@ export const list = async () => {
       templateSession: s.templateName,
       preset:          s.preset,
       label:           s.label,
+      browserEngine:   s.browserEngine,
     }));
 
   log(`[INFO] list(): ${templateSessions.length} templates, ${cloneSessions.length} clones`);

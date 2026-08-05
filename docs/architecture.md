@@ -14,6 +14,7 @@
 - [Stealth hacks](#stealth-hacks-preserve-on-upstream-updates)
 - [Playwright patches](#playwright-patches-packagesruntimescriptspatch-playwrightjs)
 - [Chromium resolution](#chromium-resolution)
+- [Firefox engine support](#firefox-engine-support)
 
 ## Layer overview
 
@@ -205,6 +206,8 @@ import {
   getConfigMeta,          // returns { phase, source, previousSource, searched, loadedAt }
   resolvePreset,          // resolve a named preset from config
   getPresets,             // returns array of available preset names
+  ConfigNotInitializedError, ConfigNotFinalError,
+  EngineNotSupportedError, // thrown when a Chromium-only tool is called with Firefox engine
 } from '@szkrabok/runtime';
 ```
 
@@ -463,3 +466,47 @@ To inspect what is installed on your system:
 szkrabok doctor detect              # shows full chain with pass/fail/skip/absent status
 szkrabok doctor detect --write-config  # detect + pin the path to ~/.config/szkrabok/config.toml
 ```
+
+## Firefox engine support
+
+Set `[browser] engine = "firefox"` in `szkrabok.config.toml` to use Firefox. An `executable_path` is strongly recommended — see Firefox resolution below.
+
+```toml
+[browser]
+engine = "firefox"
+executable_path = "/path/to/firefox"
+```
+
+**What works with Firefox:**
+- `session_manage open` — launches a persistent Firefox context (no CDP port)
+- `session_manage close` — closes and cleans up the session
+- `session_manage list` — reports `browserEngine: "firefox"` per session
+- `browser_run` — evaluates code/file against `session.page`; no CDP needed
+- `browser_scrape` — page.evaluate scrape; no CDP needed
+
+**What requires Chromium (throws `ENGINE_NOT_SUPPORTED`):**
+- `session_manage endpoint` — requires a CDP WebSocket endpoint; Firefox has none
+- `browser_run_test` — requires `connectOverCDP`; not available for Firefox
+- `session_run_test` — calls `browser_run_test` internally; fails the same way
+- Stealth shims are skipped for Firefox (no-op)
+
+**Headless note:** `headless: true` with Firefox uses a detectable rendering path. For stealth use, set `headless: false` and provide a `DISPLAY` (e.g. Xvfb on Linux).
+
+### Firefox resolution
+
+`resolveFirefox()` in `packages/runtime/resolve.js` uses this priority chain (first valid candidate wins):
+
+```
+0. config executablePath       — explicit user intent (highest priority)
+1. INVISIBLE_PLAYWRIGHT_BINARY — env var override
+2. invisible_playwright cache  — ~/.cache/invisible-playwright/firefox-* (lexicographically latest)
+3. system firefox              — which firefox
+```
+
+`invisible_playwright` Firefox is preferred over system Firefox because system Firefox on Linux typically runs in a sandbox (CLONE_NEWPID) that is denied in restricted environments.
+
+### Pool entries for Firefox
+
+Firefox pool entries have `cdpPort: null` and `cdpEndpoint: undefined`. Calling `getSession(id).cdpEndpoint` on a Firefox session returns `undefined` — callers must guard with `browserEngine`.
+
+`EngineNotSupportedError` (code: `ENGINE_NOT_SUPPORTED`) is exported from `packages/runtime/errors.js` and re-exported from the public runtime API.

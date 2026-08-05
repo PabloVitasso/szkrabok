@@ -44,6 +44,7 @@ const walkUp = (startDir, rootBoundary) => {
 
 const buildConfig = toml => {
   const d = toml.default ?? {};
+  const browserToml = toml.browser ?? {};
   const stealthToml = toml['puppeteer-extra-plugin-stealth'] ?? {};
   const stealthEvasions = stealthToml.evasions ?? {};
   const presetsMap = toml.preset ?? {};
@@ -97,7 +98,8 @@ const buildConfig = toml => {
     timeout: d.timeout ?? 30000,
     logLevel: d.log_level ?? 'info',
     disableWebgl: d.disable_webgl ?? false,
-    executablePath: d.executablePath ?? null,
+    browserEngine: browserToml.engine ?? 'chromium',
+    executablePath: browserToml.executable_path || d.executablePath || null,
     stealthEnabled: stealthToml.enabled ?? true,
     stealth: {
       evasions: stealthEvasions,

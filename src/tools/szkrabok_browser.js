@@ -1,4 +1,4 @@
-import { getSession } from '#runtime';
+import { getSession, EngineNotSupportedError } from '#runtime';
 import { open as sessionOpen } from './szkrabok_session.js';
 import { resolve, dirname, join } from 'path';
 import { spawn } from 'child_process';
@@ -102,6 +102,10 @@ export const run_test = async args => {
     session = getSession(sessionName);
   } catch {
     throw new Error(`Session "${sessionName}" not open`);
+  }
+
+  if (session.browserEngine === 'firefox') {
+    throw new EngineNotSupportedError('browser_run_test', 'firefox', 'browser_run_test requires a CDP connection.');
   }
 
   if (!session.cdpPort) {

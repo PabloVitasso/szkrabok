@@ -21,6 +21,7 @@ export const launchHeadlessBrowser = async executablePath => {
     '--no-first-run',
     '--no-default-browser-check',
     '--disable-features=TranslateUI',
+    '--password-store=basic',
     `--user-data-dir=${userDataDir}`,
     '--remote-debugging-port=0',
   ], { stdio: 'ignore', detached: false });
