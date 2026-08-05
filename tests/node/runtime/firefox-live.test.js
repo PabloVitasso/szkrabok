@@ -70,7 +70,7 @@ const withBrowserConfig = (engine, executablePath) => {
 // Called inside each browser describe block. Avoids duplicating the same
 // launch / navigate / close assertions for every engine.
 
-const runLifecycleTests = ({ engine, hasCdp, skipNavigate = false }) => {
+const runLifecycleTests = ({ engine, hasCdp }) => {
   test('launch() opens a browser session', async () => {
     const profile = `live-launch-${engine}-${Date.now()}`;
     try {
@@ -85,12 +85,7 @@ const runLifecycleTests = ({ engine, hasCdp, skipNavigate = false }) => {
     }
   });
 
-  // invisible_playwright Firefox 150 + Playwright 1.59.x: consecutive launches fire a
-  // frameCommittedNewDocumentNavigation for an unregistered frame that node:test
-  // attributes as a test failure in this slot. The webdriver test below exercises
-  // goto() on the same binary and passes; this dedicated navigate test is skipped
-  // to avoid the spurious failure.
-  test('can navigate to about:blank', { skip: skipNavigate }, async () => {
+  test('can navigate to about:blank', async () => {
     const profile = `live-nav-${engine}-${Date.now()}`;
     try {
       await launch({ profile, headless: true });
@@ -189,11 +184,7 @@ describe(
   () => {
     beforeEach(() => withBrowserConfig('firefox', INV_FIREFOX));
 
-    runLifecycleTests({
-      engine: 'firefox',
-      hasCdp: false,
-      skipNavigate: true,
-    });
+    runLifecycleTests({ engine: 'firefox', hasCdp: false });
 
     test('navigator.webdriver is not true — patch suppresses automation flag', async () => {
       const profile = `live-inv-wd-${Date.now()}`;

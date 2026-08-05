@@ -215,6 +215,22 @@ const _launchPersistentContext = async (userDataDir, options = {}) => {
     }
   }
 
+  if (isFirefox) {
+    // On a fresh (cold-start) profile, invisible_playwright/Firefox 150 fires an
+    // internal about:newtab navigation shortly after launch that tears down the
+    // initial page's browsingContext at the Juggler protocol level — invisible to
+    // Playwright's own page/frame tracking (page.url() still reports "about:blank").
+    // Any goto() on that initial page then fails, permanently, with either
+    // "browsingContext is undefined" or "interrupted by another navigation to
+    // about:newtab" — retrying goto() on the same page object does not recover it.
+    // A page created *after* the race has already torn down the initial one is
+    // unaffected. Swap the initial page out before any caller can get a reference
+    // to it. See docs/features/20260526-firefox-engine-support-done.md.
+    const initialPage = context.pages()[0];
+    await context.newPage();
+    await initialPage?.close().catch(() => {});
+  }
+
   return context;
 };
 

@@ -24,6 +24,18 @@ mismatch (`Browser.setDefaultViewport` gained an `isMobile` field in Playwright 
 see [invisible_playwright#48](https://github.com/feder-cr/invisible_playwright/issues/48)).
 See [docs/development.md — Refreshing Firefox binaries](../development.md#refreshing-firefox-binaries-after-a-playwright-core-upgrade).
 
+**Fixed during this PR — fresh-profile navigation was broken.** On a cold-start
+profile, invisible_playwright/Firefox 150 fires an internal `about:newtab` navigation
+shortly after launch that tears down the initial page's browsingContext at the Juggler
+protocol level, invisible to Playwright's page/frame tracking. Any `goto()` on that
+initial page failed permanently (`browsingContext is undefined` or `interrupted by
+another navigation to "about:newtab"`) — meaning `session_manage open({ url })` on a
+brand-new Firefox session failed on first use, every time. Retrying `goto()` on the
+same page does not recover it; a page created after the internal navigation completes
+is unaffected. Fixed in `packages/runtime/launch.js` by swapping the initial page for
+a freshly created one immediately after `launchPersistentContext()`, before any caller
+gets a reference to it. Verified 5/5 on fresh profiles after the fix (was 0/5 before).
+
 ## Goal
 
 Add Firefox as a first-class browser engine alongside Chromium. A session opened with
