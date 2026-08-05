@@ -84,8 +84,11 @@ describe('PC-1 readDevToolsPort', () => {
     let handle;
     try {
       console.log('PC-1.5 step 1: schedule write of DevToolsActivePort in 200ms');
-      handle = setTimeout(() =>
-        writeFile(join(dir, 'DevToolsActivePort'), '33333\n/devtools/browser/delayed\n').catch(() => {}),
+      handle = setTimeout(
+        () =>
+          writeFile(join(dir, 'DevToolsActivePort'), '33333\n/devtools/browser/delayed\n').catch(
+            () => {}
+          ),
         200
       );
       console.log('PC-1.5 step 2: call readDevToolsPort with 2000ms timeout');
@@ -118,10 +121,7 @@ describe('PC-1 readDevToolsPort', () => {
     console.log('PC-1.7 step 1: write invalid content to DevToolsActivePort');
     await writeFile(join(tmpDir, 'DevToolsActivePort'), 'abc\n/devtools/browser/x\n');
     console.log('PC-1.7 step 2: call readDevToolsPort (expect rejection)');
-    await assert.rejects(
-      () => readDevToolsPort(tmpDir),
-      /invalid port/i
-    );
+    await assert.rejects(() => readDevToolsPort(tmpDir), /invalid port/i);
     console.log('PC-1.7 step 2: correctly rejected');
   });
 });
@@ -164,7 +164,15 @@ describe('PC-1 newCloneId', () => {
     console.log('PC-1.10 step 2 returned:', id);
     const parts = id.split('-');
     const ts = parseInt(parts[parts.length - 2], 10);
-    console.log('PC-1.10 step 3: timestamp extracted =', ts, 'expected in [', before, ',', after, ']');
+    console.log(
+      'PC-1.10 step 3: timestamp extracted =',
+      ts,
+      'expected in [',
+      before,
+      ',',
+      after,
+      ']'
+    );
     assert.ok(ts >= before && ts <= after, `timestamp ${ts} not in [${before}, ${after}]`);
   });
 
@@ -287,8 +295,18 @@ describe('PC-1 cloneProfileAtomic', { concurrency: 1 }, () => {
       console.log('PC-1.17 step 3 parsed:', meta);
       // FD lease replaces PID liveness check - .clone must NOT contain pid.
       assert.ok(!('pid' in meta), '.clone must not contain pid (FD lease replaces PID check)');
-      console.log('PC-1.17 step 4: assert created in [', before, ',', after, '], got:', meta.created);
-      assert.ok(meta.created >= before && meta.created <= after, `created ${meta.created} must be in [${before}, ${after}]`);
+      console.log(
+        'PC-1.17 step 4: assert created in [',
+        before,
+        ',',
+        after,
+        '], got:',
+        meta.created
+      );
+      assert.ok(
+        meta.created >= before && meta.created <= after,
+        `created ${meta.created} must be in [${before}, ${after}]`
+      );
       console.log('PC-1.17 step 5: assert templateName === "myprofile", got:', meta.templateName);
       assert.strictEqual(meta.templateName, 'myprofile');
     } finally {
@@ -331,9 +349,9 @@ describe('PC-1 cleanupClones', { concurrency: 1 }, () => {
   // Atomic staging pattern: write .clone to staging dir first, then rename
   // to szkrabok-clone-pc1-* so the dir is never visible without .clone.
   const makeCloneDir = async meta => {
-    const id      = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
     const staging = join(tmpdir(), `szkrabok-staging-pc1-${id}`);
-    const dir     = join(tmpdir(), `szkrabok-clone-pc1-${id}`);
+    const dir = join(tmpdir(), `szkrabok-clone-pc1-${id}`);
     await mkdir(staging, { recursive: true });
     await writeFile(join(staging, '.clone'), JSON.stringify(meta));
     await rename(staging, dir);
@@ -373,7 +391,11 @@ describe('PC-1 cleanupClones', { concurrency: 1 }, () => {
 
   test('PC-1.21: keeps dir with dead PID that is within TTL', async () => {
     const { cleanupClones } = await import('../../../packages/runtime/storage.js');
-    console.log('PC-1.21 step 1: makeCloneDir with deadPid', deadPid, 'and recent created timestamp');
+    console.log(
+      'PC-1.21 step 1: makeCloneDir with deadPid',
+      deadPid,
+      'and recent created timestamp'
+    );
     const dir = await makeCloneDir({ pid: deadPid, created: Date.now(), templateName: 'test' });
     console.log('PC-1.21 step 1 created dir:', dir);
     try {

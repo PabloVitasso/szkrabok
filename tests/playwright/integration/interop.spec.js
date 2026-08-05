@@ -86,11 +86,17 @@ test.describe('CDP interoperability', () => {
       expect(result).toContain('example.com');
     } finally {
       if (pwClient) await pwClient.close().catch(() => {});
-      await client.callTool({ name: 'session_manage', arguments: { action: 'close', sessionName: sessionId, save: false } });
+      await client.callTool({
+        name: 'session_manage',
+        arguments: { action: 'close', sessionName: sessionId, save: false },
+      });
     }
   });
 
-  test('szkrabok session.endpoint returns ws URL with active CDP port', async ({ client, openSession }) => {
+  test('szkrabok session.endpoint returns ws URL with active CDP port', async ({
+    client,
+    openSession,
+  }) => {
     const sessionId = `endpoint-${randomUUID()}`;
 
     await openSession(client, sessionId);
@@ -104,6 +110,9 @@ test.describe('CDP interoperability', () => {
     const data = JSON.parse(response.content[0].text);
     expect(data.wsEndpoint).toMatch(/^ws:\/\/(127\.0\.0\.1|localhost):\d+/);
 
-    await client.callTool({ name: 'session_manage', arguments: { action: 'close', sessionName: sessionId, save: false } });
+    await client.callTool({
+      name: 'session_manage',
+      arguments: { action: 'close', sessionName: sessionId, save: false },
+    });
   });
 });

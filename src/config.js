@@ -4,6 +4,12 @@
 
 // Config lifecycle: initConfigProvisional() on startup, finalizeConfig(roots) after MCP handshake.
 // Use initConfig(roots) for one-shot initialization (tests, CLI).
-export { initConfig, initConfigProvisional, finalizeConfig, getConfig, getConfigMeta } from '#runtime';
+export {
+  initConfig,
+  initConfigProvisional,
+  finalizeConfig,
+  getConfig,
+  getConfigMeta,
+} from '#runtime';
 
 export const DEFAULT_TIMEOUT = 30000;

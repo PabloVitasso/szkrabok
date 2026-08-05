@@ -24,6 +24,12 @@ export default defineConfig({
 
   projects: [integration(paths), e2e({ paths, preset, session, executable, env })],
 
-  globalSetup: (() => { if (env.project === 'e2e') return paths.automation.setup; return undefined; })(),
-  globalTeardown: (() => { if (env.project === 'e2e') return paths.automation.teardown; return undefined; })(),
+  globalSetup: (() => {
+    if (env.project === 'e2e') return paths.automation.setup;
+    return undefined;
+  })(),
+  globalTeardown: (() => {
+    if (env.project === 'e2e') return paths.automation.teardown;
+    return undefined;
+  })(),
 });

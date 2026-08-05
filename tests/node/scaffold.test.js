@@ -13,12 +13,15 @@ test('scaffold_init creates expected files in empty dir (minimal)', async () => 
   try {
     const result = await init({ dir, name: 'test-project' });
 
-    assert.deepEqual(result.created.sort(), [
-      'package.json',
-      'playwright.config.js',
-      'szkrabok.config.local.toml',
-      'szkrabok.config.toml',
-    ].sort());
+    assert.deepEqual(
+      result.created.sort(),
+      [
+        'package.json',
+        'playwright.config.js',
+        'szkrabok.config.local.toml',
+        'szkrabok.config.toml',
+      ].sort()
+    );
     assert.deepEqual(result.skipped, []);
     assert.deepEqual(result.warnings, []);
 
@@ -55,7 +58,9 @@ test('scaffold_init appends to existing .gitignore without duplicating', async (
     // idempotent — second run must not duplicate
     await init({ dir });
     const gitignore2 = await readFile(join(dir, '.gitignore'), 'utf8');
-    const count = gitignore2.split('\n').filter(l => l.trim() === 'szkrabok.config.local.toml').length;
+    const count = gitignore2
+      .split('\n')
+      .filter(l => l.trim() === 'szkrabok.config.local.toml').length;
     assert.equal(count, 1, 'entry must appear exactly once');
   } finally {
     await rm(dir, { recursive: true });
@@ -187,8 +192,14 @@ test('scaffolded fixtures.js is the thin shim', async () => {
   try {
     await init({ dir, preset: 'full' });
     const src = await readFile(join(dir, 'automation/fixtures.js'), 'utf8');
-    assert.ok(src.includes('@pablovitasso/szkrabok/fixtures'), 'shim must re-export from @pablovitasso/szkrabok/fixtures');
-    assert.ok(!src.includes('connectOverCDP'), 'implementation must live in the package, not the shim');
+    assert.ok(
+      src.includes('@pablovitasso/szkrabok/fixtures'),
+      'shim must re-export from @pablovitasso/szkrabok/fixtures'
+    );
+    assert.ok(
+      !src.includes('connectOverCDP'),
+      'implementation must live in the package, not the shim'
+    );
     assert.ok(!src.includes('process.env'), 'shim must not read process.env');
   } finally {
     await rm(dir, { recursive: true });
@@ -201,7 +212,10 @@ test('scaffolded playwright.config.js has szkrabokProfile and no env bridging', 
     await init({ dir });
     const src = await readFile(join(dir, 'playwright.config.js'), 'utf8');
     assert.ok(src.includes('szkrabokProfile'), 'config must declare szkrabokProfile');
-    assert.ok(!src.includes('SZKRABOK_CDP_ENDPOINT'), 'env bridging must not be in config (belongs in fixtures.js)');
+    assert.ok(
+      !src.includes('SZKRABOK_CDP_ENDPOINT'),
+      'env bridging must not be in config (belongs in fixtures.js)'
+    );
   } finally {
     await rm(dir, { recursive: true });
   }

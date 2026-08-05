@@ -33,8 +33,9 @@ const srt = (name, extra = {}) => ({
 });
 
 test.describe('session_run_test', () => {
-
-  test('EX-2.1 template mode end-to-end: response shape correct, session saved and inactive', async ({ client }) => {
+  test('EX-2.1 template mode end-to-end: response shape correct, session saved and inactive', async ({
+    client,
+  }) => {
     const name = `srt-e2e-${randomUUID()}`;
 
     const response = await client.callTool(srt(name));
@@ -42,7 +43,7 @@ test.describe('session_run_test', () => {
 
     expect(result.error).toBeUndefined();
     expect(result.session.logicalName).toBe(name);
-    expect(result.session.runtimeName).toBe(name);  // template: runtimeName === logicalName
+    expect(result.session.runtimeName).toBe(name); // template: runtimeName === logicalName
     expect(result.session.mode).toBe('template');
     expect(result.test).toBeDefined();
 
@@ -55,7 +56,10 @@ test.describe('session_run_test', () => {
     expect(entry.active, 'session should be inactive after postPolicy:save').toBe(false);
 
     // Cleanup stored profile.
-    await client.callTool({ name: 'session_manage', arguments: { action: 'delete', sessionName: name } });
+    await client.callTool({
+      name: 'session_manage',
+      arguments: { action: 'delete', sessionName: name },
+    });
   });
 
   test('EX-2.2 postPolicy keep: session stays open after test', async ({ client }) => {
@@ -71,11 +75,19 @@ test.describe('session_run_test', () => {
     expect(list.content[0].text).toContain(name);
 
     // Cleanup.
-    await client.callTool({ name: 'session_manage', arguments: { action: 'close', sessionName: name } });
-    await client.callTool({ name: 'session_manage', arguments: { action: 'delete', sessionName: name } });
+    await client.callTool({
+      name: 'session_manage',
+      arguments: { action: 'close', sessionName: name },
+    });
+    await client.callTool({
+      name: 'session_manage',
+      arguments: { action: 'delete', sessionName: name },
+    });
   });
 
-  test('EX-2.4 clone mode headless: launchOptions forwarded, reads real page content', async ({ client }) => {
+  test('EX-2.4 clone mode headless: launchOptions forwarded, reads real page content', async ({
+    client,
+  }) => {
     const name = `srt-clone-${randomUUID()}`;
 
     // Create template profile (headless - no visible window).
@@ -93,9 +105,13 @@ test.describe('session_run_test', () => {
     const srtResponse = await client.callTool({
       name: 'session_run_test',
       arguments: {
-        session:    { name, mode: 'clone', launchOptions: { headless: true },
-                      navigation: { policy: 'always', url: 'https://example.com' } },
-        test:       { spec: NOOP_SPEC, project: 'e2e' },
+        session: {
+          name,
+          mode: 'clone',
+          launchOptions: { headless: true },
+          navigation: { policy: 'always', url: 'https://example.com' },
+        },
+        test: { spec: NOOP_SPEC, project: 'e2e' },
         postPolicy: { action: 'keep' },
       },
     });
@@ -120,20 +136,25 @@ test.describe('session_run_test', () => {
     expect(result.p).toContain('This domain is for use in');
 
     // Cleanup.
-    await client.callTool({ name: 'session_manage', arguments: { action: 'close', sessionName: cloneName } });
-    await client.callTool({ name: 'session_manage', arguments: { action: 'delete', sessionName: name } });
+    await client.callTool({
+      name: 'session_manage',
+      arguments: { action: 'close', sessionName: cloneName },
+    });
+    await client.callTool({
+      name: 'session_manage',
+      arguments: { action: 'delete', sessionName: name },
+    });
   });
 
-  test('EX-2.3 withLock: two concurrent same-name calls both complete without error', async ({ client }) => {
+  test('EX-2.3 withLock: two concurrent same-name calls both complete without error', async ({
+    client,
+  }) => {
     const name = `srt-concurrent-${randomUUID()}`;
 
     // Both calls use the same session name. withLock serializes them so the second
     // waits for the first to fully complete (test + postPolicy) before starting.
     // If withLock were deadlocked, both would hang until the test timeout fires.
-    const [r1, r2] = await Promise.all([
-      client.callTool(srt(name)),
-      client.callTool(srt(name)),
-    ]);
+    const [r1, r2] = await Promise.all([client.callTool(srt(name)), client.callTool(srt(name))]);
 
     const results = [r1, r2].map(r => JSON.parse(r.content[0].text));
 
@@ -143,6 +164,9 @@ test.describe('session_run_test', () => {
     }
 
     // Cleanup stored profile (created by the two template-mode runs).
-    await client.callTool({ name: 'session_manage', arguments: { action: 'delete', sessionName: name } });
+    await client.callTool({
+      name: 'session_manage',
+      arguments: { action: 'delete', sessionName: name },
+    });
   });
 });

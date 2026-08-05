@@ -11,27 +11,33 @@ import { register as registerDoctor } from './commands/doctor.js';
 
 /* ---------- shared helpers ---------- */
 
-const safe = fn => async (...args) => {
-  try {
-    await fn(...args);
-  } catch (err) {
-    let msg;
-    if (err !== null && err !== undefined && err.message !== null && err.message !== undefined) {
-      msg = err.message;
-    } else {
-      msg = err;
+const safe =
+  fn =>
+  async (...args) => {
+    try {
+      await fn(...args);
+    } catch (err) {
+      let msg;
+      if (err !== null && err !== undefined && err.message !== null && err.message !== undefined) {
+        msg = err.message;
+      } else {
+        msg = err;
+      }
+      console.error(msg);
+      process.exit(1);
     }
-    console.error(msg);
-    process.exit(1);
-  }
-};
+  };
 
 const attachShutdown = handle => {
   let closing = false;
   const shutdown = async () => {
     if (closing) return;
     closing = true;
-    try { await handle.close(); } finally { process.exit(0); }
+    try {
+      await handle.close();
+    } finally {
+      process.exit(0);
+    }
   };
   process.once('SIGINT', shutdown);
   process.once('SIGTERM', shutdown);
@@ -46,14 +52,18 @@ const getRuntime = async () => {
 /* ---------- version from package.json ---------- */
 
 const _require = createRequire(import.meta.url);
-const { version } = _require(resolve(dirname(fileURLToPath(import.meta.url)), '../../package.json'));
+const { version } = _require(
+  resolve(dirname(fileURLToPath(import.meta.url)), '../../package.json')
+);
 
 /* ---------- program ---------- */
 
 program.name('szkrabok').description('szkrabok CLI').version(version);
 
 let _exitCode = 0;
-const setExitCode = (code) => { _exitCode = code; };
+const setExitCode = code => {
+  _exitCode = code;
+};
 
 const ctx = { safe, attachShutdown, getRuntime, setExitCode };
 

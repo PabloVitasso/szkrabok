@@ -42,7 +42,9 @@ beforeEach(() => {
   delete process.env.SZKRABOK_ROOT;
   for (const d of tmpDirs) {
     // eslint-disable-next-line no-empty
-    try { rmSync(d, { recursive: true, force: true }); } catch {}
+    try {
+      rmSync(d, { recursive: true, force: true });
+    } catch {}
   }
   tmpDirs = [];
 });
@@ -77,15 +79,24 @@ test('ConfigNotFinalError has correct code, name, message, hint', () => {
 // ── Uninitialized guards ───────────────────────────────────────────────────────
 
 test('getConfig throws ConfigNotInitializedError before any init', () => {
-  assert.throws(() => getConfig(), err => err instanceof ConfigNotInitializedError);
+  assert.throws(
+    () => getConfig(),
+    err => err instanceof ConfigNotInitializedError
+  );
 });
 
 test('resolvePreset throws ConfigNotInitializedError before any init', () => {
-  assert.throws(() => resolvePreset('default'), err => err instanceof ConfigNotInitializedError);
+  assert.throws(
+    () => resolvePreset('default'),
+    err => err instanceof ConfigNotInitializedError
+  );
 });
 
 test('getPresets throws ConfigNotInitializedError before any init', () => {
-  assert.throws(() => getPresets(), err => err instanceof ConfigNotInitializedError);
+  assert.throws(
+    () => getPresets(),
+    err => err instanceof ConfigNotInitializedError
+  );
 });
 
 // ── Provisional phase ──────────────────────────────────────────────────────────
@@ -98,7 +109,10 @@ test('initConfigProvisional sets phase to provisional', () => {
 
 test('getConfig throws ConfigNotFinalError when provisional', () => {
   initConfigProvisional();
-  assert.throws(() => getConfig(), err => err instanceof ConfigNotFinalError);
+  assert.throws(
+    () => getConfig(),
+    err => err instanceof ConfigNotFinalError
+  );
 });
 
 test('getConfig({ allowProvisional: true }) works during provisional phase', () => {
@@ -245,8 +259,10 @@ test('initConfig sets loadedAt to ISO timestamp at seconds precision', () => {
   initConfig([]);
   const meta = getConfigMeta();
   assert.ok(meta.loadedAt, 'loadedAt must be present');
-  assert.ok(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/.test(meta.loadedAt),
-    `loadedAt must be ISO seconds precision, got: ${meta.loadedAt}`);
+  assert.ok(
+    /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/.test(meta.loadedAt),
+    `loadedAt must be ISO seconds precision, got: ${meta.loadedAt}`
+  );
 });
 
 test('initConfigProvisional sets loadedAt', () => {

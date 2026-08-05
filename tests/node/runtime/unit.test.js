@@ -126,7 +126,10 @@ describe('storage', () => {
   test('saveState + loadState round-trip', async () => {
     const storage = await import('../../../packages/runtime/storage.js');
     const id = 'unit-state-test';
-    const state = { cookies: [{ name: 'foo', value: 'bar', domain: 'example.com', path: '/' }], origins: [] };
+    const state = {
+      cookies: [{ name: 'foo', value: 'bar', domain: 'example.com', path: '/' }],
+      origins: [],
+    };
 
     await storage.saveState(id, state);
     const loaded = await storage.loadState(id);
