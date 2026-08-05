@@ -26,7 +26,9 @@ const cleanup = () => {
   if (tmpDir && existsSync(tmpDir)) {
     try {
       rmSync(tmpDir, { recursive: true, force: true });
-    } catch {} // eslint-disable-line no-empty -- exit-handler cleanup; surfacing here would obscure the real exit cause
+    } catch (err) {
+      console.warn(`[smoke-test] WARNING: failed to clean up ${tmpDir}: ${err.message}`);
+    }
   }
 };
 
@@ -84,6 +86,8 @@ console.log(`[smoke-test] version output: ${versionResult.stdout.toString().trim
 // remove the tarball
 try {
   rmSync(tarball);
-} catch {} // eslint-disable-line no-empty -- best-effort cleanup; tarball may already be gone
+} catch (err) {
+  console.warn(`[smoke-test] WARNING: failed to remove tarball ${tarball}: ${err.message}`);
+}
 
 console.log('\n[smoke-test] PASS: package installs and starts correctly.');

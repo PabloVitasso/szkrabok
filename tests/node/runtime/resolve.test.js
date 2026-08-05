@@ -1367,7 +1367,9 @@ describe('doctor install CLI', () => {
       cleanup();
       try {
         rmSync(sentinelFile);
-      } catch {} // eslint-disable-line no-empty -- best-effort cleanup
+      } catch (err) {
+        console.warn(`resolve.test: failed to clean up sentinel file ${sentinelFile}: ${err.message}`);
+      }
     }
   });
 
@@ -1387,7 +1389,9 @@ describe('doctor install CLI', () => {
       cleanup();
       try {
         rmSync(sentinelFile);
-      } catch {} // eslint-disable-line no-empty -- best-effort cleanup
+      } catch (err) {
+        console.warn(`resolve.test: failed to clean up sentinel file ${sentinelFile}: ${err.message}`);
+      }
     }
   });
 

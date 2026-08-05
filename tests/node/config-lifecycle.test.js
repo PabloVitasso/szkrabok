@@ -41,10 +41,11 @@ beforeEach(() => {
   delete process.env.SZKRABOK_CONFIG;
   delete process.env.SZKRABOK_ROOT;
   for (const d of tmpDirs) {
-    // eslint-disable-next-line no-empty
     try {
       rmSync(d, { recursive: true, force: true });
-    } catch {}
+    } catch (err) {
+      console.warn(`config-lifecycle: failed to clean up temp dir ${d}: ${err.message}`);
+    }
   }
   tmpDirs = [];
 });
