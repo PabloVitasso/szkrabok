@@ -41,9 +41,9 @@ beforeEach(() => {
   delete process.env.SZKRABOK_CONFIG;
   delete process.env.SZKRABOK_ROOT;
   for (const d of tmpDirs) {
-    // eslint-disable-next-line no-empty
     try {
       rmSync(d, { recursive: true, force: true });
+      // eslint-disable-next-line no-empty -- ignore rmSync errors on cleanup
     } catch {}
   }
   tmpDirs = [];
