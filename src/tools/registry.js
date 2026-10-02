@@ -106,7 +106,7 @@ const tools = {
 
   browser_run: {
     handler: szkrabokBrowser.run,
-    description: `${PLAYWRIGHT_MCP} Execute Playwright JS on session page. Pass code (inline snippet) or path (named export from .mjs file with (page, args)). fn defaults to "default".`,
+    description: `${PLAYWRIGHT_MCP} Execute Playwright JS on session page. Pass code (inline snippet) or path (.mjs file). Either evaluates/imports to a function (page, args) or an object of named exports; fn selects which export, defaults to "default". args is forwarded as the 2nd param.`,
     inputSchema: {
       type: 'object',
       properties: {

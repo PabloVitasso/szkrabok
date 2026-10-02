@@ -259,15 +259,32 @@ export const run_test = async args => {
   };
 };
 
+const selectExport = (mod, fn, label) => {
+  const target = fn === 'default' ? mod.default : mod[fn];
+
+  if (typeof target !== 'function') {
+    const available = Object.keys(mod)
+      .filter(k => typeof mod[k] === 'function')
+      .join(', ');
+
+    throw new Error(`Export "${fn}" not found in "${label}". Available: [${available}]`);
+  }
+
+  return target;
+};
+
 export const run_code = async args => {
-  const { sessionName, code } = args;
+  const { sessionName, code, fn = 'default', args: callArgs = {} } = args;
 
   const session = getSession(sessionName);
-  const fn = eval(`(${code})`);
+  const evaluated = eval(`(${code})`);
+  const mod = typeof evaluated === 'function' ? { default: evaluated } : evaluated;
+  const target = selectExport(mod, fn, 'inline code');
 
-  const result = await fn(session.page);
+  const result = await target(session.page, callArgs);
 
   return {
+    fn,
     result,
     url: session.page.url(),
   };
@@ -280,20 +297,7 @@ export const run_file = async args => {
   const absolute = resolve(path);
 
   const mod = await import(`${absolute}?t=${Date.now()}`);
-  let target;
-  if (fn === 'default') {
-    target = mod.default;
-  } else {
-    target = mod[fn];
-  }
-
-  if (typeof target !== 'function') {
-    const available = Object.keys(mod)
-      .filter(k => typeof mod[k] === 'function')
-      .join(', ');
-
-    throw new Error(`Export "${fn}" not found in "${absolute}". Available: [${available}]`);
-  }
+  const target = selectExport(mod, fn, absolute);
 
   const result = await target(session.page, scriptArgs);
 
