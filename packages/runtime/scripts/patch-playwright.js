@@ -477,9 +477,9 @@ const patches = [
     apply: sec => strReplace(
       'page: PageBinding.dispatch guard non-JSON',
       sec,
-      `static async dispatch(page, payload, context2) {
+      `static async dispatch(page, payload, context) {
         const { name, seq, serializedArgs } = JSON.parse(payload);`,
-      `static async dispatch(page, payload, context2) {
+      `static async dispatch(page, payload, context) {
         if (process.env['REBROWSER_PATCHES_RUNTIME_FIX_MODE'] !== '0' && !payload.includes('{')) return;
         const { name, seq, serializedArgs } = JSON.parse(payload);`
     ),
