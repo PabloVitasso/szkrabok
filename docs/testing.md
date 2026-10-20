@@ -103,6 +103,7 @@ tests/
       session.spec.js
       stealth.spec.js
       tools.spec.js
+      scrape.spec.js          browser_scrape contract — selectors, read-only DOM, stats (SCRAPE-1..15)
       interop.spec.js         (skipped when @playwright/mcp not installed)
       config-mcp-roots.spec.js  MCP roots → config → UA end-to-end
       session_run_test.spec.js  session_run_test — 3 integration tests (EX-2); real browser + subprocess
@@ -171,6 +172,7 @@ npm run test:playwright
 | `session.spec.js` | Session Management | `session_manage` open/list/close/delete (glob patterns supported), cookie persistence across close/reopen |
 | `stealth.spec.js` | Stealth Mode | Session opens with stealth applied, `browser_run` reads page title |
 | `tools.spec.js` | Workflow | `browser_scrape` extracts structured data |
+| `scrape.spec.js` | Scrape contract | `browser_scrape` selector semantics, read-only DOM, stats accounting (SCRAPE-1..15) |
 | `interop.spec.js` | CDP Interoperability | `session_manage endpoint` returns `wsEndpoint`; @playwright/mcp attaches and navigates shared browser. **Skipped** when `@playwright/mcp` is not installed |
 | `config-mcp-roots.spec.js` | Config Discovery | Roots sent at init load project TOML; `SZKRABOK_CONFIG` env var loads config; both verified via `navigator.userAgent` |
 | `session_run_test.spec.js` | session_run_test (EX-2) | End-to-end template mode, postPolicy keep, withLock serialization |

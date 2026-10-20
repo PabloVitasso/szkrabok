@@ -59,12 +59,14 @@ Returns: `{ session: { logicalName, runtimeName, mode }, test: { passed, failed,
 
 ### 3. browser_scrape
 
-Scrape current page into LLM-ready text.
+Scrape current page into LLM-ready text. Read-only — never modifies the page.
 
 - **sessionName** (required)
-- **selectors**: CSS selectors to target. Omit for auto (main or body)
+- **selectors**: CSS selectors matching content elements or containers — text is
+  returned for every matching element and everything inside it. Boilerplate
+  (nav/footer/ads/cookies) is always skipped. Omit for auto (main or body)
 
-Returns: `{ raw: [{ tag, text }], llmFriendly, tokenCountEstimate }`
+Returns: `{ raw: [{ tag, text }], llmFriendly, tokenCountEstimate, stats: { scanned, collected, dropped: { excluded, tooShort, linkHeavy, duplicate, nested } } }`
 
 ### 4. browser_run
 

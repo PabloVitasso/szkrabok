@@ -67,7 +67,7 @@ const tools = {
 
   browser_scrape: {
     handler: workflow.scrape,
-    description: `${SZKRABOK} Scrape current page into LLM-ready text. Returns raw blocks and llmFriendly string. selectors: optional CSS selectors to target specific areas; omit for auto (main/body)`,
+    description: `${SZKRABOK} Scrape current page into LLM-ready text. Returns raw blocks, llmFriendly string, and stats. selectors match content elements OR containers: text is returned for every matching element and everything inside it. Read-only (never modifies the page); boilerplate (nav/footer/ads/cookies) is skipped. Omit selectors to auto-scrape main/body`,
     inputSchema: {
       type: 'object',
       properties: {
@@ -75,7 +75,7 @@ const tools = {
         selectors: {
           type: 'array',
           items: { type: 'string' },
-          description: 'CSS selectors to target. Omit for auto-mode (main or body).',
+          description: 'CSS selectors: matched elements and their content are scraped. Omit for auto-mode (main or body).',
         },
       },
       required: ['sessionName'],
