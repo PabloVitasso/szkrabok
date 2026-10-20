@@ -315,19 +315,19 @@ Every call produces two JSONL lines.
 **Intent line** (emitted before the wire call):
 
 ```json
-{"name":"browser_scrape","arguments":{"sessionName":"my-session","selectors":{"title":"h1"}},"_phase":"before","_seq":3}
+{"name":"browser_scrape","arguments":{"sessionName":"my-session","selectors":["h1"]},"_phase":"before","_seq":3}
 ```
 
 **Result line** (emitted after):
 
 ```json
-{"name":"browser_scrape","arguments":{"sessionName":"my-session","selectors":{"title":"h1"}},"_phase":"after","_ok":true,"_ms":312,"_seq":3}
+{"name":"browser_scrape","arguments":{"sessionName":"my-session","selectors":["h1"]},"_phase":"after","_ok":true,"_ms":312,"_seq":3}
 ```
 
 **Failure**:
 
 ```json
-{"name":"browser_scrape","arguments":{"sessionName":"my-session","selectors":{"title":"h1"}},"_phase":"after","_ok":false,"_ms":18,"_error":"net::ERR_NAME_NOT_RESOLVED","_seq":3}
+{"name":"browser_scrape","arguments":{"sessionName":"my-session","selectors":["h1"]},"_phase":"after","_ok":false,"_ms":18,"_error":"net::ERR_NAME_NOT_RESOLVED","_seq":3}
 ```
 
 `_phase` makes replay unambiguous: filter `_phase === "before"`, strip
@@ -385,7 +385,7 @@ import { mcpConnect } from '@szkrabok/runtime';
 
 const mcp = await mcpConnect('my-session', { launchOptions: { headless: false } });
 try {
-  await mcp.browser_scrape({ selectors: { title: 'h1' } });
+  await mcp.browser_scrape({ selectors: ['h1'] });
   await mcp.browser_run_test({ files: ['tests/playwright/e2e/my-task.spec.js'] });
 } finally {
   await mcp.close();
@@ -419,7 +419,7 @@ Stored JSONL files in `packages/runtime/mcp-client/sequences/` represent reusabl
 without a session parameter (injected at runtime by the adapter).
 
 ```jsonl
-{"name":"browser_scrape","arguments":{"selectors":{"title":"h1"}}}
+{"name":"browser_scrape","arguments":{"selectors":["h1"]}}
 {"name":"browser_run","arguments":{"code":"async (page) => page.url()"}}
 ```
 

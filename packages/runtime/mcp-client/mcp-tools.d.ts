@@ -1,6 +1,6 @@
 // AUTO-GENERATED — do not edit manually.
 // Regenerate: npm run codegen:mcp
-// Last generated: 2026-08-05T12:46:49.880Z
+// Last generated: 2026-10-20T20:16:39.313Z
 
 export interface SessionHandle {
   /**
@@ -26,15 +26,15 @@ export interface SessionHandle {
 
 export interface BrowserHandle {
   /**
-   * [szkrabok] Scrape current page into LLM-ready text. Returns raw blocks and llmFriendly string. selectors: optional CSS selectors to target specific areas; omit for auto (main/body)
-   * @param args.selectors CSS selectors to target. Omit for auto-mode (main or body).
+   * [szkrabok] Scrape current page into LLM-ready text. Returns raw blocks, llmFriendly string, and stats. selectors match content elements OR containers: text is returned for every matching element and everything inside it. Read-only (never modifies the page); boilerplate (nav/footer/ads/cookies) is skipped. Omit selectors to auto-scrape main/body
+   * @param args.selectors CSS selectors: matched elements and their content are scraped. Omit for auto-mode (main or body).
    */
   scrape(args: {
     selectors?: string[];
   }): Promise<unknown>;
 
   /**
-   * [playwright-mcp] Execute Playwright JS on session page. Pass code (inline snippet) or path (named export from .mjs file with (page, args)). fn defaults to "default".
+   * [playwright-mcp] Execute Playwright JS on session page. Pass code (inline snippet) or path (.mjs file). Either evaluates/imports to a function (page, args) or an object of named exports; fn selects which export, defaults to "default". args is forwarded as the 2nd param.
    * @param args.path Absolute or relative path to an .mjs script file
    * @param args.fn Named export to call. Defaults to "default".
    * @param args.args Arguments passed as second parameter to the function

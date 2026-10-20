@@ -122,17 +122,18 @@ test.describe('session_run_test', () => {
     const cloneName = srtResult.session.runtimeName;
 
     // Read real page content from the live clone browser.
+    // example.com no longer has an <h1> (markup changed 2026) — assert on
+    // title + paragraph, which are stable across its redesigns.
     const runResponse = await client.callTool({
       name: 'browser_run',
       arguments: {
         sessionName: cloneName,
-        code: 'async (page) => ({ title: await page.title(), h1: await page.locator("h1").textContent(), p: await page.locator("p").first().textContent() })',
+        code: 'async (page) => ({ title: await page.title(), p: await page.locator("p").first().textContent() })',
       },
     });
     const { result } = JSON.parse(runResponse.content[0].text);
 
     expect(result.title).toBe('Example Domain');
-    expect(result.h1).toBe('Example Domain');
     expect(result.p).toContain('This domain is for use in');
 
     // Cleanup.
