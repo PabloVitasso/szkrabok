@@ -123,7 +123,7 @@ Arguments:
 - **config**: Config path, default `playwright.config.js` (relative to the spec root; legacy: work root)
 - **project**: Playwright project name
 - **keepOpen**: Reconnect session after test if MCP context invalidated, default `false`
-- **reportFile**: JSON report file name (no directories), written under `<work-root>/reports/<sessionName>/`. Default: `last-run.json`. Returns resolved path
+- **reportFile**: JSON report file name (no directories), written under `<work-root>/reports/<sessionName>/`. Default: `last-run.json`. Legacy mode: a path relative to the work root. Returns resolved path
 
 Returns: `{ passed, failed, skipped, tests: [{ title, status, error, result }], log, reportFile }`
 
@@ -297,7 +297,9 @@ point it at one config explicitly, e.g. `"env": { "SZKRABOK_ROOT": "/path/to/pro
 An ignored project config is reported: `config.ignored` in `session_manage list`,
 `ignored: true` entries in `config.searched`, a startup warning, and the
 `BROWSER_NOT_FOUND` hint. `.env` is never read by the server. The client
-library (`mcpConnect`) and selftests set `SZKRABOK_ROOT` to the caller's cwd.
+library (`spawnClient`, used by `mcpConnect` and the selftests) sets
+`SZKRABOK_ROOT` to the caller's cwd unless `SZKRABOK_CONFIG` or
+`SZKRABOK_ROOT` is already set.
 
 Both `szkrabok.config.toml` and `szkrabok.config.local.toml` are loaded and deep-merged (local overrides base). Place either file in the configured root or any ancestor dir bounded by it.
 

@@ -15,7 +15,7 @@
 
 ## Configuration for tests
 
-Config is discovered at runtime via `initConfig()`. Priority order: `SZKRABOK_CONFIG` env var -> `SZKRABOK_ROOT` env var -> MCP roots -> `process.cwd()` (exact dir, no walk-up) -> `~/.config/szkrabok/config.toml` -> empty defaults.
+Config is discovered at runtime via `initConfig()`. Priority order: `--config` -> `SZKRABOK_CONFIG` env var -> `SZKRABOK_ROOT` env var -> MCP roots -> `process.cwd()` (exact dir, no walk-up) -> `~/.config/szkrabok/config.toml` -> empty defaults. The MCP server skips MCP roots and cwd unless started with `--trust-project-config`; the test harness's `spawnClient()` sets `SZKRABOK_ROOT` to the repo instead.
 
 For tests, `process.cwd()` finds `szkrabok.config.toml` (committed repo defaults) and deep-merges `szkrabok.config.local.toml` (gitignored, machine-specific) on top.
 
@@ -122,7 +122,8 @@ tests/
 ```bash
 node --test tests/node/*.test.js                    # base suite: basic, schema, contracts, config-discovery, config-values, playwright-patches, session_run_test, …
 node --test tests/node/runtime/*.test.js            # runtime suite: unit, integration, resolve, error-diagnostics, devtools-port, pc-layer1…6, …
-node --test tests/node/*.test.js tests/node/runtime/*.test.js  # both together (what CI runs)
+npm run test:runtime                                # = node --test tests/node/runtime/*.test.js
+npm run test:hardening                              # = node --test tests/node/hardening/*.test.js
 
 npm run test:runtime:unit        # config, storage, stealth (focused shortcut)
 npm run test:runtime:integration # cookie persistence — launches real browser
@@ -346,13 +347,13 @@ Commit the updated `packages/runtime/mcp-client/mcp-tools.js`.
 
 ```bash
 npm run lint                        # static analysis (also runs as first step of test:self)
-npm run test:self                   # lint + Playwright integration + tests/node/*.test.js + test:hardening (pre-publish gate)
+npm run test:self                   # lint + Playwright integration + tests/node/*.test.js + test:runtime + test:hardening (pre-publish gate)
 npm run test:hardening              # tests/node/hardening/*.test.js — flags, confinement, env/argv builders, URL guard, real-server gating (no browser needed)
 npm run test:auto                   # e2e (live sites, headed browser)
 npm test                            # test:self + test:auto
 
-# Run runtime tests separately (not included in test:self):
-node --test tests/node/runtime/*.test.js
+# Runtime tests alone (also part of test:self):
+npm run test:runtime                # tests/node/runtime/*.test.js (launches real browsers)
 npm run test:runtime:unit           # config, storage, stealth (focused shortcut)
 npm run test:runtime:integration    # cookie persistence (launches real browser)
 ```

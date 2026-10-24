@@ -785,9 +785,10 @@ Next:
 
 ## Current situation (2026-10-24)
 
-This section consolidates the progress entries above into one view. It
-replaces nothing. Where this section and an older entry disagree, this
-section is current.
+**Historical snapshot (at `67463d8`).** Superseded by the progress entries
+below and by "End of day 2026-10-24: resume here", which is current. Kept
+for the record; its test numbers, lint notes and "never run" rows are
+out of date.
 
 ### Where the work is
 
@@ -937,7 +938,8 @@ From the repo root, on the branch:
 
    Afterwards, restore the normal MCP config.
 
-The step 6 checks could become a Playwright spec (not written yet).
+The step 6 checks are now automated in
+`tests/playwright/integration/nav-guard.spec.js`.
 
 ### Incidents
 
@@ -1632,10 +1634,45 @@ Corrections from this run:
 - `package.json` had `test:hardening` twice, with the same value. Two writers
   added it (`67463d8`, `ba07d84`). One is removed.
 
+### 2026-10-24: docs audit before release; runtime suite wired in
+
+- **Gap:** `tests/node/runtime/*.test.js` (15 files, 239 tests) was in no
+  npm script except two single-file shortcuts, so no full run since
+  `5c03377` covered it, and the release gate missed it. Now
+  `npm run test:runtime`, part of `test:self`. Sandbox: 216/239; all 23
+  failures are `BROWSER_NOT_FOUND` / no Firefox. **Needs a host run before
+  release.**
+- Every test file is now reached by a script: `tests/node/*.test.js`,
+  `test:runtime`, `test:hardening`, integration (`test:self`), e2e
+  (`test:auto`).
+- Release notes: the intro claimed clients cannot "reach host-local
+  services"; reworded to the literal-address block (invariant 14).
+  `NODE_OPTIONS`/`npm_*` scrubbing moved from fixes to breaking (a spec that
+  relied on them changes); "stale `SZKRABOK_PARAM_*`" dropped (2.x had no
+  prefix). `spawnClient` `SZKRABOK_ROOT` default made precise; CLI noted as
+  unaffected; design link is a URL at the tag.
+- README: `spawnClient` (not `mcpConnect`) sets `SZKRABOK_ROOT`, only when
+  unset; legacy `reportFile` is a path.
+- `docs/mcp-client-library.md`: `spawnClient({ args, env })` and its default
+  flags were undocumented.
+- `docs/testing.md`: config order lacked `--config` and the server-mode
+  roots/cwd rule; runtime commands updated.
+- `docs/architecture.md` invariant 8 said `src/fixtures.js` never reads
+  `process.env`; it reads the runner-channel defaults (unchanged since
+  2.1.5). The doc now describes the code. Invariants 7–9 put in order.
+- Companion proposal: row 4 had a working payload and row 9 a wrong
+  expectation; fixed, and the checklist points at the handout, which is now
+  the current source for tasks and checks.
+- "Current situation" marked as a historical snapshot; it claimed to be
+  current and was not.
+- Open from incident 2: rotate the GitHub token printed on 2026-10-24, if not
+  done yet.
+
 ## End of day 2026-10-24: resume here
 
-State: branch `wip/claude-docker-hardening`, everything committed (snapshot
-5 is the commit that adds this section). Not pushed; `main` untouched.
+State: the snapshots are squashed into `139acf2` on `main` (on top of
+`fa465f5`, 2.1.5) and adopted on the host; `wip/claude-docker-hardening`
+keeps the full history. Not pushed, not published.
 
 Done: every design item D1–D9 and E5–E9, the D8 option C flag
 (`--trust-project-config`), Phase 4 docs, the browser-level guard spec, and

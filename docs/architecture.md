@@ -252,9 +252,9 @@ Do NOT import runtime internals (`stealth`, `storage`, `pool`, `config`) directl
 4. MCP tools never import stealth, config internals, or storage directly
 5. `tests/playwright/e2e/fixtures.js` never imports stealth or uses internal modules directly - only public API
 6. `browser_run_test` subprocess connects via `connectOverCDP` - it never calls `launch*()`
-8. `src/fixtures.js` never reads `process.env` - env->option bridging is the consumer's `playwright.config.js` responsibility
-9. `writeAttachSignal` is written at CDP attach time (before `await use(session)`), not at teardown
 7. Browser PID is captured once at launch via `tryBrowserPid()` and stored in the pool entry - not re-read at close time
+8. `src/fixtures.js` reads `process.env` only for the defaults of its runner-channel options (`SZKRABOK_CDP_ENDPOINT`, `SZKRABOK_ATTACH_SIGNAL`, `SESSIONMODE`) and `DEBUG`; other env->option bridging is the consumer's `playwright.config.js` responsibility
+9. `writeAttachSignal` is written at CDP attach time (before `await use(session)`), not at teardown
 
 Enforced by ESLint boundary rules in `eslint.config.js` and `tests/node/contracts.test.js`.
 

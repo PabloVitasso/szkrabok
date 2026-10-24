@@ -163,9 +163,20 @@ changed between spawns.
 
 ## `runtime/transport.js`
 
-Single export: **`spawnClient()`** - spawns `node src/index.js` via
-`StdioClientTransport`, connects an MCP `Client`, returns it. The caller owns
-the lifecycle. Contains nothing session- or tool-specific.
+Single export: **`spawnClient({ args, env } = {})`** - spawns
+`node src/index.js <args>` via `StdioClientTransport`, connects an MCP
+`Client`, returns it. The caller owns the lifecycle. Contains nothing
+session- or tool-specific.
+
+- `args`: server flags. Default `['--allow-node-code', '--allow-private-net']`:
+  the caller is trusted host code (codegen, selftests, standalone runs), so it
+  keeps the Node-form `browser_run` used in the examples below. Passing
+  `args` replaces the default.
+- `env`: extra env for the server. Server mode no longer reads project config
+  from cwd, so `SZKRABOK_ROOT` defaults to the caller's cwd unless
+  `SZKRABOK_CONFIG` or `SZKRABOK_ROOT` is already set.
+- A sandbox-facing server is started by the operator with its own flags,
+  never through this helper.
 
 ## `runtime/invoker.js`
 

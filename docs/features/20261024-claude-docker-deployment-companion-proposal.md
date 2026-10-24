@@ -108,7 +108,7 @@ Layout (host-side, reviewed):
 
 ```
 szkrabok-tests/
-  package.json          # @playwright/test pinned to szkrabok's playwright-core minor,
+  package.json          # @playwright/test pinned EXACTLY to szkrabok's playwright-core,
                         # @pablovitasso/szkrabok (fixtures) pinned to the deployed version
   package-lock.json
   node_modules/         # installed on the host; part of the trusted root
@@ -243,6 +243,9 @@ undoing.
 
 ## Live verification checklist
 
+Superseded by the audited version (with setup steps) in the
+[handout](./20261024-claude-docker-companion-handout-proposal.md), task 6.
+
 Run from a sandbox session after step 5. Every attack row must fail with a
 structured error, and nothing may appear on the host outside
 `<work-root>/{sessions,reports}`.
@@ -252,12 +255,12 @@ structured error, and nothing may appear on the host outside
 | 1 | `browser_run {code: "async (page) => (await import('node:child_process')).execSync('id').toString()"}` | page-mode error, no Node execution |
 | 2 | `browser_run {path: "/home/jones2/.bashrc"}` and `{path: "../szkrabok-npx/sessions/<s>/state.json"}` | refused: outside spec root |
 | 3 | `browser_run_test {config: "/project/evil.config.js"}`, `{files: ["-c", "/project/x.js"]}` | refused |
-| 4 | `browser_run_test {params: {node_options: "--import=data:text/javascript,process.exit(42)"}}` | refused: reserved key |
+| 4 | `browser_run_test {params: {node_options: "x"}}` | refused: reserved key |
 | 5 | `browser_run_test {reportFile: "../../.bashrc"}` | refused |
 | 6 | `scaffold_init {install: true}` | disabled, flag named |
 | 7 | `session_manage {action: "delete", sessionName: "../../x"}`, `{sessionName: "*"}` | refused |
 | 8 | `session_manage open {url: "file:///etc/hostname"}`, then `browser_scrape` | refused at open; scrape refuses too |
-| 9 | open `https://<test page>` that sets `location = "file:///etc/hostname"` | page closed by the watcher |
+| 9 | on a public page: `browser_run {code: "() => { location.href = 'file:///etc/hostname' }"}`, then `browser_scrape` | no file content: Chrome blocks it, or the watcher resets the main frame to `about:blank` |
 | 10 | `session_manage open {url: "http://127.0.0.1:8932/"}` and `http://localhost:<cdpPort>/json/list` | blocked destination |
 | 11 | plant `szkrabok.config.toml` with `executable_path = "/bin/touch"`-style payload in the project (MCP root), restart, `session_manage list` | `config.source` is not the project; the project is listed in `config.ignored`; payload not run |
 | 12 | positive: `browser_run_test` on a spec from the spec root | passes; spec root unchanged (`find <spec-root> -newer <marker>` empty) |

@@ -48,6 +48,7 @@
     "release:github": "node scripts/release-github.js",
     "test": "npm run test:self && npm run test:auto",
     "test:node": "echo 'This test is disabled. Use npm test instead'",
+    "test:runtime": "node --test tests/node/runtime/*.test.js",
     "test:runtime:unit": "node --test tests/node/runtime/unit.test.js",
     "test:runtime:integration": "node --test tests/node/runtime/integration.test.js",
     "test:contracts": "node --test tests/node/contracts.test.js",
@@ -55,7 +56,7 @@
     "test:playwright": "playwright test --project=integration",
     "prepare": "node scripts/setup.js",
     "postinstall": "node scripts/apply-patches.js && node scripts/verify-playwright-patches.js",
-    "test:self": "npm run lint && playwright test --project=integration && node --test tests/node/*.test.js && npm run test:hardening",
+    "test:self": "npm run lint && playwright test --project=integration && node --test tests/node/*.test.js && npm run test:runtime && npm run test:hardening",
     "test:auto": "PLAYWRIGHT_PROJECT=e2e playwright test --project=e2e"
   },
   "keywords": [

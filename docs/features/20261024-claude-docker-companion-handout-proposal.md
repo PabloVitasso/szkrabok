@@ -9,8 +9,9 @@ lives in
 [20261024-claude-docker-deployment-companion-proposal.md](./20261024-claude-docker-deployment-companion-proposal.md)
 (the "companion proposal") and
 [20261024-claude-docker-hardening-proposal.md](./20261024-claude-docker-hardening-proposal.md)
-(the "main proposal"). Where this handout and those files disagree, those
-files win; report the difference back.
+(the "main proposal"). For tasks, versions and checks, this handout is
+current (it was audited against the code); for rationale, those files are.
+Report any difference back.
 
 Blocked on: the szkrabok hardening release (step 0). Everything else in this
 handout waits for it, except the mount-guard check (task 1), which can run
