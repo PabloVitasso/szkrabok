@@ -1742,3 +1742,81 @@ Working rules learned today:
   another writer". The user handed it over; it no longer exists.)
 - Commit only when asked, as WIP snapshots on the branch.
 - Status goes in this feature file, never in assistant memory.
+
+### 2026-10-24: host `test:self` — PC-5 mocks; report back applied
+
+- Host `test:self`: node 144/144; `test:runtime` 257 pass / 5 fail / 1 skip
+  (first full run); `test:hardening` not reached (`&&` chain).
+- The 5 failures: `pc-layer5.test.js` PC-5.1–5.3, 5.5, 5.6. Stale mocks, not
+  product code: `installNavGuard` (wired into `open` by D7) calls
+  `page.on`, `context.route` and `context.routeWebSocket`, which the fakes
+  lacked. The host saw only the first (`page.on`); the mock fix exposed
+  `context.route`. Fixed in the fakes. Sandbox with a stand-in
+  `CHROMIUM_PATH=/bin/true`: 12/12 (before: the host's TypeError,
+  reproduced).
+- Correction: I had filed all 23 sandbox runtime failures as "no browser".
+  These 5 stop at `checkBrowser` in the sandbox, which hid the defect. With
+  the stand-in path, every remaining runtime failure is a real launch
+  (`DevToolsActivePort`, state persistence), Firefox, or a no-browser
+  expectation; none is a mock defect.
+- PC-5.4 asserted `/open|clone/i`; now the exact guard message
+  (`cannot clone … while it is open`). It was passing for the right reason
+  (the guard throws before any launch).
+- Report back (below), checked against the code: the session-name limit is
+  64 for templates and 96 for ids (`src/utils/validate.js`), so the
+  handout's "rename any" advice is fixed (clone-id-shaped dirs are crash
+  leftovers: delete). `@playwright/mcp` is removed on that side; the
+  handout and companion say so. Open on that side: the one-directional
+  mount guard (fix pending) and the `config/settings.json` deny list, which
+  blocks `browser_run`/`browser_run_test` (decision at rollout).
+
+## Report back from the claude-docker side (2026-10-24)
+
+Per the companion handout ("Report back to szkrabok"). The wrapper
+repo state: hardened guards deployed (D2), the C5-audit fixes
+committed, D3 pending.
+
+### Task 1, per box (the mount guard)
+
+| Box | Result |
+|---|---|
+| project ⊇ path (`/home/jones2` refused) | holds. `guard_mount` hostcode group, `subject_holds`. Rows in `check.sh` (`check_c1`) |
+| path ⊇ project (`/home/jones2/szkrabok-tests/automation` refused) | **failed as found.** The hostcode group was one-directional. Fix in scope, lands with the next wrapper commit: `subject_holds \|\| path_holds`, with rows for the inside case |
+| realpaths compared, every string element scanned | holds. `readlink -f` both sides; `mcp_hosts_strings` walks the parsed JSON: every string, keys included, anything after `--` (audit F10) |
+
+### Where the handout is wrong or unclear
+
+1. **Session-name regex.** The handout states
+   `^[A-Za-z0-9][A-Za-z0-9._-]*$`, at most 64 chars. D5 here sets
+   `{0,95}` (96 total), deliberately: 64-char template names plus
+   generated clone ids (≤ 87) must pass. The handout's migration
+   advice ("rename any whose name does not match") would reject
+   clone ids. Feature wins.
+2. **`@playwright/mcp` residual.** The handout treats it as a
+   residual to document. In the claude-docker posture it is removed
+   entirely (dropped from `mcp-hosts.json`, pinned out) and must not
+   return. The wrapper doc line becomes "removed; do not re-add".
+
+### What the wrapper side needs once the release lands
+
+Blocked on step 0. Nothing below is started.
+
+- Task 3: the two root flags add path strings to `mcp-hosts.json`.
+  The F10 scan covers them; the task-1 box-2 guard fix lands first.
+- Task 5: a `check.sh` posture suite: hard fail on
+  `--allow-node-code`/`--trust-project-config` (override
+  `CLAUDE_DOCKER_ALLOW_UNSAFE_SZKRABOK=1`, env only, never in
+  `config/`), warn on `--allow-private-net`, spec-root invariants
+  (exists, no writable bits, disjoint from work-root and `--cwd`,
+  `node_modules/.bin/playwright` present).
+- Task 4: chapter 7 (the flags table, the spec-root contract, the
+  rebinding caveat), the Mount guards section, one line in the
+  seeded handout.
+- The F6 deny list (`config/settings.json`) denies `browser_run`,
+  `browser_run_test`, `scaffold_init` — a speed bump for the
+  pre-hardening RCE. It blocks the handout's own goal (rows 1 and 13
+  need `browser_run`). Decision at rollout: shrink it to nothing, or
+  keep `scaffold_init` as belt and braces. Not yet decided.
+
+Task 6 (the live verification table) not run: blocked on the
+release.

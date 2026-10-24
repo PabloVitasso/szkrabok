@@ -275,7 +275,10 @@ structured error, and nothing may appear on the host outside
   work item, which nothing here depends on. Until that item lands, the
   hardened szkrabok does not make the sandbox safe on its own, because the
   container can still reach the same host capabilities through
-  `@playwright/mcp`. Say so in chapter 7.
+  `@playwright/mcp`. Say so in chapter 7. **Update (report back,
+  2026-10-24):** the claude-docker side removed `@playwright/mcp` from the
+  sandbox posture entirely; the residual is gone and chapter 7 says "removed;
+  do not re-add".
 - Any grant of `--allow-node-code`, `--allow-private-net` or
   `--trust-project-config` in the sandbox posture.
 
@@ -290,3 +293,4 @@ structured error, and nothing may appear on the host outside
    duplicate. This affects layout only, not the contract.
 3. Should the `@playwright/mcp` hardening block this rollout, given non-goal
    2? Proposal: no. Ship this, and track the residual in chapter 7.
+   Resolved: `@playwright/mcp` is removed from the sandbox posture.

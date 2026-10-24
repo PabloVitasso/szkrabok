@@ -47,7 +47,8 @@ Other facts the wrapper relies on:
   `~/.cache/szkrabok/startup.log`.
 - In server mode sessions live in `<work-root>/sessions`. This overrides
   `SZKRABOK_SESSIONS_DIR`. Session names must match
-  `^[A-Za-z0-9][A-Za-z0-9._-]*$` (at most 64 chars).
+  `^[A-Za-z0-9][A-Za-z0-9._-]*$`: at most 64 chars for template names, 96 for
+  ids the server returns (clone ids are `<template>-<13-digit ms>-<8 hex>`).
 - Test runs use `<spec-root>/node_modules/.bin/playwright`. If it is missing,
   szkrabok falls back to `npx --no-install playwright`, which can resolve any
   Playwright on `PATH`.
@@ -84,9 +85,12 @@ Wrapper-repo edits reach the host only after `claude-docker deploy`.
 - [ ] If the host environment or the command sets `SZKRABOK_SESSIONS_DIR`,
       move those sessions to `/home/jones2/szkrabok-npx/sessions` (the work
       root). Otherwise they seem to vanish after the upgrade.
-- [ ] List the session dirs. Rename any whose name does not match
-      `^[A-Za-z0-9][A-Za-z0-9._-]*$`: they can no longer be opened or
-      deleted through the tools.
+- [ ] List the session dirs. A template dir whose name does not match
+      `^[A-Za-z0-9][A-Za-z0-9._-]*$` or is longer than 64 chars can no longer
+      be opened or deleted through the tools: rename it. Dirs shaped like
+      clone ids (`<template>-<13 digits>-<8 hex>`) are leftovers of crashed
+      clone sessions (clones are deleted on close): delete them, do not
+      rename.
 
 ### 1. Mount guard: verify before relying on it (wrapper repo)
 
@@ -154,9 +158,9 @@ Append two szkrabok args **after** the `bin/szkrabok.js` path:
 
 - [ ] `claude-docker.md` chapter 7: the flags and what each grants (table
       above), the spec-root contract, the literal-address block with the
-      rebinding caveat, and the `@playwright/mcp` residual (it still exposes
-      `browser_run_code_unsafe` and unrestricted navigation, so szkrabok
-      alone does not make the sandbox safe).
+      rebinding caveat, and that `@playwright/mcp` is removed from the
+      sandbox posture and must not be re-added (it exposes
+      `browser_run_code_unsafe` and unrestricted navigation).
 - [ ] `claude-docker.md` "Mount guards": the guard covers `--work-root` and
       `--spec-root` values in both directions (verified in task 1).
 - [ ] `sandbox-handout.md`, one line: tests run from a host-side spec root
@@ -226,8 +230,8 @@ second layer.
 
 ## Non-goals
 
-- `@playwright/mcp` hardening (separate item; documented as a residual in
-  task 4).
+- `@playwright/mcp`: removed from the claude-docker posture (report back,
+  2026-10-24); task 4 documents that it must not return.
 - Any code-execution grant in the sandbox posture.
 - Szkrabok code changes. If one looks necessary, report it instead.
 

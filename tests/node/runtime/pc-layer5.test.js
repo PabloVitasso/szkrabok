@@ -40,7 +40,8 @@ afterEach(async () => {
 let _seq = 0;
 const uid = prefix => `${prefix}-pc5-${++_seq}`;
 
-const makePage = () => ({ isClosed: () => false, url: () => 'about:blank' });
+// on: nav_guard's watchPage registers framenavigated on every page.
+const makePage = () => ({ isClosed: () => false, url: () => 'about:blank', on: () => {} });
 
 const makeCtx = () => {
   const page = makePage();
@@ -54,6 +55,9 @@ const makeCtx = () => {
     addCookies: async () => {},
     addInitScript: async () => {},
     on: () => {},
+    // nav_guard's installNavGuard routes requests and WebSockets per context.
+    route: async () => {},
+    routeWebSocket: async () => {},
   };
 };
 
@@ -172,7 +176,7 @@ describe('PC-5 session_manage open — isClone:true guard', () => {
     );
     await assert.rejects(
       () => open({ sessionName, launchOptions: { isClone: true } }),
-      /open|clone/i,
+      /cannot clone .* while it is open/,
       'must throw when template is in pool'
     );
     console.log('PC-5.4 step 2: correctly rejected');
