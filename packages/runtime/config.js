@@ -127,7 +127,15 @@ let _configMeta = null;  // { phase, source, previousSource, loadedAt }
 
 // ── Discovery ─────────────────────────────────────────────────────────────────
 
-const _discover = ({ roots = [], explicitConfigPath = null } = {}) => {
+// A project dir holds a config if either toml exists. Existence only: an
+// ignored (untrusted) file is never parsed.
+const hasTomlIn = dir =>
+  existsSync(join(dir, 'szkrabok.config.toml')) || existsSync(join(dir, 'szkrabok.config.local.toml'));
+
+// skipProjectConfig (hardening proposal D8): MCP roots and cwd are below the
+// trust boundary unless the operator passes --trust-project-config. Skipped
+// configs are still reported (ignored: true) so a silent miss is visible.
+const _discover = ({ roots = [], explicitConfigPath = null, skipProjectConfig = false } = {}) => {
   let toml = null;
   let source = null;
 
@@ -171,26 +179,25 @@ const _discover = ({ roots = [], explicitConfigPath = null } = {}) => {
   searched = [
     ...searched,
     ...roots.map(root => {
+      const paths = [join(root, 'szkrabok.config.toml'), join(root, 'szkrabok.config.local.toml')];
+      if (skipProjectConfig) return { step: 'mcp-root', paths, found: hasTomlIn(root), ignored: true };
       const data = !toml && walkUp(root, root);
       if (!toml && data) { toml = data; source = `mcp-root (${root})`; }
-      return {
-        step: 'mcp-root',
-        paths: [join(root, 'szkrabok.config.toml'), join(root, 'szkrabok.config.local.toml')],
-        found: !!data,
-      };
+      return { step: 'mcp-root', paths, found: !!data };
     }),
   ];
 
   // 4. process.cwd() — exact dir only, no walk-up (§2: unbounded walk-up removed)
   {
     const cwd = process.cwd();
-    const data = !toml && loadTomlFromDir(cwd);
-    searched = [...searched, {
-      step: 'cwd',
-      paths: [join(cwd, 'szkrabok.config.toml'), join(cwd, 'szkrabok.config.local.toml')],
-      found: !!data,
-    }];
-    if (!toml && data) { toml = data; source = `cwd (${cwd})`; }
+    const paths = [join(cwd, 'szkrabok.config.toml'), join(cwd, 'szkrabok.config.local.toml')];
+    if (skipProjectConfig) {
+      searched = [...searched, { step: 'cwd', paths, found: hasTomlIn(cwd), ignored: true }];
+    } else {
+      const data = !toml && loadTomlFromDir(cwd);
+      searched = [...searched, { step: 'cwd', paths, found: !!data }];
+      if (!toml && data) { toml = data; source = `cwd (${cwd})`; }
+    }
   }
 
   // 5. User config dir (XDG on Linux/macOS, %APPDATA% on Windows)
@@ -211,7 +218,11 @@ const _discover = ({ roots = [], explicitConfigPath = null } = {}) => {
     }
   }
 
-  return { toml, source: source ?? 'none (no config file found — using built-in defaults)', searched };
+  // Project configs present but not loaded (skipProjectConfig): surfaced in
+  // meta, the startup log and BROWSER_NOT_FOUND so the fix is one flag away.
+  const ignored = [...new Set(searched.filter(e => e.ignored && e.found).map(e => dirname(e.paths[0])))];
+
+  return { toml, source: source ?? 'none (no config file found — using built-in defaults)', searched, ignored };
 };
 
 // ── Test seam ──────────────────────────────────────────────────────────────────
@@ -227,28 +238,28 @@ export const _resetConfigForTesting = () => {
 // Backward-compat one-shot init. Sets phase to 'final' directly.
 // Used by tests, CLI commands, and any code doing a single-step initialization.
 export const initConfig = (roots = [], { explicitConfigPath = null } = {}) => {
-  const { toml, source, searched } = _discover({ roots, explicitConfigPath });
+  const { toml, source, searched, ignored } = _discover({ roots, explicitConfigPath });
   const previous = _configMeta?.source ?? null;
   _config = Object.freeze(buildConfig(toml ?? {}));
   _phase = 'final';
-  _configMeta = { phase: 'final', source, previousSource: previous, searched, loadedAt: isoNow() };
+  _configMeta = { phase: 'final', source, previousSource: previous, searched, ignored, loadedAt: isoNow() };
 };
 
 // Server provisional phase — runs immediately on startup, before MCP roots arrive.
-export const initConfigProvisional = ({ explicitConfigPath = null } = {}) => {
-  const { toml, source, searched } = _discover({ roots: [], explicitConfigPath });
+export const initConfigProvisional = ({ explicitConfigPath = null, skipProjectConfig = false } = {}) => {
+  const { toml, source, searched, ignored } = _discover({ roots: [], explicitConfigPath, skipProjectConfig });
   _config = Object.freeze(buildConfig(toml ?? {}));
   _phase = 'provisional';
-  _configMeta = { phase: 'provisional', source, previousSource: null, searched, loadedAt: isoNow() };
+  _configMeta = { phase: 'provisional', source, previousSource: null, searched, ignored, loadedAt: isoNow() };
 };
 
 // Server finalize phase — runs after MCP roots arrive via oninitialized.
-export const finalizeConfig = (roots = [], { explicitConfigPath = null } = {}) => {
-  const { toml, source, searched } = _discover({ roots, explicitConfigPath });
+export const finalizeConfig = (roots = [], { explicitConfigPath = null, skipProjectConfig = false } = {}) => {
+  const { toml, source, searched, ignored } = _discover({ roots, explicitConfigPath, skipProjectConfig });
   const previous = _configMeta?.source ?? null;
   _config = Object.freeze(buildConfig(toml ?? {}));
   _phase = 'final';
-  _configMeta = { phase: 'final', source, previousSource: previous, searched, loadedAt: isoNow() };
+  _configMeta = { phase: 'final', source, previousSource: previous, searched, ignored, loadedAt: isoNow() };
 };
 
 // Default blocks provisional reads. Pass { allowProvisional: true } only for

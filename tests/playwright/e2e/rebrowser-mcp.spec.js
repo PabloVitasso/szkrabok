@@ -7,12 +7,12 @@
  * This is the recommended way to run rebrowser-check because:
  *   - Session is opened via launchPersistentContext, which triggers
  *     applyStealthToExistingPage - including the userAgentData.brands JS override.
- *   - That gives 8/10 (useragent passes). Standalone Playwright mode gives 7/10
+ *   - That gives 9/10 (useragent passes). Standalone Playwright mode gives 7/10
  *     because applyStealthToExistingPage never runs in browser.launch() path.
  *
- * Expected result: 8/10. Two permanent failures:
+ * Expected result: 9/10. One permanent failure:
  *   - mainWorldExecution - needs rebrowser-patches alwaysIsolated (conflicts dummyFn)
- *   - exposeFunctionLeak - page.exposeFunction is unfixable, no patch exists
+ *   (exposeFunctionLeak passes since the host run of 2026-10-24.)
  *
  * ── Run ──────────────────────────────────────────────────────────────────────
  *
@@ -30,10 +30,9 @@ const SESSION = 'rebrowser-mcp-harness';
 // Tracked here so regressions in currently-passing checks are caught.
 const KNOWN_FAILURES = new Set([
   'mainWorldExecution', // needs rebrowser-patches alwaysIsolated mode
-  'exposeFunctionLeak', // page.exposeFunction is unfixable
 ]);
 
-test('rebrowser-check via MCP — 8/10', async () => {
+test('rebrowser-check via MCP — 9/10', async () => {
   const mcp = await mcpConnect(SESSION, { launchOptions: { headless: true } });
   try {
     // invoker already unwraps and JSON-parses the MCP text content

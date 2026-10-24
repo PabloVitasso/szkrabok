@@ -81,7 +81,11 @@ async function ensureGitignore(dir, entry) {
 
 function npmInstall(dir) {
   return new Promise(resolve => {
-    const child = spawn(npmBin, ['install'], { cwd: dir, stdio: 'inherit' });
+    // stdout must not be inherited: in server mode it is the MCP protocol stream.
+    const child = spawn(npmBin, ['install', '--ignore-scripts'], {
+      cwd: dir,
+      stdio: ['ignore', process.stderr, process.stderr],
+    });
     child.on('close', code => {
       if (code === 0) {
         resolve(null);

@@ -2,11 +2,61 @@ import { getSession, EngineNotSupportedError } from '#runtime';
 import { open as sessionOpen } from './szkrabok_session.js';
 import { resolve, dirname, join } from 'path';
 import { spawn } from 'child_process';
-import { fileURLToPath } from 'url';
 import { createWriteStream, existsSync } from 'fs';
 import { access, readFile, mkdir, unlink } from 'fs/promises';
+import { getFlags, getCapabilities } from '../flags.js';
+import { confinePath } from '../utils/paths.js';
+import { ValidationError } from '../utils/errors.js';
+import { buildTestEnv, buildTestArgv, assertReportName } from './run_test_args.js';
+import { assertReadable } from './nav_guard.js';
 
-const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
+// Playwright binary for a run: the project's local install, never a registry
+// fetch (E8).
+const playwrightCommand = cwd => {
+  const local = join(cwd, 'node_modules', '.bin', 'playwright');
+  if (existsSync(local)) return { cmd: local, pre: [] };
+  return { cmd: 'npx', pre: ['--no-install', 'playwright'] };
+};
+
+/**
+ * Resolve config/files/report locations for one run.
+ * confined (--spec-root): config and files only from the spec root; artifacts
+ *   under <work-root>/reports/<session>/ (hardening proposal D3, D6).
+ * unconfined (--allow-node-code): legacy behaviour, relative to the work root.
+ */
+const resolveRunPaths = ({ mode, sessionName, config, files, reportFile }) => {
+  const { workRoot, specRoot } = getFlags();
+  const reportsDir = join(workRoot, 'reports', sessionName);
+
+  if (!Array.isArray(files)) throw new ValidationError('files must be an array', 'files');
+
+  if (mode === 'confined') {
+    return {
+      configPath: confinePath(specRoot, config ?? 'playwright.config.js'),
+      files: files.map(f => confinePath(specRoot, f)),
+      cwd: specRoot,
+      reportsDir,
+      jsonFile: join(
+        reportsDir,
+        reportFile !== undefined ? assertReportName(reportFile) : 'last-run.json'
+      ),
+      outputDir: join(reportsDir, 'test-results'),
+      updateSnapshots: 'none',
+    };
+  }
+
+  const configPath = resolve(workRoot, config ?? 'playwright.config.js');
+  return {
+    configPath,
+    files: files.map(f => resolve(workRoot, String(f))),
+    cwd: dirname(configPath),
+    reportsDir,
+    jsonFile:
+      reportFile !== undefined ? resolve(workRoot, reportFile) : join(reportsDir, 'last-run.json'),
+    outputDir: undefined,
+    updateSnapshots: undefined,
+  };
+};
 
 /**
  * Wait for a signal file to appear on disk, simulating fixture CDP attach confirmation.
@@ -72,7 +122,7 @@ export const run_test = async args => {
     sessionName,
     grep,
     params = {},
-    config = 'playwright.config.js',
+    config,
     project,
     workers,
     signalAttach,
@@ -81,23 +131,30 @@ export const run_test = async args => {
     reportFile,
   } = args;
 
-  const configPath = resolve(REPO_ROOT, config);
+  const mode = getCapabilities().testTools;
+  if (mode === 'off') throw new Error('browser_run_test is disabled (needs --spec-root)');
 
-  if (!existsSync(configPath)) {
+  // All caller input is validated before any session lookup, mkdir or spawn.
+  const paths = resolveRunPaths({ mode, sessionName, config, files, reportFile });
+  const argsPW = buildTestArgv({
+    configPath: paths.configPath,
+    outputDir: paths.outputDir,
+    updateSnapshots: paths.updateSnapshots,
+    files: paths.files,
+    project,
+    workers,
+    grep,
+  });
+  buildTestEnv({ baseEnv: {}, params }); // validate params before any lookup; real env below
+
+  if (!existsSync(paths.configPath)) {
     return {
-      error: `playwright.config.js not found at ${configPath}`,
-      hint: 'Run scaffold_init to create the project scaffold.',
+      error: `playwright.config.js not found at ${paths.configPath}`,
+      hint:
+        mode === 'confined'
+          ? 'The host operator provides playwright.config.js in the spec root.'
+          : 'Run scaffold_init to create the project scaffold.',
     };
-  }
-
-  const sessionDir = join(dirname(configPath), 'sessions', sessionName);
-  await mkdir(sessionDir, { recursive: true });
-
-  let jsonFile;
-  if (reportFile) {
-    jsonFile = resolve(REPO_ROOT, reportFile);
-  } else {
-    jsonFile = join(sessionDir, 'last-run.json');
   }
 
   let session;
@@ -119,53 +176,36 @@ export const run_test = async args => {
     throw new Error(`Session "${sessionName}" missing CDP port — reopen session`);
   }
 
-  const env = {
-    ...process.env,
-    FORCE_COLOR: '0',
-    SZKRABOK_SESSION: sessionName,
-    PLAYWRIGHT_JSON_OUTPUT_NAME: jsonFile,
-    SZKRABOK_CDP_ENDPOINT: `http://localhost:${session.cdpPort}`,
-    ...Object.fromEntries(Object.entries(params).map(([k, v]) => [k.toUpperCase(), String(v)])),
-  };
-
+  const sessionDir = paths.reportsDir;
+  await mkdir(sessionDir, { recursive: true });
+  const jsonFile = paths.jsonFile;
   const logFile = join(sessionDir, 'last-run.log');
 
   // Optional: wait for CDP attach signal from the fixture before running tests.
   // Ensures the spawned worker has successfully connected to the browser before
   // the handler lock is released (used by session_run_test withLock).
   const attachSignalFile = signalAttach ? join(sessionDir, `.attach-signal`) : null;
-  if (attachSignalFile) {
-    env.SZKRABOK_ATTACH_SIGNAL = attachSignalFile;
-  }
 
-  const argsPW = [
-    'playwright',
-    'test',
-    '--config',
-    configPath,
-    '--reporter',
-    'list,json',
-    '--timeout',
-    '60000',
-    ...(project ? ['--project', project] : []),
-    ...(workers !== undefined ? ['--workers', String(workers)] : []),
-  ];
+  const env = buildTestEnv({
+    baseEnv: process.env,
+    params,
+    fixed: {
+      FORCE_COLOR: '0',
+      SZKRABOK_SESSION: sessionName,
+      PLAYWRIGHT_JSON_OUTPUT_NAME: jsonFile,
+      SZKRABOK_CDP_ENDPOINT: `http://localhost:${session.cdpPort}`,
+      ...(attachSignalFile && { SZKRABOK_ATTACH_SIGNAL: attachSignalFile }),
+      ...(project && { PLAYWRIGHT_PROJECT: project }),
+    },
+  });
 
-  if (project) {
-    env.PLAYWRIGHT_PROJECT = project;
-  }
-  if (grep) {
-    argsPW.push('--grep', grep);
-  }
-  if (files.length) {
-    argsPW.push(...files);
-  }
+  const pw = playwrightCommand(paths.cwd);
 
   await new Promise((resolveP, rejectP) => {
     const logStream = createWriteStream(logFile);
 
-    const child = spawn('npx', argsPW, {
-      cwd: dirname(configPath),
+    const child = spawn(pw.cmd, [...pw.pre, ...argsPW], {
+      cwd: paths.cwd,
       env,
       stdio: ['ignore', 'pipe', 'pipe'],
     });
@@ -308,8 +348,44 @@ export const run_file = async args => {
   };
 };
 
+// Page-sandbox form (hardening proposal D2): the code runs inside the page via
+// page.evaluate and has no access to Node or Playwright APIs.
+const PAGE_MODE_HINT =
+  'browser_run runs in the page sandbox: code must be a function expression (args) => result ' +
+  'with a JSON-serializable result. The Node form (page, args) needs --allow-node-code';
+
+export const run_page = async args => {
+  const { sessionName, code, path, fn, args: callArgs = {} } = args;
+
+  if (fn !== undefined) {
+    throw new ValidationError(`"fn" is not supported in page mode. ${PAGE_MODE_HINT}`, 'fn');
+  }
+
+  let source;
+  if (code !== undefined) {
+    source = code;
+  } else {
+    const { specRoot } = getFlags();
+    source = await readFile(confinePath(specRoot, path), 'utf8');
+  }
+
+  const session = getSession(sessionName);
+  assertReadable(session.page);
+  try {
+    const result = await session.page.evaluate(`(${source})(${JSON.stringify(callArgs)})`);
+    return { result, url: session.page.url() };
+  } catch (err) {
+    if (!err.code) err.code = 'PAGE_EVAL_FAILED';
+    err.hint = PAGE_MODE_HINT;
+    throw err;
+  }
+};
+
 export const run = async args => {
+  if (args.code === undefined && args.path === undefined) {
+    throw new Error('browser_run requires either "code" or "path"');
+  }
+  if (getCapabilities().browserRunCode !== 'node') return run_page(args);
   if (args.code !== undefined) return run_code(args);
-  if (args.path !== undefined) return run_file(args);
-  throw new Error('browser_run requires either "code" or "path"');
+  return run_file(args);
 };

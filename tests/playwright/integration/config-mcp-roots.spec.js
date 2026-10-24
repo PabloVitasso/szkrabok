@@ -1,8 +1,10 @@
 /**
  * Integration tests: config discovery via MCP roots and env vars.
  *
- * Verifies that the server picks up szkrabok.config.toml from project roots
- * sent during the MCP handshake, and from SZKRABOK_CONFIG env var.
+ * Server mode ignores szkrabok.config.toml in client-declared MCP roots
+ * (hardening proposal D8: roots are below the trust boundary) unless the
+ * operator passes --trust-project-config, and always honours the
+ * SZKRABOK_CONFIG env var.
  */
 
 import { test, expect } from 'playwright/test';
@@ -58,10 +60,11 @@ test.afterAll(() => {
  * rootPaths: absolute paths to advertise as roots/list.
  * Returns connected client. Caller must call client.close().
  */
-async function spawnWithRoots(rootPaths, extraEnv = {}) {
+async function spawnWithRoots(rootPaths, extraEnv = {}, extraArgs = []) {
   const transport = new StdioClientTransport({
     command: 'node',
-    args: [SERVER_PATH],
+    // Node-form browser_run (readUA) needs the legacy capability.
+    args: [SERVER_PATH, '--allow-node-code', ...extraArgs],
     env: {
       ...process.env,
       // Prevent cwd walk-up from finding repo config - isolate to rootPaths only.
@@ -124,15 +127,62 @@ async function readUA(client, sessionName) {
   return parsed.result;
 }
 
-test('roots sent at init — UA in project toml is used', async () => {
+test('roots sent at init — toml in the root is ignored (server mode)', async () => {
   const root = makeTmp();
-  const ua = `TestBot-roots/${randomUUID()}`;
-  writeToml(root, `[default]\nuserAgent = "${ua}"\n`);
+  const plantedUa = `Planted-roots/${randomUUID()}`;
+  writeToml(root, `[default]\nuserAgent = "${plantedUa}"\n`);
 
-  const client = await spawnWithRoots([root]);
+  // Trusted config so the isolated server can still launch a browser.
+  const trusted = makeTmp();
+  const trustedUa = `Trusted-env/${randomUUID()}`;
+  const cfgPath = join(trusted, 'trusted.toml');
+  writeFileSync(
+    cfgPath,
+    `[default]\nuserAgent = "${trustedUa}"\nexecutablePath = ${JSON.stringify(EXECUTABLE_PATH)}\n`
+  );
+
+  const client = await spawnWithRoots([root], { SZKRABOK_CONFIG: cfgPath });
   const sessionName = `cfg-roots-${randomUUID()}`;
 
   try {
+    const listRes = await client.callTool({
+      name: 'session_manage',
+      arguments: { action: 'list' },
+    });
+    const { config } = JSON.parse(listRes.content[0].text);
+    expect(config.source).not.toContain('mcp-root');
+    expect(config.source).toContain('SZKRABOK_CONFIG');
+
+    const actual = await readUA(client, sessionName);
+    expect(actual).toBe(trustedUa);
+    expect(actual).not.toBe(plantedUa);
+  } finally {
+    await client
+      .callTool({
+        name: 'session_manage',
+        arguments: { action: 'close', sessionName, save: false },
+      })
+      .catch(() => {});
+    await client.close().catch(() => {});
+  }
+});
+
+test('--trust-project-config: toml in the root is used', async () => {
+  const root = makeTmp();
+  const ua = `Project-roots/${randomUUID()}`;
+  writeToml(root, `[default]\nuserAgent = "${ua}"\n`);
+
+  const client = await spawnWithRoots([root], {}, ['--trust-project-config']);
+  const sessionName = `cfg-trust-${randomUUID()}`;
+
+  try {
+    const listRes = await client.callTool({
+      name: 'session_manage',
+      arguments: { action: 'list' },
+    });
+    const { config } = JSON.parse(listRes.content[0].text);
+    expect(config.source).toContain('mcp-root');
+
     const actual = await readUA(client, sessionName);
     expect(actual).toBe(ua);
   } finally {

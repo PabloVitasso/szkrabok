@@ -16,18 +16,83 @@ const CONFIGURABLE_EVASIONS = [
   'webgl.vendor',
 ];
 
+// puppeteer-extra-plugin-stealth user-agent-override ends onPageCreated with
+// page._client().send(...) and drops the promise (no await, index.js:182). When
+// the page closes first, that rejection is unhandled: it fails the Playwright
+// test worker (direct rebrowser.spec.js run) and would exit a Node process.
+// The guarded page hands the plugin a client whose send never rejects.
+const rawClient = page => {
+  if (typeof page._client === 'function') return page._client();
+  return page._client;
+};
+
+// Names the page in the skip log, so a host run shows which page raced.
+// Runs inside guardedClient's catch, so it must never throw.
+const pageLabel = page => {
+  if (typeof page.url !== 'function') return 'unknown page';
+  try {
+    return page.url() || 'unknown page';
+  } catch {
+    return 'unknown page';
+  }
+};
+
+const guardedClient = (client, label) => ({
+  send: async (method, params) => {
+    try {
+      return await client.send(method, params);
+    } catch (err) {
+      log(`user-agent-override: ${method} skipped on ${label()}: ${err.message}`);
+      return undefined;
+    }
+  },
+  on: (event, listener) => client.on(event, listener),
+});
+
+const guardedPage = page =>
+  new Proxy(page, {
+    get: (target, prop) => {
+      if (prop === '_client') return () => guardedClient(rawClient(target), () => pageLabel(target));
+      const value = Reflect.get(target, prop);
+      if (typeof value !== 'function') return value;
+      return value.bind(target);
+    },
+  });
+
+// Must stay `async`: playwright-extra only attaches .catch(onPluginError) to
+// hooks whose constructor is AsyncFunction. Sync throws are caught either way;
+// a plain wrapper returning the inner promise would leave its rejection
+// unhandled.
+export const guardUserAgentPlugin = plugin => {
+  const onPageCreated = plugin.onPageCreated.bind(plugin);
+  plugin.onPageCreated = async page => onPageCreated(guardedPage(page));
+  return plugin;
+};
+
+// user-agent-override depends on user-preferences, which depends on
+// puppeteer-extra-plugin-user-data-dir. That pair is Puppeteer-only: under
+// launchPersistentContext the plugin never sees the real profile, so it makes a
+// /tmp/puppeteer_dev_profile-* dir per launch and writes a Preferences file
+// Chrome never reads (only intl.accept_languages, which Playwright's `locale`
+// already sets). playwright-extra skips a dependency whose name is taken, so
+// this hook-less stub keeps both out.
+export const USER_PREFERENCES_STUB = Object.freeze({
+  _isPuppeteerExtraPlugin: true,
+  name: 'user-preferences',
+});
+
 export const enhanceWithStealth = (browser, presetConfig = {}) => {
   log('Initializing puppeteer-extra-plugin-stealth');
   const STEALTH_CONFIG = getConfig().stealth;
 
   try {
     const enhanced = addExtra(browser);
+    enhanced.use(USER_PREFERENCES_STUB);
     const stealth = StealthPlugin();
 
     for (const name of CONFIGURABLE_EVASIONS) {
       stealth.enabledEvasions.delete(name);
     }
-    stealth.enabledEvasions.delete('user-data-dir');
 
     for (const [name, enabled] of Object.entries(STEALTH_CONFIG.evasions)) {
       if (enabled) {
@@ -36,6 +101,14 @@ export const enhanceWithStealth = (browser, presetConfig = {}) => {
         stealth.enabledEvasions.delete(name);
       }
     }
+
+    // Removed after the config loop, so no `evasions` entry can re-add them.
+    // user-data-dir: permanently disabled (conflicts with szkrabok's own
+    // profile dirs, see szkrabok.config.toml). user-agent-override: only ever
+    // added below, guarded; an entry would load an unguarded copy
+    // (guardUserAgentPlugin above).
+    stealth.enabledEvasions.delete('user-data-dir');
+    stealth.enabledEvasions.delete('user-agent-override');
 
     enhanced.use(stealth);
 
@@ -68,11 +141,13 @@ export const enhanceWithStealth = (browser, presetConfig = {}) => {
         maskLinux = true;
       }
       enhanced.use(
-        UserAgentOverride({
-          userAgent: userAgentArg,
-          locale: localeArg,
-          maskLinux: maskLinux,
-        })
+        guardUserAgentPlugin(
+          UserAgentOverride({
+            userAgent: userAgentArg,
+            locale: localeArg,
+            maskLinux: maskLinux,
+          })
+        )
       );
     }
 

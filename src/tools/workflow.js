@@ -1,7 +1,9 @@
 import { getSession } from '#runtime';
+import { assertReadable } from './nav_guard.js';
 
 // Content elements whose text is extracted as one block each.
-const CONTENT_SELECTOR = 'p, li, h1, h2, h3, h4, h5, h6, table, blockquote, figcaption, dt, dd, pre';
+const CONTENT_SELECTOR =
+  'p, li, h1, h2, h3, h4, h5, h6, table, blockquote, figcaption, dt, dd, pre';
 // Boilerplate subtrees that are never scraped. Applied as a non-destructive
 // gate during traversal — the live DOM is never modified.
 const EXCLUDE_SELECTOR = 'nav, footer, script, style, .ads, #cookies';
@@ -28,6 +30,7 @@ const MAX_LINK_RATIO = 0.6;
  */
 export const scrape = async ({ sessionName, selectors = [] }) => {
   const { page } = getSession(sessionName);
+  assertReadable(page); // never return content of a blocked document (D7)
 
   const out = await page.evaluate(
     ({ userSelectors, CONTENT, EXCLUDE, MIN_LEN, MAX_LINK_RATIO }) => {

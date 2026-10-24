@@ -1,15 +1,34 @@
 import { readFile, writeFile, mkdir, rm, readdir, copyFile, lstat, readlink, symlink, access, rename, open, cp } from 'fs/promises';
-import { join } from 'path';
+import { join, resolve, dirname, basename } from 'path';
 import { existsSync } from 'fs';
 import { tmpdir } from 'os';
 import crypto from 'crypto';
 import { log } from './logger.js';
 
-// Sessions dir: SZKRABOK_SESSIONS_DIR env > cwd/sessions
-const getSessionsDir = () =>
-  process.env.SZKRABOK_SESSIONS_DIR ?? join(process.cwd(), 'sessions');
+// Sessions dir: setSessionsDir() (server mode: <work-root>/sessions) >
+// SZKRABOK_SESSIONS_DIR env > cwd/sessions
+let _sessionsDir = null;
 
-const getSessionDir = id => join(getSessionsDir(), id);
+export const setSessionsDir = dir => {
+  _sessionsDir = dir;
+};
+
+const getSessionsDir = () =>
+  _sessionsDir ?? process.env.SZKRABOK_SESSIONS_DIR ?? join(process.cwd(), 'sessions');
+
+// Defense in depth for session ids (hardening proposal D5): the id must name
+// exactly one entry directly under the sessions dir. Rejects '', '.', '..',
+// separators and absolute paths before any mkdir/write/rm.
+const getSessionDir = id => {
+  const base = resolve(getSessionsDir());
+  const dir = typeof id === 'string' && !id.includes('\0') ? resolve(base, id) : null;
+  if (!dir || dirname(dir) !== base || basename(dir) !== id) {
+    const err = new Error(`session id ${JSON.stringify(id)} escapes the sessions dir`);
+    err.code = 'PATH_NOT_ALLOWED';
+    throw err;
+  }
+  return dir;
+};
 const getStatePath = id => join(getSessionDir(id), 'state.json');
 const getMetaPath = id => join(getSessionDir(id), 'meta.json');
 

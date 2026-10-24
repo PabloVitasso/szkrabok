@@ -5,6 +5,7 @@
 import { open as sessionOpen, close as sessionClose } from './szkrabok_session.js';
 import { run_test } from './szkrabok_browser.js';
 import { getSession, computeConfigHash, cloneFromLive } from '#runtime';
+import { assertToolUrl, installNavGuard } from './nav_guard.js';
 
 // ── Per-name critical section ──────────────────────────────────────────────────
 
@@ -84,6 +85,13 @@ export const _run = async (args, deps) => {
   if (nav.policy !== 'never' && !nav.url) {
     return { error: 'navigation.url required when policy !== "never"', phase: 'session' };
   }
+  if (nav.url !== undefined) {
+    try {
+      assertToolUrl(nav.url);
+    } catch (e) {
+      return { error: e.message, code: e.code, phase: 'session' };
+    }
+  }
 
   // ── 2. Session resolution ───────────────────────────────────────────────────
   let runtimeName;
@@ -104,6 +112,8 @@ export const _run = async (args, deps) => {
           await _sessionClose({ sessionName: logicalName });
         } else if (conflict === 'clone-from-live') {
           runtimeName = (await _cloneFromLive(logicalName)).cloneId;
+          // cloneFromLive bypasses session open, so install the guard here.
+          await installNavGuard(_getSession(runtimeName));
         } else {
           throw new Error(
             `Template "${logicalName}" is open — close it or set template.templateConflict`
@@ -163,7 +173,7 @@ export const _run = async (args, deps) => {
         nav.policy === 'always' || (nav.policy === 'ifBlank' && s.page.url() === 'about:blank');
 
       if (shouldNav) {
-        await s.page.goto(nav.url, {
+        await s.page.goto(assertToolUrl(nav.url), {
           waitUntil: 'networkidle',
           timeout: nav.timeout ?? 30_000,
         });

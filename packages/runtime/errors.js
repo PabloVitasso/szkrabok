@@ -135,16 +135,25 @@ export class BrowserNotFoundError extends Error {
       (attempted.CHROMIUM_PATH !== 'resolved' || attempted.executablePath !== 'resolved')
     );
 
+    // A project config that was found but not loaded is the most likely cause
+    // after the D8 change — name the fix first.
+    const ignored = meta?.ignored ?? [];
+    const baseHint = HINT[failureSource] ?? HINT.playwrightBundled;
+    const hint = ignored.length > 0
+      ? `project config in ${ignored.join(', ')} was ignored — start the MCP server with --trust-project-config (or set SZKRABOK_ROOT) and restart; otherwise ${baseHint}`
+      : baseHint;
+
     return {
       code: this.code,
       message: BROWSER_NOT_FOUND_MESSAGE,
-      hint: HINT[failureSource] ?? HINT.playwrightBundled,
+      hint,
       ...(restartNeeded && { restartNeeded: true }),
       context: {
         config: {
           source: meta?.source ?? this.configSource ?? 'none',
           ...(loadedAt && { loadedAt }),
           ...(fileModifiedAt && { fileModifiedAt }),
+          ...(ignored.length > 0 && { ignored }),
         },
         failureSource,
         attempted,

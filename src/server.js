@@ -3,14 +3,24 @@ import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { registerTools, handleToolCall } from './tools/registry.js';
-import { closeAllSessions, initConfigProvisional, finalizeConfig } from '#runtime';
+import {
+  closeAllSessions,
+  initConfigProvisional,
+  finalizeConfig,
+  getConfigSource,
+  getConfigMeta,
+} from '#runtime';
 import { log } from './utils/logger.js';
+import { getFlags } from './flags.js';
 
 const { version } = JSON.parse(readFileSync(new URL('../package.json', import.meta.url)));
 
 export const createServer = ({ explicitConfigPath = null } = {}) => {
-  // Provisional init immediately — roots will finalize after MCP handshake.
-  initConfigProvisional({ explicitConfigPath });
+  // Provisional init immediately — finalized after the MCP handshake.
+  // MCP roots and cwd are trusted config sources only with
+  // --trust-project-config (hardening D8).
+  const skipProjectConfig = !getFlags().trustProjectConfig;
+  initConfigProvisional({ explicitConfigPath, skipProjectConfig });
 
   const server = new Server(
     {
@@ -43,9 +53,14 @@ export const createServer = ({ explicitConfigPath = null } = {}) => {
     } catch {
       // Client does not support roots — finalize with provisional discovery results.
     }
-    finalizeConfig(rootPaths, { explicitConfigPath });
-    if (rootPaths.length > 0) {
-      log('Config finalized with MCP roots', { roots: rootPaths });
+    finalizeConfig(rootPaths, { explicitConfigPath, skipProjectConfig });
+    log('Config source', { source: getConfigSource() });
+    const ignored = getConfigMeta()?.ignored ?? [];
+    if (ignored.length > 0) {
+      log(
+        '[WARN] project szkrabok.config.toml ignored — start the server with --trust-project-config to load it, or set SZKRABOK_ROOT',
+        { ignored }
+      );
     }
   };
 

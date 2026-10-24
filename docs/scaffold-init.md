@@ -26,9 +26,16 @@ scaffold_init({
   dir?: string,                    // target directory, defaults to cwd
   name?: string,                   // package name, defaults to dirname
   preset?: "minimal" | "full",     // see Presets below
-  install?: boolean                // run npm install after writing files, default false
+  install?: boolean                // run npm install --ignore-scripts after writing files, default false
 })
 ```
+
+**Availability:** the MCP tool is disabled unless the server runs with
+`--allow-node-code` (it writes files and can run npm on the host). With
+`--spec-root`, test config comes from the host-owned spec root instead, so a
+scaffold made through MCP would not be used. The CLI (`szkrabok init`) is
+unaffected. `install` never runs package lifecycle scripts, and npm output
+goes to stderr (stdout is the MCP stream).
 
 Returns:
 ```json

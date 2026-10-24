@@ -17,6 +17,10 @@ import { tmpdir } from 'os';
 import * as pool from '../../packages/runtime/pool.js';
 import * as storage from '../../packages/runtime/storage.js';
 import { initConfig } from '../../packages/runtime/config.js';
+import { setFlags, parseFlags } from '../../src/flags.js';
+
+// Legacy (unconfined) mode: run_test is gated off without a capability flag.
+setFlags({ ...parseFlags([]), allowNodeCode: true });
 
 // initConfig with empty roots so config is in final phase
 initConfig([]);
@@ -114,8 +118,11 @@ test('open() response includes browserEngine: firefox', async () => {
 
     const fakeCtx = {
       _closed: false,
-      pages: () => [{ isClosed: () => false }],
+      // on/route/routeWebSocket: open() installs the navigation guard (hardening D7)
+      pages: () => [{ isClosed: () => false, on: () => {} }],
       on: () => {},
+      route: async () => {},
+      routeWebSocket: async () => {},
       addCookies: async () => {},
       addInitScript: async () => {},
       storageState: async () => ({ cookies: [], origins: [] }),

@@ -8,6 +8,8 @@ venv/
 # Session data
 sessions/
 */sessions/
+# Test-run artifacts (<work-root>/reports/<session>/, hardening D3)
+reports/
 logs/
 
 # Logs

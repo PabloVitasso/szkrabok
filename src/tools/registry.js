@@ -4,6 +4,7 @@ import * as szkrabokBrowser from './szkrabok_browser.js';
 import * as scaffold from './scaffold.js';
 import * as sessionRunTest from './session_run_test.js';
 import { wrapError } from '../utils/errors.js';
+import { guardToolCall, availabilityNote } from './policy.js';
 import { logError } from '../utils/logger.js';
 
 const SZKRABOK = '[szkrabok]';
@@ -12,7 +13,7 @@ const PLAYWRIGHT_MCP = '[playwright-mcp]';
 const tools = {
   session_manage: {
     handler: session.manage,
-    description: `${SZKRABOK} Manage browser sessions. Actions: open (launch/resume), close (save/delete), list (all), delete (templates; globs support), endpoint (CDP/WS). 'open' + 'isClone:true' returns a clone ID; use this ID for subsequent calls.`,
+    description: `${SZKRABOK} Manage browser sessions. Actions: open (launch/resume), close (save/delete), list (all), delete (templates, exact name), endpoint (CDP/WS). 'open' + 'isClone:true' returns a clone ID; use this ID for subsequent calls.`,
     inputSchema: {
       type: 'object',
       properties: {
@@ -23,7 +24,7 @@ const tools = {
         sessionName: {
           type: 'string',
           description:
-            "Session name or glob (delete only). For clones, use the ID returned by 'open' (isClone:true), not the template name",
+            "Session name: starts with a letter or digit, then letters, digits, '.', '_' or '-' (max 64; clone IDs up to 96). For clones, use the ID returned by 'open' (isClone:true), not the template name",
         },
         url: { type: 'string', description: 'URL to navigate after opening. open only' },
         launchOptions: {
@@ -75,7 +76,8 @@ const tools = {
         selectors: {
           type: 'array',
           items: { type: 'string' },
-          description: 'CSS selectors: matched elements and their content are scraped. Omit for auto-mode (main or body).',
+          description:
+            'CSS selectors: matched elements and their content are scraped. Omit for auto-mode (main or body).',
         },
       },
       required: ['sessionName'],
@@ -134,11 +136,12 @@ const tools = {
         params: {
           type: 'object',
           description:
-            'Key/value params passed as uppercased env vars to the spec (e.g. {url:"https://..."} → URL)',
+            'Key/value params passed to the spec as SZKRABOK_PARAM_<KEY> env vars, key uppercased (e.g. {url:"https://..."} → process.env.SZKRABOK_PARAM_URL). Keys must match ^[A-Z][A-Z0-9_]*$ after uppercasing; runtime, loader, package-manager and SZKRABOK_/PLAYWRIGHT_ names are reserved',
         },
         config: {
           type: 'string',
-          description: 'Config path relative to repo root. Defaults to playwright.config.js',
+          description:
+            'Config path relative to the spec root (--spec-root), or to the work root with --allow-node-code. Defaults to playwright.config.js',
         },
         project: {
           type: 'string',
@@ -149,7 +152,7 @@ const tools = {
           type: 'array',
           items: { type: 'string' },
           description:
-            'File or directory paths passed as positional args to playwright test (e.g. ["automation/rebrowser-check.spec.js"] or ["automation/"]). Relative to repo root.',
+            'Spec files or directories to run (e.g. ["automation/rebrowser-check.spec.js"] or ["automation/"]). Relative to the spec root; with --allow-node-code, relative to the work root.',
         },
         workers: {
           type: 'number',
@@ -169,7 +172,7 @@ const tools = {
         reportFile: {
           type: 'string',
           description:
-            'Repo-relative JSON report path. Default: sessions/<sessionName>/last-run.json. Returns resolved path',
+            'JSON report file name (no directories), written under <work-root>/reports/<sessionName>/. Default: last-run.json. Returns resolved path',
         },
       },
       required: ['sessionName'],
@@ -254,7 +257,7 @@ const tools = {
 export const registerTools = () =>
   Object.entries(tools).map(([name, tool]) => ({
     name,
-    description: tool.description,
+    description: availabilityNote(name) + tool.description,
     inputSchema: tool.inputSchema,
   }));
 
@@ -269,7 +272,7 @@ export const handleToolCall = async (name, args) => {
   }
 
   try {
-    const result = await tool.handler(args);
+    const result = await tool.handler(guardToolCall(name, args));
     return {
       content: [{ type: 'text', text: JSON.stringify(result) }],
     };

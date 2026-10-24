@@ -19,6 +19,8 @@ const { version } = JSON.parse(readFileSync(new URL('../../package.json', import
 import { log } from '../utils/logger.js';
 import { getConfig, getConfigMeta } from '../config.js';
 import { withLock } from '../utils/lock.js';
+import { getFlags, getCapabilities } from '../flags.js';
+import { assertToolUrl, installNavGuard } from './nav_guard.js';
 
 /* ───────────────────────────────────────── */
 
@@ -35,17 +37,10 @@ const safeGetSession = id => {
 };
 
 const navigate = (page, url) =>
-  page.goto(url, {
+  page.goto(assertToolUrl(url), {
     waitUntil: 'domcontentloaded',
     timeout: getConfig().timeout,
   });
-
-const matchGlob = (name, pattern) => {
-  const regex = new RegExp(
-    '^' + pattern.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*') + '$'
-  );
-  return regex.test(name);
-};
 
 function validateLaunchOptions(opts = {}) {
   if (!opts.preset) return;
@@ -63,6 +58,8 @@ function validateLaunchOptions(opts = {}) {
 
 export const open = ({ sessionName, url, launchOptions = {} }) => {
   validateLaunchOptions(launchOptions);
+  // Refuse a blocked URL before anything is launched (hardening D7).
+  if (url) assertToolUrl(url);
 
   const { isClone, _launchImpl, headless, stealth } = launchOptions;
 
@@ -84,6 +81,7 @@ export const open = ({ sessionName, url, launchOptions = {} }) => {
       });
 
       const cloneSession = getSession(handle.cloneId);
+      await installNavGuard(cloneSession);
 
       if (url) {
         await navigate(cloneSession.page, url);
@@ -109,6 +107,7 @@ export const open = ({ sessionName, url, launchOptions = {} }) => {
     if (session) {
       reused = true;
       log(`[DEBUG] reuse: ${sessionName}`);
+      await installNavGuard(session);
     }
 
     if (!session) {
@@ -139,6 +138,7 @@ export const open = ({ sessionName, url, launchOptions = {} }) => {
         log(`[FATAL] session missing after launch`);
         throw new Error(`Session inconsistency`);
       }
+      await installNavGuard(session);
 
       if (url) {
         await navigate(session.page, url);
@@ -227,26 +227,7 @@ export const endpoint = async ({ sessionName }) => {
 /* ───────────────────────────────────────── */
 
 export const deleteSession = async ({ sessionName }) => {
-  // ── Glob mode ────────────────────────────────────────────────────────────────
-  if (sessionName.includes('*')) {
-    const stored = await listStoredSessions();
-    const matched = stored.filter(id => matchGlob(id, sessionName));
-    if (matched.length === 0) return { success: true, sessionName, deleted: [] };
-    log(`[INFO] deleteSession glob "${sessionName}" matches [${matched.join(', ')}]`);
-    const deleted = [];
-    const errors = [];
-    for (const id of matched) {
-      try {
-        await withLock(id, () => deleteStoredSession(id));
-        deleted.push(id);
-      } catch (err) {
-        errors.push({ sessionName: id, error: err.message });
-      }
-    }
-    return { success: errors.length === 0, sessionName, deleted, errors };
-  }
-
-  // ── Exact-name mode ─────────────────────────────────────────────────────────
+  // Exact name only — glob deletion was removed (hardening proposal D5).
   return withLock(sessionName, async () => {
     const s = safeGetSession(sessionName);
     if (s && s.isClone) {
@@ -321,7 +302,13 @@ export const list = async () => {
 
   return {
     sessions: [...templateSessions, ...cloneSessions],
-    server: { version, source: process.argv[1], sourceGuess: guessSourceKind(process.argv[1]) },
+    server: {
+      version,
+      source: process.argv[1],
+      sourceGuess: guessSourceKind(process.argv[1]),
+      flags: getFlags(),
+      capabilities: getCapabilities(),
+    },
     config: getConfigMeta(),
   };
 };

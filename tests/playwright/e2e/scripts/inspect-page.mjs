@@ -5,11 +5,13 @@
  * snapshot of all table rows and iframe contents. Useful for exploring
  * unknown pages before writing assertions, or for ad-hoc debugging.
  *
- * Usage via browser.run_file:
+ * Usage via browser_run (Node form: needs a server started with
+ * --allow-node-code; without it, path is read as page-sandbox code and this
+ * (page, args) script does not apply):
  *
- *   browser.run_file {
+ *   browser_run {
  *     "sessionName": "<session>",
- *     "path": "playwright-tests/scripts/inspect-page.mjs",
+ *     "path": "tests/playwright/e2e/scripts/inspect-page.mjs",
  *     "args": {
  *       "url":        "https://example.com",  // optional — omit to use current page
  *       "wait":       "table tr",             // optional CSS selector to wait for

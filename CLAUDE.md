@@ -35,4 +35,4 @@ See [docs/testing.md](./docs/testing.md) for all paths. Quick reference:
 
 - **MCP** (`browser_run_test`): requires an open session - `session_manage open` first
 - **Standalone CLI**: `PLAYWRIGHT_PROJECT=e2e npx playwright test --project=e2e` - no session needed
-- **Node tests**: `npm run test:node`
+- **Node tests**: `node --test tests/node/*.test.js` and `npm run test:hardening` (`npm run test:node` is a disabled stub)

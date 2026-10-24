@@ -7,6 +7,9 @@ export { resolvePreset, getPresets, initConfig, initConfigProvisional, finalizeC
 export { validateCandidate, resolveChromium, buildCandidates, populateCandidates, resolveFirefox } from './resolve.js';
 export { BrowserNotFoundError, ConfigNotInitializedError, ConfigNotFinalError, SessionNotFoundError, EngineNotSupportedError, isoNow } from './errors.js';
 
+// Storage location (server mode pins it to the work root)
+export { setSessionsDir } from './storage.js';
+
 // MCP client
 export { mcpConnect } from './mcp-client/mcp-tools.js';
 export { spawnClient } from './mcp-client/runtime/transport.js';

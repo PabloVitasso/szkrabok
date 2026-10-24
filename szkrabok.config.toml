@@ -124,6 +124,7 @@ enabled = true
 # user-data-dir: PERMANENTLY DISABLED in szkrabok.
 # This evasion conflicts with persistent session profiles (sessions/{id}/profile/).
 # szkrabok manages user data directories directly — do not add this evasion.
+# An entry here is ignored (removed after the config is applied).
 
 # ── user-agent-override ───────────────────────────────────────────────────────
 # The most important evasion. Applies the full browser identity bundle

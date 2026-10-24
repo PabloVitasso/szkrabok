@@ -35,9 +35,8 @@
  *
  * ── Run via Playwright CLI ───────────────────────────────────────────────────
  *
- *   SZKRABOK_SESSION=intoli \
- *     npx playwright test --config playwright-tests/playwright.config.ts \
- *     --grep "intoli-check"
+ *   SZKRABOK_SESSION=intoli PLAYWRIGHT_PROJECT=e2e \
+ *     npx playwright test --project=e2e tests/playwright/e2e/intoli.spec.js
  *
  * ─────────────────────────────────────────────────────────────────────────────
  */

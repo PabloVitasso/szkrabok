@@ -12,13 +12,25 @@ MCP server supplementing [microsoft/playwright-mcp](https://github.com/microsoft
 
 ## Tools & Capabilities
 
+> **Server capabilities are set by the operator, not by tool calls.** With no
+> flags the server is fail-closed: `browser_run` runs inside the page, the test
+> tools and `scaffold_init` are off, and navigation to `file:`/`chrome:`/`data:`
+> or to literal `localhost`/private addresses is refused (defence in depth, not
+> a network boundary: a hostname that resolves to a private address still
+> connects; see [D7](./docs/features/20261024-claude-docker-hardening-proposal.md)).
+> Flags (`--spec-root`,
+> `--allow-node-code`, `--allow-private-net`, `--work-root`) are described in
+> [docs/development.md](./docs/development.md#server-capability-flags). Disabled
+> tools say so in their description and return `CAPABILITY_DISABLED` naming the
+> flag.
+
 ### 1. session_manage
 
-Manage browser sessions. Actions: open (launch/resume), close (save/delete), list (all), delete (templates; globs support), endpoint (CDP/WS). `open` + `isClone:true` returns a clone ID; use this ID for subsequent calls.
+Manage browser sessions. Actions: open (launch/resume), close (save/delete), list (all), delete (templates, exact name), endpoint (CDP/WS). `open` + `isClone:true` returns a clone ID; use this ID for subsequent calls.
 
 - **action** (required): `open` | `close` | `list` | `delete` | `endpoint`
-- **sessionName**: Session name or glob (delete only). For clones, use the ID returned by `open` (`isClone:true`), not the template name. Required for open/close/delete/endpoint, not for list
-- **url**: URL to navigate after opening (open only)
+- **sessionName**: Session name: starts with a letter or digit, then letters, digits, `.`, `_` or `-` (max 64; clone IDs up to 96). No globs over MCP (the CLI keeps `szkrabok session delete "cfg-*"`). For clones, use the ID returned by `open` (`isClone:true`), not the template name. Required for open/close/delete/endpoint, not for list
+- **url**: URL to navigate after opening (open only). `http`/`https`/`about:blank` only; `localhost` and private addresses need `--allow-private-net`
 - **launchOptions** (open only):
   - **preset**: Preset name. Mutually exclusive with userAgent/viewport/locale/timezone. See [Presets](#presets)
   - **stealth**: Enable stealth mode, default `true`
@@ -35,9 +47,9 @@ Manage browser sessions. Actions: open (launch/resume), close (save/delete), lis
   - With explicit fields: `{ userAgent: "...", viewport: { width: 1280, height: 800 }, locale: "en-US", timezone: "America/New_York", headless: false }`
   - **Note:** `preset` is mutually exclusive with `userAgent`, `viewport`, `locale`, `timezone`. `headless` and `stealth` are always allowed alongside either.
 
-Returns: `{ success, sessionName, url, reused, preset, label, isClone, templateSession, cdpEndpoint, configSource }` — `configSource` is the config discovery source string (e.g. `"mcp-root (/path/to/project)"`, `"xdg (...)"`, `"none (...)"`).
+Returns: `{ success, sessionName, url, reused, preset, label, isClone, templateSession, cdpEndpoint, configSource }` — `configSource` is the config discovery source string (e.g. `"env:SZKRABOK_CONFIG (...)"`, `"xdg (...)"`, `"none (...)"`).
 
-`list` returns `{ sessions, server: { version, source, sourceGuess }, config: { phase, source, loadedAt, previousSource, searched } }` — `searched` is an array of `{ step, paths, found }` entries showing every location checked during config discovery. `loadedAt` is an ISO timestamp (seconds precision) of when config was last loaded — compare with `fileModifiedAt` in `BROWSER_NOT_FOUND` errors to detect stale server state. Use this to diagnose misconfigured or missing config files.
+`list` returns `{ sessions, server: { version, source, sourceGuess, flags, capabilities }, config: { phase, source, loadedAt, previousSource, searched } }` — `searched` is an array of `{ step, paths, found }` entries showing every location checked during config discovery. `loadedAt` is an ISO timestamp (seconds precision) of when config was last loaded — compare with `fileModifiedAt` in `BROWSER_NOT_FOUND` errors to detect stale server state. Use this to diagnose misconfigured or missing config files.
 
 When `isClone: true` is set in `launchOptions`, the returned `sessionName` is a generated id (e.g. `myprofile-1748234205-a3f2c1b0`). Use that id for all subsequent calls. On close, the clone dir is deleted and no state is saved.
 
@@ -60,6 +72,7 @@ Returns: `{ session: { logicalName, runtimeName, mode }, test: { passed, failed,
 ### 3. browser_scrape
 
 Scrape current page into LLM-ready text. Read-only — never modifies the page.
+Refused (`URL_BLOCKED`) when the current document URL fails the navigation guard.
 
 - **sessionName** (required)
 - **selectors**: CSS selectors matching content elements or containers — text is
@@ -70,28 +83,47 @@ Returns: `{ raw: [{ tag, text }], llmFriendly, tokenCountEstimate, stats: { scan
 
 ### 4. browser_run
 
-Execute Playwright JS on session page.
+Execute JS against the session page. Two modes, chosen by the operator:
+
+**Page sandbox (default).** `code` is a function expression `(args) => result`,
+evaluated inside the page via `page.evaluate`; the result must be
+JSON-serializable. No Node or Playwright APIs. `path` (needs `--spec-root`)
+reads one function expression from a file in the spec root. `fn` is not
+supported. Failures carry `code: "PAGE_EVAL_FAILED"` and a hint.
+
+**Node form (`--allow-node-code`).** The previous contract: `code` or `path`
+(`.mjs`) evaluates/imports to a function `(page, args)` or an object of named
+exports; `fn` selects the export, default `"default"`.
 
 - **sessionName** (required)
-- **code**: Inline async function as string. Mutually exclusive with `path`
-- **path**: Path to `.mjs` file. Mutually exclusive with `code`
-- **fn**: Named export from path, default `"default"`
-- **args**: Object passed as second param to function
+- **code**: Inline function as string. Mutually exclusive with `path`
+- **path**: File path. Mutually exclusive with `code`
+- **fn**: Named export (Node form only), default `"default"`
+- **args**: Object passed to the function (`args` in page mode, second param in Node form)
 
 Returns: `{ result, url }`
 
 ### 5. browser_run_test
 
-Run `.spec.js` tests via CDP. Requires `scaffold_init` and open session.
+Run `.spec.js` tests via CDP. Requires an open session and one of:
+
+- `--spec-root <dir>` (**confined**): config and specs only from the host-owned
+  spec root; artifacts under `<work-root>/reports/<sessionName>/`; runs get
+  `--output` there and `--update-snapshots=none`, so nothing is written into
+  the spec root.
+- `--allow-node-code` (**legacy**): config and files relative to the work root
+  (prepare with `scaffold_init`).
+
+Arguments:
 
 - **sessionName** (required)
-- **files**: File/directory paths for playwright test
+- **files**: Spec files/directories, relative to the spec root (legacy: work root)
 - **grep**: Filter tests by name (regex)
-- **params**: Key/value -> uppercased env vars (e.g. `{url:"..."}` -> `process.env.URL`)
-- **config**: Config path, default `playwright.config.js`
+- **params**: Key/value -> `SZKRABOK_PARAM_<KEY>` env vars, key uppercased (e.g. `{url:"..."}` -> `process.env.SZKRABOK_PARAM_URL`). Keys must match `^[A-Z][A-Z0-9_]*$` after uppercasing; runtime, loader, package-manager, interpreter and `SZKRABOK_`/`PLAYWRIGHT_` names are reserved; values are strings, finite numbers or booleans (≤ 4096 chars)
+- **config**: Config path, default `playwright.config.js` (relative to the spec root; legacy: work root)
 - **project**: Playwright project name
 - **keepOpen**: Reconnect session after test if MCP context invalidated, default `false`
-- **reportFile**: Repo-relative JSON report path. Default: `sessions/<sessionName>/last-run.json`. Returns resolved path
+- **reportFile**: JSON report file name (no directories), written under `<work-root>/reports/<sessionName>/`. Default: `last-run.json`. Returns resolved path
 
 Returns: `{ passed, failed, skipped, tests: [{ title, status, error, result }], log, reportFile }`
 
@@ -207,6 +239,23 @@ command = "npx"
 args = ["-y", "@pablovitasso/szkrabok"]
 ```
 
+**Server flags.** The commands above start the server in its fail-closed
+default. On a desktop where you trust your projects, append flags after the
+package name to get the previous behaviour back:
+
+```bash
+claude mcp add szkrabok -- npx -y @pablovitasso/szkrabok --trust-project-config --allow-node-code
+```
+
+- `--trust-project-config` — load `szkrabok.config.toml` from the project
+  (MCP roots / cwd). Only for projects you trust: a project config can name a
+  browser executable that every session open launches.
+- `--allow-node-code` — Node-form `browser_run`, `scaffold_init`, unconfined
+  test runs.
+
+Never use either for a sandboxed or untrusted client. All flags:
+[docs/development.md](./docs/development.md#server-capability-flags).
+
 New project:
 
 ```bash
@@ -230,16 +279,27 @@ npx @pablovitasso/szkrabok init
 executablePath = "/path/to/your/chrome"
 ```
 
-**Config discovery** - the server finds your TOML automatically. Priority order (first match wins):
+**Config discovery** - priority order (first match wins):
 
-1. `SZKRABOK_CONFIG` env var (absolute path to a `.toml` file)
-2. `SZKRABOK_ROOT` env var (walk-up bounded by that dir)
-3. MCP roots sent by the client at handshake (walk-up bounded by each root)
-4. `process.cwd()` — exact dir only, no walk-up
-5. `~/.config/szkrabok/config.toml` (Linux/macOS) or `%APPDATA%\szkrabok\config.toml` (Windows)
-6. empty defaults
+1. `--config <path>` server flag
+2. `SZKRABOK_CONFIG` env var (absolute path to a `.toml` file)
+3. `SZKRABOK_ROOT` env var (walk-up bounded by that dir)
+4. MCP roots sent by the client at handshake (walk-up bounded by each root) — **MCP server: only with `--trust-project-config`**
+5. `process.cwd()` — exact dir only, no walk-up — **MCP server: only with `--trust-project-config`**
+6. `~/.config/szkrabok/config.toml` (Linux/macOS) or `%APPDATA%\szkrabok\config.toml` (Windows)
+7. empty defaults
 
-Both `szkrabok.config.toml` and `szkrabok.config.local.toml` are loaded and deep-merged (local overrides base). Place either file in your project root or any ancestor dir bounded by a root.
+By default the MCP server does not trust its client's project: a
+`szkrabok.config.toml` in the MCP roots or in the server's cwd is not loaded,
+because a config can name an executable to launch (a cloned repo would be
+enough to run it). Either start the server with `--trust-project-config`, or
+point it at one config explicitly, e.g. `"env": { "SZKRABOK_ROOT": "/path/to/project" }`.
+An ignored project config is reported: `config.ignored` in `session_manage list`,
+`ignored: true` entries in `config.searched`, a startup warning, and the
+`BROWSER_NOT_FOUND` hint. `.env` is never read by the server. The client
+library (`mcpConnect`) and selftests set `SZKRABOK_ROOT` to the caller's cwd.
+
+Both `szkrabok.config.toml` and `szkrabok.config.local.toml` are loaded and deep-merged (local overrides base). Place either file in the configured root or any ancestor dir bounded by it.
 
 **Diagnose config discovery** — call `session_manage { "action": "list" }` and inspect `config.source` and `config.searched`. Each entry shows the step name, exact file paths checked, and whether any was found. Also see `server.sourceGuess` (`"npx-cache"` | `"global-npm"` | `"local-dev"`) to verify which szkrabok install is active. Alternatively run `szkrabok doctor` from the CLI.
 

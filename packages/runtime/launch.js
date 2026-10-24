@@ -279,6 +279,48 @@ export const checkBrowser = async () => {
   return result.path;
 };
 
+const LS_RESTORE_TIMEOUT_MS = 10_000;
+
+// Runs in the page. A cross-origin setItem throws; skip that item, keep the rest.
+const setItemsInPage = itms => {
+  for (const { name, value } of itms) {
+    // eslint-disable-next-line no-empty -- runs in the page; no Node logging
+    try { localStorage.setItem(name, value); } catch {}
+  }
+};
+
+// One origin. Never throws: logs the failure and returns false.
+const restoreOrigin = async (page, origin, items, profile) => {
+  try {
+    await page.goto(origin + '/favicon.ico', { waitUntil: 'commit', timeout: LS_RESTORE_TIMEOUT_MS });
+    await page.evaluate(setItemsInPage, items);
+    return true;
+  } catch (err) {
+    log(`localStorage restore skipped for ${origin} in ${profile}: ${err.message}`);
+    return false;
+  }
+};
+
+// Best-effort localStorage restore, like the cookie restore above: one
+// unreachable origin is logged and skipped, it never aborts the launch.
+// restoreOrigin cannot throw, so page.close is always reached.
+// Returns the number of origins restored.
+export const restoreLocalStorage = async (context, origins, profile) => {
+  const pending = (origins ?? []).filter(o => o.localStorage?.length);
+  if (pending.length === 0) return 0;
+
+  const page = await context.newPage();
+  let restored = 0;
+  for (const { origin, localStorage: items } of pending) {
+    const ok = await restoreOrigin(page, origin, items, profile);
+    if (ok) restored++;
+    await new Promise(r => setTimeout(r, 50 + Math.random() * 100));
+  }
+  await page.close().catch(() => {});
+  log(`Restored localStorage for ${restored}/${pending.length} origin(s) in ${profile}`);
+  return restored;
+};
+
 export const launch = async (options = {}) => {
   const { profile = 'default', preset: presetName, headless, stealth, userAgent, viewport, locale, timezone, reuse = true, _launchImpl } = options;
   const cfg = getConfig();
@@ -394,34 +436,7 @@ export const launch = async (options = {}) => {
         log(`Cookie restore failed for ${profile}: ${err.message}`);
       }
     }
-    let savedStateOriginsLength;
-    if (savedState.origins !== null && savedState.origins !== undefined) {
-      savedStateOriginsLength = savedState.origins.length;
-    } else {
-      savedStateOriginsLength = 0;
-    }
-    if (savedStateOriginsLength > 0) {
-      const page = await context.newPage();
-      for (const { origin, localStorage: items } of savedState.origins) {
-        let itemsLength;
-        if (items !== null && items !== undefined) {
-          itemsLength = items.length;
-        } else {
-          itemsLength = 0;
-        }
-        if (itemsLength === 0) continue;
-        await page.goto(origin + '/favicon.ico', { waitUntil: 'commit', timeout: 10_000 });
-        await page.evaluate(itms => {
-          for (const { name, value } of itms) {
-            // eslint-disable-next-line no-empty -- cross-origin setItem throws; no Node logging
-            try { localStorage.setItem(name, value); } catch {}
-          }
-        }, items);
-        await new Promise(r => setTimeout(r, 50 + Math.random() * 100));
-      }
-      await page.close();
-      log(`Restored localStorage for ${savedStateOriginsLength} origin(s) in ${profile}`);
-    }
+    await restoreLocalStorage(context, savedState.origins, profile);
   }
 
   // Mask iframe fingerprints

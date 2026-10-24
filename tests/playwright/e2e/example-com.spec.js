@@ -5,8 +5,10 @@
  */
 import { test, expect } from './fixtures.js';
 
-test('example.com title and heading', async ({ page }) => {
+// The live page no longer has an <h1> (verified 2026-10-24); assert on the
+// title and its "Learn more" link instead.
+test('example.com title and content', async ({ page }) => {
   await page.goto('https://example.com');
   await expect(page).toHaveTitle('Example Domain');
-  await expect(page.locator('h1')).toHaveText('Example Domain');
+  await expect(page.getByRole('link', { name: /learn more/i })).toBeVisible();
 });

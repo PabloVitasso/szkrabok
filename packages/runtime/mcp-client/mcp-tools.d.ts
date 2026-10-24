@@ -1,10 +1,10 @@
 // AUTO-GENERATED — do not edit manually.
 // Regenerate: npm run codegen:mcp
-// Last generated: 2026-10-20T20:16:39.313Z
+// Last generated: 2026-10-24T19:23:57.623Z
 
 export interface SessionHandle {
   /**
-   * [szkrabok] Manage browser sessions. Actions: open (launch/resume), close (save/delete), list (all), delete (templates; globs support), endpoint (CDP/WS). 'open' + 'isClone:true' returns a clone ID; use this ID for subsequent calls.
+   * [szkrabok] Manage browser sessions. Actions: open (launch/resume), close (save/delete), list (all), delete (templates, exact name), endpoint (CDP/WS). 'open' + 'isClone:true' returns a clone ID; use this ID for subsequent calls.
    * @param args.url URL to navigate after opening. open only
    * @param args.launchOptions open only. Use preset OR individual fields (userAgent, viewport, locale, timezone). isClone creates an ephemeral clone. headless and stealth always allowed
    */
@@ -34,7 +34,7 @@ export interface BrowserHandle {
   }): Promise<unknown>;
 
   /**
-   * [playwright-mcp] Execute Playwright JS on session page. Pass code (inline snippet) or path (.mjs file). Either evaluates/imports to a function (page, args) or an object of named exports; fn selects which export, defaults to "default". args is forwarded as the 2nd param.
+   * [Node mode: code is (page, args) => ...] [playwright-mcp] Execute Playwright JS on session page. Pass code (inline snippet) or path (.mjs file). Either evaluates/imports to a function (page, args) or an object of named exports; fn selects which export, defaults to "default". args is forwarded as the 2nd param.
    * @param args.path Absolute or relative path to an .mjs script file
    * @param args.fn Named export to call. Defaults to "default".
    * @param args.args Arguments passed as second parameter to the function
@@ -49,14 +49,14 @@ export interface BrowserHandle {
   /**
    * [playwright-mcp] Worker concurrency. Default: Playwright. session_run_test overrides to 1
    * @param args.grep Filter tests by name (regex)
-   * @param args.params Key/value params passed as uppercased env vars to the spec (e.g. {url:"https://..."} → URL)
-   * @param args.config Config path relative to repo root. Defaults to playwright.config.js
+   * @param args.params Key/value params passed to the spec as SZKRABOK_PARAM_<KEY> env vars, key uppercased (e.g. {url:"https://..."} → process.env.SZKRABOK_PARAM_URL). Keys must match ^[A-Z][A-Z0-9_]*$ after uppercasing; runtime, loader, package-manager and SZKRABOK_/PLAYWRIGHT_ names are reserved
+   * @param args.config Config path relative to the spec root (--spec-root), or to the work root with --allow-node-code. Defaults to playwright.config.js
    * @param args.project Playwright project name to run (e.g. "automation"). Runs all projects if omitted.
-   * @param args.files File or directory paths passed as positional args to playwright test (e.g. ["automation/rebrowser-check.spec.js"] or ["automation/"]). Relative to repo root.
+   * @param args.files Spec files or directories to run (e.g. ["automation/rebrowser-check.spec.js"] or ["automation/"]). Relative to the spec root; with --allow-node-code, relative to the work root.
    * @param args.workers Number of parallel workers. Defaults to Playwright config value. session_run_test forces workers:1.
    * @param args.signalAttach Wait for fixture to confirm CDP attach before running tests. Default: false.
    * @param args.keepOpen After the test run, reconnect the session if the test subprocess invalidated the MCP context. Chrome stays alive; this restores the Playwright connection to it. Default false.
-   * @param args.reportFile Repo-relative JSON report path. Default: sessions/<sessionName>/last-run.json. Returns resolved path
+   * @param args.reportFile JSON report file name (no directories), written under <work-root>/reports/<sessionName>/. Default: last-run.json. Returns resolved path
    */
   run_test(args: {
     grep?: string;

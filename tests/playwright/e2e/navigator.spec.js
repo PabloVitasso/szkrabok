@@ -13,8 +13,8 @@
  *
  * ── Run via Playwright CLI ────────────────────────────────────────────────────
  *
- *   SZKRABOK_SESSION=nav-props \
- *     npx playwright test automation/navigator-properties.spec.js
+ *   SZKRABOK_SESSION=nav-props PLAYWRIGHT_PROJECT=e2e \
+ *     npx playwright test --project=e2e tests/playwright/e2e/navigator.spec.js
  *
  * ── Reading results ───────────────────────────────────────────────────────────
  *

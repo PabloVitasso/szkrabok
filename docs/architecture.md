@@ -75,7 +75,7 @@ packages/runtime/
   mcp-client/
     mcp-tools.js      GENERATED — mcpConnect() handle factory + JSDoc types
     runtime/
-      transport.js    spawnClient() — stdio process lifecycle
+      transport.js    spawnClient({ args, env }) — stdio process lifecycle; trusted defaults --allow-node-code --allow-private-net
       invoker.js      createCallInvoker() — serialization, closed guard
       logger.js       createLogger() — JSONL formatter
     adapters/
@@ -89,6 +89,7 @@ src/
   index.js          MCP entry point, stdio transport; routes non-'--' first args to CLI (Commander handles unknown commands)
                     Always writes fatal startup errors to ~/.cache/szkrabok/startup.log
   config.js         Re-exports initConfig/initConfigProvisional/finalizeConfig/getConfig/getConfigMeta from @szkrabok/runtime; DEFAULT_TIMEOUT constant
+  flags.js          Server capability flags: parseFlags(argv), capabilities(flags), setFlags/getFlags/getCapabilities
   attach-signal.js  writeAttachSignal(path) — best-effort atomic tmp→rename, fail-fast, no-op on falsy
   fixtures.js       @pablovitasso/szkrabok/fixtures export — resolveConfig, session/browser/page fixtures
                     with ownsBrowser; signal written at CDP attach time; context not overridden (Playwright scope conflict)
@@ -108,13 +109,19 @@ src/
     logger.js             log() — structured JSONL output
     errors.js             SessionNotFoundError, SessionExistsError, ValidationError, wrapError
     platform.js           platformCacheDir() — OS-aware cache path
+    paths.js              confinePath(root, input, { mustExist }), overlaps() — path confinement
+    validate.js           assertSessionName(name, { kind })
+    url-guard.js          blockedReason(url, { allowPrivateNet }), assertNavigable() — pure URL classifier
     lock.js               acquireLock/releaseLock/withLock — blocking file lock, cross-process safe,
                           stale-TTL cleanup, Windows-safe filename sanitizer
 
   tools/
-    registry.js           All tool definitions: name, handler, schema
+    registry.js           All tool definitions: name, handler, schema; every call passes guardToolCall()
+    policy.js             guardToolCall() capability gates + input validation; availabilityNote()
+    nav_guard.js          assertToolUrl(), installNavGuard() (route/WebSocket block, main-frame watcher), assertReadable()
+    run_test_args.js      buildTestEnv(), buildTestArgv(), assertReportName() — pure test-child builders
     szkrabok_session.js   session_manage (open/close/list/delete/endpoint)
-    szkrabok_browser.js   browser_run (code/file), browser_run_test
+    szkrabok_browser.js   browser_run (page sandbox / Node form), browser_run_test
     session_run_test.js   session_run_test — composite: open session → navigate → run_test → post-policy
     workflow.js           browser_scrape
     scaffold.js           scaffold_init
@@ -165,7 +172,7 @@ tests/
       fixtures.js           Path A: connect(CDP); Path B: launch({profile:'dev'})
       setup.js / teardown.js
       noop.spec.js          minimal noop — inner spec used by session_run_test integration tests
-      rebrowser.spec.js     bot-detector.rebrowser.net — 8/10 passing (headed only)
+      rebrowser.spec.js     bot-detector.rebrowser.net — 9/10 passing (headed only)
       rebrowser-mcp.spec.js same via MCP client
       intoli.spec.js        bot.sannysoft.com — 10 Intoli + 20 fp-collect checks
       navigator.spec.js     whatismybrowser.com navigator props
@@ -251,6 +258,19 @@ Do NOT import runtime internals (`stealth`, `storage`, `pool`, `config`) directl
 
 Enforced by ESLint boundary rules in `eslint.config.js` and `tests/node/contracts.test.js`.
 
+### Hardening invariants (MCP server mode)
+
+Tool arguments are hostile; see [the hardening proposal](./features/20261024-claude-docker-hardening-proposal.md).
+Enforced by `tests/node/hardening/` and `tests/playwright/integration/nav-guard.spec.js`.
+
+10. Capabilities come from server argv only (`src/flags.js`) — never from tool arguments, toml, or env. Invalid flags refuse startup.
+11. Every tool call passes `guardToolCall()` (`src/tools/policy.js`) before its handler: capability gate, session-name rule, `_`-prefixed launch options stripped.
+12. Every tool-supplied path goes through `confinePath()` and only the returned absolute path is used. Tool writes stay under `<work-root>/sessions` and `<work-root>/reports`; nothing writes into the spec root.
+13. The test child's env is built only by `buildTestEnv()` (fixed keys last) and its argv only by `buildTestArgv()` (no caller string in option position).
+14. Every tool-driven navigation passes `assertToolUrl()`; every session gets `installNavGuard()`; page content is returned only after `assertReadable()`. Never add `--remote-allow-origins`; never relay the CDP port. The private-address block matches literal addresses only; it is defence in depth, not a network boundary (DNS rebinding passes). The planned boundary is an egress proxy that checks the resolved IP (companion proposal, section 6); never claim more in docs or tool descriptions.
+15. Server-mode config discovery reads MCP roots and cwd toml only with `--trust-project-config` (skipped files are reported as `ignored`, never parsed), and never reads `.env`.
+16. All argument validation runs before any session lookup, launch, mkdir, or spawn.
+
 ## launchOptions precedence
 
 ```
@@ -312,13 +332,20 @@ session_manage { action: close, sessionName: cloneId }
 
 ```
 browser_run_test(id, files?, grep?, params?, workers?, signalAttach?, reportFile?)
+  -> capability: off → CAPABILITY_DISABLED; confined (--spec-root) | unconfined (--allow-node-code)
+  -> resolve paths: confined → config/files via confinePath(specRoot), artifacts in
+     <work-root>/reports/<id>/, --output there, --update-snapshots=none;
+     unconfined → relative to the work root
+  -> validate params (buildTestEnv) and argv (buildTestArgv) — before any lookup
   -> getSession(id) — throws if not open
-  -> read cdpEndpoint from session handle
-  -> set SZKRABOK_CDP_ENDPOINT=cdpEndpoint
-  -> set PLAYWRIGHT_JSON_OUTPUT_NAME=jsonFile
-     (reportFile arg if given, else sessions/<id>/last-run.json)
-  -> if signalAttach: set SZKRABOK_ATTACH_SIGNAL=<signal-file-path>
-  -> spawn: npx playwright test --reporter=list,json [files] [--grep] [--workers <n>]
+  -> env = scrubbed process.env (incl. inherited SZKRABOK_PARAM_*) →
+     params as SZKRABOK_PARAM_<KEY> → fixed keys:
+     SZKRABOK_CDP_ENDPOINT, PLAYWRIGHT_JSON_OUTPUT_NAME
+     (reportFile name if given, else reports/<id>/last-run.json),
+     SZKRABOK_ATTACH_SIGNAL if signalAttach, FORCE_COLOR, SZKRABOK_SESSION
+  -> spawn: <cwd>/node_modules/.bin/playwright (else npx --no-install playwright)
+     test --config <abs> [--output <dir>] [--update-snapshots=none] --reporter list,json
+     [--project] [--workers] [--grep=<v>] [abs files]
   -> subprocess fixture connects via connectOverCDP (no launch)
   -> subprocess fixture writes SZKRABOK_ATTACH_SIGNAL file at CDP attach time (before tests run)
   -> if signalAttach: await waitForAttach(signalFile) — resolves immediately (file already written)
@@ -373,7 +400,7 @@ CLI-only operations (no MCP equivalent):
 - **`Network.setUserAgentOverride`** is target-scoped - persists across navigations.
 - **`page.addInitScript()`** is the correct API for init scripts - fires before page JS on every navigation.
 - All property overrides must target **`Navigator.prototype`**, not the `navigator` instance.
-- Rebrowser score: **8/10**. Permanent failures: `mainWorldExecution` (requires [rebrowser-patches](https://github.com/rebrowser/rebrowser-patches) binary patching - see [rebrowser-patches-research.md](./rebrowser-patches-research.md)), `exposeFunctionLeak` (`page.exposeFunction` fingerprint - no fix available).
+- Rebrowser score: **9/10**. Permanent failure: `mainWorldExecution` (requires [rebrowser-patches](https://github.com/rebrowser/rebrowser-patches) binary patching - see [rebrowser-patches-research.md](./rebrowser-patches-research.md)). `exposeFunctionLeak` passes since the host run of 2026-10-24.
 
 ## Playwright patches (`patches/playwright-core+<version>.patch`)
 
@@ -411,17 +438,24 @@ Discovery priority (first match wins):
 0. explicitConfigPath arg   → absolute path passed by CLI --config flag (no env write)
 1. SZKRABOK_CONFIG env var  → absolute path to a .toml file
 2. SZKRABOK_ROOT env var    → walk-up within that root (bounded)
-3. MCP roots                → for each root: walk-up within that root (bounded, first hit wins)
-4. process.cwd()            → exact dir only, no walk-up
+3. MCP roots                → for each root: walk-up within that root (bounded, first hit wins)  [server: --trust-project-config]
+4. process.cwd()            → exact dir only, no walk-up                                         [server: --trust-project-config]
 5. ~/.config/szkrabok/config.toml
 6. empty defaults
 ```
 
+`src/server.js` passes `skipProjectConfig: !trustProjectConfig`: MCP roots and
+the server's cwd are below the trust boundary unless the operator opts in (a
+config can name an executable). Skipped steps still appear in `searched` with
+`ignored: true` (existence check only, never parsed) and are collected in
+`configMeta.ignored`, which the server logs and `BROWSER_NOT_FOUND` names in its
+hint. `.env` is loaded only in CLI mode (`src/index.js`).
+
 Walk-up: at each dir load `szkrabok.config.toml` then merge `szkrabok.config.local.toml` on top. Stop when a config is found or the boundary root is reached. Config objects are frozen on creation.
 
 **Server lifecycle** (`src/server.js`):
-1. `initConfigProvisional({ explicitConfigPath })` on startup — provisional phase, no MCP roots yet
-2. `finalizeConfig(rootPaths, { explicitConfigPath })` in `server.oninitialized` — always called, promotes to final
+1. `initConfigProvisional({ explicitConfigPath, skipProjectConfig })` on startup — provisional phase
+2. `finalizeConfig(rootPaths, { explicitConfigPath, skipProjectConfig })` in `server.oninitialized` — always called, promotes to final; warns when a project config was ignored
 
 **Tests and CLI**: use `initConfig(roots)` — one-shot, sets phase to final directly.
 

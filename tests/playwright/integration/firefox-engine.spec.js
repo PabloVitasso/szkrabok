@@ -52,7 +52,7 @@ async function spawnWithFirefox() {
 
   const transport = new StdioClientTransport({
     command: 'node',
-    args: [SERVER_PATH],
+    args: [SERVER_PATH, '--allow-node-code'],
     env: {
       ...process.env,
       SZKRABOK_CONFIG: join(dir, 'szkrabok.config.toml'),

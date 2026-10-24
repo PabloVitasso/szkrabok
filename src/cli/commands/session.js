@@ -1,8 +1,15 @@
 import path from 'node:path';
 import fs from 'node:fs/promises';
+import { listStoredSessions } from '#runtime';
 import { list, deleteSession } from '../../tools/szkrabok_session.js';
 
 const SESSIONS_DIR = path.join(process.cwd(), 'sessions');
+
+// Glob delete is a CLI convenience (trusted local user). The MCP tool takes
+// exact names only (hardening proposal D5); the CLI expands the pattern
+// against stored session names and deletes each match by exact name.
+const globToRegExp = pattern =>
+  new RegExp('^' + pattern.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*') + '$');
 
 const readJson = async file => {
   try {
@@ -73,12 +80,28 @@ export function register(program, { safe }) {
     })
   );
 
-  session.command('delete <id>').action(
-    safe(async id => {
-      await deleteSession({ sessionName: id });
-      console.log(`Session ${id} deleted`);
-    })
-  );
+  session
+    .command('delete <id>')
+    .description('Delete a session; "*" matches any characters')
+    .action(
+      safe(async id => {
+        if (!id.includes('*')) {
+          await deleteSession({ sessionName: id });
+          console.log(`Session ${id} deleted`);
+          return;
+        }
+        const re = globToRegExp(id);
+        const matched = (await listStoredSessions()).filter(name => re.test(name));
+        if (matched.length === 0) {
+          console.log(`No sessions match ${id}`);
+          return;
+        }
+        for (const name of matched) {
+          await deleteSession({ sessionName: name });
+          console.log(`Session ${name} deleted`);
+        }
+      })
+    );
 
   session
     .command('cleanup')

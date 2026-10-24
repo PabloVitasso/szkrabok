@@ -1,5 +1,5 @@
 import { execSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -23,5 +23,8 @@ if (!process.env.GH_TOKEN) {
 }
 
 console.log(`Creating GitHub release ${v}...`);
-run(`gh release create "${v}" --generate-notes --title "${v}"`);
+// Hand-written notes (docs/releases/<version>.md) win over generated ones.
+const notesFile = resolve(root, 'docs', 'releases', `${pkg.version}.md`);
+const notes = existsSync(notesFile) ? `--notes-file "${notesFile}"` : '--generate-notes';
+run(`gh release create "${v}" ${notes} --title "${v}"`);
 console.log(`\nDone. https://github.com/PabloVitasso/szkrabok/releases/tag/${v}`);

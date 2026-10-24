@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-import 'dotenv/config';
 import { mkdirSync, appendFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { szkrabokCacheDir } from './utils/platform.js';
@@ -19,6 +18,9 @@ if (
     firstArg === '--version' ||
     firstArg === '-V')
 ) {
+  // .env is a CLI convenience only. Server mode never loads it: cwd is not a
+  // trusted config source (hardening proposal E5).
+  await import('dotenv/config');
   const { runCli } = await import('./cli/index.js');
   const exitCode = await runCli();
   process.exit(exitCode ?? 0);
@@ -47,8 +49,25 @@ const _writeStartupLog = msg => {
 
 const { createServer } = await import('./server.js');
 const { log, logError } = await import('./utils/logger.js');
+const { parseFlags, setFlags, getCapabilities } = await import('./flags.js');
 
 _writeStartupLog(`starting szkrabok pid=${process.pid} source=${process.argv[1]}`);
+
+// Capability flags (hardening proposal D1). Invalid flags refuse startup:
+// a typo must not silently change the security posture.
+try {
+  const flags = parseFlags(args);
+  setFlags(flags);
+  // Tool writes stay under <work-root>/sessions and <work-root>/reports (D3).
+  const { setSessionsDir } = await import('#runtime');
+  setSessionsDir(join(flags.workRoot, 'sessions'));
+} catch (err) {
+  const msg = `Invalid flags: ${err.message}`;
+  _writeStartupLog(msg);
+  process.stderr.write(`szkrabok: ${msg}\n`);
+  process.exit(2);
+}
+log('Capabilities', getCapabilities());
 
 const server = createServer({ explicitConfigPath });
 

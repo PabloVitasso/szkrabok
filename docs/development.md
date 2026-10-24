@@ -87,6 +87,39 @@ Run `szkrabok doctor` to get the correct path for your machine. Both commands wr
 
 `source` is the entry point Node was invoked with - local repo path for Config A, npx cache path for Config B. The same info is written to `~/.cache/szkrabok/startup.log` on every start.
 
+### Server capability flags
+
+The MCP server is fail-closed by default: tool arguments are treated as
+hostile (see [hardening proposal](./features/20261024-claude-docker-hardening-proposal.md)).
+Capabilities come from server argv only, never from tool arguments, toml or env.
+
+| Flag | Grants |
+|---|---|
+| (none) | sessions, `browser_scrape`, page-sandbox `browser_run` (`code` is `(args) => result`, evaluated in the page) |
+| `--spec-root <abs dir>` | `browser_run_test` / `session_run_test` confined to that dir; `browser_run path` from it (page mode) |
+| `--allow-node-code` | legacy: Node-form `browser_run` (`(page, args)`), `scaffold_init`, unconfined test runs relative to the work root |
+| `--allow-private-net` | navigation to `localhost`, loopback and private addresses |
+| `--trust-project-config` | load `szkrabok.config.toml` from MCP roots and cwd (trusted projects only: a config can name an executable to launch) |
+| `--work-root <abs dir>` | where sessions (`sessions/`) and test artifacts (`reports/`) go. Default: cwd |
+
+Also in server mode: `szkrabok.config.toml` in cwd or in MCP roots is loaded
+only with `--trust-project-config` (otherwise it is reported as `ignored`), and
+`.env` is never loaded. Alternatives: `--config <path>`, `SZKRABOK_CONFIG`,
+`SZKRABOK_ROOT` or the XDG user config. Invalid flags, including typos of
+`--allow-*`/`--trust-*`, refuse startup (exit 2).
+`session_manage list` reports `server.flags` and `server.capabilities`.
+
+For local development with the previous behaviour, Config A becomes:
+
+```bash
+claude mcp add szkrabok -s local -- \
+  node /absolute/path/to/szkrabok/src/index.js --allow-node-code --allow-private-net --trust-project-config
+```
+
+The client library (`spawnClient` / `mcpConnect`) and the selftests start
+their private server with `--allow-node-code --allow-private-net` and
+`SZKRABOK_ROOT=<caller cwd>`: they run in a trusted host context.
+
 ## Git safety
 
 Irreversible git operations can silently destroy uncommitted work. The following commands are **forbidden** without explicit user confirmation:
@@ -117,7 +150,7 @@ git add -A && git commit -m "chore: update deps"
 git add -A && git commit -m "..."
 
 # 3. Bump version, commit, tag, push
-npm run release:patch    # or release:minor
+npm run release:patch    # or release:minor, release:major
 
 # 4. Publish to npm (requires npm login)
 npm run release:publish
@@ -126,7 +159,7 @@ npm run release:publish
 npm run release:github
 ```
 
-**`release:patch` / `release:minor`** does everything atomically:
+**`release:patch` / `release:minor` / `release:major`** does everything atomically:
 - Bumps `package.json` + workspace versions (`--no-git-tag-version` suppresses npm's auto-tag)
 - Creates a single `chore: release x.y.z` commit staging all version files
 - Tags that commit as `vx.y.z`
@@ -219,6 +252,8 @@ playwright-core is pinned to an exact version (no `^`) and patched via `patch-pa
    | page — evaluateExpression | `src/server/page.ts` | Inserts `getExecutionContext()`, updates `evaluateExpression` |
    | page — PageBinding.dispatch | `src/server/page.ts` | Guards non-JSON payloads |
    | utilityScriptSource | `src/generated/utilityScriptSource.ts` | Renames `UtilityScript` class inside embedded string |
+
+   **Side effect: no CDP console events.** With `Runtime.enable` suppressed, `Runtime.consoleAPICalled` never reaches Playwright. Anything that waits on a console message hangs until its timeout. The known case is `page.setContent()`: it waits for a `console.debug` tag and always times out (30s), even though the content is written. Use `page.evaluate(html => { document.open(); document.write(html); document.close(); }, html)` instead (see `tests/playwright/integration/scrape.spec.js`, R2 in the hardening feature file). The same likely applies to `page.on('console')` listeners; not verified.
 
    **Known drift between versions:**
 

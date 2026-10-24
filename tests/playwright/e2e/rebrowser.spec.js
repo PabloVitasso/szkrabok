@@ -28,20 +28,18 @@
  *   2. Run the test (connects to that Chrome via CDP):
  *        browser_run_test { "sessionName": "rebrowser", "grep": "rebrowser-check" }
  *
- *   Expected score via MCP: 8/10. Permanent failures:
+ *   Expected score via MCP: 9/10. Permanent failure:
  *     - mainWorldExecution: needs rebrowser-patches alwaysIsolated mode (conflicts with dummyFn)
- *     - exposeFunctionLeak: page.exposeFunction is unfixable, no patch exists
+ *   (exposeFunctionLeak passes since the host run of 2026-10-24.)
  *
  * ── Run via Playwright CLI (standalone) ──────────────────────────────────────
  *
- *   SZKRABOK_SESSION=rebrowser \
- *     npx playwright test --project=automation --grep "rebrowser-check"
+ *   SZKRABOK_SESSION=rebrowser PLAYWRIGHT_PROJECT=e2e \
+ *     npx playwright test --project=e2e tests/playwright/e2e/rebrowser.spec.js
  *
- *   Expected score standalone: 7/10. The useragent check additionally fails because
- *   applyStealthToExistingPage (which injects the userAgentData.brands JS override)
- *   is only called by wrapper.js after launchPersistentContext - it does not run
- *   in the standalone browser.launch() path. The user-agent-override stealth plugin
- *   spoofs navigator.userAgent (old string API) but not userAgentData.brands.
+ *   Expected score standalone: 9/10, same as via MCP. Both paths launch through
+ *   packages/runtime/launch.js, which calls applyStealthToExistingPage (the
+ *   userAgentData.brands override) right after launchPersistentContext.
  *
  * ─────────────────────────────────────────────────────────────────────────────
  */
@@ -69,7 +67,6 @@ const EXPECTED_PASS = [
 // Tracked here so regressions in currently-passing checks are caught.
 const KNOWN_FAILURES = new Set([
   'mainWorldExecution', // needs rebrowser-patches alwaysIsolated mode (conflicts with dummyFn)
-  'exposeFunctionLeak', // page.exposeFunction is unfixable, no patch exists
 ]);
 
 test('rebrowser-check', async ({ page }, testInfo) => {
@@ -196,7 +193,7 @@ test('rebrowser-check', async ({ page }, testInfo) => {
   ).toHaveLength(0);
 
   const passed = deduped.filter(r => r.passed).length;
-  expect(passed, 'expected 8/10 rebrowser checks to pass').toBe(
+  expect(passed, 'expected 9/10 rebrowser checks to pass').toBe(
     EXPECTED_PASS.length - KNOWN_FAILURES.size
   );
 

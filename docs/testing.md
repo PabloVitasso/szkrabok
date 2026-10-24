@@ -165,16 +165,17 @@ npm run test:playwright
 # npx playwright test --project=integration
 ```
 
-`tests/playwright/integration/fixtures.js` uses `spawnClient()` from `@szkrabok/runtime`. The `openSession()` fixture always injects `{ headless: true }`.
+`tests/playwright/integration/fixtures.js` uses `spawnClient()` from `@szkrabok/runtime`, which starts the server with `--allow-node-code --allow-private-net` and `SZKRABOK_ROOT=<cwd>` (trusted host context). The `openSession()` fixture always injects `{ headless: true }`. Specs that need a specific posture spawn their own server with explicit flags (`config-mcp-roots`, `firefox-engine`, `nav-guard`).
 
 | File | Suite | What it tests |
 |------|-------|---------------|
-| `session.spec.js` | Session Management | `session_manage` open/list/close/delete (glob patterns supported), cookie persistence across close/reopen |
+| `session.spec.js` | Session Management | `session_manage` open/list/close/delete (exact names; globs are CLI-only), cookie persistence across close/reopen |
 | `stealth.spec.js` | Stealth Mode | Session opens with stealth applied, `browser_run` reads page title |
 | `tools.spec.js` | Workflow | `browser_scrape` extracts structured data |
 | `scrape.spec.js` | Scrape contract | `browser_scrape` selector semantics, read-only DOM, stats accounting (SCRAPE-1..15) |
 | `interop.spec.js` | CDP Interoperability | `session_manage endpoint` returns `wsEndpoint`; @playwright/mcp attaches and navigates shared browser. **Skipped** when `@playwright/mcp` is not installed |
-| `config-mcp-roots.spec.js` | Config Discovery | Roots sent at init load project TOML; `SZKRABOK_CONFIG` env var loads config; both verified via `navigator.userAgent` |
+| `config-mcp-roots.spec.js` | Config Discovery | Server mode **ignores** TOML in MCP roots; `SZKRABOK_CONFIG` env var still loads config; both verified via `navigator.userAgent` and `config.source` |
+| `nav-guard.spec.js` | Navigation guard (D7) | Own server per posture. Strict (no flags): page-initiated navigation, `fetch` and WebSocket to a local server never reach it (hit count), `file:` never exposed, Node-form code refused in the page sandbox. Control (`--allow-private-net`): the same actions do reach the local server, so the strict checks cannot pass on a broken fixture |
 | `session_run_test.spec.js` | session_run_test (EX-2) | End-to-end template mode, postPolicy keep, withLock serialization |
 | `scaffold-smoke.spec.js` | Zero-install smoke | `browser_run_test` CDP path works in external project (sk-skills); proves connectOverCDP fixture end-to-end |
 
@@ -258,16 +259,17 @@ SZKRABOK_CDP_ENDPOINT=http://localhost:<port> PLAYWRIGHT_PROJECT=e2e npx playwri
 
 | File | What it does | Mode |
 |------|-------------|------|
-| `rebrowser.spec.js` | bot-detector.rebrowser.net - **8/10 passing** | **headed only** |
+| `rebrowser.spec.js` | bot-detector.rebrowser.net - **9/10 passing** | **headed only** |
 | `rebrowser-mcp.spec.js` | Same via MCP client harness | headed |
 | `intoli.spec.js` | bot.sannysoft.com - 10 Intoli + 20 fp-collect checks | headless or headed |
 | `navigator.spec.js` | whatismybrowser.com navigator props + userAgentData | headed |
 
-### rebrowser score: 8/10
+### rebrowser score: 9/10
 
-Permanent failures:
+Permanent failure:
 - `mainWorldExecution` - requires rebrowser-patches binary (conflicts with dummyFn)
-- `exposeFunctionLeak` - `page.exposeFunction` fingerprint, no fix available
+
+`exposeFunctionLeak` used to fail (`page.exposeFunction` fingerprint) but passes since the host run of 2026-10-24.
 
 ## Authoring specs that run via `browser_run_test`
 
@@ -295,7 +297,7 @@ browser_run_test {
   "params": { "url": "https://example.com" }
 }
 ```
-`params` keys are available as uppercased env vars in the spec (e.g. `{url:...}` -> `process.env.URL`).
+`params` keys are available in the spec as `SZKRABOK_PARAM_<KEY>` env vars, key uppercased (e.g. `{url:...}` -> `process.env.SZKRABOK_PARAM_URL`). Inherited `SZKRABOK_PARAM_*` variables are dropped, so a spec sees only the params of the current call.
 
 ## Calling `browser_run_test` from `@szkrabok/runtime`
 
@@ -315,11 +317,11 @@ const mcp = await mcpConnect('my-session', {
 
 const result = await mcp.browser_run_test({
   files: ['tests/playwright/e2e/my-task.spec.js'],
-  params: { url: 'https://example.com' },  // available as process.env.URL in spec
+  params: { url: 'https://example.com' },  // available as process.env.SZKRABOK_PARAM_URL in spec
   grep: 'my task',        // optional: filter by test name
   project: 'e2e',         // optional: playwright project
   workers: 1,            // optional: parallel workers (session_run_test forces 1)
-  reportFile: 'test-results/my-run.json',  // optional: custom report path (repo-relative)
+  reportFile: 'test-results/my-run.json',  // optional: custom report path (relative to the work root; confined servers accept a bare *.json name only)
 });
 
 console.log(result.passed, result.failed, result.reportFile);
@@ -344,7 +346,8 @@ Commit the updated `packages/runtime/mcp-client/mcp-tools.js`.
 
 ```bash
 npm run lint                        # static analysis (also runs as first step of test:self)
-npm run test:self                   # lint + Playwright integration + tests/node/*.test.js (pre-publish gate)
+npm run test:self                   # lint + Playwright integration + tests/node/*.test.js + test:hardening (pre-publish gate)
+npm run test:hardening              # tests/node/hardening/*.test.js — flags, confinement, env/argv builders, URL guard, real-server gating (no browser needed)
 npm run test:auto                   # e2e (live sites, headed browser)
 npm test                            # test:self + test:auto
 
