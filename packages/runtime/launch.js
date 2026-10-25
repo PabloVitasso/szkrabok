@@ -15,7 +15,24 @@ import * as storage from './storage.js';
 import { rmWithRetry } from './storage.js';
 import * as pool from './pool.js';
 import { computeConfigHash } from './sessions.js';
-import { log } from './logger.js';
+import { log, logWarn } from './logger.js';
+import { patchProblem, playwrightCoreRoot, PATCH_HINT } from './patch-check.js';
+
+// Chromium stealth depends on the postinstall patch; say so once per process
+// when it is missing instead of degrading silently.
+let _patchChecked = false;
+export const warnIfUnpatched = (browserEngine, pwRoot = playwrightCoreRoot()) => {
+  if (browserEngine !== 'chromium') return;
+  if (_patchChecked) return;
+  _patchChecked = true;
+  const problem = patchProblem(pwRoot);
+  if (problem === null) return;
+  logWarn(`playwright-core is not stealth-patched: ${problem}. Fix: ${PATCH_HINT}`);
+};
+
+export const _resetPatchCheckForTesting = () => {
+  _patchChecked = false;
+};
 
 let _gcRegistered = false;
 const ensureGcOnExit = () => {
@@ -328,6 +345,7 @@ export const launch = async (options = {}) => {
 
   ensureGcOnExit();
   const executablePath = await checkBrowser();
+  warnIfUnpatched(browserEngine);
   await storage.cleanupClones();
 
   // Idempotency: return existing handle when reuse=true and profile is open
@@ -547,6 +565,7 @@ export const launchClone = async (options = {}) => {
 
   ensureGcOnExit();
   const executablePath = await checkBrowser();
+  warnIfUnpatched(browserEngine);
   await storage.cleanupClones();
   await storage.ensureSessionsDir();
 

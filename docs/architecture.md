@@ -69,6 +69,7 @@ packages/runtime/
                     FD lease (acquireLease, leaseFree); iterative BFS cloneDir;
                     rmWithRetry; time-gated cleanupClones (60 s cooldown)
   logger.js         Logging helpers
+  patch-check.js    PATCH_MARKERS (single list), missingPatchMarkers, patchProblem, playwrightCoreRoot
   scripts/
     patch-playwright.js  playwright-core patch script — used to regenerate patches/ on version upgrade
 
@@ -414,6 +415,8 @@ scripts/apply-patches.js  →  scripts/verify-playwright-patches.js
 
 `verify-playwright-patches.js` checks all 5 patch markers in `lib/coreBundle.js` and exits 1 (hard failure) if any are missing - the postinstall chain screams loudly rather than silently leaving the browser unpatched.
 
+The postinstall does not run when install scripts are skipped (`npm --ignore-scripts`, pnpm 10 without an approved build, Bun without `trustedDependencies`). Two runtime checks cover that: `szkrabok doctor` warns, and `launch()` / `launchClone()` log one warning per process (Chromium only) naming the fix. Both use the marker list in `packages/runtime/patch-check.js`, shared with the verifier and `tests/node/playwright-patches.test.js`.
+
 Since playwright-core 1.60.0 all server source is compiled into a single `lib/coreBundle.js` (esbuild). The 5 detection markers:
 
 | File | Marker |
@@ -424,7 +427,7 @@ Since playwright-core 1.60.0 all server source is compiled into a single `lib/co
 | `lib/coreBundle.js` | `var __pwUs = class` |
 | `lib/coreBundle.js` | `REBROWSER_PATCHES_RUNTIME_FIX_MODE` |
 
-Use `szkrabok doctor` to verify patch status at any time. For upgrading playwright-core to a new version, see [docs/development.md - Upgrading playwright-core](./development.md#upgrading-playwright-core). The patch script used to generate a new diff lives in `packages/runtime/scripts/patch-playwright.js`.
+Use `szkrabok doctor` to verify patch status at any time (it reads the markers in `lib/coreBundle.js`). For upgrading playwright-core to a new version, see [docs/development.md - Upgrading playwright-core](./development.md#upgrading-playwright-core). The patch script used to generate a new diff lives in `packages/runtime/scripts/patch-playwright.js`.
 
 ## Config discovery
 

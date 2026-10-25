@@ -7,6 +7,9 @@ export { resolvePreset, getPresets, initConfig, initConfigProvisional, finalizeC
 export { validateCandidate, resolveChromium, buildCandidates, populateCandidates, resolveFirefox } from './resolve.js';
 export { BrowserNotFoundError, ConfigNotInitializedError, ConfigNotFinalError, SessionNotFoundError, EngineNotSupportedError, isoNow } from './errors.js';
 
+// Stealth patch presence (postinstall may have been skipped)
+export { patchProblem, PATCH_HINT } from './patch-check.js';
+
 // Storage location (server mode pins it to the work root)
 export { setSessionsDir } from './storage.js';
 

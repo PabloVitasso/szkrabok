@@ -267,7 +267,7 @@ playwright-core is pinned to an exact version (no `^`) and patched via `patch-pa
    ```bash
    grep -n "szkrabok: greasy brands\|_updateUserAgent\|calculateUserAgentMetadata" node_modules/playwright-core/lib/coreBundle.js | head -10
    ```
-   Update the anchor string in `patch-playwright.js`. The verify script and patch tests only check markers, not anchors — no changes needed there unless you add or remove a patch.
+   Update the anchor string in `patch-playwright.js`. The verify script, `doctor`, `launch()` and the patch tests only check markers, not anchors — no changes needed there unless you add or remove a patch. Markers live in one place: `packages/runtime/patch-check.js`.
 
 4. Regenerate the patch file for the new version using `npm pack` + `diff`:
    ```bash
