@@ -370,3 +370,46 @@ Sandbox has no Chromium/Firefox; browser suites run on the host.
 - [Companion handout](./20261024-claude-docker-companion-handout-proposal.md)
 - [First host verification run](./20261024-hardening-verification-run.md)
 - [Release notes 3.0.0](../releases/3.0.0.md)
+
+### Task 6 results (2026-10-25, szkrabok 3.0.0, 13/13)
+
+Posture: `--work-root /home/jones2/szkrabok-npx`, `--spec-root
+/home/jones2/szkrabok-tests`, no grants. `server.flags` and
+`server.capabilities` match. Verified against the host server over
+its endpoint (the boundary the container reaches).
+
+| # | Result | Observed |
+|---|---|---|
+| 1 | pass | `PAGE_EVAL_FAILED`: "Failed to fetch dynamically imported module: node:child_process"; the hint names the page sandbox |
+| 2a/2b | pass | `PATH_NOT_ALLOWED`, root `/home/jones2/szkrabok-tests` |
+| 3a/3b | pass | `PATH_NOT_ALLOWED`; `"-c"` refused: must not start with `-` |
+| 4 | pass | `params key "NODE_OPTIONS" is reserved` |
+| 5 | pass | reportFile regex `/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}\.json$/`, "written under `<work-root>/reports/<session>/`" |
+| 6 | pass | `CAPABILITY_DISABLED`, names `--allow-node-code` |
+| 7a/7b | pass | sessionName regex and length refused |
+| 8 | pass | `URL_BLOCKED`, scheme `file:` |
+| 9 | pass | the `file://` navigation does not stick; the scrape shows the public page only |
+| 10 | pass | `URL_BLOCKED`: "address 127.0.0.1 is private (needs --allow-private-net)" |
+| 11 | pass | `config.source` stays xdg; the planted project config lands in `config.ignored` |
+| 12 | pass | `1 passed (4.8s)`; the report under `<work-root>/reports/<session>/`; the spec root unchanged (`find -newer` empty) |
+| 13 | pass | title returned |
+
+Corrections and findings (beyond the first report-back):
+
+1. **The release enforces 64 chars for session names.** 65, 87 and
+   96 were all refused ("at most 64 chars"). D5 here sets `{0,95}`
+   so generated clone ids (≤ 87) pass when they come back; the
+   release will refuse those clone ids. The first report-back said
+   "the feature's 96 stands" — wrong about the shipped behaviour:
+   either the release regressed or D5 is unshipped.
+2. **Task 5's `find <root> -perm /222` fails its own npm layout.**
+   `node_modules/.bin` entries are symlinks and links read 0777.
+   Suggested: `-not -type l`; the write surface is the target, and
+   the targets are walked.
+3. **A session killed by a server restart leaves a Chromium profile
+   `SingletonLock`.** The session name then fails to reopen
+   ("Failed to create a ProcessSingleton") until the profile is
+   cleaned. A stale-lock sweep at startup would help.
+4. Minor: the headless ungoogled-chromium run finds the title but
+   not an `h1` on example.com (the same page through `browser_run`
+   shows both). Not a posture matter.
