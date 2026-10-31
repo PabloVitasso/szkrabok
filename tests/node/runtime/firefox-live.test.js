@@ -58,9 +58,19 @@ afterEach(() => {
 });
 
 const withBrowserConfig = (engine, executablePath) => {
+  // chromium_sandbox = false: tests exercise the launch plumbing,
+  // not the sandbox. The bundled binaries ship no SUID sandbox
+  // helper, and hosts that restrict unprivileged user namespaces
+  // (Ubuntu 23.10+) abort a sandboxed launch. The default (on) is
+  // covered by launch-sandbox.test.js. Firefox ignores the key.
   writeFileSync(
     join(tmpDir, 'szkrabok.config.toml'),
-    ['[browser]', `engine = "${engine}"`, `executable_path = "${executablePath}"`].join('\n')
+    [
+      '[browser]',
+      `engine = "${engine}"`,
+      `executable_path = "${executablePath}"`,
+      'chromium_sandbox = false',
+    ].join('\n')
   );
   initConfig([tmpDir]);
 };
