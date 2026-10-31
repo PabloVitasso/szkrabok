@@ -100,6 +100,11 @@ const buildConfig = toml => {
     disableWebgl: d.disable_webgl ?? false,
     browserEngine: browserToml.engine ?? 'chromium',
     executablePath: browserToml.executable_path || d.executablePath || null,
+    // Q2 (claude-docker audit 20261031): Playwright adds
+    // --no-sandbox unless chromiumSandbox is true. Default on; a
+    // container deployment sets this false — the container is the
+    // sandbox.
+    chromiumSandbox: browserToml.chromium_sandbox ?? true,
     stealthEnabled: stealthToml.enabled ?? true,
     stealth: {
       evasions: stealthEvasions,

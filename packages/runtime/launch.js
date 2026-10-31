@@ -144,6 +144,63 @@ const waitForExit = async (pid, { timeoutMs = CHROME_EXIT_TIMEOUT_MS } = {}) => 
 //
 export const _resetGcForTesting = () => { _gcRegistered = false; };
 
+// _assembleLaunchOptions — internal, exported for tests. Builds the
+// Playwright launch options from the caller's options and the
+// config.
+// Q2 (claude-docker audit 20261031): Playwright adds --no-sandbox
+// unless chromiumSandbox is true, and szkrabok never set it — on a
+// host a renderer exploit got the user's rights. Default it on. A
+// container deployment sets [browser] chromium_sandbox = false:
+// the container is the sandbox (seccomp and dropped caps stop
+// Chromium from building its own).
+export const _assembleLaunchOptions = (options = {}) => {
+  const engine = options.browserEngine ?? 'chromium';
+  const isFirefox = engine === 'firefox';
+
+  const launchOptions = {
+    ...options,
+    headless: options.headless ?? getConfig().headless,
+    executablePath: options.executablePath,
+    viewport: options.viewport,
+    locale: options.locale,
+    timezoneId: options.timezoneId,
+    userAgent: options.userAgent,
+    chromiumSandbox: options.chromiumSandbox ?? getConfig().chromiumSandbox ?? true,
+  };
+
+  delete launchOptions.stealth;
+  delete launchOptions.presetConfig;
+  delete launchOptions.browserEngine;
+
+  if (isFirefox) {
+    // Firefox: no Chromium-specific flags, no CDP port, no stealth shims.
+    // Prefs suppress the about:newtab startup navigation that races with goto()
+    // on invisible_playwright and some Firefox builds.
+    launchOptions.firefoxUserPrefs = {
+      'browser.startup.page': 0,        // blank page (not homepage or last session)
+      'browser.newtabpage.enabled': false,
+    };
+    delete launchOptions.cdpPort;
+    delete launchOptions.args;
+    delete launchOptions.chromiumSandbox;
+  } else {
+    launchOptions.args = [
+      '--hide-crash-restore-bubble',
+      '--disable-features=PortalActivationDelegate',
+      '--password-store=basic',
+      ...(launchOptions.args || []),
+    ];
+    if (launchOptions.cdpPort !== undefined) {
+      launchOptions.args = [
+        ...launchOptions.args,
+        `--remote-debugging-port=${launchOptions.cdpPort}`,
+      ];
+      delete launchOptions.cdpPort;
+    }
+  }
+  return launchOptions;
+};
+
 // _launchPersistentContext — internal, not exported.
 // executablePath is passed in (resolved by checkBrowser before this is called).
 const _launchPersistentContext = async (userDataDir, options = {}) => {
@@ -166,45 +223,7 @@ const _launchPersistentContext = async (userDataDir, options = {}) => {
     log(`Using ${isFirefox ? 'Firefox' : 'Chromium'} for persistent context`, { path: options.executablePath });
   }
 
-  const launchOptions = {
-    ...options,
-    headless: options.headless ?? getConfig().headless,
-    executablePath: options.executablePath,
-    viewport: options.viewport,
-    locale: options.locale,
-    timezoneId: options.timezoneId,
-    userAgent: options.userAgent,
-  };
-
-  delete launchOptions.stealth;
-  delete launchOptions.presetConfig;
-  delete launchOptions.browserEngine;
-
-  if (isFirefox) {
-    // Firefox: no Chromium-specific flags, no CDP port, no stealth shims.
-    // Prefs suppress the about:newtab startup navigation that races with goto()
-    // on invisible_playwright and some Firefox builds.
-    launchOptions.firefoxUserPrefs = {
-      'browser.startup.page': 0,        // blank page (not homepage or last session)
-      'browser.newtabpage.enabled': false,
-    };
-    delete launchOptions.cdpPort;
-    delete launchOptions.args;
-  } else {
-    launchOptions.args = [
-      '--hide-crash-restore-bubble',
-      '--disable-features=PortalActivationDelegate',
-      '--password-store=basic',
-      ...(launchOptions.args || []),
-    ];
-    if (launchOptions.cdpPort !== undefined) {
-      launchOptions.args = [
-        ...launchOptions.args,
-        `--remote-debugging-port=${launchOptions.cdpPort}`,
-      ];
-      delete launchOptions.cdpPort;
-    }
-  }
+  const launchOptions = _assembleLaunchOptions(options);
 
   const context = await pw.launchPersistentContext(userDataDir, launchOptions);
 
