@@ -81,6 +81,7 @@ tests/
     config-values.test.js     getConfig() field defaults, TOML mapping, resolvePreset
     config-lifecycle.test.js  provisional→final phase transitions, error class contract, getConfigMeta
     playwright-patches.test.js patch markers present; patch-check reports missing/partial/unreadable; launch() warns once, Chromium only
+    ua-brands.test.js         greasedBrands vs real Chrome Sec-CH-UA (120-138); Playwright's _updateUserAgent from the installed bundle; greasy-brands inject/strip/replace
     session_run_test.test.js  session_run_test — 21 unit tests (EX-1); all deps injected, no browser
     runtime/
       helpers.js              shared test utilities: resolveTestBrowser(), launchHeadlessBrowser()

@@ -1,0 +1,349 @@
+From 18d5a384851f31f06e28dc6d4ff5227442783b10 Mon Sep 17 00:00:00 2001
+From: Claude <myemail@example.com>
+Date: Sat, 31 Oct 2026 20:54:03 +0000
+Subject: [PATCH] Playwright: send Chrome's brand list for a custom Chrome user
+ agent
+
+With a userAgent override, calculateUserAgentMetadata() sends no brands,
+so Chromium keeps the binary's own list (bundled Chromium: only
+"Chromium" at its real version) whatever the UA claims. Build the list
+Chrome <major> sends (GenerateBrandVersionList in user_agent_utils.cc).
+Covers pages and service workers. REBROWSER_PATCHES_UA_BRANDS_FIX=0
+turns it off.
+
+Patches regenerated with release/port.mjs playwright-core 1.64.1 --regen
+--write. New test suite: uabrands.
+---
+ README.md                                | 11 +++++-
+ patches/playwright-core/1.64.1/lib.patch | 43 +++++++++++++++++++-----
+ patches/playwright-core/1.64.1/src.patch | 31 ++++++++++++++++-
+ tests/lib/cli.mjs                        |  6 ++--
+ tests/run.mjs                            |  3 +-
+ tests/suites/uabrands.mjs                | 41 ++++++++++++++++++++++
+ tests/workers/uabrands.mjs               | 28 +++++++++++++++
+ 7 files changed, 148 insertions(+), 15 deletions(-)
+ create mode 100644 tests/suites/uabrands.mjs
+ create mode 100644 tests/workers/uabrands.mjs
+
+diff --git a/README.md b/README.md
+index d6c6043..1673c3a 100644
+--- a/README.md
++++ b/README.md
+@@ -126,6 +126,15 @@ REBROWSER_PATCHES_WEBDRIVER_FIX=0
+ ```
+ *Note: this only affects browsers launched by the library. If you connect to an existing browser, pass the switch yourself.*
+ 
++### Match `navigator.userAgentData.brands` to a custom user agent
++Playwright only. When you set `userAgent` on a context, Playwright sends Chrome the user agent string and platform hints but no brand list, so Chrome keeps its own: `navigator.userAgentData.brands` and the `Sec-CH-UA` header name the browser you actually launched (for Playwright's bundled Chromium, only `Chromium`) at its real version, whatever version your user agent claims. A page that compares the two sees the mismatch.
++
++For a `Chrome/<major>` user agent the patch sends the brand list that Chrome of that major version sends, built the way Chrome builds it (`GenerateBrandVersionList` in Chromium's `user_agent_utils.cc`): `Google Chrome`, `Chromium` and the GREASE brand, in the order and with the GREASE name and version that major version uses. For example, `Chrome/131.0.0.0` gives `"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"`. It covers pages and service workers. Without a `userAgent` override nothing changes. Edge (`Edg/`) and Opera (`OPR/`) user agents are left alone.
++```shell
++# use 0 to disable this patch and keep the library's default behavior
++REBROWSER_PATCHES_UA_BRANDS_FIX=0
++```
++
+ ### Method to access browser CDP connection
+ Sometimes, it could be very useful to access a CDP session at a browser level. For example, when you want to implement some custom CDP command. There is a method `page._client()` that returns CDP session for the current page instance, but there is no such method for browser instance. 
+ This patch adds a new method `_connection()` to Browser class, so you can use it like this:
+@@ -222,7 +231,7 @@ We're currently developing more patches to improve web automation transparency,
+ ## The fix doesn't help, I'm still getting blocked 🤯
+ ⚠️ It's important to know that this fix alone won't make your browser bulletproof and undetectable. You need to address **many other aspects** such as proxies, proper user-agent and fingerprints (canvas, WebGL), and more.
+ 
+-What the patches cover: the `Runtime.enable` leak, library names in stack traces and world names, `navigator.webdriver` and the automation infobar. What they don't touch: the `HeadlessChrome` token in the headless user agent, fingerprints (canvas, WebGL, fonts, screen), your IP reputation and how your script behaves (timing, mouse movement). CAPTCHA and bot-management products such as Cloudflare Turnstile, hCaptcha or Google search score all of these, so the patches alone won't get you past them.
++What the patches cover: the `Runtime.enable` leak, library names in stack traces and world names, `navigator.webdriver`, the automation infobar and the brand list behind a custom user agent. What they don't touch: the `HeadlessChrome` token in the headless user agent, fingerprints (canvas, WebGL, fonts, screen), your IP reputation and how your script behaves (timing, mouse movement). CAPTCHA and bot-management products such as Cloudflare Turnstile, hCaptcha or Google search score all of these, so the patches alone won't get you past them.
+ 
+ Always keep in mind: the less you manipulate browser internals via JS injections, the better. There are ways to detect that internal objects such as console, navigator, and others were affected by Proxy objects or Object.defineProperty. It's tricky, but it's always a cat-and-mouse game.
+ 
+diff --git a/patches/playwright-core/1.64.1/lib.patch b/patches/playwright-core/1.64.1/lib.patch
+index 2a0ee65..c7dfe2c 100644
+--- a/patches/playwright-core/1.64.1/lib.patch
++++ b/patches/playwright-core/1.64.1/lib.patch
+@@ -385,7 +385,32 @@
+      };
+      CDPSession = class _CDPSession extends SdkObject {
+        constructor(parentSession, sessionId) {
+-@@ -38661,7 +38912,7 @@
++@@ -38611,8 +38862,24 @@
++   }
++   if (ua.includes("ARM"))
++     metadata.architecture = "arm";
+++  const chromeMatch = ua.match(/Chrome\/(\d+)/);
+++  if (process.env["REBROWSER_PATCHES_UA_BRANDS_FIX"] !== "0" && chromeMatch && !/ (Edg|OPR)\//.test(ua))
+++    metadata.brands = greasedBrands(parseInt(chromeMatch[1], 10));
++   return metadata;
++ }
+++function greasedBrands(major) {
+++  const chars = [" ", "(", ":", "-", ".", "/", ")", ";", "=", "?", "_"];
+++  const order = [[0, 1, 2], [0, 2, 1], [1, 0, 2], [1, 2, 0], [2, 0, 1], [2, 1, 0]][major % 6];
+++  const list = [
+++    { brand: `Not${chars[major % 11]}A${chars[(major + 1) % 11]}Brand`, version: ["8", "99", "24"][major % 3] },
+++    { brand: "Chromium", version: String(major) },
+++    { brand: "Google Chrome", version: String(major) }
+++  ];
+++  const brands = [];
+++  for (let i = 0; i < 3; i++)
+++    brands[order[i]] = list[i];
+++  return brands;
+++}
++ var kCrashingWebUIHosts, CRPage, FrameSession;
++ var init_crPage = __esm({
++   "packages/playwright-core/src/server/chromium/crPage.ts"() {
++@@ -38661,7 +38928,7 @@
+          this._coverage = new CRCoverage(client);
+          this._browserContext = browserContext;
+          this._page = new Page(this, browserContext);
+@@ -394,7 +419,7 @@
+          this._networkManager = new CRNetworkManager(this._page, null);
+          this.updateOffline();
+          this.updateExtraHTTPHeaders();
+-@@ -39006,7 +39257,8 @@
++@@ -39006,7 +39273,8 @@
+            }),
+            this._client.send("Log.enable", {}),
+            lifecycleEventsEnabled = this._client.send("Page.setLifecycleEventsEnabled", { enabled: true }),
+@@ -404,7 +429,7 @@
+            this._client.send("Page.addScriptToEvaluateOnNewDocument", {
+              source: "",
+              worldName: this._crPage.utilityWorldName
+-@@ -39221,6 +39473,8 @@
++@@ -39221,6 +39489,8 @@
+          }
+          const url3 = event.targetInfo.url;
+          const worker = new Worker(this._page, url3);
+@@ -413,7 +438,7 @@
+          this._page.addWorker(event.sessionId, worker);
+          this._workerSessions.set(event.sessionId, session);
+          session.once("Runtime.executionContextCreated", async (event2) => {
+-@@ -39230,7 +39484,9 @@
++@@ -39230,7 +39500,9 @@
+            session.on("Inspector.workerScriptLoaded", () => worker.workerScriptLoaded());
+          else
+            worker.workerScriptLoaded();
+@@ -424,7 +449,7 @@
+          this._crPage._networkManager.addSession(session, this._page.frameManager.frame(event.targetInfo.parentFrameId ?? this._targetId) ?? void 0).catch(() => {
+          });
+          session._sendMayFail("Runtime.runIfWaitingForDebugger");
+-@@ -39287,7 +39543,18 @@
++@@ -39287,7 +39559,18 @@
+        async _onBindingCalled(event) {
+          const pageOrError = await this._crPage._page.waitForInitializedOrError();
+          if (!(pageOrError instanceof Error)) {
+@@ -444,7 +469,7 @@
+            if (context)
+              await this._page.onBindingCalled(event.payload, context);
+          }
+-@@ -39605,6 +39872,8 @@
++@@ -39605,6 +39888,8 @@
+        constructor(browserContext, session, url3) {
+          super(browserContext, url3);
+          this._session = session;
+@@ -453,7 +478,7 @@
+          this.browserContext = browserContext;
+          if (!process.env.PLAYWRIGHT_DISABLE_SERVICE_WORKER_NETWORK)
+            this._networkManager = new CRNetworkManager(null, this);
+-@@ -39637,8 +39906,9 @@
++@@ -39637,8 +39922,9 @@
+            const message = new ConsoleMessage(null, this, event.type, void 0, args, stackTraceToLocation(event.stackTrace), event.timestamp);
+            this.browserContext.emit(BrowserContext.Events.Console, message);
+          });
+@@ -465,7 +490,7 @@
+          session.send("Runtime.runIfWaitingForDebugger").catch((e) => {
+          });
+          session.on("Inspector.targetReloadedAfterCrash", () => {
+-@@ -44297,7 +44567,11 @@
++@@ -44297,7 +44583,11 @@
+            }).catch((e) => null);
+          });
+          Promise.all([
+@@ -478,7 +503,7 @@
+            session.send("Runtime.addBinding", { name: kBindingName2 }),
+            session.send("Page.enable"),
+            session.send("Page.addScriptToEvaluateOnNewDocument", { source: `
+-@@ -44782,6 +45056,15 @@
++@@ -44782,6 +45072,15 @@
+            if (proxyBypassRules.length > 0)
+              chromeArguments.push(`--proxy-bypass-list=${proxyBypassRules.join(";")}`);
+          }
+diff --git a/patches/playwright-core/1.64.1/src.patch b/patches/playwright-core/1.64.1/src.patch
+index e8fb4d2..39c1499 100644
+--- a/patches/playwright-core/1.64.1/src.patch
++++ b/patches/playwright-core/1.64.1/src.patch
+@@ -219,7 +219,7 @@ index 74aa11c..747805e 100644
+        session.send('Page.enable'),
+        session.send('Page.addScriptToEvaluateOnNewDocument', { source: `
+ diff --git a/src/server/chromium/crPage.ts b/src/server/chromium/crPage.ts
+-index 1510bd0..e5845b7 100644
++index 1510bd0..8e63ef8 100644
+ --- a/src/server/chromium/crPage.ts
+ +++ b/src/server/chromium/crPage.ts
+ @@ -105,7 +105,8 @@ export class CRPage implements PageDelegate {
+@@ -287,6 +287,35 @@ index 1510bd0..e5845b7 100644
+        if (context)
+          await this._page.onBindingCalled(event.payload, context);
+      }
++@@ -1289,5 +1309,28 @@ export function calculateUserAgentMetadata(options: types.BrowserContextOptions)
++   }
++   if (ua.includes('ARM'))
++     metadata.architecture = 'arm';
+++  // [rebrowser-patches] without brands, Chromium falls back to the binary's own brand list,
+++  // so a Chrome/N user agent reports e.g. only "Chromium" at the binary's version.
+++  // Send the list Chrome N itself sends. REBROWSER_PATCHES_UA_BRANDS_FIX=0 turns it off.
+++  const chromeMatch = ua.match(/Chrome\/(\d+)/);
+++  if (process.env['REBROWSER_PATCHES_UA_BRANDS_FIX'] !== '0' && chromeMatch && !/ (Edg|OPR)\//.test(ua))
+++    metadata.brands = greasedBrands(parseInt(chromeMatch[1], 10));
++   return metadata;
++ }
+++
+++// [rebrowser-patches] port of GenerateBrandVersionList + GetGreasedUserAgentBrandVersion +
+++// GetRandomOrder (size 3) in components/embedder_support/user_agent_utils.cc.
+++// Entry i of [GREASE, Chromium, Google Chrome] goes to index order[i]; all of it is seeded by the major version.
+++function greasedBrands(major: number): Protocol.Emulation.UserAgentBrandVersion[] {
+++  const chars = [' ', '(', ':', '-', '.', '/', ')', ';', '=', '?', '_'];
+++  const order = [[0, 1, 2], [0, 2, 1], [1, 0, 2], [1, 2, 0], [2, 0, 1], [2, 1, 0]][major % 6];
+++  const list = [
+++    { brand: `Not${chars[major % 11]}A${chars[(major + 1) % 11]}Brand`, version: ['8', '99', '24'][major % 3] },
+++    { brand: 'Chromium', version: String(major) },
+++    { brand: 'Google Chrome', version: String(major) },
+++  ];
+++  const brands: Protocol.Emulation.UserAgentBrandVersion[] = [];
+++  for (let i = 0; i < 3; i++)
+++    brands[order[i]] = list[i];
+++  return brands;
+++}
+ diff --git a/src/server/chromium/crServiceWorker.ts b/src/server/chromium/crServiceWorker.ts
+ index abd6f58..75f4902 100644
+ --- a/src/server/chromium/crServiceWorker.ts
+diff --git a/tests/lib/cli.mjs b/tests/lib/cli.mjs
+index 2b9fd4b..21d7a08 100644
+--- a/tests/lib/cli.mjs
++++ b/tests/lib/cli.mjs
+@@ -3,13 +3,13 @@ import path from 'node:path'
+ import fs from 'node:fs'
+ import os from 'node:os'
+ 
+-export const ALL_SUITES = ['detection', 'scenarios', 'webdriver', 'leaks', 'smoke', 'python', 'nonchromium']
++export const ALL_SUITES = ['detection', 'scenarios', 'webdriver', 'uabrands', 'leaks', 'smoke', 'python', 'nonchromium']
+ 
+ export const HELP = `rebrowser-patches test harness
+ 
+ usage:
+   node tests/run.mjs --pptr-core <tgz> [--pptr <tgz>] --pw-core <tgz> [--pw <tgz>] [--py-wheel <whl>]
+-                     [--chrome <path>] [--suites detection,scenarios,webdriver,smoke,python] --out <dir>
++                     [--chrome <path>] [--suites detection,scenarios,webdriver,uabrands,smoke,python] --out <dir>
+ 
+ inputs (built artifacts; at least one of --pptr-core / --pw-core unless only the python suite runs):
+   --pptr-core <tgz>   rebrowser-puppeteer-core tarball
+@@ -27,7 +27,7 @@ options:
+   --chrome <path>     Chrome binary to use. Default: linux-x64 Chrome for Testing stable (npx @puppeteer/browsers),
+                       linux-arm64 the official Google arm64 .deb extracted with dpkg-deb -x. Cached under <work>/browsers.
+   --suites <list>     comma separated subset of: ${ALL_SUITES.join(', ')}
+-                      (default: detection,scenarios,webdriver,leaks,smoke, plus python when --py-wheel is given;
++                      (default: detection,scenarios,webdriver,uabrands,leaks,smoke, plus python when --py-wheel is given;
+                       nonchromium is opt-in and needs Playwright's firefox + webkit installed)
+   --reps <n>          repetitions of every detection run (default 1)
+   --keep              keep the throwaway project and temp dirs (debugging)
+diff --git a/tests/run.mjs b/tests/run.mjs
+index 498c815..3e6b28f 100755
+--- a/tests/run.mjs
++++ b/tests/run.mjs
+@@ -2,7 +2,7 @@
+ // rebrowser-patches test harness. See `node tests/run.mjs --help`.
+ //
+ //   node tests/run.mjs --pptr-core <tgz> [--pptr <tgz>] --pw-core <tgz> [--pw <tgz>] [--py-wheel <whl>]
+-//                      [--chrome <path>] [--suites detection,scenarios,webdriver,smoke,python] --out <dir>
++//                      [--chrome <path>] [--suites detection,scenarios,webdriver,uabrands,smoke,python] --out <dir>
+ //
+ // Installs the given tarballs plus the unpatched upstream of the same version (the positive controls) into a
+ // throwaway project under the work dir, gets a Chrome, serves the fixtures from this process, runs the suites and
+@@ -46,6 +46,7 @@ const SUITE_MODULES = {
+   detection: './suites/detection.mjs',
+   scenarios: './suites/scenarios.mjs',
+   webdriver: './suites/webdriver.mjs',
++  uabrands: './suites/uabrands.mjs',
+   leaks: './suites/leaks.mjs',
+   smoke: './suites/smoke.mjs',
+   python: './suites/python.mjs',
+diff --git a/tests/suites/uabrands.mjs b/tests/suites/uabrands.mjs
+new file mode 100644
+index 0000000..b0c3f5b
+--- /dev/null
++++ b/tests/suites/uabrands.mjs
+@@ -0,0 +1,41 @@
++// Suite "uabrands": with a userAgent override, Playwright sends Emulation.setUserAgentOverride without brands, so
++// Chromium keeps the binary's own brand list (e.g. only "Chromium" at the binary's version) whatever the UA says.
++// The patched library sends the list that Chrome of the UA's major version sends.
++//
++//   UA: Chrome/131 (far from any test binary). Expected = what real Chrome 131 sends as Sec-CH-UA.
++//   controls (must differ from expected): the unpatched upstream library; the patched library with REBROWSER_PATCHES_UA_BRANDS_FIX=0
++//   gate (must equal expected): patched default, in the page. The dedicated-worker value is reported, not gated.
++import path from 'node:path'
++import { newSuite, table } from '../lib/report.mjs'
++import { run as runCmd, lastJsonLine, tail } from '../lib/util.mjs'
++
++const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'
++const EXPECTED = '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"'
++
++export async function run(ctx) {
++  const s = newSuite('uabrands')
++  const url = ctx.server.url('main.html')
++  const rows = []
++  const fam = ctx.project.pw
++  if (fam) {
++    const cfgs = [
++      { id: `pw-unpatched-${fam.upstream.name}@${fam.upstream.version}`, lib: fam.upstream.alias, env: {}, expect: false, control: true },
++      { id: 'pw-patched-UA_BRANDS_FIX=0', lib: fam.patched.name, env: { REBROWSER_PATCHES_UA_BRANDS_FIX: '0' }, expect: false, control: true },
++      { id: 'pw-patched-default', lib: fam.patched.name, env: {}, expect: true, control: false },
++    ]
++    for (const c of cfgs) {
++      const r = await runCmd('node', [path.join(ctx.project.workers, 'uabrands.mjs'), c.lib, ctx.chrome.path, url, UA], {
++        cwd: ctx.project.dir, display: true, tmp: ctx.tmp, env: c.env, timeoutMs: 120000,
++      })
++      const out = r.code === 0 ? lastJsonLine(r.stdout) : null
++      const pass = out !== null && (out.page === EXPECTED) === c.expect
++      const shown = out ? String(out.page) : 'RUN FAILED'
++      ctx.log(`[uabrands] ${c.id}: page brands = ${shown}; worker = ${out ? out.worker : '-'}; binary = ${out ? out.binary : '-'}`)
++      s.rows.push({ config: c.id, family: fam.key, lib: c.lib, control: c.control, expect: c.expect ? EXPECTED : `not ${EXPECTED}`, value: out, pass, error: out ? undefined : tail(r.stderr || r.stdout, 300) })
++      s.gate(c.id, pass, out ? `${c.control ? 'control' : 'patched'}: brands = ${shown}, expected ${c.expect ? '' : 'not '}${EXPECTED}` : `run failed: ${tail(r.stderr || r.stdout, 200)}`, { broken: c.control })
++      rows.push([c.id, c.control ? 'control' : 'gate', shown, out ? String(out.worker) : '-', pass ? 'PASS' : 'FAIL'])
++    }
++  }
++  for (const l of table(['config', 'role', 'page brands', 'worker brands', 'result'], rows)) s.line(l)
++  return s.finish()
++}
+diff --git a/tests/workers/uabrands.mjs b/tests/workers/uabrands.mjs
+new file mode 100644
+index 0000000..8c36183
+--- /dev/null
++++ b/tests/workers/uabrands.mjs
+@@ -0,0 +1,28 @@
++// Reads navigator.userAgentData.brands in a page and in a dedicated worker, with a userAgent override.
++// usage: node uabrands.mjs <importName> <chromePath> <url> <userAgent>
++// Prints one JSON line { page, worker, binary }. Exit 1 on failure.
++const [lib, executablePath, url, userAgent] = process.argv.slice(2)
++const sleep = ms => new Promise(r => setTimeout(r, ms))
++let browser
++let out
++try {
++  const mod = await import(lib)
++  const chromium = mod.chromium || mod.default?.chromium
++  browser = await chromium.launch({ executablePath, headless: false, args: ['--no-sandbox', '--disable-dev-shm-usage'] })
++  const page = await (await browser.newContext({ viewport: null, userAgent })).newPage()
++  await page.goto(url, { waitUntil: 'load', timeout: 30000 })
++  out = await page.evaluate(async () => {
++    const header = bs => bs ? bs.map(b => `"${b.brand}";v="${b.version}"`).join(', ') : null
++    const src = 'postMessage(navigator.userAgentData ? navigator.userAgentData.brands.map(b => ({ brand: b.brand, version: b.version })) : null)'
++    const w = new Worker(URL.createObjectURL(new Blob([src], { type: 'text/javascript' })))
++    const worker = await Promise.race([new Promise(r => { w.onmessage = e => r(e.data) }), new Promise(r => setTimeout(() => r(null), 5000))])
++    w.terminate()
++    return { page: header(navigator.userAgentData && navigator.userAgentData.brands), worker: header(worker) }
++  })
++  out.binary = browser.version()
++} catch (e) {
++  console.error('FAILED', lib, String((e && e.message) || e).slice(0, 400))
++}
++try { await Promise.race([browser?.close(), sleep(10000)]) } catch {}
++if (out) console.log(JSON.stringify(out))
++process.exit(out ? 0 : 1)
+-- 
+2.39.5
+

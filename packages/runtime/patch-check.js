@@ -1,24 +1,30 @@
 // patch-check.js — is the stealth-patched playwright-core actually installed?
 //
-// scripts/apply-patches.js patches playwright-core at postinstall. When install
-// scripts are skipped (npm --ignore-scripts, pnpm 10 unapproved builds, Bun
-// untrusted deps) the patch is silently absent. One marker list for the
+// Two independent patches, both checked here:
+//   rebrowser patches   scripts/apply-patches.js (patch-package, patches/*.patch);
+//                       to be replaced by a rebrowser drop-in core
+//   greasy brands       scripts/apply-greasy-brands.js (greasy-brands-patch.js);
+//                       szkrabok's own, applied to whichever core is installed
+// When install scripts are skipped (npm --ignore-scripts, pnpm 10 unapproved
+// builds, Bun untrusted deps) both are silently absent. One marker list for the
 // postinstall verifier, `szkrabok doctor`, launch() and the tests.
 
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
+import { GREASY_BRANDS_MARKER } from './greasy-brands-patch.js';
 
 // Since playwright-core 1.60.0 all server source is bundled into coreBundle.js.
 export const PATCH_FILE = 'lib/coreBundle.js';
 
-export const PATCH_MARKERS = Object.freeze([
+export const REBROWSER_PATCH_MARKERS = Object.freeze([
   '__re__emitExecutionContext',
-  'szkrabok: greasy brands',
   'getExecutionContext',
   'var __pwUs = class',
   'REBROWSER_PATCHES_RUNTIME_FIX_MODE',
 ]);
+
+export const PATCH_MARKERS = Object.freeze([...REBROWSER_PATCH_MARKERS, GREASY_BRANDS_MARKER]);
 
 export const PATCH_HINT =
   'reinstall @pablovitasso/szkrabok with install scripts enabled ' +

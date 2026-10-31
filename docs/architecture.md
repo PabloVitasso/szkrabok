@@ -65,13 +65,18 @@ packages/runtime/
   config.js         Config discovery: initConfigProvisional(), finalizeConfig(roots), initConfig(roots) [compat],
                     getConfig({allowProvisional?}), getConfigMeta(), resolvePreset(), getPresets(), findChromiumPath()
   stealth.js        enhanceWithStealth, applyStealthToExistingPage
+  stealth-evasions/
+    ua-brands.js    greasedBrands (Chromium UA-CH GREASE brand list), chromeMajor
   storage.js        Profile dirs, state.json save/restore;
                     FD lease (acquireLease, leaseFree); iterative BFS cloneDir;
                     rmWithRetry; time-gated cleanupClones (60 s cooldown)
   logger.js         Logging helpers
-  patch-check.js    PATCH_MARKERS (single list), missingPatchMarkers, patchProblem, playwrightCoreRoot
+  greasy-brands-patch.js  szkrabok's own core patch: injectGreasyBrands / stripGreasyBrands, GREASY_BRANDS_MARKER
+                    (block in calculateUserAgentMetadata, marker = hash of the block)
+  patch-check.js    REBROWSER_PATCH_MARKERS + GREASY_BRANDS_MARKER = PATCH_MARKERS, missingPatchMarkers,
+                    patchProblem, playwrightCoreRoot
   scripts/
-    patch-playwright.js  playwright-core patch script — used to regenerate patches/ on version upgrade
+    patch-playwright.js  rebrowser patch script — used to regenerate patches/ on version upgrade
 
   mcp-client/
     mcp-tools.js      GENERATED — mcpConnect() handle factory + JSDoc types
@@ -140,7 +145,8 @@ patches/
   playwright-core+<ver>.patch  committed diff applied by patch-package on npm install
 
 scripts/
-  patch-playwright.js          upgrade tool — generates new patch for a new pw version
+  apply-greasy-brands.js       postinstall — greasy-brands block (--strip before patch-package, inject after)
+  apply-patches.js             postinstall — rebrowser patches via patch-package
   verify-playwright-patches.js postinstall verifier — checks all 5 patch markers, exits 1 on failure
 
 playwright.config.js      Root config — pure composition, no logic
@@ -154,6 +160,7 @@ tests/
     schema.test.js             tool schema validation
     contracts.test.js          architecture invariant checks (static analysis)
     playwright-patches.test.js verifies all 5 playwright-core patch markers are present
+    ua-brands.test.js          greasedBrands vs real Chrome Sec-CH-UA; Playwright's _updateUserAgent from the bundle; inject/strip
     session_run_test.test.js   session_run_test — 21 unit tests (EX-1); injected deps, no browser
     runtime/
       unit.test.js           config, storage, stealth without MCP
@@ -405,11 +412,14 @@ CLI-only operations (no MCP equivalent):
 
 ## Playwright patches (`patches/playwright-core+<version>.patch`)
 
-playwright-core is pinned to an exact version and patched via `patch-package`. The committed diff in `patches/` is applied automatically on `npm install` via the postinstall chain:
+playwright-core is pinned to an exact version and gets two independent patches on `npm install`, via the postinstall chain:
 
 ```
-scripts/apply-patches.js  →  scripts/verify-playwright-patches.js
+scripts/apply-greasy-brands.js --strip  →  scripts/apply-patches.js  →  scripts/apply-greasy-brands.js  →  scripts/verify-playwright-patches.js
 ```
+
+- **rebrowser patches** — the committed diff in `patches/`, applied by patch-package. To be replaced by a rebrowser drop-in core; then `apply-patches.js` goes.
+- **greasy brands** — szkrabok's own: `packages/runtime/greasy-brands-patch.js` injects a block into `calculateUserAgentMetadata()`, which builds the metadata of every `Emulation.setUserAgentOverride` (pages, Playwright's own re-sends, service workers). Pattern-based, so it works on stock, patched and drop-in cores (checked on stock 1.63.0, rebrowser-patched 1.63.0, `rebrowser-playwright-core@1.64.101`). Its marker includes a hash of the block, so a block of another rev reads as unpatched and is replaced on the next install. It is stripped before patch-package runs, because patch-package hunks are line-position based.
 
 `apply-patches.js` locates `playwright-core` and `patch-package` via Node's module resolution (works for hoisted, nested, and npx installs), then invokes `patch-package --patch-dir <path>`. It writes a minimal temporary `package.json` to `targetRoot` before invoking patch-package when none exists (bare temp dirs, npx), and removes it afterwards - patch-package requires a `package.json` to locate its app root.
 
@@ -422,12 +432,12 @@ Since playwright-core 1.60.0 all server source is compiled into a single `lib/co
 | File | Marker |
 |---|---|
 | `lib/coreBundle.js` | `__re__emitExecutionContext` |
-| `lib/coreBundle.js` | `szkrabok: greasy brands` |
 | `lib/coreBundle.js` | `getExecutionContext` |
 | `lib/coreBundle.js` | `var __pwUs = class` |
 | `lib/coreBundle.js` | `REBROWSER_PATCHES_RUNTIME_FIX_MODE` |
+| `lib/coreBundle.js` | `szkrabok:greasy-brands rev=<hash>` (`GREASY_BRANDS_MARKER`) |
 
-Use `szkrabok doctor` to verify patch status at any time (it reads the markers in `lib/coreBundle.js`). For upgrading playwright-core to a new version, see [docs/development.md - Upgrading playwright-core](./development.md#upgrading-playwright-core). The patch script used to generate a new diff lives in `packages/runtime/scripts/patch-playwright.js`.
+Use `szkrabok doctor` to verify patch status at any time (it reads the markers in `lib/coreBundle.js`). For upgrading playwright-core to a new version, see [docs/development.md - Upgrading playwright-core](./development.md#upgrading-playwright-core). The patch script used to generate a new rebrowser diff lives in `packages/runtime/scripts/patch-playwright.js`; the greasy-brands patch needs no per-version work.
 
 ## Config discovery
 

@@ -1166,7 +1166,7 @@ diff --git a/node_modules/playwright-core/lib/coreBundle.js b/node_modules/playw
            windowId: this._windowId
          });
          return bounds;
-@@ -38034,20 +38084,54 @@
+@@ -38034,13 +38084,23 @@
          const reducedMotion = emulatedMedia.reducedMotion === "no-override" ? "" : emulatedMedia.reducedMotion;
          const forcedColors = emulatedMedia.forcedColors === "no-override" ? "" : emulatedMedia.forcedColors;
          const contrast = emulatedMedia.contrast === "no-override" ? "" : emulatedMedia.contrast;
@@ -1197,39 +1197,7 @@ diff --git a/node_modules/playwright-core/lib/coreBundle.js b/node_modules/playw
        }
        async _updateUserAgent() {
          const options = this._crPage._browserContext._options;
-+        // ── szkrabok: greasy brands ──────────────────────────────────────────────
-+        const _uaMeta = calculateUserAgentMetadata(options);
-+        const _chromeMatch = (options.userAgent || '').match(/Chrome\/(\.d+)/);
-+        if (_uaMeta && _chromeMatch) {
-+          const seed = parseInt(_chromeMatch[1], 10);
-+          const order = [[0, 1, 2], [0, 2, 1], [1, 0, 2], [1, 2, 0], [2, 0, 1], [2, 1, 0]][seed % 6];
-+          const esc = [' ', ' ', ';'];
-+          const grease = `${esc[order[0]]}Not${esc[order[1]]}A${esc[order[2]]}Brand`;
-+          const _brands = [];
-+          _brands[order[0]] = {
-+            brand: grease,
-+            version: '99'
-+          };
-+          _brands[order[1]] = {
-+            brand: 'Chromium',
-+            version: String(seed)
-+          };
-+          _brands[order[2]] = {
-+            brand: 'Google Chrome',
-+            version: String(seed)
-+          };
-+          _uaMeta.brands = _brands;
-+        }
-+        // ── end szkrabok greasy brands ────────────────────────────────────────────
-         await this._client.send("Emulation.setUserAgentOverride", {
-           userAgent: options.userAgent || "",
-           acceptLanguage: options.locale,
--          userAgentMetadata: calculateUserAgentMetadata(options)
-+          userAgentMetadata: _uaMeta
-         });
-       }
-       async _setDefaultFontFamilies(session2) {
-@@ -38056,49 +38140,53 @@
+@@ -38056,49 +38116,53 @@
        }
        async _updateFileChooserInterception(initial) {
          const enabled = this._page.fileChooserIntercepted();
@@ -1302,7 +1270,7 @@ diff --git a/node_modules/playwright-core/lib/coreBundle.js b/node_modules/playw
          const nodeInfo = await this._client.send("DOM.describeNode", {
            objectId: documentElement._objectId
          });
-@@ -38110,24 +38198,28 @@
+@@ -38110,24 +38174,28 @@
          const result2 = await this._client._sendMayFail("DOM.getBoxModel", {
            objectId: handle._objectId
          });
@@ -1340,7 +1308,7 @@ diff --git a/node_modules/playwright-core/lib/coreBundle.js b/node_modules/playw
          const element3 = await frame.frameElement(nullProgress);
          const box = await element3.boundingBox(nullProgress);
          return box;
-@@ -38136,11 +38228,9 @@
+@@ -38136,11 +38204,9 @@
          return await this._client.send("DOM.scrollIntoViewIfNeeded", {
            objectId: handle._objectId,
            rect
@@ -1355,7 +1323,7 @@ diff --git a/node_modules/playwright-core/lib/coreBundle.js b/node_modules/playw
            throw e;
          });
        }
-@@ -38148,17 +38238,22 @@
+@@ -38148,17 +38214,22 @@
          const result2 = await this._client._sendMayFail("DOM.getContentQuads", {
            objectId: handle._objectId
          });
@@ -1388,7 +1356,7 @@ diff --git a/node_modules/playwright-core/lib/coreBundle.js b/node_modules/playw
        }
        async _adoptElementHandle(handle, to) {
          const nodeInfo = await this._client.send("DOM.describeNode", {
-@@ -38171,19 +38266,17 @@
+@@ -38171,19 +38242,17 @@
            backendNodeId,
            executionContextId: to.delegate._contextId
          });
@@ -1411,7 +1379,7 @@ diff --git a/node_modules/playwright-core/lib/coreBundle.js b/node_modules/playw
      init_page();
      init_crExecutionContext();
      init_crNetworkManager();
-@@ -38197,41 +38290,32 @@
+@@ -38197,41 +38266,32 @@
          super(browserContext, url3);
          this._session = session2;
          this.browserContext = browserContext;
@@ -1466,7 +1434,7 @@ diff --git a/node_modules/playwright-core/lib/coreBundle.js b/node_modules/playw
          session2.on("Inspector.targetReloadedAfterCrash", () => {
            session2._sendMayFail("Runtime.runIfWaitingForDebugger", {});
          });
-@@ -38242,22 +38326,16 @@
+@@ -38242,22 +38302,16 @@
          super.didClose();
        }
        async updateOffline() {
@@ -1495,7 +1463,7 @@ diff --git a/node_modules/playwright-core/lib/coreBundle.js b/node_modules/playw
        }
        async updateUserAgent() {
          const options = this.browserContext._options;
-@@ -38265,20 +38343,20 @@
+@@ -38265,20 +38319,20 @@
            userAgent: options.userAgent || "",
            acceptLanguage: options.locale,
            userAgentMetadata: calculateUserAgentMetadata(options)
@@ -1523,7 +1491,7 @@ diff --git a/node_modules/playwright-core/lib/coreBundle.js b/node_modules/playw
        }
        requestFailed(request2, _canceled) {
          this.browserContext.emit(BrowserContext.Events.RequestFailed, request2);
-@@ -38288,17 +38366,14 @@
+@@ -38288,17 +38342,14 @@
        }
        requestStarted(request2, route2) {
          this.browserContext.emit(BrowserContext.Events.Request, request2);
@@ -1543,7 +1511,7 @@ diff --git a/node_modules/playwright-core/lib/coreBundle.js b/node_modules/playw
  function shouldProxyLoopback(bypass) {
    if (process.env.PLAYWRIGHT_DISABLE_FORCED_CHROMIUM_PROXIED_LOOPBACK)
      return false;
-@@ -42837,6 +42912,7 @@
+@@ -42837,6 +42888,7 @@
  var init_crDevTools = __esm({
    "packages/playwright-core/src/server/chromium/crDevTools.ts"() {
      "use strict";
@@ -1551,7 +1519,7 @@ diff --git a/node_modules/playwright-core/lib/coreBundle.js b/node_modules/playw
      import_fs26 = __toESM(require("fs"));
      kBindingName2 = "__pw_devtools__";
      CRDevTools = class {
-@@ -42845,9 +42921,8 @@
+@@ -42845,9 +42897,8 @@
          this._savePromise = Promise.resolve();
        }
        install(session2) {
@@ -1563,7 +1531,7 @@ diff --git a/node_modules/playwright-core/lib/coreBundle.js b/node_modules/playw
            const parsed = JSON.parse(event.payload);
            let result2 = void 0;
            if (parsed.method === "getPreferences") {
-@@ -42873,13 +42948,12 @@
+@@ -42873,13 +42924,12 @@
            session2.send("Runtime.evaluate", {
              expression: `window.DevToolsAPI.embedderMessageAck(${parsed.id}, ${JSON.stringify(result2)})`,
              contextId: event.executionContextId
@@ -1582,7 +1550,7 @@ diff --git a/node_modules/playwright-core/lib/coreBundle.js b/node_modules/playw
          (() => {
            const init = () => {
              // Lazy init happens when InspectorFrontendHost is initialized.
-@@ -42901,20 +42975,17 @@
+@@ -42901,20 +42951,17 @@
              set(v) { value = v; init(); },
            });
          })()

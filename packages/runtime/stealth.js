@@ -7,6 +7,7 @@ import NavigatorLanguages from 'puppeteer-extra-plugin-stealth/evasions/navigato
 import WebGLVendor from 'puppeteer-extra-plugin-stealth/evasions/webgl.vendor/index.js';
 import { getConfig } from './config.js';
 import { log, logDebug } from './logger.js';
+import { greasedBrands, chromeMajor } from './stealth-evasions/ua-brands.js';
 
 const CONFIGURABLE_EVASIONS = [
   'user-agent-override',
@@ -37,10 +38,18 @@ const pageLabel = page => {
   }
 };
 
+// The plugin builds its own brand list; swap in szkrabok's
+// (stealth-evasions/ua-brands.js).
+const withGreasedBrands = (method, params) => {
+  const major = chromeMajor(params?.userAgent);
+  if (method !== 'Network.setUserAgentOverride' || !params?.userAgentMetadata || major === null) return params;
+  return { ...params, userAgentMetadata: { ...params.userAgentMetadata, brands: greasedBrands(major) } };
+};
+
 const guardedClient = (client, label) => ({
   send: async (method, params) => {
     try {
-      return await client.send(method, params);
+      return await client.send(method, withGreasedBrands(method, params));
     } catch (err) {
       log(`user-agent-override: ${method} skipped on ${label()}: ${err.message}`);
       return undefined;
@@ -255,20 +264,7 @@ export const applyStealthToExistingPage = async (page, presetConfig = {}) => {
       }
       const seed = parseInt(uaVersion.split('.')[0]);
 
-      const order = [
-        [0, 1, 2],
-        [0, 2, 1],
-        [1, 0, 2],
-        [1, 2, 0],
-        [2, 0, 1],
-        [2, 1, 0],
-      ][seed % 6];
-      const escapedChars = [' ', ' ', ';'];
-      const greaseyBrand = `${escapedChars[order[0]]}Not${escapedChars[order[1]]}A${escapedChars[order[2]]}Brand`;
-      const brands = [];
-      brands[order[0]] = { brand: greaseyBrand, version: '99' };
-      brands[order[1]] = { brand: 'Chromium', version: String(seed) };
-      brands[order[2]] = { brand: 'Google Chrome', version: String(seed) };
+      const brands = greasedBrands(seed);
 
       let maskLinux;
       if (uaConfig.mask_linux != null) {
@@ -332,6 +328,7 @@ export const applyStealthToExistingPage = async (page, presetConfig = {}) => {
       });
 
       const brandsJson = JSON.stringify(brands);
+      const fullVersionListJson = JSON.stringify(greasedBrands(seed, uaVersion));
       const fullVersion = uaVersion;
       await page.addInitScript(`
 (function() {
@@ -350,7 +347,7 @@ export const applyStealthToExistingPage = async (page, presetConfig = {}) => {
       if (hints.includes('bitness')) result.bitness = '64';
       if (hints.includes('model')) result.model = '';
       if (hints.includes('uaFullVersion')) result.uaFullVersion = ${JSON.stringify(fullVersion)};
-      if (hints.includes('fullVersionList')) result.fullVersionList = _brands.map(b => ({ brand: b.brand, version: b.version + '.0.0.0' }));
+      if (hints.includes('fullVersionList')) result.fullVersionList = ${fullVersionListJson};
       return result;
     },
     toJSON: () => ({ brands: _brands, mobile: false, platform: 'Windows' }),

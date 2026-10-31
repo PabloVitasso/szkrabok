@@ -24,7 +24,7 @@ for (const marker of PATCH_MARKERS) {
     const missing = missingPatchMarkers(pwRoot) ?? PATCH_MARKERS;
     assert.ok(
       !missing.includes(marker),
-      `Missing patch marker "${marker}" in ${PATCH_FILE} — run: node scripts/apply-patches.js`
+      `Missing patch marker "${marker}" in ${PATCH_FILE} — run: npm run postinstall`
     );
   });
 }
