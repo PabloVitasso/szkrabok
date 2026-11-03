@@ -7,6 +7,7 @@ import { resolvePlaywrightCore } from '../../../scripts/resolve-playwright-core.
 import { szkrabokCacheDir } from '../../utils/platform.js';
 import { runDetect, runInstall, writeExecPath } from '../lib/browser-actions.js';
 import { getConfigMeta } from '../../config.js';
+import { patchProblem, PATCH_HINT } from '#runtime';
 
 const pass = (label, detail = '') => {
   let detailStr;
@@ -127,14 +128,9 @@ async function runFullDoctor(opts) {
     pass('playwright-core installed', version);
 
     // 3. playwright-core patched
-    const crConnectionJs = join(pwCorePath, 'lib', 'server', 'chromium', 'crConnection.js');
-    if (existsSync(crConnectionJs)) {
-      const src = await fs.readFile(crConnectionJs, 'utf8');
-      if (src.includes('__re__emitExecutionContext')) pass('playwright-core patched (stealth)');
-      else warn('playwright-core not patched', 'run: node scripts/patch-playwright.js');
-    } else {
-      warn('playwright-core patch check skipped', 'crConnection.js not found');
-    }
+    const problem = patchProblem(pwCorePath);
+    if (problem === null) pass('playwright-core patched (stealth)');
+    else warn('playwright-core not patched', `${problem}. Fix: ${PATCH_HINT}`);
   } else {
     failed = fail('playwright-core installed', `not found near ${pkgRoot}`);
   }

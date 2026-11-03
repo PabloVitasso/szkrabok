@@ -44,7 +44,8 @@ console.log(`[smoke-test] Packed: ${tarball}`);
 tmpDir = mkdtempSync(join(tmpdir(), 'szkrabok-smoke-'));
 console.log(`[smoke-test] Installing into ${tmpDir}...`);
 
-// --foreground-scripts ensures postinstall runs visibly and exercises apply-patches.js
+// --foreground-scripts ensures postinstall runs visibly and exercises apply-greasy-brands.js
+// and apply-patches.js
 // in a bare temp dir (no package.json) — the exact scenario that previously failed.
 // postinstall.js is no longer in the chain (Chromium download deferred to runtime).
 try {

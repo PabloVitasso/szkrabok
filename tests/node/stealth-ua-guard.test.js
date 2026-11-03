@@ -11,6 +11,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import UserAgentOverride from 'puppeteer-extra-plugin-stealth/evasions/user-agent-override/index.js';
 import { guardUserAgentPlugin } from '../../packages/runtime/stealth.js';
+import { greasedBrands } from '../../packages/runtime/stealth-evasions/ua-brands.js';
 
 const UA =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36';
@@ -78,13 +79,15 @@ test('the skip log names the page; a throwing url() cannot break the guard', asy
   assert.ok(skipped.some(l => l.includes('unknown page')), skipped.join('\n'));
 });
 
-test('real plugin, open target: the override is still sent unchanged', async () => {
+test('real plugin, open target: the override is sent, with greased brands', async () => {
   const plugin = guarded();
   const { page, sent } = fakePage({ sendFails: false });
   await plugin.onPageCreated(page);
   assert.equal(sent.length, 1);
   assert.equal(sent[0].params.userAgent, UA);
-  assert.ok(Array.isArray(sent[0].params.userAgentMetadata.brands));
+  // The guard swaps the plugin's own brand list for szkrabok's (Chrome 145).
+  assert.deepEqual(sent[0].params.userAgentMetadata.brands, greasedBrands(145));
+  assert.equal(sent[0].params.userAgentMetadata.platform, 'Windows');
 });
 
 test('the wrapped hook stays an AsyncFunction (playwright-extra only catches those)', () => {

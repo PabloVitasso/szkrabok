@@ -55,7 +55,7 @@
     "test:hardening": "node --test tests/node/hardening/*.test.js",
     "test:playwright": "playwright test --project=integration",
     "prepare": "node scripts/setup.js",
-    "postinstall": "node scripts/apply-patches.js && node scripts/verify-playwright-patches.js",
+    "postinstall": "node scripts/apply-greasy-brands.js --strip && node scripts/apply-patches.js && node scripts/apply-greasy-brands.js && node scripts/verify-playwright-patches.js",
     "test:self": "npm run lint && playwright test --project=integration && node --test tests/node/*.test.js && npm run test:runtime && npm run test:hardening",
     "test:auto": "PLAYWRIGHT_PROJECT=e2e playwright test --project=e2e"
   },

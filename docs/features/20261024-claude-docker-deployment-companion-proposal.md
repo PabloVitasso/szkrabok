@@ -188,7 +188,7 @@ same style as the deploy gate:
 - **warn** if it contains `--allow-private-net` (wider network reach, no code
   execution);
 - if `--spec-root` is present, the path exists, is a directory, has no
-  writable bits (`find <root> -perm /222` is empty), and is disjoint from
+  writable bits (`find <root> -not -type l -perm /222` is empty), and is disjoint from
   `--work-root` and from the mcp-proxy `--cwd` realpaths;
 - `--work-root` equals the mcp-proxy `--cwd`.
 

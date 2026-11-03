@@ -177,7 +177,7 @@ Static checks on the szkrabok entry in `config/mcp-hosts.json`:
       names the variable;
 - [ ] **warn** on `--allow-private-net`;
 - [ ] `--spec-root` exists, is a directory, has no writable bits
-      (`find <root> -perm /222` empty), and is disjoint from `--work-root`
+      (`find <root> -not -type l -perm /222` empty), and is disjoint from `--work-root`
       and the mcp-proxy `--cwd` (realpaths);
 - [ ] `--work-root` equals the mcp-proxy `--cwd`;
 - [ ] `<spec-root>/node_modules/.bin/playwright` exists (else szkrabok

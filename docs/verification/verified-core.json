@@ -1,0 +1,22 @@
+{
+  "package": "rebrowser-playwright-core",
+  "version": "1.64.101",
+  "upstream": { "package": "playwright-core", "version": "1.64.1" },
+  "patches": { "tool": "rebrowser-patches", "version": "1.1.2", "surface": "lib patch 1.64.1" },
+  "verifiedAt": "2026-10-31",
+  "method": "clean-room reproduce + tree diff + file-hash diff",
+  "result": "bit-identical after excluding metadata",
+  "excluded": ["package.json", "README.md"],
+  "tarballSha512": "yw9m3HJFcsdnMRIDNEpoNVrC7Rl7oUu7PcttdG7s1EeImea0VvnOJ2i2ropECSQGVx6kthO5901fqlYnXS8ZJg==",
+  "npmIntegrity": "sha512-yw9m3HJFcsdnMRIDNEpoNVrC7Rl7oUu7PcttdG7s1EeImea0VvnOJ2i2ropECSQGVx6kthO5901fqlYnXS8ZJg==",
+  "integrityMatch": true,
+  "hashMatch": true,
+  "treeDiff": "empty",
+  "markers": {
+    "__re__emitExecutionContext": 3,
+    "getExecutionContext": 3,
+    "rebrowserUtilityScriptName": 5,
+    "REBROWSER_PATCHES_RUNTIME_FIX_MODE": 13
+  },
+  "greasyBrandsBlocks": 0
+}

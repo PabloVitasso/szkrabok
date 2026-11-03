@@ -289,51 +289,7 @@ const patches = [
     ),
   },
 
-  // ── 4. crPage — greasy brands in _updateUserAgent ──────────────────────────
-  // In 1.60.0 calculateUserAgentMetadata() no longer returns brands.
-  // Inject brands at the CDP callsite in _updateUserAgent().
-  // In 1.61.0 the local variable was renamed options2 → options.
-  {
-    name: 'crPage: greasy brands in _updateUserAgent',
-    section: 'packages/playwright-core/src/server/chromium/crPage.ts',
-    apply: sec => strReplace(
-      'crPage: greasy brands in _updateUserAgent',
-      sec,
-      `async _updateUserAgent() {
-        const options = this._crPage._browserContext._options;
-        await this._client.send("Emulation.setUserAgentOverride", {
-          userAgent: options.userAgent || "",
-          acceptLanguage: options.locale,
-          userAgentMetadata: calculateUserAgentMetadata(options)
-        });
-      }`,
-      `async _updateUserAgent() {
-        const options = this._crPage._browserContext._options;
-        // ── szkrabok: greasy brands ──────────────────────────────────────────────
-        const _uaMeta = calculateUserAgentMetadata(options);
-        const _chromeMatch = (options.userAgent || '').match(/Chrome\\/(\\.d+)/);
-        if (_uaMeta && _chromeMatch) {
-          const seed = parseInt(_chromeMatch[1], 10);
-          const order = [[0,1,2],[0,2,1],[1,0,2],[1,2,0],[2,0,1],[2,1,0]][seed % 6];
-          const esc = [' ', ' ', ';'];
-          const grease = \`\${esc[order[0]]}Not\${esc[order[1]]}A\${esc[order[2]]}Brand\`;
-          const _brands = [];
-          _brands[order[0]] = { brand: grease, version: '99' };
-          _brands[order[1]] = { brand: 'Chromium', version: String(seed) };
-          _brands[order[2]] = { brand: 'Google Chrome', version: String(seed) };
-          _uaMeta.brands = _brands;
-        }
-        // ── end szkrabok greasy brands ────────────────────────────────────────────
-        await this._client.send("Emulation.setUserAgentOverride", {
-          userAgent: options.userAgent || "",
-          acceptLanguage: options.locale,
-          userAgentMetadata: _uaMeta
-        });
-      }`
-    ),
-  },
-
-  // ── 5. crPage — suppress Runtime.enable (AST) ──────────────────────────────
+  // ── 4. crPage — suppress Runtime.enable (AST) ──────────────────────────────
   // Must run AFTER string replacements because emit() reformats the section,
   // making string anchors unmatchable afterward.
   {
@@ -342,14 +298,14 @@ const patches = [
     apply: sec => astSuppressRuntimeEnable(sec, 'crPage'),
   },
 
-  // ── 6. crServiceWorker — suppress Runtime.enable (AST) ─────────────────────
+  // ── 5. crServiceWorker — suppress Runtime.enable (AST) ─────────────────────
   {
     name: 'crServiceWorker: suppress Runtime.enable',
     section: 'packages/playwright-core/src/server/chromium/crServiceWorker.ts',
     apply: sec => astSuppressRuntimeEnable(sec, 'crServiceWorker'),
   },
 
-  // ── 7. frames — emit executionContextsCleared on commit ────────────────────
+  // ── 6. frames — emit executionContextsCleared on commit ────────────────────
   {
     name: 'frames: emit executionContextsCleared on commit',
     section: 'packages/playwright-core/src/server/frames.ts',
@@ -367,7 +323,7 @@ const patches = [
     ),
   },
 
-  // ── 8. frames — rewire context() to use __re__emitExecutionContext ──────────
+  // ── 7. frames — rewire context() to use __re__emitExecutionContext ──────────
   // Method renamed _context → context in 1.60.0 esbuild output (underscore dropped).
   // Recursive call must also use context() (not _context()).
   // In 1.61.0 a noUtilityWorld guard was added at the top — preserve it.
@@ -408,7 +364,7 @@ const patches = [
     ),
   },
 
-  // ── 9. page — Worker constructor: add targetId + session params ─────────────
+  // ── 8. page — Worker constructor: add targetId + session params ─────────────
   {
     name: 'page: Worker constructor add targetId+session',
     section: 'packages/playwright-core/src/server/page.ts',
@@ -440,7 +396,7 @@ const patches = [
     ),
   },
 
-  // ── 10. page — Worker evaluateExpression: use getExecutionContext() ──────────
+  // ── 9. page — Worker evaluateExpression: use getExecutionContext() ──────────
   // In 1.60.0 both methods take leading progress2 param and call the free
   // function evaluateExpression() (not js.evaluateExpression).
   {
@@ -470,7 +426,7 @@ const patches = [
     ),
   },
 
-  // ── 11. page — PageBinding.dispatch: guard non-JSON payloads ────────────────
+  // ── 10. page — PageBinding.dispatch: guard non-JSON payloads ────────────────
   {
     name: 'page: PageBinding.dispatch guard non-JSON',
     section: 'packages/playwright-core/src/server/page.ts',
@@ -485,7 +441,7 @@ const patches = [
     ),
   },
 
-  // ── 12. utilityScriptSource — rename UtilityScript class ────────────────────
+  // ── 11. utilityScriptSource — rename UtilityScript class ────────────────────
   // The UtilityScript bundle is inlined as a string literal inside coreBundle.js.
   // String replacement works directly on the raw file content.
   {
@@ -504,7 +460,6 @@ const patches = [
 
 const PATCH_MARKERS = [
   { file: 'coreBundle.js', marker: '__re__emitExecutionContext' },
-  { file: 'coreBundle.js', marker: 'szkrabok: greasy brands'   },
 ]
 const STAMP_FILE = '.szkrabok-patched'
 
