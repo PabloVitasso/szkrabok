@@ -100,7 +100,10 @@ describe('sandbox failure hint', () => {
   });
 
   test('catches the other two Chromium sandbox texts', () => {
-    for (const text of ['No usable sandbox!', 'The SUID sandbox helper binary was found, but is not configured correctly']) {
+    for (const text of [
+      'No usable sandbox!',
+      'The SUID sandbox helper binary was found, but is not configured correctly',
+    ]) {
       assert.ok(applySandboxHint(new Error(text)).message.includes(SANDBOX_HINT_ANCHOR), text);
     }
   });
