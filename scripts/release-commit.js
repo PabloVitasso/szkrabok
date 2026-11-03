@@ -22,4 +22,6 @@ run(`git tag v${v}`);
 run('git push');
 run(`git push origin v${v}`);
 
-console.log(`\nReleased v${v}. Run: npm run release:publish`);
+console.log(
+  `\nReleased v${v}. Run: npm run release:publish (npm), npm run release:publish-gitonly (GitHub), or npm run release:publish-both.`
+);

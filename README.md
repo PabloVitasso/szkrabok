@@ -369,7 +369,7 @@ szkrabok doctor install              # Install Playwright's Chromium (idempotent
 - **`@szkrabok/runtime`** (`packages/runtime/`): Browser bootstrap, stealth, session pool, MCP client (`mcpConnect`, `spawnClient`, codegen).
 - **`@pablovitasso/szkrabok/fixtures`** (`src/fixtures.js`): Versioned Playwright fixture export - CDP attach path, standalone launch path, `writeAttachSignal` at attach time. Import from this in automation specs; `scaffold_init --preset full` writes a thin shim that re-exports it.
 - **Config**: `szkrabok.config.toml` (defaults) deep-merged with `szkrabok.config.local.toml` (machine-specific, gitignored).
-- **Release**: `npm run deps:update` updates dependencies, `npm run release:patch` bumps version + tags, then `npm run release:publish`.
+- **Release**: `npm run deps:update` updates dependencies, `npm run release:patch` bumps version + tags, then `npm run release:publish` (npm), `npm run release:publish-gitonly` (GitHub only) or `npm run release:publish-both`.
 
 ## Documentation
 

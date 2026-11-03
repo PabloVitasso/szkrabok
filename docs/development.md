@@ -152,10 +152,12 @@ git add -A && git commit -m "..."
 # 3. Bump version, commit, tag, push
 npm run release:patch    # or release:minor, release:major
 
-# 4. Publish to npm (requires npm login)
-npm run release:publish
+# 4. Publish: npm and/or the GitHub release (both need their own auth)
+npm run release:publish          # npm only — the gate runs via prepublishOnly
+npm run release:publish-gitonly  # GitHub release only — the gate runs explicitly
+npm run release:publish-both     # npm publish, then the GitHub release
 
-# 5. Create GitHub release (optional, independent — requires gh CLI + auth)
+# Or, any time after a release: just the GitHub release, ungated
 npm run release:github
 ```
 
@@ -188,11 +190,21 @@ npm install --ignore-scripts
 
 The `prepack` guard prevents publishing without a version tag on HEAD.
 
-`prepublishOnly` runs `npm run lint` then `scripts/smoke-test.js` before every `npm publish`. The smoke-test packs a tarball, installs it in a fresh bare temp directory using `--foreground-scripts` (exercising the real postinstall pipeline: `apply-greasy-brands.js --strip` -> `apply-patches.js` -> `apply-greasy-brands.js` -> `verify-playwright-patches.js`), then runs `szkrabok --version` and `szkrabok doctor`. Chromium download is **not** part of postinstall - `postinstall.js` is retained for manual use but excluded from the chain. Install Chromium separately with `szkrabok doctor install` or `doctor detect --write-config`. Publish fails loudly if any step fails - catching lint errors, missing files, broken postinstall, or binary resolution issues before they reach npm.
+`prepublishOnly` runs `npm run release:gate` (`npm run lint` + `scripts/smoke-test.js`) before every `npm publish`. The smoke-test packs a tarball, installs it in a fresh bare temp directory using `--foreground-scripts` (exercising the real postinstall pipeline: `apply-greasy-brands.js --strip` -> `apply-patches.js` -> `apply-greasy-brands.js` -> `verify-playwright-patches.js`), then runs `szkrabok --version` and `szkrabok doctor`. Chromium download is **not** part of postinstall - `postinstall.js` is retained for manual use but excluded from the chain. Install Chromium separately with `szkrabok doctor install` or `doctor detect --write-config`. Publish fails loudly if any step fails - catching lint errors, missing files, broken postinstall, or binary resolution issues before they reach npm.
 
-`release:publish` checks `npm whoami` and fails with a clear message if not logged in. Run `npm login` then re-run.
+**`release:publish` / `release:publish-gitonly` / `release:publish-both`** are one orchestrator (`scripts/release-publish.js`) with a `--target`; the tag check and the auth checks are shared. Every run first verifies that HEAD carries the tag matching `package.json`, then checks the auth it needs *before* mutating anything.
 
-**`release:github`** creates a GitHub release for the current package version using the `gh` CLI with auto-generated notes from commits since the previous tag. Completely independent from npm - run it any time after a release, or skip it entirely.
+| Command | npm publish | GitHub release | Gate |
+|---|---|---|---|
+| `npm run release:publish` | yes | no | via `prepublishOnly` |
+| `npm run release:publish-gitonly` | no | yes | explicit `npm run release:gate` |
+| `npm run release:publish-both` | yes | yes | via `prepublishOnly` |
+
+Flags: `--skip-gate` (GitHub-only runs; skips lint + smoke test) and `--force` (update the notes of an existing GitHub release instead of failing). The npm target checks `npm whoami` and fails with "Run: npm login"; the GitHub target uses `GH_TOKEN` or `gh auth status`.
+
+The gate is `npm run release:gate` = `npm run lint && node scripts/smoke-test.js`. `prepublishOnly` calls the same script, so a direct `npm publish` is still gated. A GitHub-only release has no npm lifecycle, which is why the orchestrator runs the gate itself.
+
+**`release:github`** creates or updates the GitHub release for the current package version, using hand-written `docs/releases/<version>.md` when present and generated notes otherwise. It is deliberately **ungated and npm-independent** — run it any time after a release, or skip it entirely. Prefer `release:publish-gitonly` when you want the gate.
 
 Auth (pick one - `GH_TOKEN` avoids keyring prompts):
 ```bash
