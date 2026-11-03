@@ -11,12 +11,22 @@
  * Tests for a given browser type are skipped if not found.
  */
 
-import { test, describe } from 'node:test';
+import { test, describe, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { access } from 'fs/promises';
 import { join } from 'path';
 import net from 'net';
-import { resolveTestBrowser, launchHeadlessBrowser } from './helpers.js';
+import {
+  resolveTestBrowser,
+  launchHeadlessBrowser,
+  assertNoBrowserLeaks,
+  sweepStaleBrowsers,
+} from './helpers.js';
+
+// Leak audit (2026-10-31): a green run must leave no browser behind,
+// and orphans of a crashed earlier run are swept before this one.
+before(() => sweepStaleBrowsers());
+after(() => assertNoBrowserLeaks());
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
