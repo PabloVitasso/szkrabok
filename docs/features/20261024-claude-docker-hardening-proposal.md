@@ -341,15 +341,23 @@ Sandbox has no Chromium/Firefox; browser suites run on the host.
 | `test:runtime` | host 257/263 before the PC-5 mock fix; PC-5 12/12 in sandbox after; host rerun result not recorded |
 | integration | host 42 pass / 6 skip (environment-gated) |
 | e2e | host 6/6 |
+| live posture checklist (handout task 6) | host 13/13 on 3.0.0 |
 
 ## Open
 
-1. Record the host `test:self` result for `5e3e33f` / `v3.0.0` (first full
+1. Stale Chromium `SingletonLock` after a server restart (task 6
+   finding 3): template profiles never clear it (only clones skip it,
+   `storage.js` `CLONE_SKIP`). Host check first: `readlink
+   <profile>/SingletonLock` → `<host>-<pid>`; is `<pid>` alive? Alive =
+   orphaned Chromium survived the restart (fix: close/kill it on
+   startup); dead = stale lock Chrome did not take over (fix: remove the
+   lock before launch when its pid is dead on this host).
+2. Record the host `test:self` result for `5e3e33f` / `v3.0.0` (first full
    run through `test:runtime` and `test:hardening`), and whether
    `release:publish` / `release:github` ran.
-2. Rotate the GitHub token a failing env assertion printed in the sandbox
+3. Rotate the GitHub token a failing env assertion printed in the sandbox
    (2026-10-24), if not done.
-3. claude-docker side (below).
+4. claude-docker side (below).
 
 ## claude-docker side (report back, 2026-10-24)
 
@@ -402,7 +410,16 @@ Corrections and findings (beyond the first report-back):
    release will refuse those clone ids. The first report-back said
    "the feature's 96 stands" — wrong about the shipped behaviour:
    either the release regressed or D5 is unshipped.
+
+   **Checked (2026-10-25): by design, no regression.** Two limits
+   (`src/tools/policy.js`): `open`/`delete` take template names (≤ 64);
+   `close`, `endpoint`, `browser_*`, test tools take server ids (≤ 96).
+   An 87-char clone id is refused as a template and accepted as an id.
+   Clone ids never go to `open`/`delete`. The 65/87/96 probes most
+   likely went through `open`.
 2. **Task 5's `find <root> -perm /222` fails its own npm layout.**
+   **Fixed** in the handout and companion: `find <root> -not -type l -perm
+   /222`.
    `node_modules/.bin` entries are symlinks and links read 0777.
    Suggested: `-not -type l`; the write surface is the target, and
    the targets are walked.
