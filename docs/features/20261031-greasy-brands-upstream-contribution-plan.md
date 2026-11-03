@@ -6,7 +6,7 @@
 
 ## Status
 
-Optional. Patch, test suite and issue draft ready; live-browser evidence open. As of 2026-10-31: rebrowser-patches 1.1.2 (main `00c62cd`, 2026-10-19); drop-ins 1.64.101; upstream playwright-core 1.64.1.
+Optional. Patch, test suite and issue draft ready; host evidence measured. As of 2026-11-02: worker matrix captured (CfT 145 + ungoogled-chromium 155); stock-vs-patched before/after table measured; extended-metadata fix verified for page/dedicated/SW. rebrowser-patches 1.1.2 (main `00c62cd`, 2026-10-19); drop-ins 1.64.101; upstream playwright-core 1.64.1.
 
 ## Facts
 
@@ -15,11 +15,14 @@ Optional. Patch, test suite and issue draft ready; live-browser evidence open. A
 - `GetGreasedUserAgentBrandVersion`: chars `{" ","(",":","-",".","/",")",";","=","?","_"}` (11), brand `Not{c[s%11]}A{c[(s+1)%11]}Brand`, version `{"8","99","24"}[s%3]` (`+".0.0.0"` in the full-version list)
 - `GenerateBrandVersionList`: list `[GREASE, Chromium, <product>]`, then `ShuffleBrandList`: entry i → index `order[i]`, `order = GetRandomOrder(s,3)` (6-permutation table)
 - seed `s` = major version → deterministic per major
-- szkrabok's port: `packages/runtime/stealth-evasions/ua-brands.js`. Checked against published real-Chrome `Sec-CH-UA` values for 120, 124, 126, 129, 131, 138 (`tests/node/ua-brands.test.js`). Those values are recalled, not captured; source and headers agree; a live capture confirms (step 1)
+- szkrabok's port: `packages/runtime/stealth-evasions/ua-brands.js`. Checked against published real-Chrome `Sec-CH-UA` values for 120, 124, 126, 129, 131, 138 (`tests/node/ua-brands.test.js`). The six 3-brand milestone headers are recalled, not captured. The live capture (`CAPTURED_145`, Google Chrome for Testing 145.0.7632.46, Chromium-branded 2-brand build) confirms the GREASE derivation and the `fullVersionList` form; a real Chrome channel capture would settle the 3-brand ordering
+
+- **Worker evidence (2026-11-01, host):** brands-only metadata leaves `fullVersionList` leaking the binary build or empty; SW/shared-worker UA string needs a browser launch flag; shared-worker `userAgentData` stays native. Method: `probe4.mjs` (szkrabok stack) / `probe3.mjs` (raw core); matrices in `/tmp/ua-sw-research/`; binaries ungoogled-chromium 155.0.8059.79 + CfT 145.0.7632.46. Matrix + actions in [20261031-verified-core-and-vendored-evasions-plan.md](./20261031-verified-core-and-vendored-evasions-plan.md) risks 9-12.
+- **Measured 2026-11-02, host:** stock-vs-patched 6-cell table (`/tmp/greasy/cells.jsonl`) and extended-metadata verification (`/tmp/greasy/full.jsonl`); cell-checked in a live re-run (`/tmp/greasy2/rows.jsonl`, `full.jsonl`; both dirs disposable). Details in the same plan's "Stock vs patched, measured" and "Extended `calculateUserAgentMetadata` verified" sections. Headline: brands-only metadata leaves the **wire `Sec-CH-UA-Full-Version-List` at the binary build** (brands 120 vs FVL 155.0.8059.79 in the same request); extending the metadata fixes page/dedicated/SW but not the shared worker. Worker-target Emulation fixes brands/FVL/header UA on shared/SW targets but reverts on detach for both, and never changes the worker's `navigator.userAgent` string.
 
 ### Stock behavior with a `userAgent` override
 
-`content/browser/devtools/protocol/emulation_handler.cc` `SetUserAgentOverride`: brands / fullVersionList / fullVersion not sent → **the binary's default** lists are used. Playwright's `calculateUserAgentMetadata()` sends no brands, so a UA override reports the binary's own brands: bundled Chromium → `[GREASE, Chromium]` at the binary's major ([rebrowser-patches-research.md](../rebrowser-patches-research.md): only `Chromium/143`), whatever major the UA claims. With a real Chrome channel and UA major == binary major, stock is already right.
+`content/browser/devtools/protocol/emulation_handler.cc` `SetUserAgentOverride`: brands / fullVersionList / fullVersion not sent → **the browser's default** lists are used (the binary's own when no `--user-agent` launch flag is set; empty when the flag is set). Playwright's `calculateUserAgentMetadata()` sends no brands, so a UA override reports the binary's own brands: bundled Chromium → `[GREASE, Chromium]` at the binary's major ([rebrowser-patches-research.md](../rebrowser-patches-research.md): only `Chromium/143`), whatever major the UA claims. With a real Chrome channel and UA major == binary major, stock is already right.
 
 ### Upstream acceptance
 
@@ -50,7 +53,7 @@ Optional. Patch, test suite and issue draft ready; live-browser evidence open. A
 
 | # | Question | Note |
 |---|----------|------|
-| Q1 | set `fullVersionList` too? | unset → binary default: consistent only when UA major == binary major. Setting it needs a full version; reduced UAs only carry `N.0.0.0`, which real Chrome never reports there. szkrabok's init-script path uses the UA version (`N.0.0.0`). Decide after the live capture |
+| Q1 | set `fullVersionList` too? | **Confirmed leak and fix verified (2026-11-02).** Unset leaves the binary build in the JS API and in the wire header (`Sec-CH-UA-Full-Version-List`): measured brands 120 vs FVL 155.0.8059.79 in the same request on ungoogled 155; SW/shared empty. Setting `fullVersionList`/`fullVersion`/`bitness` in `calculateUserAgentMetadata` fixes page, dedicated worker and service worker metadata + headers. The shared worker needs a target hook; a worker-target override fixes brands/FVL/header UA there but reverts on session detach (shared and service worker targets alike). Value choice: `N.0.0.0` is internally consistent but not what real Chrome sends — `CAPTURED_145` has Chromium FVL `145.0.7632.46` and GREASE `99.0.0.0`. Recommend a real build number per preset/milestone; fall back to `N.0.0.0` only when no build is known. Upstream: offer the field as optional and document the reduced-UA tradeoff |
 | Q2 | Edge / Opera UAs | skipped in the upstream patch; szkrabok presets have none |
 
 ## Risks
@@ -60,6 +63,7 @@ Optional. Patch, test suite and issue draft ready; live-browser evidence open. A
 | 1 | maintainer-only merges, commercial product next door | issue first; szkrabok does not depend on it |
 | 2 | Chromium changes the GREASE scheme | algorithm is source-cited; `ua-brands.test.js` pins real-Chrome values per milestone — add milestones on Chrome upgrades |
 | 3 | `calculateUserAgentMetadata` moves upstream | port against their `src.patch` TS base with `port.mjs` |
+| 4 | brands-only metadata leaves `fullVersionList` leaking the binary build or empty; the wire header leaks it too; page/worker contexts diverge; worker-target overrides revert on session detach (shared and SW) | set `fullVersionList`/`fullVersion`/`bitness` in the patched metadata (verified for page/dedicated/SW); keep the shared-worker target session attached after the override; prefer a real build number over `N.0.0.0`; extend the suite to assert FVL consistency in JS and wire headers; document the reduced-UA tradeoff upstream |
 
 ## Where the work runs
 
@@ -76,8 +80,8 @@ Status values: `not started` | `in progress` | `done`
 
 | Item | Status |
 |------|--------|
-| 1 algorithm port + tests | done (live capture open) |
+| 1 algorithm port + tests | done (live capture done: CAPTURED_145; worker matrix measured) |
 | 2 upstream `src.patch` + `lib.patch` (1.64.1) | done |
 | 3 opt-out + README + suite | done (suite run open) |
-| 4 evidence + issue | not started (draft ready) |
+| 4 evidence + issue | in progress (stock-vs-patched + extended-metadata tables measured; draft needs the measured wire-header leak) |
 | 5 Playwright issue | not started |

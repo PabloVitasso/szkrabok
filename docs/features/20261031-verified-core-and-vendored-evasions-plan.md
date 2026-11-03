@@ -32,6 +32,7 @@ Greasy brands is szkrabok's own, one version. Separate from the rebrowser patche
 - `packages/runtime/greasy-brands-patch.js` (`injectGreasyBrands`, `stripGreasyBrands`, `GREASY_BRANDS_MARKER`) + postinstall `scripts/apply-greasy-brands.js`. Block in `calculateUserAgentMetadata(options)`, pattern-based (no per-version anchors); checked on stock 1.63.0, rebrowser-patched 1.63.0 and `rebrowser-playwright-core@1.64.101` (inject, idempotent, strip restores byte-exact).
 - Algorithm: `packages/runtime/stealth-evasions/ua-brands.js` (Chromium's GREASE scheme, `user_agent_utils.cc`), shared with `applyStealthToExistingPage` and the guarded UA plugin.
 - The hook covers every `Emulation.setUserAgentOverride` Playwright builds, its own re-sends and service workers included.
+- **IMPORTANT (verified 2026-11-01, CfT 145 + ungoogled-chromium 155):** the hook covers the *brands* of every send — but per-target `Emulation.setUserAgentOverride` does **not** change the service-worker or shared-worker `navigator.userAgent` string (likely fixed at worker-global creation); dedicated workers do inherit the override. Inside a service worker `self.navigator.userAgent` stays the browser default (`HeadlessChrome/…`) while `userAgentData.brands` is greasy. A browser-level `--user-agent=<effective UA>` launch flag *does* fix it: with the flag, page/SW/dedicated/shared all report the custom string. Remaining gaps: `getHighEntropyValues().fullVersionList` leaks the binary version when only `brands` is set (page without init script, dedicated/shared worker without a launch flag) or is empty (SW; page 2/dedicated/shared with the flag; page 1 keeps the init-script 120.0.0.0 values); the first page gets a JS UAD override (`applyStealthToExistingPage`) that later pages do not; shared-worker `userAgentData` stays native (brands/platform) even with the launch flag. See risks 9-12 and the 2026-11-02 measured sections below; re-measured: worker-target overrides revert on detach for shared and service worker targets, and per-target Emulation never changes the worker's `navigator.userAgent`.
 - Marker = `szkrabok:greasy-brands rev=<hash of block>`: a block of another rev reads as unpatched and is replaced on the next postinstall.
 - Postinstall order: `apply-greasy-brands.js --strip` → `apply-patches.js` → `apply-greasy-brands.js` → verify. Strip first: patch-package hunks are line-position based (an insertion ahead of them fails the apply).
 - `PATCH_MARKERS` = `REBROWSER_PATCH_MARKERS` (4) + `GREASY_BRANDS_MARKER`. For W2 only the rebrowser group changes. Known-present in rebrowser 1.64.1 patches: `__re__emitExecutionContext`, `REBROWSER_PATCHES_RUNTIME_FIX_MODE`, `getExecutionContext`, `rebrowserUtilityScriptName` (rebrowser renames UtilityScript **at runtime** via a `rebrowserUtilityScriptName` string-replace on the bundle — no static `__pwUs`-style marker exists). Verified 2026-10-31 against stock `playwright-core@1.64.1` coreBundle + the drop-in: `getExecutionContext`, `__re__emitExecutionContext`, `rebrowserUtilityScriptName` = 0 hits in stock, 3/3/5 in the drop-in — specific. `var UtilityScript = class` occurs in **both** (their rename matches on that literal) — unusable as marker.
@@ -160,6 +161,71 @@ Procedure rules:
 | 6 | new core drops / renames `calculateUserAgentMetadata(options)` | greasy injector throws → postinstall fails loudly; `ua-brands.test.js` runs Playwright's own `_updateUserAgent` against the injected bundle |
 | 7 | `_utils` mistranscription in B1 | byte-diff vendored copy against upstream tarball in test |
 | 8 | until W2: a changed rebrowser patch for the same playwright-core version is not re-applied in place (npm keeps the extracted core; patch-package prints `Failed to apply patch` and exits 0 locally) | the drop-in removes it; cheap guard if needed: `--error-on-fail` in `apply-patches.js` (exit 1 only on a mismatch, 0 on clean and already-applied) |
+| 9 | **IMPORTANT** — SW/shared-worker UA **string** not overridden by per-target Emulation: `self.navigator.userAgent` stays the browser default (`HeadlessChrome/…`) while brands are greasy; UA↔UA-CH mismatch in worker context | per-target Emulation is ineffective for the string (dedicated workers inherit the page's override); set the browser default with `--user-agent=<effective UA>` in Chromium launch args (verified 2026-11-02: page/dedicated/SW/shared all report Chrome/120 with the flag). Keep greasy metadata for brands. Firefox: `general.useragent.override` (untested) |
+| 10 | **IMPORTANT** — greasy metadata sets only `brands`; `getHighEntropyValues().fullVersionList` leaks the binary version and the **wire header `Sec-CH-UA-Full-Version-List` leaks it too** in pages/dedicated workers without the init-script override or a launch flag (measured: brands 120 vs FVL 155.0.8059.79 in the same request); SW/shared FVL empty. Extending `calculateUserAgentMetadata` with `fullVersionList`/`fullVersion`/`bitness` was verified to fix page, dedicated worker and service worker metadata + headers. Shared worker still needs its own target hook. `N.0.0.0` as the FVL value is anomalous vs real Chrome (`CAPTURED_145`: Chromium `145.0.7632.46`) | extend `calculateUserAgentMetadata` and the plugin's `Network.setUserAgentOverride` interceptor (`withGreasedBrands`) to set the three fields; prefer a real build number per preset/milestone over `N.0.0.0`; extend `ua-brands.test.js` with the wire-header assertion |
+| 11 | **IMPORTANT** — first-page vs later-page UAD inconsistency: `applyStealthToExistingPage` injects a JS `navigator.userAgentData` getter only on the initial page; later pages rely on CDP metadata. The getter also hardcodes `platform: 'Windows'`, `platformVersion: '10.0.0'`, `architecture: 'x86'` for every preset, so Mac/Android presets report Windows in JS while CDP headers say otherwise | drop the JS override once CDP metadata is complete (verified sufficient for page UAD), or make the getter use the computed platform values and apply it to every page; add a page1-vs-page2 assertion to the e2e suite |
+| 12 | **IMPORTANT** — shared-worker `userAgentData` stays native: the launch flag fixes the string, but brands/FVL/platform remain the binary's or empty (verified UA 120 vs brands Chromium/155, FVL empty). Sending `Emulation.setUserAgentOverride` on the `shared_worker` target fixes brands/FVL and the wire `User-Agent` header (not the `navigator.userAgent` string), but **the override reverts when the session is detached** — same for `service_worker` targets. Playwright's `_onAttachedToTarget` handles only page and service_worker; every other target falls through to `session2.detach()`, so shared-worker sessions are dropped | keep the shared-worker session attached after sending the override + `Runtime.runIfWaitingForDebugger`; add cleanup on target detach/context close. This is a second injected core block (more version-fragile than the metadata hook). Unfixable first-party → D1-b |
+
+### Worker UA / metadata findings (2026-11-01, host)
+
+Matrix: szkrabok stack (stealth plugin + persistent context + greasy patch), ungoogled-chromium 155, UA Chrome/120. `FVL` = `getHighEntropyValues().fullVersionList`.
+
+Method: local HTTP server; page registers SW + dedicated + shared worker; each reports `navigator.userAgent`, `userAgentData.brands`, `getHighEntropyValues([...])`; server records `Sec-CH-UA*` headers. Harness: `/tmp/ua-sw-research/probe3.mjs` (raw playwright-core), `probe4.mjs` (szkrabok stealth stack: plugin + persistent context + init script; not full `launch()` path). Results: raw-core `matrix-cft145.json`, `matrix-ungoogled155.json`; szkrabok-stack `szkrabok-matrix.json`. Binaries: ungoogled-chromium 155.0.8059.79, CfT 145.0.7632.46; headless, `--no-sandbox`. Limits: one host, two binaries; no stock-vs-patched table in that pass (added below); worklets/Firefox untested; `/tmp` scripts disposable.
+
+| context | no launch flag | + `--user-agent` |
+|---|---|---|
+| page 1 (init-script UAD) | UA 120, brands 120, FVL 120 | same |
+| page 2 (plugin only) | UA 120, brands 120, **FVL leaks 155.0.8059.79** | UA 120, brands 120, **FVL empty** |
+| service worker | **UA HeadlessChrome/155**, brands 120, FVL empty | **UA 120**, brands 120, FVL empty |
+| dedicated worker | UA 120, brands 120, **FVL leaks 155** | UA 120, brands 120, FVL empty |
+| shared worker | **UA HeadlessChrome/155**, brands 155, platform **Linux** | UA 120, brands 155, platform **Linux** |
+
+Raw-core cross-check: `probe3.mjs` on CfT 145 + ungoogled 155 — same string/brand gaps; FVL leaks in page/dedicated/shared worker without a flag, empty in SW; shared native brands/platform. Matrices: `matrix-cft145.json`, `matrix-ungoogled155.json`.
+
+### Stock vs patched, measured (2026-11-02, host)
+
+Raw playwright-core 1.63.0 (stock = `stripGreasyBrands` copy; patched = installed core), ungoogled-chromium 155.0.8059.79, headless, UA `Chrome/120.0.0.0`, local server; contexts page/dedicated/shared/SW. Harness `/tmp/greasy/probe.mjs`, results `/tmp/greasy/cells.jsonl` (6 cells). Re-run and cell-checked 2026-11-02 in `/tmp/greasy2/rows.jsonl` (the first `/tmp/greasy/` was cleared; both dirs disposable). This is the before/after table the earlier plan lacked.
+
+| cell | page UA | page brands | page FVL | dedicated | SW UA | SW brands | SW FVL | shared UA | shared brands | wire `sec-ch-ua` | wire FVL |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| stock, no override | HeadlessChrome/155 | 155 native | 155.0.8059.79 | same | 155 | 155 native | 155.0.8059.79 | 155 | 155 native | 155 | 155.0.8059.79 |
+| stock + ctx UA | Chrome/120 | **155 native** | **155.0.8059.79** | same | HeadlessChrome/155 | **empty** | empty | HeadlessChrome/155 | 155 native | **155** | **155.0.8059.79** |
+| patched + ctx UA | Chrome/120 | 120 greasy | **155.0.8059.79** | same | HeadlessChrome/155 | 120 greasy | empty | HeadlessChrome/155 | 155 native | 120 | **155.0.8059.79** |
+| patched + ctx UA + flag | Chrome/120 | 120 greasy | empty | same | Chrome/120 | 120 greasy | empty | Chrome/120 | 155 native | 120 | empty |
+| patched + ctx UA + raw full metadata (page target only) | Chrome/120 | 120 greasy | 120.0.0.0 | same | HeadlessChrome/155 | 120 greasy | empty | HeadlessChrome/155 | 155 native | 120 | 120.0.0.0 |
+| patched + ctx UA + flag + raw full metadata | Chrome/120 | 120 greasy | 120.0.0.0 | same | Chrome/120 | 120 greasy | empty | Chrome/120 | 155 native | 120 | 120.0.0.0 |
+
+Row 1 is the 2026-11-02 first pass (not re-run — trivially the no-override baseline); rows 2-6 were cell-checked in the `/tmp/greasy2/` re-run.
+
+Key point: even with brands greasy, the **wire `Sec-CH-UA-Full-Version-List` still leaks the binary build** in the no-flag cells. A server-side detector sees brands 120 and FVL 155 in the same request. The launch flag empties FVL instead of leaking it. Shared worker follows the same pattern: FVL `155.0.8059.79` without the flag, empty with it; dedicated worker follows the page (`same` in the table).
+
+### Extended `calculateUserAgentMetadata` verified (2026-11-02, host)
+
+Experimental copy `/tmp/greasy2/pwcore-full` (same core with the injected block also setting `fullVersion`, `fullVersionList`, `bitness`), same probe; re-verified 2026-11-02 (`/tmp/greasy2/full.jsonl`, labels `full+ctxUA` / `full+ctxUA+flag`). Earlier `/tmp/greasy/pwcore-full` run gave the same result:
+
+- page: UA 120, brands 120, FVL 120.0.0.0, wire FVL 120.0.0.0 — **fixed without extra hooks**.
+- dedicated worker: same as page — **fixed**.
+- service worker: brands 120, FVL 120.0.0.0 — **fixed** (no `_onAttachedToTarget` hook needed; `CRServiceWorker.updateUserAgent()` calls the same patched function). UA string still `HeadlessChrome/155` without the flag.
+- shared worker: native 155 without the flag; with the flag the string is 120 but brands/FVL stay native/empty — **not fixed** by the function extension.
+- Worker-target `Emulation.setUserAgentOverride` (puppeteer CDPSession on the worker target) sets brands/FVL and the wire `User-Agent` header in both `shared_worker` and `service_worker`, but **not** `navigator.userAgent` (stays `HeadlessChrome/155` without the launch flag; `Chrome/120` with it). **Both shared and service worker overrides revert on session detach** — re-measured 2026-11-02; the earlier pass only showed shared. A marker set through the session is visible to the page's worker port, so the session targets the same global. Playwright's `_onAttachedToTarget` handles page and service_worker only; other targets fall through to `session2.detach()`, so keeping the session attached is required for the override to persist.
+
+Findings:
+
+- Per-target Emulation does not change the worker's `navigator.userAgent` string; the launch flag does. It does change worker brands/FVL and the wire `User-Agent` header while the session stays attached.
+- Brands-only metadata leaves FVL leaking the binary build or empty. Page 1 vs page 2 diverge.
+- Extending `calculateUserAgentMetadata` fixes page, dedicated-worker and SW metadata/FVL/headers; only the shared worker needs a separate target hook.
+- Shared-worker UAD stays native even with the launch flag unless an Emulation override is kept attached to the target.
+- Raw `--user-agent` alone leaves brands native. Combine with context UA + greasy metadata.
+- `N.0.0.0` as FVL is internally consistent but not what real Chrome sends (`CAPTURED_145`: Chromium FVL `145.0.7632.46`, GREASE `99.0.0.0`). A detector that rejects `.0.0.0` build suffixes still catches it.
+
+Recommended actions:
+
+1. Add `--user-agent=<effective UA>` to Chromium launch args; replicate plugin `maskLinux` transform. Required for worker UA strings; without it SW/shared stay `HeadlessChrome/…`.
+2. Extend greasy metadata: set `fullVersionList`, `fullVersion`, `bitness` in `calculateUserAgentMetadata` and in the plugin's `Network.setUserAgentOverride` interceptor (`withGreasedBrands`); bump marker rev; extend `ua-brands.test.js`. Verified to fix page/dedicated/SW.
+3. Unify page 1 vs later pages: drop the JS `navigator.userAgentData` init-script override once CDP metadata is complete (it is redundant and currently hardcodes `platform: 'Windows'`, `platformVersion: '10.0.0'`, `architecture: 'x86'` for every preset — wrong for Mac/Android); or, if kept, use the computed platform values and apply it to every page. Add a page1-vs-page2 assertion.
+4. Shared workers: keep the `shared_worker` target session attached after sending `Emulation.setUserAgentOverride` + `Runtime.runIfWaitingForDebugger` (detaching reverts the override; `service_worker` overrides revert too). Playwright's `_onAttachedToTarget` only handles page/service_worker; other targets fall through to `session2.detach()`. Extending it is a second injected block, more version-fragile than the metadata hook. The override changes brands/FVL/header UA but not the worker's `navigator.userAgent` — the launch flag is still required for the string.
+5. FVL value: prefer a real build number per preset/milestone (`CAPTURED_145` form) over `N.0.0.0`; ship a milestone→build map or a config field. Otherwise document the `.0.0.0` detection risk.
+6. Untested: worklets, Firefox (`general.useragent.override` candidate).
 
 ## Sequence
 
