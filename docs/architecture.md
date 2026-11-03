@@ -511,6 +511,22 @@ szkrabok doctor detect              # shows full chain with pass/fail/skip/absen
 szkrabok doctor detect --write-config  # detect + pin the path to ~/.config/szkrabok/config.toml
 ```
 
+## Chromium sandbox
+
+`chromiumSandbox` is `true` by default: Playwright adds
+`--no-sandbox` unless it is true, and a browser without its sandbox
+lets a renderer exploit run with the user's rights. Turn it off only
+where the environment is already the sandbox — a container with
+seccomp and dropped caps, where Chromium cannot build its own:
+
+```toml
+[browser]
+chromium_sandbox = false
+```
+
+Config-only, whole-server, restart-required, like `engine`.
+Firefox ignores the key.
+
 ## Firefox engine support
 
 Set `[browser] engine = "firefox"` in `szkrabok.config.toml` to use Firefox. An `executable_path` is strongly recommended — see Firefox resolution below.

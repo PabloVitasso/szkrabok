@@ -161,27 +161,18 @@ const waitForExit = async (pid, { timeoutMs = CHROME_EXIT_TIMEOUT_MS } = {}) => 
 //
 export const _resetGcForTesting = () => { _gcRegistered = false; };
 
-// _launchPersistentContext — internal, not exported.
-// executablePath is passed in (resolved by checkBrowser before this is called).
-const _launchPersistentContext = async (userDataDir, options = {}) => {
+// _assembleLaunchOptions — internal, exported for tests. Builds the
+// Playwright launch options from the caller's options and the
+// config.
+// Q2 (claude-docker audit 20261031): Playwright adds --no-sandbox
+// unless chromiumSandbox is true, and szkrabok never set it — on a
+// host a renderer exploit got the user's rights. Default it on. A
+// container deployment sets [browser] chromium_sandbox = false:
+// the container is the sandbox (seccomp and dropped caps stop
+// Chromium from building its own).
+export const _assembleLaunchOptions = (options = {}) => {
   const engine = options.browserEngine ?? 'chromium';
   const isFirefox = engine === 'firefox';
-  const presetConfig = options.presetConfig ?? {};
-
-  if (isFirefox && options.headless) {
-    log('WARNING: headless:true with Firefox uses a detectable rendering path. ' +
-        'For stealth use, set headless:false and provide a DISPLAY (Xvfb on Linux).');
-  }
-
-  const pw = (() => {
-    if (isFirefox) return firefox;
-    if (options.stealth) return enhanceWithStealth(chromium, presetConfig);
-    return chromium;
-  })();
-
-  if (options.executablePath) {
-    log(`Using ${isFirefox ? 'Firefox' : 'Chromium'} for persistent context`, { path: options.executablePath });
-  }
 
   const launchOptions = {
     ...options,
@@ -191,6 +182,7 @@ const _launchPersistentContext = async (userDataDir, options = {}) => {
     locale: options.locale,
     timezoneId: options.timezoneId,
     userAgent: options.userAgent,
+    chromiumSandbox: options.chromiumSandbox ?? getConfig().chromiumSandbox ?? true,
   };
 
   delete launchOptions.stealth;
@@ -207,6 +199,7 @@ const _launchPersistentContext = async (userDataDir, options = {}) => {
     };
     delete launchOptions.cdpPort;
     delete launchOptions.args;
+    delete launchOptions.chromiumSandbox;
   } else {
     // The browser default UA is what workers see. Playwright's `userAgent`
     // option only overrides the page target, so service/shared workers keep
@@ -235,6 +228,32 @@ const _launchPersistentContext = async (userDataDir, options = {}) => {
       delete launchOptions.cdpPort;
     }
   }
+  return launchOptions;
+};
+
+// _launchPersistentContext — internal, not exported.
+// executablePath is passed in (resolved by checkBrowser before this is called).
+const _launchPersistentContext = async (userDataDir, options = {}) => {
+  const engine = options.browserEngine ?? 'chromium';
+  const isFirefox = engine === 'firefox';
+  const presetConfig = options.presetConfig ?? {};
+
+  if (isFirefox && options.headless) {
+    log('WARNING: headless:true with Firefox uses a detectable rendering path. ' +
+        'For stealth use, set headless:false and provide a DISPLAY (Xvfb on Linux).');
+  }
+
+  const pw = (() => {
+    if (isFirefox) return firefox;
+    if (options.stealth) return enhanceWithStealth(chromium, presetConfig);
+    return chromium;
+  })();
+
+  if (options.executablePath) {
+    log(`Using ${isFirefox ? 'Firefox' : 'Chromium'} for persistent context`, { path: options.executablePath });
+  }
+
+  const launchOptions = _assembleLaunchOptions(options);
 
   const context = await pw.launchPersistentContext(userDataDir, launchOptions);
 
