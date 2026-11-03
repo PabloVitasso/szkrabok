@@ -132,6 +132,12 @@ let _configMeta = null;  // { phase, source, previousSource, loadedAt }
 
 // ── Discovery ─────────────────────────────────────────────────────────────────
 
+/** User config dir: XDG on Linux/macOS, %APPDATA% on Windows (discovery step 5). */
+export const userConfigDir = () =>
+  process.platform === 'win32'
+    ? join(process.env.APPDATA ?? join(homedir(), 'AppData', 'Roaming'), 'szkrabok')
+    : join(process.env.XDG_CONFIG_HOME ?? join(homedir(), '.config'), 'szkrabok');
+
 // A project dir holds a config if either toml exists. Existence only: an
 // ignored (untrusted) file is never parsed.
 const hasTomlIn = dir =>
@@ -207,9 +213,7 @@ const _discover = ({ roots = [], explicitConfigPath = null, skipProjectConfig = 
 
   // 5. User config dir (XDG on Linux/macOS, %APPDATA% on Windows)
   {
-    const configDir = process.platform === 'win32'
-      ? join(process.env.APPDATA ?? join(homedir(), 'AppData', 'Roaming'), 'szkrabok')
-      : join(process.env.XDG_CONFIG_HOME ?? join(homedir(), '.config'), 'szkrabok');
+    const configDir = userConfigDir();
     const xdgBase = join(configDir, 'config.toml');
     const xdgLocal = join(configDir, 'config.local.toml');
     const hasBase = existsSync(xdgBase);

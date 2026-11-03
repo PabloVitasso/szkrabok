@@ -6,7 +6,7 @@
 
 ## Status
 
-P0 done; W1–W3 not started. As of 2026-10-31: upstream `playwright-core` 1.64.1; rebrowser drop-ins 1.64.101; electrovir drop-ins (`@electrovir/rebrowser-playwright(-core)`) 1.61.101 (upstream 1.61.1 — lagging, fallback only).
+P0 done (live browser check passed 2026-11-03: navigator.spec + worker probes). W2 V procedure run for 1.64.101 — evidence in [docs/verification/rebrowser-playwright-core-1.64.101.md](../../verification/rebrowser-playwright-core-1.64.101.md). W2 wiring, W1 and W3 not started. As of 2026-10-31: upstream `playwright-core` 1.64.1; rebrowser drop-ins 1.64.101; electrovir drop-ins (`@electrovir/rebrowser-playwright(-core)`) 1.61.101 (upstream 1.61.1 — lagging, fallback only).
 
 ## Chosen design
 
@@ -254,8 +254,8 @@ Status values: `not started` | `in progress` | `done`
 
 | Item | Status |
 |------|--------|
-| P0 greasy brands as a separate patch | done (live browser check open) |
+| P0 greasy brands as a separate patch | done (live check passed 2026-11-03: navigator.spec e2e 1/1 + page/dedicated/SW/shared-worker probes; shipped in the 3.1.0 tree) |
 | W1 vendored evasions + loader | not started |
-| W2 V procedure run (1.64.101) | not started |
+| W2 V procedure run (1.64.101) | done 2026-10-31 — bit-identical to `playwright-core@1.64.1` + `rebrowser-patches@1.1.2`; evidence in [docs/verification/rebrowser-playwright-core-1.64.101.md](../../verification/rebrowser-playwright-core-1.64.101.md) and `verified-core.json` |
 | W2 wiring (alias, patch-check, doctor) | not started |
 | W3 deletions | not started |

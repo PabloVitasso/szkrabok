@@ -2,11 +2,13 @@
 // Only this file calls launchPersistentContext.
 
 import { chromium, firefox } from 'playwright';
+import { join } from 'node:path';
 import {
   resolvePreset,
   getConfig,
   getConfigSource,
   getConfigMeta,
+  userConfigDir,
 } from './config.js';
 import { resolveChromium, buildCandidates, populateCandidates, resolveFirefox } from './resolve.js';
 import { BrowserNotFoundError } from './errors.js';
@@ -32,6 +34,49 @@ export const warnIfUnpatched = (browserEngine, pwRoot = playwrightCoreRoot()) =>
 
 export const _resetPatchCheckForTesting = () => {
   _patchChecked = false;
+};
+
+// ── sandbox failure hint ──────────────────────────────────────────────────────
+//
+// chromiumSandbox defaults on (Q2). Playwright's bundled Chromium ships no
+// SUID sandbox helper, so on hosts that restrict unprivileged user namespaces
+// (Ubuntu 23.10+, kernel.apparmor_restrict_unprivileged_userns=1) the launch
+// aborts with Chromium's own message. Fail closed, but say what to change.
+const SANDBOX_FAILURE = /Chromium sandboxing failed|No usable sandbox|SUID sandbox helper/i;
+
+export const SANDBOX_HINT_ANCHOR = 'chromium_sandbox = false';
+
+export const sandboxFailureHint = () => {
+  const lines = [
+    'szkrabok: Chromium could not start its own sandbox, so the launch was aborted.',
+    '',
+    'Only where the environment is already the sandbox (a container with seccomp ' +
+      'and dropped capabilities), opt out in ' +
+      `${join(userConfigDir(), 'config.toml')}:`,
+    '',
+    '  [browser]',
+    `  ${SANDBOX_HINT_ANCHOR}`,
+    '',
+  ];
+  if (process.platform === 'linux') {
+    lines.push(
+      "On Ubuntu 23.10+ Playwright's bundled Chromium hits this: it ships no SUID " +
+        'sandbox helper and kernel.apparmor_restrict_unprivileged_userns=1 blocks ' +
+        'the namespace sandbox.',
+      ''
+    );
+  }
+  lines.push('See docs/architecture.md#chromium-sandbox.');
+  return lines.join('\n');
+};
+
+/** Append the opt-out hint to a Playwright sandbox failure; other errors pass through. */
+export const applySandboxHint = err => {
+  const message = String(err?.message ?? '');
+  if (!SANDBOX_FAILURE.test(message)) return err;
+  if (message.includes(SANDBOX_HINT_ANCHOR)) return err;
+  err.message = `${message}\n\n${sandboxFailureHint()}`;
+  return err;
 };
 
 let _gcRegistered = false;
@@ -255,7 +300,12 @@ const _launchPersistentContext = async (userDataDir, options = {}) => {
 
   const launchOptions = _assembleLaunchOptions(options);
 
-  const context = await pw.launchPersistentContext(userDataDir, launchOptions);
+  let context;
+  try {
+    context = await pw.launchPersistentContext(userDataDir, launchOptions);
+  } catch (err) {
+    throw applySandboxHint(err);
+  }
 
   if (!isFirefox && options.stealth) {
     const pages = context.pages();

@@ -527,6 +527,23 @@ chromium_sandbox = false
 Config-only, whole-server, restart-required, like `engine`.
 Firefox ignores the key.
 
+Playwright's bundled Chromium ships no SUID sandbox helper, so on a host that
+restricts unprivileged user namespaces (Ubuntu 23.10+ with
+`kernel.apparmor_restrict_unprivileged_userns=1`) a sandboxed launch aborts with
+Chromium's own `Chromium sandboxing failed!`. That is fail-closed by design: the
+launch error is augmented with the opt-out above (`applySandboxHint` in
+`packages/runtime/launch.js`), so the fix is in the message rather than in a
+silent fallback. The hint prints the resolved user config path
+(`userConfigDir()`: XDG on Linux/macOS, `%APPDATA%` on Windows) and keeps the
+Ubuntu-specific sentence to Linux builds.
+
+Measured on Ubuntu 24.04 with `apparmor_restrict_unprivileged_userns=1`
+(2026-11-03), flatpak Chromium 155 as the resolved browser: with the default the
+launch succeeds and `chrome://sandbox` reports "You are adequately sandboxed"
+(flatpak layer 1); with `chromium_sandbox = false` the same page reports "You are
+NOT adequately sandboxed". Playwright's bundled Chromium cannot start at all on
+that host with the sandbox on — it is the case the hint exists for.
+
 ## Firefox engine support
 
 Set `[browser] engine = "firefox"` in `szkrabok.config.toml` to use Firefox. An `executable_path` is strongly recommended — see Firefox resolution below.

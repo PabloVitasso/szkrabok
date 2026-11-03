@@ -14,8 +14,13 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, writeFileSync, rmSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
-import { initConfig } from '../../../packages/runtime/config.js';
-import { _assembleLaunchOptions } from '../../../packages/runtime/launch.js';
+import { initConfig, userConfigDir } from '../../../packages/runtime/config.js';
+import {
+  _assembleLaunchOptions,
+  applySandboxHint,
+  sandboxFailureHint,
+  SANDBOX_HINT_ANCHOR,
+} from '../../../packages/runtime/launch.js';
 
 let tmpDirs = [];
 let savedEnv = {};
@@ -79,5 +84,53 @@ describe('chromiumSandbox at the launch boundary', () => {
       const opts = _assembleLaunchOptions({ browserEngine: 'firefox', chromiumSandbox: true });
       assert.equal(opts.chromiumSandbox, undefined);
     });
+  });
+});
+
+describe('sandbox failure hint', () => {
+  // Hosts that restrict unprivileged user namespaces abort with Chromium's own
+  // message and no pointer to the opt-out. The hint names the key.
+  test('appends the opt-out to Chromium sandbox failures', () => {
+    const err = new Error('browserType.launchPersistentContext: Chromium sandboxing failed!');
+    const out = applySandboxHint(err);
+    assert.match(out.message, /Chromium sandboxing failed!/);
+    assert.ok(out.message.includes(SANDBOX_HINT_ANCHOR), 'hint names the config key');
+    assert.match(out.message, /--no-sandbox|\[browser\]/);
+    assert.equal(out, err, 'same error object, same type and stack');
+  });
+
+  test('catches the other two Chromium sandbox texts', () => {
+    for (const text of ['No usable sandbox!', 'The SUID sandbox helper binary was found, but is not configured correctly']) {
+      assert.ok(applySandboxHint(new Error(text)).message.includes(SANDBOX_HINT_ANCHOR), text);
+    }
+  });
+
+  test('leaves unrelated launch errors untouched', () => {
+    const err = new Error("Executable doesn't exist at /nope");
+    assert.equal(applySandboxHint(err), err);
+    assert.equal(err.message, "Executable doesn't exist at /nope");
+  });
+
+  test('is idempotent (retries cannot stack the hint)', () => {
+    const err = new Error('Chromium sandboxing failed!');
+    applySandboxHint(err);
+    const once = err.message;
+    applySandboxHint(err);
+    assert.equal(err.message, once);
+  });
+
+  test('the hint names the resolved user config file and the docs section', () => {
+    const hint = sandboxFailureHint();
+    // Same rule as discovery step 5: XDG on Linux/macOS, %APPDATA% on Windows.
+    assert.ok(hint.includes(join(userConfigDir(), 'config.toml')), 'resolved config path');
+    assert.match(hint, /docs\/architecture\.md#chromium-sandbox/);
+  });
+
+  test('the hint stays platform-neutral outside Linux', () => {
+    const hint = sandboxFailureHint();
+    assert.ok(hint.includes('[browser]'), 'always says what the section is');
+    if (process.platform !== 'linux') {
+      assert.ok(!hint.includes('Ubuntu 23.10+'), 'no Linux-only advice elsewhere');
+    }
   });
 });

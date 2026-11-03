@@ -15,5 +15,10 @@
 # [browser]  # whole-server setting, not per-session — needs MCP restart after edit
 # engine = "firefox"           # default: "chromium"
 # executable_path = "..."      # set in szkrabok.config.local.toml instead (machine path)
+# chromium_sandbox = false     # default: true. Opt out of Chromium's own sandbox only where the
+#                              # environment is the sandbox (containers, seccomp + dropped caps).
+#                              # Ubuntu 23.10+ needs this for Playwright's bundled Chromium
+#                              # (no SUID helper, unprivileged userns restricted):
+#                              # "Chromium sandboxing failed!" -> docs/architecture.md#chromium-sandbox
 # Stealth Firefox handle: invisible_playwright — pip install invisible-playwright && python -m invisible_playwright fetch
 # Docs: README.md#browser-engine-chromium--firefox

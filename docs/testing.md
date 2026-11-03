@@ -122,7 +122,7 @@ tests/
 
 ```bash
 node --test tests/node/*.test.js                    # base suite: basic, schema, contracts, config-discovery, config-values, playwright-patches, session_run_test, …
-node --test tests/node/runtime/*.test.js            # runtime suite: unit, integration, resolve, error-diagnostics, devtools-port, pc-layer1…6, …
+node --test tests/node/runtime/*.test.js            # runtime suite: unit, integration, resolve, error-diagnostics, devtools-port, launch-sandbox, pc-layer1…6, …
 npm run test:runtime                                # = node --test tests/node/runtime/*.test.js
 npm run test:hardening                              # = node --test tests/node/hardening/*.test.js
 
@@ -131,6 +131,8 @@ npm run test:runtime:integration # cookie persistence — launches real browser
 ```
 
 `npm run test:contracts` is a focused alias for `tests/node/contracts.test.js` only — useful for quick invariant checks, but already included in the base suite above.
+
+`runtime/launch-sandbox.test.js` is unit-level and needs no browser: it pins the `chromiumSandbox` assembly at the launch boundary (default on, explicit `false` wins, the `[browser] chromium_sandbox` opt-out, Firefox drops the key) and the sandbox-failure hint appended to Chromium's `Chromium sandboxing failed!`.
 
 The `tests/node/runtime/` tests that require a browser (`integration.test.js`, `devtools-port.test.js`, `pc-layer6.test.js`, `browser-detection.test.js`) skip gracefully when no browser is found. Browser resolution uses szkrabok's own pipeline (`buildCandidates → populateCandidates → resolveChromium`), which probes `CHROMIUM_PATH`, config `executablePath`, playwright-bundled binary, and system browsers (chrome-launcher + `which` fallback for variants like `ungoogled-chromium`).
 
