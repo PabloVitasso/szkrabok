@@ -7,7 +7,7 @@ import NavigatorLanguages from 'puppeteer-extra-plugin-stealth/evasions/navigato
 import WebGLVendor from 'puppeteer-extra-plugin-stealth/evasions/webgl.vendor/index.js';
 import { getConfig } from './config.js';
 import { log, logDebug } from './logger.js';
-import { greasedBrands, chromeMajor } from './stealth-evasions/ua-brands.js';
+import { greasedBrands, chromeMajor, chromeFullVersion } from './stealth-evasions/ua-brands.js';
 
 const CONFIGURABLE_EVASIONS = [
   'user-agent-override',
@@ -41,9 +41,20 @@ const pageLabel = page => {
 // The plugin builds its own brand list; swap in szkrabok's
 // (stealth-evasions/ua-brands.js).
 const withGreasedBrands = (method, params) => {
+  if (method !== 'Network.setUserAgentOverride' || !params?.userAgentMetadata) return params;
   const major = chromeMajor(params?.userAgent);
-  if (method !== 'Network.setUserAgentOverride' || !params?.userAgentMetadata || major === null) return params;
-  return { ...params, userAgentMetadata: { ...params.userAgentMetadata, brands: greasedBrands(major) } };
+  if (major === null) return params;
+  const fullVersion = chromeFullVersion(params.userAgent);
+  return {
+    ...params,
+    userAgentMetadata: {
+      ...params.userAgentMetadata,
+      brands: greasedBrands(major),
+      fullVersionList: greasedBrands(major, fullVersion),
+      fullVersion,
+      bitness: '64',
+    },
+  };
 };
 
 const guardedClient = (client, label) => ({
@@ -276,6 +287,8 @@ export const applyStealthToExistingPage = async (page, presetConfig = {}) => {
       let platform;
       let extPlatform;
       let platformVersion;
+      let architecture = 'x86';
+      let model = '';
       if (ua.includes('Mac OS X')) {
         platform = 'MacIntel';
         extPlatform = 'Mac OS X';
@@ -285,6 +298,7 @@ export const applyStealthToExistingPage = async (page, presetConfig = {}) => {
         } else {
           platformVersion = '10_15_7';
         }
+        if (!ua.includes('Intel')) architecture = 'arm';
       } else if (ua.includes('Android')) {
         platform = 'Android';
         extPlatform = 'Android';
@@ -294,6 +308,9 @@ export const applyStealthToExistingPage = async (page, presetConfig = {}) => {
         } else {
           platformVersion = '14';
         }
+        architecture = 'arm';
+        const modelMatch = ua.match(/Android[^;]*;\s*([^)]+)/);
+        if (modelMatch) model = modelMatch[1].trim();
       } else if (ua.includes('Linux') && !maskLinux) {
         platform = 'Linux x86_64';
         extPlatform = 'Linux';
@@ -318,44 +335,15 @@ export const applyStealthToExistingPage = async (page, presetConfig = {}) => {
         userAgentMetadata: {
           brands,
           fullVersion: uaVersion,
+          fullVersionList: greasedBrands(seed, uaVersion),
           platform: extPlatform,
           platformVersion,
-          architecture: 'x86',
-          model: '',
-          mobile: false,
+          architecture,
+          model,
+          mobile: platform === 'Android',
           bitness: '64',
         },
       });
-
-      const brandsJson = JSON.stringify(brands);
-      const fullVersionListJson = JSON.stringify(greasedBrands(seed, uaVersion));
-      const fullVersion = uaVersion;
-      await page.addInitScript(`
-(function() {
-  const _brands = ${brandsJson};
-  const _uad = {
-    brands: _brands,
-    mobile: false,
-    platform: 'Windows',
-    getHighEntropyValues: async (hints) => {
-      const result = {};
-      if (hints.includes('brands')) result.brands = _brands;
-      if (hints.includes('mobile')) result.mobile = false;
-      if (hints.includes('platform')) result.platform = 'Windows';
-      if (hints.includes('platformVersion')) result.platformVersion = '10.0.0';
-      if (hints.includes('architecture')) result.architecture = 'x86';
-      if (hints.includes('bitness')) result.bitness = '64';
-      if (hints.includes('model')) result.model = '';
-      if (hints.includes('uaFullVersion')) result.uaFullVersion = ${JSON.stringify(fullVersion)};
-      if (hints.includes('fullVersionList')) result.fullVersionList = ${fullVersionListJson};
-      return result;
-    },
-    toJSON: () => ({ brands: _brands, mobile: false, platform: 'Windows' }),
-  };
-  try {
-    Object.defineProperty(Navigator.prototype, 'userAgentData', { get: () => _uad, configurable: true });
-  } catch(e) {}
-})();`);
     }
 
     if (hwConfig.enabled == null || hwConfig.enabled) {

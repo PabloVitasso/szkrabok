@@ -48,3 +48,9 @@ export const chromeMajor = ua => {
   const m = /Chrome\/(\d+)/.exec(ua || '');
   return m ? parseInt(m[1], 10) : null;
 };
+
+/** Chrome full version from a user-agent string (e.g. '131.0.6778.86'), or null. */
+export const chromeFullVersion = ua => {
+  const m = /Chrome\/([\d.]+)/.exec(ua || '');
+  return m ? m[1] : null;
+};

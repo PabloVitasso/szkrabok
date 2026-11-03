@@ -12,7 +12,7 @@
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
-import { GREASY_BRANDS_MARKER } from './greasy-brands-patch.js';
+import { GREASY_BRANDS_MARKER, SHARED_WORKER_UA_MARKER } from './greasy-brands-patch.js';
 
 // Since playwright-core 1.60.0 all server source is bundled into coreBundle.js.
 export const PATCH_FILE = 'lib/coreBundle.js';
@@ -24,7 +24,11 @@ export const REBROWSER_PATCH_MARKERS = Object.freeze([
   'REBROWSER_PATCHES_RUNTIME_FIX_MODE',
 ]);
 
-export const PATCH_MARKERS = Object.freeze([...REBROWSER_PATCH_MARKERS, GREASY_BRANDS_MARKER]);
+export const PATCH_MARKERS = Object.freeze([
+  ...REBROWSER_PATCH_MARKERS,
+  GREASY_BRANDS_MARKER,
+  SHARED_WORKER_UA_MARKER,
+]);
 
 export const PATCH_HINT =
   'reinstall @pablovitasso/szkrabok with install scripts enabled ' +

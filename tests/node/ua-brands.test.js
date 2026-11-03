@@ -3,9 +3,12 @@
 // (packages/runtime/greasy-brands-patch.js, scripts/apply-greasy-brands.js).
 //
 // Expected lists are published Sec-CH-UA headers of real Google Chrome per
-// milestone (recalled, not captured here; they agree with Chromium's source).
-// The bundle tests run Playwright's own _updateUserAgent from the installed
-// bundle with a fake CDP client, so they check behavior, not just a marker.
+// milestone (recalled — one binary cannot cover other milestones; they agree
+// with Chromium's source). The GREASE derivation and the fullVersionList form
+// are captured ground truth: see CAPTURED_145 (Google Chrome for Testing
+// 145.0.7632.46, 2026-10-31). The bundle tests run Playwright's own
+// _updateUserAgent from the installed bundle with a fake CDP client, so they
+// check behavior, not just a marker.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -16,6 +19,7 @@ import { greasedBrands, chromeMajor } from '../../packages/runtime/stealth-evasi
 import { PATCH_FILE } from '../../packages/runtime/patch-check.js';
 import {
   GREASY_BRANDS_MARKER,
+  SHARED_WORKER_UA_MARKER,
   injectGreasyBrands,
   stripGreasyBrands,
 } from '../../packages/runtime/greasy-brands-patch.js';
@@ -35,12 +39,42 @@ const REAL_CHROME = {
 
 const header = brands => brands.map(b => `"${b.brand}";v="${b.version}"`).join(', ');
 
+// Captured 2026-10-31 from Google Chrome for Testing 145.0.7632.46 (Linux,
+// headless, no UA override anywhere). Chromium-branded build: no
+// "Google Chrome" entry, so this is ground truth for the GREASE derivation and
+// the fullVersionList form (Q1), not for the 3-brand ordering.
+const CAPTURED_145 = {
+  brands: [
+    { brand: 'Chromium', version: '145' },
+    { brand: 'Not:A-Brand', version: '99' },
+  ],
+  fullVersionList: [
+    { brand: 'Chromium', version: '145.0.7632.46' },
+    { brand: 'Not:A-Brand', version: '99.0.0.0' },
+  ],
+  secChUa: '"Chromium";v="145", "Not:A-Brand";v="99"',
+};
+
+test('captured Chrome 145: GREASE entry matches the greasedBrands derivation', () => {
+  const grease = greasedBrands(145).find(b => !['Chromium', 'Google Chrome'].includes(b.brand));
+  const captured = CAPTURED_145.brands.find(b => b.brand === 'Not:A-Brand');
+  assert.deepEqual(grease, captured);
+});
+
+test('captured Chrome 145 fullVersionList: Q1 settled — GREASE is <greaseVersion>.0.0.0, others get the full version', () => {
+  const full = greasedBrands(145, '145.0.7632.46');
+  for (const entry of CAPTURED_145.fullVersionList) {
+    assert.deepEqual(full.find(b => b.brand === entry.brand), entry);
+  }
+});
+
 for (const [major, expected] of Object.entries(REAL_CHROME)) {
   test(`greasedBrands(${major}) matches real Chrome Sec-CH-UA`, () => {
     assert.equal(header(greasedBrands(Number(major))), expected);
   });
 }
 
+// Recalled form, now backed by the CAPTURED_145 fullVersionList above.
 test('full version form: GREASE gets .0.0.0, Chrome brands get the full version', () => {
   assert.deepEqual(greasedBrands(131, '131.0.6778.86'), [
     { brand: 'Google Chrome', version: '131.0.6778.86' },
@@ -102,6 +136,13 @@ test('patched _updateUserAgent sends greased brands for a Chrome UA', async () =
   assert.equal(meta.platform, 'Windows');
 });
 
+test('patched _updateUserAgent sends fullVersionList/fullVersion/bitness, not the binary build', async () => {
+  const meta = await sentMetadata({ userAgent: ua(131), locale: 'en-US' });
+  assert.deepEqual(meta.fullVersionList, greasedBrands(131, '131.0.0.0'));
+  assert.equal(meta.fullVersion, '131.0.0.0');
+  assert.equal(meta.bitness, '64');
+});
+
 test('patched _updateUserAgent leaves metadata alone without a UA override', async () => {
   assert.equal(await sentMetadata({ locale: 'en-US' }), undefined);
 });
@@ -111,6 +152,11 @@ test('patched _updateUserAgent leaves metadata alone without a UA override', asy
 test('installed bundle carries exactly one current greasy-brands block', () => {
   assert.ok(bundle.includes(GREASY_BRANDS_MARKER));
   assert.equal(bundle.split('szkrabok:greasy-brands rev=').length, 2);
+});
+
+test('installed bundle carries the shared-worker UA block at all three hooks', () => {
+  assert.ok(bundle.includes(SHARED_WORKER_UA_MARKER));
+  assert.equal(bundle.split(SHARED_WORKER_UA_MARKER).length, 4);
 });
 
 test('inject is idempotent; strip undoes it exactly', () => {

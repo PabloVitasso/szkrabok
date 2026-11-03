@@ -208,10 +208,23 @@ const _launchPersistentContext = async (userDataDir, options = {}) => {
     delete launchOptions.cdpPort;
     delete launchOptions.args;
   } else {
+    // The browser default UA is what workers see. Playwright's `userAgent`
+    // option only overrides the page target, so service/shared workers keep
+    // HeadlessChrome/… without this flag. Mirror the stealth plugin's
+    // maskLinux transform so the flag and the page override agree.
+    let launchUA = options.userAgent;
+    if (launchUA && options.stealth) {
+      const uaConfig = getConfig().stealth['user-agent-override'];
+      const maskLinux = uaConfig.mask_linux ?? true;
+      if (maskLinux && launchUA.includes('Linux') && !launchUA.includes('Android')) {
+        launchUA = launchUA.replace(/\(([^)]+)\)/, '(Windows NT 10.0; Win64; x64)');
+      }
+    }
     launchOptions.args = [
       '--hide-crash-restore-bubble',
       '--disable-features=PortalActivationDelegate',
       '--password-store=basic',
+      ...(launchUA ? [`--user-agent=${launchUA}`] : []),
       ...(launchOptions.args || []),
     ];
     if (launchOptions.cdpPort !== undefined) {
