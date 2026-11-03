@@ -1,14 +1,16 @@
 # SESSION STATUS — 2026-10-31/11-01 — greasy-brands adoption + zero-install stealth
 
-Resume point: work committed and pushed; `meteo/` stripped from history and re-homed as its own repo. Remaining: optional real-build map for FVL, then W2 wiring/release.
+Resume point: work committed and pushed; `meteo/` stripped from history and re-homed as its own repo; PR #9 and #10 both merged. Remaining: optional real-build map for FVL, the `chromium_sandbox` discoverability gap, then W2 wiring/release.
 
-## State (2026-11-03, after commit + history strip)
+## State (2026-11-03, after PR #9/#10 merge)
 
-- HEAD = `cd91492`; branch `main`, **pushed to `origin/main` 2026-11-03 (fast-forward `24dd164..cd91492`, no force)**.
+- HEAD = `07f7c6a`; branch `main`, **pushed to `origin/main`, 0 ahead / 0 behind**.
+- `origin/main` history: `0648dbd` Merge PR #10 -> `53df73d` Merge PR #9 -> `cd91492`. The pre-PR work landed as `34d2214` greasy-brands core patch (was `adb6b94`, rebased), `5ba3b86` stealth UA-CH/FVL + worker-UA fix, `83940c0` verified-core evidence + plan docs, `cd91492` claude-docker hardening docs.
 - Committed: `34d2214` greasy-brands core patch (was `adb6b94`, rebased), `5ba3b86` stealth UA-CH/FVL + worker-UA fix, `83940c0` verified-core evidence + plan docs (retires the 20261025 patched-core proposal), `cd91492` claude-docker hardening docs.
 - **`meteo/` removed from history**: `3542e50` + `15a8c77` dropped by `git rebase --onto 99db652 15a8c77 main`; the `!meteo/probes/*.png` gitignore negation went with them. No meteo path in any commit on `main`.
 - Preserved before the strip: `~/mega/research/meteo/` (WIP, 9.9M; now a git repo on `main` = `91e5599`, history fetched from the bundle, no remote) + `_from-git/` (3 files that existed only in git: `cdp-click.mjs`, `cdp-emulate.mjs`, `cdp-theme.mjs`); meteo-only history bundle `../szkrabok-backups/meteo-history-20261103-210603.bundle` (2 commits, 41 files); full pre-rewrite bundle `../szkrabok-backups/full-pre-rewrite-20261103-210450.bundle`; branch `backup/pre-meteo-strip`.
 - `refs/sandbox/greasy-brands-separate` deleted (pointed at the pre-rewrite `adb6b94`). `refs/sandbox/main` (`99db652`) and `refs/sandbox/wip/claude-docker-hardening` untouched.
+- Retired: `backup/pre-meteo-strip` deleted + reflog expired + `git gc --prune=now` (.git 7 packs/3.92 MiB + 5646 loose -> 1 pack, 24 MiB; old meteo objects unreachable).
 - Verified after the rewrite: `git diff backup/pre-meteo-strip main -- . ':(exclude)meteo'` = only the 2 `.gitignore` lines; `node --test tests/node/*.test.js` 172/172; `npm run lint` clean.
 - Authoritative plans: `docs/features/20261031-verified-core-and-vendored-evasions-plan.md` (P0 done, decisions adopted), `docs/features/20261031-greasy-brands-upstream-contribution-plan.md`. Gated: `docs/features/20261031-greasy-brands-upstream/` (patch + issue draft).
 
@@ -47,9 +49,11 @@ Resume point: work committed and pushed; `meteo/` stripped from history and re-h
 - Handoff bundles live at `~/.local/share/claude-docker/git/<sha256(project-path)[0:16]>/handoff/`, not `.git/handoff/`.
 - `claude-docker` nested-repo guard: `git-fetch`/`git-adopt` unaffected; container commands need `CLAUDE_DOCKER_ALLOW_NESTED_GIT=1`.
 
-## PR triage (2026-11-03)
+## PR triage (2026-11-03) — BOTH MERGED
 
-Two open PRs, both authored by PabloVitasso, no reviews, **no CI** (`ci.yml.disabled`; only `check-playwright-upgrade.yml` runs, and only on cron/dispatch). Both branched from `24dd164`, 7 commits behind main. GitHub reports `CONFLICTING`/`DIRTY` for both.
+**Outcome:** #9 merged as `53df73d` (21:30Z, merge commit), #10 merged as `0648dbd`. Branch repairs below are history only; both branches still exist on origin at `47b92af` / `ff696f2`.
+
+Two open PRs, both authored by PabloVitasso, no reviews, **no CI** (`ci.yml.disabled`; only `check-playwright-upgrade.yml` runs, and only on cron/dispatch). Both branched from `24dd164`, 7 commits behind main. GitHub reported `CONFLICTING`/`DIRTY` for both.
 
 - **#9 `fix/chromium-sandbox`** (`chromiumSandbox: true` default, config opt-out `[browser] chromium_sandbox = false`). One conflict, `packages/runtime/launch.js` only: our `5ba3b86` put the `--user-agent` flag inside the same block #9 extracted into `_assembleLaunchOptions`. Mechanical: keep the extraction, move the UA logic into its `else` branch. Verified in a throwaway clone (`/tmp/szk-pr`, deleted): base 172/172, runtime 266 pass/1 skip, hardening 189/189, launch-sandbox 4/4, unit 17/17, lint clean; `_assembleLaunchOptions({userAgent: Linux UA, stealth:true})` still emits `--user-agent=…(Windows NT 10.0; Win64; x64)…`.
 - **#10 `fix/test-browser-leaks`** (tree kill + loop-device scan in `tests/node/runtime/helpers.js`). **Stacked on #9**: the branch contains #9's 3 commits. Merges clean on top of the resolved #9. Verified: `devtools-port.test.js` 5/5, and 0 processes with a test `--user-data-dir` after the full runtime suite.
@@ -57,3 +61,14 @@ Two open PRs, both authored by PabloVitasso, no reviews, **no CI** (`ci.yml.disa
 Behaviour risk of #9, measured on this host: resolved browser is the flatpak `ungoogled-chromium` wrapper — sandboxed launch OK. Playwright's **bundled** Chromium aborts with `Chromium sandboxing failed!` (no SUID helper, `apparmor_restrict_unprivileged_userns=1`); `chromiumSandbox:false` launches. Intended fail-closed, but the opt-out is documented only in `docs/architecture.md`: not in `src/tools/templates/szkrabok.config.toml`, not in the runtime test list in `docs/testing.md`, and the failure text is Chromium's own with no pointer to the key. Add those with the merge.
 
 Leftovers: the runtime suite still leaves ~5 `/tmp/szkrabok-clone-*` dirs (dirs, not processes) — pre-existing, not addressed by #10.
+
+### Repairs applied
+
+- **#9:** merged `main` into the branch (no force) -> `47b92af`. Conflict resolved in `_assembleLaunchOptions`'s `else` branch: one assembly site, UA/`maskLinux` logic preserved. Suites green before push.
+- **#10:** was still stacked on #9's pre-merge commits; unstacked with `git rebase --onto origin/main 31af63b fix/test-browser-leaks` -> `ff696f2` (1 commit, 3 files, +182/-17). Force-pushed with `--force-with-lease` pinned to the old tip `2299f60`. Suites green; 0 leaked test processes after both full suites.
+- Pitfall hit: the first #10 rebase anchored on local `main` and dragged in the then-unpushed `4cdd33f`; redone against `origin/main`. **Anchor PR work on `origin/main`, not `main`.**
+
+### Still open from the audit
+
+1. `chromium_sandbox` is not in `src/tools/templates/szkrabok.config.toml`'s `[browser]` block, not in `docs/testing.md`'s runtime test list, and the abort is Chromium's own text with no pointer to the key. On Ubuntu 23.10+ a user whose resolution falls back to Playwright's bundled Chromium gets a dead launch with no discoverable opt-out. Follow-up PR, not shipped.
+2. Containers: claude-docker pin bump + `chromium_sandbox = false` in the container example (PR #9's own follow-up list).
