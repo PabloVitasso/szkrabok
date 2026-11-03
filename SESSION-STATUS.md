@@ -4,7 +4,7 @@ Resume point: work committed and pushed; `meteo/` stripped from history and re-h
 
 ## State (2026-11-03, after PR #9/#10 merge)
 
-- HEAD = `07f7c6a`; branch `main`, **pushed to `origin/main`, 0 ahead / 0 behind**.
+- HEAD = `0b5160a`; branch `main`, **pushed to `origin/main`, 0 ahead / 0 behind**.
 - `origin/main` history: `0648dbd` Merge PR #10 -> `53df73d` Merge PR #9 -> `cd91492`. The pre-PR work landed as `34d2214` greasy-brands core patch (was `adb6b94`, rebased), `5ba3b86` stealth UA-CH/FVL + worker-UA fix, `83940c0` verified-core evidence + plan docs, `cd91492` claude-docker hardening docs.
 - Committed: `34d2214` greasy-brands core patch (was `adb6b94`, rebased), `5ba3b86` stealth UA-CH/FVL + worker-UA fix, `83940c0` verified-core evidence + plan docs (retires the 20261025 patched-core proposal), `cd91492` claude-docker hardening docs.
 - **`meteo/` removed from history**: `3542e50` + `15a8c77` dropped by `git rebase --onto 99db652 15a8c77 main`; the `!meteo/probes/*.png` gitignore negation went with them. No meteo path in any commit on `main`.
@@ -70,5 +70,5 @@ Leftovers: the runtime suite still leaves ~5 `/tmp/szkrabok-clone-*` dirs (dirs,
 
 ### Still open from the audit
 
-1. `chromium_sandbox` is not in `src/tools/templates/szkrabok.config.toml`'s `[browser]` block, not in `docs/testing.md`'s runtime test list, and the abort is Chromium's own text with no pointer to the key. On Ubuntu 23.10+ a user whose resolution falls back to Playwright's bundled Chromium gets a dead launch with no discoverable opt-out. Follow-up PR, not shipped.
+1. ~~`chromium_sandbox` discoverability~~ **fixed in `0b5160a`**: key added to both config templates, `launch-sandbox` added to the runtime test list, and `applySandboxHint()` appends the opt-out (with the resolved config path) to Chromium's abort. `config.js` gained `userConfigDir()` as the single source of truth for the user config dir. Verified live: bundled Chromium aborts with the hint; `chromium_sandbox = false` launches; flatpak Chromium reports `chrome://sandbox` "adequately sandboxed" with the default, "NOT adequately sandboxed" with the opt-out.
 2. Containers: claude-docker pin bump + `chromium_sandbox = false` in the container example (PR #9's own follow-up list).
