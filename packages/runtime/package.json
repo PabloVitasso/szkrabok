@@ -15,12 +15,12 @@
     "node": ">=20.0.0"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "1.30.0",
-    "chrome-launcher": "1.2.1",
-    "playwright": "1.63.0",
-    "playwright-core": "1.63.0",
+    "@modelcontextprotocol/sdk": "1.32.2",
+    "chrome-launcher": "1.2.3",
+    "playwright": "1.65.0",
+    "playwright-core": "1.65.0",
     "playwright-extra": "4.3.6",
     "puppeteer-extra-plugin-stealth": "2.11.2",
-    "smol-toml": "1.6.1"
+    "smol-toml": "1.9.1"
   }
 }

@@ -79,20 +79,21 @@
     "url": "git+https://github.com/PabloVitasso/szkrabok.git"
   },
   "dependencies": {
-    "@babel/generator": "7.29.1",
-    "@babel/parser": "7.29.2",
-    "@babel/traverse": "7.29.0",
-    "@modelcontextprotocol/sdk": "1.30.0",
+    "@babel/generator": "7.29.13",
+    "@babel/parser": "7.29.13",
+    "@babel/traverse": "7.29.13",
+    "@babel/types": "7.29.11",
+    "@modelcontextprotocol/sdk": "1.32.2",
     "commander": "14.0.3",
-    "dotenv": "17.4.2",
+    "dotenv": "18.0.10",
     "patch-package": "8.0.1",
-    "playwright": "1.63.0",
-    "playwright-core": "1.63.0",
+    "playwright": "1.65.0",
+    "playwright-core": "1.65.0",
     "playwright-extra": "4.3.6",
     "puppeteer-core": "24.42.0",
     "puppeteer-extra-plugin-stealth": "2.11.2",
-    "smol-toml": "1.6.1",
-    "zod": "4.3.6"
+    "smol-toml": "1.9.1",
+    "zod": "4.6.7"
   },
   "peerDependencies": {
     "@playwright/test": ">=1.49.1"
@@ -104,13 +105,13 @@
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
-    "ajv": "8.18.0",
+    "ajv": "8.20.0",
     "ajv-formats": "3.0.1",
-    "eslint": "10.2.1",
+    "eslint": "10.14.0",
     "eslint-config-prettier": "10.1.8",
     "eslint-plugin-node": "11.1.0",
-    "globals": "17.5.0",
-    "prettier": "3.8.3",
+    "globals": "17.14.0",
+    "prettier": "3.10.0",
     "puppeteer-extra": "3.3.6"
   },
   "eslintConfig": {

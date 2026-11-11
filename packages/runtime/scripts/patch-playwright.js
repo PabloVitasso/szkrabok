@@ -278,15 +278,20 @@ const patches = [
   },
 
   // ── 3. crPage — Worker callsite: pass targetId + session ───────────────────
+  // The CDP session variable in this branch was renamed session2 → session in
+  // 1.64.1; detect which name the compiled section uses so one script covers both.
   {
     name: 'crPage: Worker callsite pass targetId+session',
     section: 'packages/playwright-core/src/server/chromium/crPage.ts',
-    apply: sec => strReplace(
-      'crPage: Worker callsite pass targetId+session',
-      sec,
-      `const worker = new Worker(this._page, url3);`,
-      `const worker = new Worker(this._page, url3, undefined, event.targetInfo.targetId, session2);`
-    ),
+    apply: sec => {
+      const sessionVar = sec.includes('session2.detach()') ? 'session2' : 'session'
+      return strReplace(
+        'crPage: Worker callsite pass targetId+session',
+        sec,
+        `const worker = new Worker(this._page, url3);`,
+        `const worker = new Worker(this._page, url3, undefined, event.targetInfo.targetId, ${sessionVar});`
+      )
+    },
   },
 
   // ── 4. crPage — suppress Runtime.enable (AST) ──────────────────────────────
@@ -327,6 +332,10 @@ const patches = [
   // Method renamed _context → context in 1.60.0 esbuild output (underscore dropped).
   // Recursive call must also use context() (not _context()).
   // In 1.61.0 a noUtilityWorld guard was added at the top — preserve it.
+  // The anchor covers only the signature + guard. The promise tail below it drifted
+  // in 1.65.0 (locals contextOrDestroyedReason/destroyedReason → contextOrDestroyedError/
+  // destroyedError, `throw new Error(…)` → `throw`), so the fix is inserted ahead of
+  // the tail instead of matching it.
   {
     name: 'frames: rewire context() via __re__emitExecutionContext',
     section: 'packages/playwright-core/src/server/frames.ts',
@@ -335,32 +344,21 @@ const patches = [
       sec,
       `      context(world) {
         if (this._page.delegate.noUtilityWorld?.())
-          world = "main";
-        return this._contextData.get(world).contextPromise.then((contextOrDestroyedReason) => {
-          if (contextOrDestroyedReason instanceof ExecutionContext)
-            return contextOrDestroyedReason;
-          throw new Error(contextOrDestroyedReason.destroyedReason);
-        });
-      }`,
+          world = "main";`,
       `      context(world, useContextPromise = false) {
         if (this._page.delegate.noUtilityWorld?.())
           world = "main";
-        if (process.env['REBROWSER_PATCHES_RUNTIME_FIX_MODE'] === '0' || this._contextData.get(world).context || useContextPromise) {
-          return this._contextData.get(world).contextPromise.then((contextOrDestroyedReason) => {
-            if (contextOrDestroyedReason instanceof ExecutionContext)
-              return contextOrDestroyedReason;
-            throw new Error(contextOrDestroyedReason.destroyedReason);
-          });
-        }
-        const crSession = (this._page.delegate._sessions?.get(this._id) || this._page.delegate._mainFrameSession)?._client
-        return crSession.__re__emitExecutionContext({ world, targetId: this._id, frame: this, utilityWorldName: this._page.delegate?.utilityWorldName })
-          .then(() => this.context(world, true))
-          .catch(error => {
-            if (error.message.includes('No frame for given id found'))
-              return { destroyedReason: 'Frame was detached' }
-            console.error('[rebrowser-patches][frames.context] error:', error)
-          })
-      }`
+        const needsEmit = process.env['REBROWSER_PATCHES_RUNTIME_FIX_MODE'] !== '0' && !this._contextData.get(world).context && !useContextPromise
+        if (needsEmit) {
+          const crSession = (this._page.delegate._sessions?.get(this._id) || this._page.delegate._mainFrameSession)?._client
+          return crSession.__re__emitExecutionContext({ world, targetId: this._id, frame: this, utilityWorldName: this._page.delegate?.utilityWorldName })
+            .then(() => this.context(world, true))
+            .catch(error => {
+              if (error.message.includes('No frame for given id found'))
+                return { destroyedReason: 'Frame was detached' }
+              console.error('[rebrowser-patches][frames.context] error:', error)
+            })
+        }`
     ),
   },
 
@@ -399,31 +397,55 @@ const patches = [
   // ── 9. page — Worker evaluateExpression: use getExecutionContext() ──────────
   // In 1.60.0 both methods take leading progress2 param and call the free
   // function evaluateExpression() (not js.evaluateExpression).
+  // In 1.64.1 the final param was renamed arg → arg2 in both methods.
+  // In 1.65.0 both methods delegate to a new `_executionContext(progress2)` helper
+  // that races the promise against openScope — patch that helper instead and keep
+  // the openScope race. getExecutionContext() is still emitted: patch-check.js
+  // uses it as a marker.
   {
     name: 'page: Worker evaluateExpression use getExecutionContext',
     section: 'packages/playwright-core/src/server/page.ts',
-    apply: sec => strReplace(
-      'page: Worker evaluateExpression use getExecutionContext',
-      sec,
-      `async evaluateExpression(progress2, expression2, isFunction2, arg) {
-        return progress2.race(evaluateExpression(await this._executionContextPromise, expression2, { returnByValue: true, isFunction: isFunction2 }, arg));
-      }
-      async evaluateExpressionHandle(progress2, expression2, isFunction2, arg) {
-        return progress2.race(evaluateExpression(await this._executionContextPromise, expression2, { returnByValue: false, isFunction: isFunction2 }, arg));
+    apply: sec => {
+      if (sec.includes('async _executionContext(progress2) {'))
+        return strReplace(
+          'page: Worker _executionContext use getExecutionContext',
+          sec,
+          `async _executionContext(progress2) {
+        return await progress2.race(this.openScope.race(this._executionContextPromise));
       }`,
-      `async getExecutionContext() {
+          `async getExecutionContext() {
         if (process.env['REBROWSER_PATCHES_RUNTIME_FIX_MODE'] !== '0' && !this.existingExecutionContext) {
           await this._session.__re__emitExecutionContext({ world: 'main', targetId: this._targetId })
         }
         return this._executionContextPromise
       }
-      async evaluateExpression(progress2, expression2, isFunction2, arg) {
-        return progress2.race(evaluateExpression(await this.getExecutionContext(), expression2, { returnByValue: true, isFunction: isFunction2 }, arg));
-      }
-      async evaluateExpressionHandle(progress2, expression2, isFunction2, arg) {
-        return progress2.race(evaluateExpression(await this.getExecutionContext(), expression2, { returnByValue: false, isFunction: isFunction2 }, arg));
+      async _executionContext(progress2) {
+        return await progress2.race(this.openScope.race(this.getExecutionContext()));
       }`
-    ),
+        )
+      return strReplace(
+        'page: Worker evaluateExpression use getExecutionContext',
+        sec,
+        `async evaluateExpression(progress2, expression2, isFunction2, arg2) {
+        return progress2.race(evaluateExpression(await this._executionContextPromise, expression2, { returnByValue: true, isFunction: isFunction2 }, arg2));
+      }
+      async evaluateExpressionHandle(progress2, expression2, isFunction2, arg2) {
+        return progress2.race(evaluateExpression(await this._executionContextPromise, expression2, { returnByValue: false, isFunction: isFunction2 }, arg2));
+      }`,
+        `async getExecutionContext() {
+        if (process.env['REBROWSER_PATCHES_RUNTIME_FIX_MODE'] !== '0' && !this.existingExecutionContext) {
+          await this._session.__re__emitExecutionContext({ world: 'main', targetId: this._targetId })
+        }
+        return this._executionContextPromise
+      }
+      async evaluateExpression(progress2, expression2, isFunction2, arg2) {
+        return progress2.race(evaluateExpression(await this.getExecutionContext(), expression2, { returnByValue: true, isFunction: isFunction2 }, arg2));
+      }
+      async evaluateExpressionHandle(progress2, expression2, isFunction2, arg2) {
+        return progress2.race(evaluateExpression(await this.getExecutionContext(), expression2, { returnByValue: false, isFunction: isFunction2 }, arg2));
+      }`
+      )
+    },
   },
 
   // ── 10. page — PageBinding.dispatch: guard non-JSON payloads ────────────────

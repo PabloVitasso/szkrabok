@@ -1,6 +1,6 @@
 // AUTO-GENERATED — do not edit manually.
 // Regenerate: npm run codegen:mcp
-// Last generated: 2026-10-24T19:23:57.623Z
+// Last generated: 2026-11-11T13:36:09.761Z
 
 export interface SessionHandle {
   /**
