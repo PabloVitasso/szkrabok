@@ -323,8 +323,13 @@ Without `executable_path`, `resolveFirefox()` tries, in order: config path → `
 ```bash
 pip install invisible-playwright
 python -m invisible_playwright fetch      # downloads + verifies the patched binary
-python -m invisible_playwright path       # prints the path for executable_path
+python -m invisible_playwright version    # prints engine, seal and the cache path
 ```
+
+The engine is sealed to a playwright range (`invisible_core/seal.json`); `version`
+prints it. Playwright 1.65.0 is outside the current seal (`1.55.0`–`1.61.0`), so the
+patched binary does not launch on it — see
+[docs/development.md](./docs/development.md#engine-seal-caps-the-playwright-version).
 
 szkrabok's own tests confirm `navigator.webdriver` is suppressed on the patched binary (vs. `true` on stock Firefox) — that's the one signal this repo independently verifies. Deeper anti-detection claims are `invisible_playwright`'s own upstream numbers, not re-verified here. Firefox sessions have no CDP: `session_manage endpoint`, `browser_run_test`, and `session_run_test` throw `ENGINE_NOT_SUPPORTED`. For headless Firefox stealth, use `headless: false` with a virtual display (Xvfb) — `headless: true` uses a more detectable rendering path. See [docs/architecture.md — Firefox engine support](./docs/architecture.md#firefox-engine-support) for the full picture, and [docs/development.md — Refreshing Firefox binaries](./docs/development.md#refreshing-firefox-binaries-after-a-playwright-core-upgrade) if Firefox launches start failing after a `playwright-core` upgrade.
 

@@ -111,10 +111,15 @@ const sliceFrom = (start, close) => {
 const calculateUserAgentMetadata = new Function(
   `${sliceFrom('function calculateUserAgentMetadata(options) {', '}')}\nreturn calculateUserAgentMetadata;`
 )();
-const method = sliceFrom('async _updateUserAgent() {', '      }');
+// 1.65.0 added a `session` parameter (defaulted to this._client) to _updateUserAgent.
+const UA_HEAD = 'async _updateUserAgent(session = this._client) {';
+const method = bundle.includes(UA_HEAD)
+  ? sliceFrom(UA_HEAD, '      }')
+  : sliceFrom('async _updateUserAgent() {', '      }');
 const AsyncFunction = (async () => {}).constructor;
 const updateUserAgent = new AsyncFunction(
   'calculateUserAgentMetadata',
+  'session', // 1.65.0 parameter; unused by older bundles
   method.slice(method.indexOf('{') + 1, method.lastIndexOf('}'))
 );
 
@@ -124,7 +129,9 @@ const sentMetadata = async options => {
     _crPage: { _browserContext: { _options: options } },
     _client: { send: async (m, params) => sent.push({ m, params }) },
   };
-  await updateUserAgent.call(crPageSession, calculateUserAgentMetadata);
+  // Pass the fake CDP client as the trailing arg: 1.65.0 reads it as `session`,
+  // older versions ignore it and use this._client (the same object).
+  await updateUserAgent.call(crPageSession, calculateUserAgentMetadata, crPageSession._client);
   assert.equal(sent.length, 1);
   assert.equal(sent[0].m, 'Emulation.setUserAgentOverride');
   return sent[0].params.userAgentMetadata;

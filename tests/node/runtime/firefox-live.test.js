@@ -12,9 +12,10 @@
 
 import { test, describe, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, writeFileSync, rmSync, existsSync } from 'fs';
-import { join } from 'path';
+import { mkdtempSync, writeFileSync, rmSync, existsSync, readFileSync } from 'fs';
+import { join, dirname } from 'path';
 import { tmpdir, homedir } from 'os';
+import { createRequire } from 'module';
 
 import { initConfig } from '../../../packages/runtime/config.js';
 import { launch, checkBrowser, _resetGcForTesting } from '../../../packages/runtime/launch.js';
@@ -28,8 +29,8 @@ import { endpoint } from '../../../src/tools/szkrabok_session.js';
 // denies the usernamespace clone Playwright needs (CLONE_NEWPID EPERM).
 // Chromium: walk cache for latest installed version (see resolve.js fallback).
 
-const PW_CHROMIUM = join(homedir(), '.cache/ms-playwright/chromium-1234/chrome-linux64/chrome');
-const PW_FIREFOX = join(homedir(), '.cache/ms-playwright/firefox-1538/firefox/firefox');
+const PW_CHROMIUM = join(homedir(), '.cache/ms-playwright/chromium-1254/chrome-linux64/chrome');
+const PW_FIREFOX = join(homedir(), '.cache/ms-playwright/firefox-1572/firefox/firefox');
 // invisible_playwright >=0.5.0 names cache dirs firefox-<N>_<version>_<build>
 // instead of the old bare firefox-<N> — pinned to the currently fetched build.
 // resolveFirefox() (see resolve.js) is the code path that must stay generic;
@@ -41,6 +42,30 @@ const INV_FIREFOX = join(
 
 const SKIP_PW_CHROME = !existsSync(PW_CHROMIUM);
 const SKIP_PW = !existsSync(PW_FIREFOX);
+// ── invisible_playwright engine seal ─────────────────────────────────────────
+// The patched engine declares the playwright range it speaks in its seal:
+// `invisible_core/seal.json` → "playwright": { "min", "max" }. The current
+// series (invisible_core 61.62.0, engine firefox-61 / Firefox 159.0, build
+// 20261110161904) declares max 1.61.0, while playwright-core 1.65.0 sends
+// `Browser.setDownloadOptions.legacyInterceptor` — a field no engine in that
+// range knows. The launch then dies with "Found property … legacyInterceptor -
+// false which is not described in this scheme".
+// Check with: python -m invisible_playwright version  (prints engine + seal)
+// Raise MAX_SEALED_PLAYWRIGHT when upstream's seal admits a newer playwright,
+// or force-run with SZKRABOK_RUN_INV_TESTS=1 after a `fetch`.
+const MAX_SEALED_PLAYWRIGHT = '1.61.0';
+const require = createRequire(import.meta.url);
+const pwCoreDir = dirname(require.resolve('playwright-core/package.json'));
+const pwCoreVersion = JSON.parse(readFileSync(join(pwCoreDir, 'package.json'), 'utf8')).version;
+const semverGt = (a, b) => {
+  const pa = a.split('.').map(Number);
+  const pb = b.split('.').map(Number);
+  for (let i = 0; i < 3; i++) if (pa[i] !== pb[i]) return pa[i] > pb[i];
+  return false;
+};
+const INV_ENGINE_TOO_OLD =
+  semverGt(pwCoreVersion, MAX_SEALED_PLAYWRIGHT) && !process.env.SZKRABOK_RUN_INV_TESTS;
+
 const SKIP_INV = !existsSync(INV_FIREFOX);
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -139,7 +164,7 @@ const runLifecycleTests = ({ engine, hasCdp }) => {
 // ── Playwright bundled Chromium ───────────────────────────────────────────────
 
 describe(
-  'Playwright bundled Chromium (chromium-1234)',
+  'Playwright bundled Chromium (chromium-1254)',
   { timeout: 30_000, skip: SKIP_PW_CHROME },
   () => {
     beforeEach(() => withBrowserConfig('chromium', PW_CHROMIUM));
@@ -156,7 +181,7 @@ describe(
 // ── Playwright bundled Firefox ────────────────────────────────────────────────
 
 describe(
-  'Playwright bundled Firefox (firefox-1489, stock)',
+  'Playwright bundled Firefox (firefox-1572, stock)',
   { timeout: 30_000, skip: SKIP_PW },
   () => {
     beforeEach(() => withBrowserConfig('firefox', PW_FIREFOX));
@@ -189,8 +214,15 @@ describe(
 // ── invisible_playwright patched Firefox ──────────────────────────────────────
 
 describe(
-  'invisible_playwright patched Firefox (150.0.1)',
-  { timeout: 30_000, skip: SKIP_INV },
+  'invisible_playwright patched Firefox (Firefox 151.0)',
+  {
+    timeout: 30_000,
+    skip: SKIP_INV
+      ? 'invisible_playwright binary not in cache'
+      : INV_ENGINE_TOO_OLD
+        ? `engine sealed to playwright <= ${MAX_SEALED_PLAYWRIGHT} (installed ${pwCoreVersion})`
+        : false,
+  },
   () => {
     beforeEach(() => withBrowserConfig('firefox', INV_FIREFOX));
 

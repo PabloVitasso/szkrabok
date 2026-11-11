@@ -255,7 +255,7 @@ When upgrading:
    ```
    All 11 entries must report `patched`. If any fail, the script rolls back and exits 1 — the anchor string changed upstream and the patch script needs updating first.
 
-   **Patch locations (as of 1.63.0):**
+   **Patch locations (as of 1.65.0):**
 
    Since 1.60.0 all server source is compiled into a single `lib/coreBundle.js` (esbuild). The patch script uses `patchSection(src, sectionPath, fn)` to scope each transform to its source module via esbuild-emitted `// packages/playwright-core/src/<path>` headers.
 
@@ -282,6 +282,8 @@ When upgrading:
    | 1.61.0 | `_updateUserAgent` local var renamed `options2` → `options`; `context()` in frames gained a `noUtilityWorld?.()` guard at the top |
    | 1.62.1 | Worker constructor/callsite param renamed `url2` → `url3` in both `crPage.ts` and `page.ts` sections |
    | 1.63.0 | `PageBinding.dispatch` param renamed `context2` → `context` in `page.ts` section |
+   | 1.64.1 | crPage Worker callsite CDP session variable renamed `session2` → `session`; page.ts `Worker.evaluateExpression`/`Handle` param renamed `arg` → `arg2`. Both patch script and greasy shared-worker block detect the variable name so the same script covers 1.63.0 and 1.64.1. |
+   | 1.65.0 | `Worker` gained `_executionContext(progress2)` (races `_executionContextPromise` against `openScope`) and the evaluate methods now delegate to it — the patch hooks `_executionContext` and keeps the race. `Frame.context()` promise locals renamed `contextOrDestroyedReason`/`destroyedReason` → `contextOrDestroyedError`/`destroyedError`, and `throw new Error(…)` → `throw` — the patch now anchors on the signature only and inserts ahead of the promise tail, so it survives that drift. Needs a fresh Chromium (`npx playwright install chromium`) and Firefox revision; `docs/development.md#refreshing-firefox-binaries-after-a-playwright-core-upgrade`.
 
    If a patch fails, the script rolls back and prints which anchor wasn't found. Update the anchor string in `patch-playwright.js`. The verify script, `doctor`, `launch()` and the patch tests only check markers, not anchors — no changes needed there unless you add or remove a patch. Markers live in one place: `packages/runtime/patch-check.js`.
 
@@ -334,7 +336,7 @@ When upgrading:
    git commit -m "chore: upgrade playwright-core to <NEW_VERSION>"
    ```
 
-   Delete the previous version's patch file: `patches/` holds the pinned version's patch only.
+   Historical patch files are retained: `patches/` may hold patches for several versions. `scripts/apply-patches.js` filters to the patch matching the installed playwright-core version, so stale patches do not break postinstall. Do not delete old patch files manually.
 
 ## Refreshing Firefox binaries after a playwright-core upgrade
 
@@ -352,8 +354,10 @@ Found property "<root>.viewport.isMobile" - false which is not described in this
 ```
 
 Playwright 1.61 added an `isMobile` field to the Firefox `Browser.setDefaultViewport`
-Juggler command. A Firefox binary built before that protocol revision rejects the call
-outright and the session never launches. This is not specific to `isMobile` — any
+Juggler command (1.65.0 added `legacyInterceptor` to `Browser.setDownloadOptions` — see
+[Engine seal caps the playwright version](#engine-seal-caps-the-playwright-version)).
+A Firefox binary built before that protocol revision rejects the call outright and the
+session never launches. This is not specific to `isMobile` — any
 future Juggler protocol addition can break the same way. Confirmed upstream at
 [invisible_playwright#48](https://github.com/feder-cr/invisible_playwright/issues/48).
 
@@ -383,12 +387,55 @@ python3 -m venv /tmp/invpw-venv   # or reuse an existing venv
 ```
 
 `fetch` checks the installed package's playwright pin against a "seal" and refuses (and
-tells you) if the cached tree doesn't match — no silent stale-binary use. Cache dir
+tells you) if the cached tree doesn't match — no silent stale-binary use. The seal also
+carries the playwright range the engine speaks; `version` prints it. See
+[Engine seal caps the playwright version](#engine-seal-caps-the-playwright-version)
+before assuming a `fetch` can rescue a launch failure. Cache dir
 naming changed from bare `firefox-<N>` to `firefox-<N>_<version>_<build>`;
 `resolveFirefox()` in `packages/runtime/resolve.js` handles both (see
 [docs/architecture.md — Firefox resolution](./architecture.md#firefox-resolution) —
 sorting is numeric on `N`, not lexicographic, specifically so a two-digit revision like
 `firefox-18` is correctly preferred over `firefox-7`).
+
+### Engine seal caps the playwright version
+
+The patched engine embeds one Juggler revision, so upstream publishes an explicit
+playwright range in `invisible_core/seal.json` → `"playwright": { "min", "max" }`.
+`python -m invisible_playwright version` prints both. As of 2026-11-11 that range is
+`1.55.0`–`1.61.0` (invisible-playwright 0.49.1 → invisible-core 61.62.0, engine
+`firefox-61`, Firefox 159.0, build `20261110161904`). Playwright 1.65.0 is therefore
+**outside the seal**: it sends `Browser.setDownloadOptions.legacyInterceptor`, which
+appeared in `playwright-core` 1.65.0 (absent from 1.63.0 and 1.64.1) and which no engine
+in that range implements. Symptom:
+
+```
+ERROR: failed to call method 'Browser.setDownloadOptions' with parameters {...}
+Found property "<root>.downloadOptions.legacyInterceptor" - false which is not described in this scheme
+```
+
+No available engine build fixes this, so `fetch` is pointless until upstream raises the
+seal — the 300 MB engine download would only be rejected. Consequences:
+
+- The `invisible_playwright` describe block in `tests/node/runtime/firefox-live.test.js`
+  is gated on `MAX_SEALED_PLAYWRIGHT = '1.61.0'`; the skip line prints the installed
+  `playwright-core` version. `SZKRABOK_RUN_INV_TESTS=1` force-runs it — use that after a
+  `fetch` to prove a new engine works, then raise the constant.
+- Firefox via `invisible_playwright` is unavailable as an engine on playwright 1.65.0.
+  Chromium sessions, and stock Firefox on 1.65.0 (`firefox-1572`, Firefox 159.0), are
+  unaffected.
+
+**Bandwidth-limited browser downloads:** `scripts/throttle-proxy.js` is a rate-limited
+reverse proxy Playwright can be pointed at, so a browser download does not saturate the
+link:
+
+```bash
+node scripts/throttle-proxy.js &                     # 800 KiB/s on 127.0.0.1:8899
+PLAYWRIGHT_DOWNLOAD_HOST=http://127.0.0.1:8899 npx playwright install chromium firefox
+```
+
+`RATE_BYTES_PER_SEC` sets the cap (default 800 KiB/s, ~5% under measured), `PORT`,
+`HOST` and `ORIGIN` override the rest. Playwright downloads one file at a time, so the
+cap holds for the whole run. Measured: 132 MB at 759 KiB/s, 119 MB at 772 KiB/s.
 
 **After fetching either binary:** re-run `tests/node/runtime/firefox-live.test.js`
 (skips gracefully if a binary is absent) and update any test file that pins an exact
@@ -413,6 +460,18 @@ All dependencies in `package.json` and `packages/runtime/package.json` are pinne
    ```
    That command should produce no output (only `engines.node` and `peerDependencies` ranges are acceptable).
 4. When bumping a package, always update **both** `package.json` and `packages/runtime/package.json` if the package appears in both (e.g. `playwright`, `playwright-core`, `smol-toml`, `@modelcontextprotocol/sdk`).
+
+### Held back by the Node floor
+
+`engines.node` is `>=20.0.0`, so `npm run deps:update` (npm-check-updates) must not be run blindly — three majors raise the floor above it:
+
+| Package | Latest | Held back at | Why |
+|---------|--------|--------------|-----|
+| `commander` | 15.1.0 | 14.0.3 | 15.x needs Node `>=22.12.0` |
+| `puppeteer-core` | 25.17.0 | 24.42.0 | 25.x needs Node `>=22.12.0` |
+| `@babel/parser` / `traverse` / `generator` / `types` | 8.1.0 | 7.29.x | 8.x is ESM-only; `patch-playwright.js` uses `require()` on them |
+
+Raise `engines.node` first if any of these are wanted.
 
 ## Consumer projects
 

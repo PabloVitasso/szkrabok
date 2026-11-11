@@ -33,7 +33,7 @@ const SW_BEGIN = '// ── szkrabok:shared-worker-ua';
 const SW_END = '// ── end szkrabok:shared-worker-ua ──';
 
 const REV = '2';
-const SW_REV = '1';
+const SW_REV = '2';
 
 const FN_HEAD = /function calculateUserAgentMetadata\((\w+)\) \{/;
 // The metadata object (`const metadata = { mobile: … }`) and its own return,
@@ -82,19 +82,22 @@ const SW_ATTACH_ANCHOR = '        if (!context || targetInfo.type === "other" &&
 const SW_DETACH_ANCHOR = '      _onDetachedFromTarget(payload) {\n        const targetId = payload.targetId;';
 const SW_DISCONNECT_ANCHOR = '        this._serviceWorkers.clear();';
 
+// 1.63.0 names the CDP session `session2`; 1.64.1 renamed it `session`.
+// Detect which name the compiled source uses so the block works on both.
+const swAttach = sessionVar => [
+  'if (targetInfo.type === "shared_worker") {',
+  '  const _szkUa = this._userAgent;',
+  '  const _szkMeta = calculateUserAgentMetadata({ userAgent: _szkUa });',
+  '  (async () => {',
+  `    try { await ${sessionVar}.send("Emulation.setUserAgentOverride", { userAgent: _szkUa, userAgentMetadata: _szkMeta }); } catch {}`,
+  `    try { await ${sessionVar}.send("Runtime.runIfWaitingForDebugger"); } catch {}`,
+  '  })();',
+  `  (this._sharedWorkerSessions ??= new Map()).set(targetInfo.targetId, ${sessionVar});`,
+  '  return;',
+  '}',
+];
+
 const swBody = {
-  attach: [
-    'if (targetInfo.type === "shared_worker") {',
-    '  const _szkUa = this._userAgent;',
-    '  const _szkMeta = calculateUserAgentMetadata({ userAgent: _szkUa });',
-    '  (async () => {',
-    '    try { await session2.send("Emulation.setUserAgentOverride", { userAgent: _szkUa, userAgentMetadata: _szkMeta }); } catch {}',
-    '    try { await session2.send("Runtime.runIfWaitingForDebugger"); } catch {}',
-    '  })();',
-    '  (this._sharedWorkerSessions ??= new Map()).set(targetInfo.targetId, session2);',
-    '  return;',
-    '}',
-  ],
   detach: [
     'const _szkShared = this._sharedWorkerSessions?.get(targetId);',
     'if (_szkShared) {',
@@ -127,8 +130,9 @@ const insertBlock = (src, lines, rev, anchor, before) => {
 export const injectSharedWorkerUa = src => {
   const anchors = [SW_ATTACH_ANCHOR, SW_DETACH_ANCHOR, SW_DISCONNECT_ANCHOR];
   if (anchors.some(anchor => !src.includes(anchor))) return src;
+  const sessionVar = src.includes('session2.detach()') ? 'session2' : 'session';
   let out = src;
-  out = insertBlock(out, swBody.attach, SW_REV, SW_ATTACH_ANCHOR, true);
+  out = insertBlock(out, swAttach(sessionVar), SW_REV, SW_ATTACH_ANCHOR, true);
   out = insertBlock(out, swBody.detach, SW_REV, SW_DETACH_ANCHOR, false);
   out = insertBlock(out, swBody.disconnect, SW_REV, SW_DISCONNECT_ANCHOR, false);
   return out;
